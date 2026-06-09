@@ -101,6 +101,24 @@ jobs:
           done
           echo "OK: Example app deps bumped"
 
+          # Studio app version — product/tool version, separate from STUDIO_PROTOCOL_VERSION.
+          node -e "
+            const fs = require('fs');
+            for (const file of ['studio/package.json', 'studio/package-lock.json']) {
+              const p = JSON.parse(fs.readFileSync(file, 'utf8'));
+              p.version = process.env.VERSION;
+              if (p.packages && p.packages['']) p.packages[''].version = process.env.VERSION;
+              fs.writeFileSync(file, JSON.stringify(p, null, 2) + '\n');
+            }
+            const versionFile = 'studio/src/version.ts';
+            const source = fs.readFileSync(versionFile, 'utf8');
+            fs.writeFileSync(
+              versionFile,
+              source.replace(/export const STUDIO_VERSION = '[^']+'/u, `export const STUDIO_VERSION = '${process.env.VERSION}'`)
+            );
+          "
+          echo "OK: Studio version bumped"
+
       - name: Commit version bump
         id: bump
         env:
@@ -643,13 +661,49 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Studio image
+      - name: Build and push Studio images
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          docker build -t anipprotocol/studio:"$VERSION" -t anipprotocol/studio:latest -f studio/Dockerfile.standalone .
+          docker build \
+            -t anipprotocol/studio-api:"$VERSION" \
+            -t anipprotocol/studio-api:latest \
+            -f studio/server/Dockerfile .
+          docker push anipprotocol/studio-api:"$VERSION"
+          docker push anipprotocol/studio-api:latest
+
+          docker build \
+            -t anipprotocol/studio-web:"$VERSION" \
+            -t anipprotocol/studio-web:latest \
+            -t anipprotocol/studio:"$VERSION" \
+            -t anipprotocol/studio:latest \
+            -f studio/Dockerfile.standalone .
+          docker push anipprotocol/studio-web:"$VERSION"
+          docker push anipprotocol/studio-web:latest
           docker push anipprotocol/studio:"$VERSION"
           docker push anipprotocol/studio:latest
+
+  publish-registry-docker:
+    needs: bump-and-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Registry image
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          docker build -t anipprotocol/registry:"$VERSION" -t anipprotocol/registry:latest -f registry/Dockerfile .
+          docker push anipprotocol/registry:"$VERSION"
+          docker push anipprotocol/registry:latest
 
   publish-showcase-docker:
     needs: bump-and-validate
@@ -682,8 +736,44 @@ jobs:
             echo "OK: showcase-$app pushed"
           done
 
+  publish-gtm-showcase-docker:
+    needs: bump-and-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push GTM showcase images
+        env:
+          ANIP_GTM_IMAGE_TAG: ${{ inputs.version }}
+          ANIP_GTM_PUSH: "1"
+        run: examples/showcase/gtm/scripts/build-language-parity-images.sh
+
+      - name: Tag and push GTM latest images
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          for image in \
+            anipprotocol/showcase-gtm-agent-ui \
+            anipprotocol/showcase-gtm-python \
+            anipprotocol/showcase-gtm-typescript \
+            anipprotocol/showcase-gtm-go \
+            anipprotocol/showcase-gtm-java \
+            anipprotocol/showcase-gtm-csharp; do
+            docker tag "$image:$VERSION" "$image:latest"
+            docker push "$image:latest"
+          done
+
   release:
-    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-showcase-docker]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-registry-docker, publish-showcase-docker, publish-gtm-showcase-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -693,6 +783,9 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
 
       - name: Create tag
         env:
@@ -724,6 +817,11 @@ jobs:
           CSHARP_TAG="packages/csharp/v$VERSION"
           git tag "$CSHARP_TAG"
           git push origin "$CSHARP_TAG"
+
+      - name: Build ANIP CLI release artifacts
+        env:
+          VERSION: ${{ inputs.version }}
+        run: packages/go/scripts/build-anip-cli.sh "$VERSION"
 
       - name: Create GitHub Release
         env:
@@ -795,10 +893,31 @@ jobs:
           go get github.com/anip-protocol/anip/packages/go@v$VERSION
           \`\`\`
 
+          ### ANIP CLI
+          \`\`\`bash
+          # macOS / Linux: download the matching .tar.gz archive from this release,
+          # or install with Homebrew:
+          brew tap anip-protocol/anip
+          brew install anip
+
+          # Windows: download the matching .zip archive from this release.
+          anip version
+          anip generate --help
+          anip validate --help
+          \`\`\`
+
           ### Docker
           \`\`\`bash
-          docker pull anipprotocol/studio:$VERSION
-          docker run -p 3000:8080 anipprotocol/studio:$VERSION
+          docker pull anipprotocol/registry:$VERSION
+          docker run -p 8200:8200 \\
+            -e ANIP_REGISTRY_DATABASE_URL=postgres://user:pass@host:5432/anip_registry?sslmode=disable \\
+            anipprotocol/registry:$VERSION
+
+          docker pull anipprotocol/studio-api:$VERSION
+          docker pull anipprotocol/studio-web:$VERSION
+
+          # Recommended: run Studio with Postgres through studio/docker-compose.yml.
+          STUDIO_SEED_SHOWCASES=1 STUDIO_READ_ONLY=1 docker compose -f studio/docker-compose.yml up
           \`\`\`
 
           ### Showcase Apps (Docker Hub)
@@ -811,6 +930,14 @@ jobs:
 
           # DevOps — infrastructure management
           docker run -p 9100:9100 anipprotocol/showcase-devops:$VERSION
+
+          # GTM Agent — generated ANIP services plus agent UI stack
+          docker pull anipprotocol/showcase-gtm-python:$VERSION
+          docker pull anipprotocol/showcase-gtm-typescript:$VERSION
+          docker pull anipprotocol/showcase-gtm-go:$VERSION
+          docker pull anipprotocol/showcase-gtm-java:$VERSION
+          docker pull anipprotocol/showcase-gtm-csharp:$VERSION
+          docker pull anipprotocol/showcase-gtm-agent-ui:$VERSION
           \`\`\`
 
           ---
@@ -821,4 +948,34 @@ jobs:
           gh release create "v$VERSION" \
             --title "ANIP v$VERSION" \
             --notes "$BODY" \
+            packages/go/dist/anip_${VERSION}_*.tar.gz \
+            packages/go/dist/anip_${VERSION}_*.zip \
+            packages/go/dist/anip_${VERSION}_checksums.txt \
+            packages/go/dist/homebrew/anip.rb \
             ${{ inputs.prerelease == true && '--prerelease' || '' }}
+
+      - name: Publish Homebrew tap formula
+        env:
+          VERSION: ${{ inputs.version }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "HOMEBREW_TAP_TOKEN is not configured; skipping anip-protocol/homebrew-anip update."
+            exit 0
+          fi
+
+          TAP_DIR="$(mktemp -d)"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/anip-protocol/homebrew-anip.git" "$TAP_DIR"
+          mkdir -p "$TAP_DIR/Formula"
+          cp packages/go/dist/homebrew/anip.rb "$TAP_DIR/Formula/anip.rb"
+          cd "$TAP_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/anip.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew formula already up to date for $VERSION"
+            exit 0
+          fi
+          git commit -m "Update anip formula to v$VERSION"
+          git push origin HEAD:main

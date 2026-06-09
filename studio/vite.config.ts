@@ -8,6 +8,7 @@ function normalizeBase(base: string): string {
 }
 
 const backendTarget = process.env.VITE_STUDIO_BACKEND_URL ?? 'http://127.0.0.1:8100'
+const registryTarget = process.env.VITE_REGISTRY_BACKEND_URL ?? 'http://127.0.0.1:8200'
 
 export default defineConfig({
   plugins: [vue()],
@@ -30,6 +31,10 @@ export default defineConfig({
       },
       '/studio-workbench': {
         target: backendTarget,
+        changeOrigin: true,
+      },
+      '/registry-api': {
+        target: registryTarget,
         changeOrigin: true,
       },
     },

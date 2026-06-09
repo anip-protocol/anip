@@ -1,0 +1,94 @@
+{
+  "serviceId": "anip-gtm-enrichment-showcase",
+  "serviceName": "GTM Enrichment Service",
+  "serviceSummary": "PM brief: Revenue operations needs a bounded enrichment service that can add firmographic context to selected accounts and return explainable lookalike accounts, without exposing unconstrained raw enrichment data or mixing in scoring and outreach behavior.",
+  "capabilities": [
+    {
+      "capabilityId": "gtm.account_enrichment_summary",
+      "title": "Return bounded firmographic context and fit signals for selected accounts.",
+      "summary": "Return bounded firmographic context and fit signals for selected accounts.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_account_enrichment_summary",
+      "minimumScope": [
+        "gtm.enrichment.read"
+      ],
+      "requiredInputs": [
+        {
+          "inputName": "account_names",
+          "inputType": "string",
+          "required": true,
+          "summary": "Comma-separated account names"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum accounts to summarize"
+        }
+      ],
+      "clarificationRules": [
+        "account scope is missing"
+      ],
+      "denialRules": [
+        "the request asks for raw unconstrained enrichment export"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "sector",
+        "region",
+        "revenue band",
+        "employee band",
+        "fit signal",
+        "intent signal"
+      ],
+      "notes": [
+        "return only bounded fields from the modeled enrichment view"
+      ]
+    },
+    {
+      "capabilityId": "gtm.lookalike_accounts",
+      "title": "Return bounded lookalike accounts using explainable similarity logic.",
+      "summary": "Return bounded lookalike accounts using explainable similarity logic.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_lookalike_accounts",
+      "minimumScope": [
+        "gtm.enrichment.read"
+      ],
+      "requiredInputs": [
+        {
+          "inputName": "reference_account",
+          "inputType": "string",
+          "required": true,
+          "summary": "Reference account name"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum lookalike accounts to return"
+        }
+      ],
+      "clarificationRules": [
+        "reference account is missing"
+      ],
+      "denialRules": [
+        "the request asks for unconstrained similarity export or scoring workflow"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "reference profile",
+        "shared segment signals",
+        "bounded lookalike list"
+      ],
+      "notes": [
+        "similarity must remain explainable from modeled account attributes"
+      ]
+    }
+  ]
+}

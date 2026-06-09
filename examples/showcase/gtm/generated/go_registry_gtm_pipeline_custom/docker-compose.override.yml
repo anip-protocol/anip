@@ -1,0 +1,125 @@
+services:
+  gtm-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: anip_gtm
+      POSTGRES_USER: anip
+      POSTGRES_PASSWORD: anip
+    volumes:
+      - gtm-postgres-data:/var/lib/postgresql/data
+      - ../../data:/seed:ro
+      - ../../data/init:/docker-entrypoint-initdb.d:ro
+
+  gtm-dbt:
+    build:
+      context: ../../dbt
+    depends_on:
+      - gtm-postgres
+    environment:
+      DBT_PROFILES_DIR: /app/profiles
+      PGHOST: gtm-postgres
+      PGPORT: 5432
+      PGUSER: anip
+      PGPASSWORD: anip
+      PGDATABASE: anip_gtm
+      PGSCHEMA: analytics_gtm
+    volumes:
+      - ../../dbt:/app
+    command: >
+      sh -c "dbt deps --project-dir /app &&
+             dbt build --project-dir /app --profiles-dir /app/profiles"
+
+  gtm-cube:
+    image: cubejs/cube:latest
+    depends_on:
+      - gtm-postgres
+    environment:
+      CUBEJS_DEV_MODE: "true"
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: gtm-postgres
+      CUBEJS_DB_PORT: 5432
+      CUBEJS_DB_NAME: anip_gtm
+      CUBEJS_DB_USER: anip
+      CUBEJS_DB_PASS: anip
+      CUBEJS_API_SECRET: anip-gtm-cube-dev-secret
+    expose:
+      - "4000"
+    volumes:
+      - ../../cube:/cube/conf
+
+  gtm-prioritization-backend:
+    build:
+      context: ../../../../..
+      dockerfile: examples/showcase/gtm/services/gtm_prioritization_backend/Dockerfile
+
+  gtm-outreach-mcp-backend:
+    build:
+      context: ../../../../..
+      dockerfile: examples/showcase/gtm/services/gtm_outreach_mcp_backend/Dockerfile
+
+  gtm-pipeline-service:
+    depends_on:
+      - gtm-dbt
+      - gtm-cube
+    environment:
+      DATABASE_URL: postgresql://anip:anip@gtm-postgres:5432/anip_gtm
+      CUBE_API_URL: http://gtm-cube:4000/cubejs-api/v1/load
+      CUBE_API_SECRET: anip-gtm-cube-dev-secret
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_APPROVAL_STORE_PATH: /app/.gtm-state/approvals.json
+    volumes:
+      - gtm-pipeline-keys:/app/.anip-keys
+      - gtm-pipeline-state:/app/.gtm-state
+
+  gtm-enrichment-service:
+    depends_on:
+      - gtm-dbt
+    environment:
+      DATABASE_URL: postgresql://anip:anip@gtm-postgres:5432/anip_gtm
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+    volumes:
+      - gtm-enrichment-keys:/app/.anip-keys
+
+  gtm-prioritization-service:
+    depends_on:
+      - gtm-prioritization-backend
+    environment:
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_APPROVAL_STORE_PATH: /app/.gtm-state/prioritization-approvals.json
+      GTM_PRIORITIZATION_BACKEND_URL: http://gtm-prioritization-backend:9400
+      GTM_PRIORITIZATION_BACKEND_TOKEN: demo-prioritization-backend-token
+    volumes:
+      - gtm-prioritization-keys:/app/.anip-keys
+      - gtm-prioritization-state:/app/.gtm-state
+
+  gtm-outreach-service:
+    depends_on:
+      - gtm-dbt
+      - gtm-outreach-mcp-backend
+      - gtm-prioritization-backend
+    environment:
+      DATABASE_URL: postgresql://anip:anip@gtm-postgres:5432/anip_gtm
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_OUTREACH_BACKEND_URL: http://gtm-outreach-mcp-backend:9500/mcp
+      GTM_OUTREACH_BACKEND_TOKEN: demo-outreach-backend-token
+      GTM_PRIORITIZATION_BACKEND_URL: http://gtm-prioritization-backend:9400
+      GTM_PRIORITIZATION_BACKEND_TOKEN: demo-prioritization-backend-token
+    volumes:
+      - gtm-outreach-keys:/app/.anip-keys
+
+volumes:
+  gtm-postgres-data:
+  gtm-pipeline-keys:
+  gtm-pipeline-state:
+  gtm-enrichment-keys:
+  gtm-prioritization-keys:
+  gtm-prioritization-state:
+  gtm-outreach-keys:

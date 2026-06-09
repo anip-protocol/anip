@@ -7,6 +7,10 @@ const headers = (bearer?: string): HeadersInit => {
 export async function fetchDiscovery(baseUrl: string) {
   const res = await fetch(`${baseUrl}/.well-known/anip`)
   if (!res.ok) throw new Error(`Discovery: ${res.status}`)
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error('Discovery: non-JSON response. This URL does not look like an ANIP service root.')
+  }
   return res.json()
 }
 
@@ -14,6 +18,10 @@ export async function fetchManifest(baseUrl: string) {
   const res = await fetch(`${baseUrl}/anip/manifest`)
   if (!res.ok) throw new Error(`Manifest: ${res.status}`)
   const signature = res.headers.get('X-ANIP-Signature') || ''
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error('Manifest: non-JSON response. This URL does not look like an ANIP service root.')
+  }
   const body = await res.json()
   return { manifest: body, signature }
 }
@@ -22,11 +30,13 @@ export async function issueToken(
   baseUrl: string,
   bearer: string,
   payload: Record<string, any>,
+  opts?: { signal?: AbortSignal },
 ): Promise<any> {
   const res = await fetch(`${baseUrl}/anip/tokens`, {
     method: 'POST',
     headers: headers(bearer),
     body: JSON.stringify(payload),
+    signal: opts?.signal,
   })
   const contentType = res.headers.get('content-type') || ''
   if (contentType.includes('application/json')) {
@@ -45,6 +55,7 @@ export async function issueCapabilityToken(
     purpose_parameters?: Record<string, any>
     ttl_hours?: number
     budget?: Record<string, any>
+    signal?: AbortSignal
   },
 ): Promise<any> {
   const payload: Record<string, any> = {
@@ -59,7 +70,7 @@ export async function issueCapabilityToken(
   if (opts?.budget !== undefined) {
     payload.budget = opts.budget
   }
-  return issueToken(baseUrl, bearer, payload)
+  return issueToken(baseUrl, bearer, payload, { signal: opts?.signal })
 }
 
 export async function fetchJwks(baseUrl: string) {
@@ -101,7 +112,7 @@ export async function invokeCapability(
   bearer: string,
   capability: string,
   inputs: Record<string, any>,
-  opts?: { task_id?: string; parent_invocation_id?: string },
+  opts?: { task_id?: string; parent_invocation_id?: string; signal?: AbortSignal },
 ): Promise<any> {
   const body: Record<string, any> = { parameters: inputs }
   if (opts?.task_id) body.task_id = opts.task_id
@@ -110,6 +121,7 @@ export async function invokeCapability(
     method: 'POST',
     headers: headers(bearer),
     body: JSON.stringify(body),
+    signal: opts?.signal,
   })
   // ANIP returns invocation failures as non-2xx JSON bodies.
   // Parse the body regardless of status — InvokeResult needs the full

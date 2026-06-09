@@ -76,6 +76,7 @@ const config: Config = {
         {to: '/docs/releases/version-history', label: 'Versions', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
         {href: 'https://playground.anip.dev', label: 'Playground', position: 'right'},
+        {href: 'https://registry.anip.dev/registry/packages', label: 'Registry', position: 'right'},
         {href: 'https://studio.anip.dev', label: 'Studio', position: 'right'},
         {
           href: 'https://github.com/anip-protocol/anip',
@@ -91,12 +92,16 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Why ANIP',
+              label: 'Introduction',
               to: '/docs/intro',
             },
             {
-              label: 'Install',
-              to: '/docs/getting-started/install',
+              label: 'Why ANIP',
+              to: '/docs/why-anip',
+            },
+            {
+              label: 'First 10 Minutes',
+              to: '/docs/getting-started/first-10-minutes',
             },
             {
               label: 'Feature Map',
@@ -116,8 +121,33 @@ const config: Config = {
               to: '/docs/protocol/delegation-permissions',
             },
             {
-              label: 'Audit and Trust',
-              to: '/docs/protocol/checkpoints-trust',
+              label: 'Failures, Cost, Audit',
+              to: '/docs/protocol/failures-cost-audit',
+            },
+            {
+              label: 'Lineage',
+              to: '/docs/protocol/lineage',
+            },
+          ],
+        },
+        {
+          title: 'Tooling',
+          items: [
+            {
+              label: 'CLI',
+              to: '/docs/tooling/cli',
+            },
+            {
+              label: 'Registry',
+              to: '/docs/tooling/registry',
+            },
+            {
+              label: 'Studio',
+              to: '/docs/studio/overview',
+            },
+            {
+              label: 'Install',
+              to: '/docs/getting-started/install',
             },
           ],
         },
@@ -125,16 +155,24 @@ const config: Config = {
           title: 'Ecosystem',
           items: [
             {
-              label: 'Studio',
-              to: '/docs/tooling/studio',
+              label: 'Architecture',
+              to: '/docs/concepts/architecture',
+            },
+            {
+              label: 'ANIP vs MCP',
+              to: '/docs/concepts/anip-vs-mcp',
             },
             {
               label: 'Showcases',
-              to: '/docs/tooling/showcases',
+              to: '/docs/showcases/overview',
             },
             {
-              label: 'Distribution',
+              label: 'What Ships Today',
               to: '/docs/releases/what-ships-today',
+            },
+            {
+              label: 'Public Registry',
+              href: 'https://registry.anip.dev/registry/packages',
             },
           ],
         },

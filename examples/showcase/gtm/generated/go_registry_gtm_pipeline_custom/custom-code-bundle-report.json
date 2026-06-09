@@ -1,0 +1,177 @@
+{
+  "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python",
+  "bundle_sha256": "sha256:19ae701eeebf063e4f30a9d826de1e52126f6c3f489ddde1812c820eaab45836",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:3ca1056a461a039dffbb7bf735c40d891dbc59426148c418497b40b0e86ab9e7",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 736,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "docker-compose.override.yml",
+      "sha256": "sha256:354a34e2b30a826d0fdd063ffaa4c71bf5ed5be918a929d10870b89f5e6d8e1f",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 3719,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "sha256:e26cc13d885bb735e713b76608a19ce70fbcaba55e92e59ad9ac94d7f5cf399f",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 752,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/app.py",
+      "sha256": "sha256:8b600a02c2824adf37cd75e3f4e95b4d8a06be03988ec9077fcc3c0a31276892",
+      "seam": "application_entrypoint",
+      "mode": "extension_material",
+      "bytes": 29081,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/backend_extensions.py",
+      "sha256": "sha256:19fdbfade0913154a98b12fa011f17a16de8c752abb9d3034c84f164744a3d41",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 799,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/data.py",
+      "sha256": "sha256:f8f3e844e8e5a3a4e157e2a3b4b3fbdc1b4e32aa6563d63dd9fc7cfe816f55db",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 26748,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/data_access_backend_adapter.py",
+      "sha256": "sha256:934df04aa63b66291f8169f72ee9741fe062429190feec16e091358f8df45cde",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 13068,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/enrichment_backend_adapter.py",
+      "sha256": "sha256:6b97386fd4cd563e3a4d1db29f1d047b613f9114e59710d9d23b0b614f50546b",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 6598,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/enrichment_data.py",
+      "sha256": "sha256:87721000493283a42a7cb860119a5333877ce84de3c9f1d71c83b7aa6c2d0d8a",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 4710,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/outreach_backend_adapter.py",
+      "sha256": "sha256:7c3a258f58efcd99ebcd7cf95b41a8f071a1bb811429f3fa435bf441c7725cdd",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 5118,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/prioritization_backend_adapter.py",
+      "sha256": "sha256:794c04b2c1f88e9b15dea46ca1a8dc67036089cd42fc1af8100d3ecac2a56ab7",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2044,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/service_extensions.py",
+      "sha256": "sha256:a2752c1147e23ff115d186efcb2c74884b54628c337bdcef59e5e2bd252a242b",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2547,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/services/gtm_enrichment_service/app.py",
+      "sha256": "sha256:6a09dfca0735b5559a6e85bb92808c3108b1a079a68c904bba83ddc102a35bdd",
+      "seam": "application_entrypoint",
+      "mode": "extension_material",
+      "bytes": 7329,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/services/gtm_outreach_service/app.py",
+      "sha256": "sha256:c3a50aa2c8baddc41e722705f72ce18fbe82d210d5144a8dcff3330936cc38a0",
+      "seam": "application_entrypoint",
+      "mode": "extension_material",
+      "bytes": 20031,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm_pipeline_q2_review/services/gtm_prioritization_service/app.py",
+      "sha256": "sha256:771a482464260e9a586ef87b3dbff0c801d83b319189535856e3fc1d06d3b89d",
+      "seam": "application_entrypoint",
+      "mode": "extension_material",
+      "bytes": 12798,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/shared/__init__.py",
+      "sha256": "sha256:07a2393eeea287bdf09235f797da8caba9bca7c249c7c314356a7c04cfa6b942",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 44,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/shared/actor_identity.py",
+      "sha256": "sha256:0c846b26e58a18ba983c82993fb63a3ae9aeac7c98191bc320f2c5ee80bd6f3c",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 7317,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/shared/approval_store.py",
+      "sha256": "sha256:e81cf53e9984347720d70e38e3fe31635e7f9d3c3f33337aff668539104b3061",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2868,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "tests/test_service_smoke.py",
+      "sha256": "sha256:5f68c8e68cad9d9fbff4daf3f64d44946429177e361da6302f34958e4e5067d4",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 8119,
+      "overlaid": true,
+      "substrate": false
+    }
+  ]
+}

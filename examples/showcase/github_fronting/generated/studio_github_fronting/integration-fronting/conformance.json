@@ -1,0 +1,66 @@
+{
+  "checks": [
+    {
+      "capability_id": "github.repo.search_context",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "github.repo.search_context.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.repo.search_context",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "github.repo.search_context.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.issue.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "github.issue.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.issue.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "github.issue.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.pr.comment.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "github.pr.comment.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.pr.comment.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "github.pr.comment.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.workflow.dispatch.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "github.workflow.dispatch.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.workflow.dispatch.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "github.workflow.dispatch.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.release_notes.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "github.release_notes.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "github.release_notes.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "github.release_notes.prepare.raw_backend_bound",
+      "status": "pass"
+    }
+  ],
+  "schema_version": "anip-integration-fronting-conformance/v0",
+  "status": "passed"
+}

@@ -1,0 +1,61 @@
+{
+  "lock_kind": "publisher_recommended_lock",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "finance-operations-showcase",
+  "blueprint_version": "0.1.0",
+  "package_id": "finance-operations-showcase",
+  "package_version": "0.1.0",
+  "service_definition_digest": "sha256:cf0f2331179c00a4dfa0ae85790034b659ab19f20bc3358f35b6b102a61f9448",
+  "schema_version": "anip-service-definition/v1",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "verifier_packs": [
+    "anip-verifier@local"
+  ],
+  "runtime_packages": [],
+  "extension_packs": [],
+  "regression_packs": [],
+  "selected_service_ids": [
+    "finance-ops-service"
+  ],
+  "capability_ids": [
+    "finance.query_portfolio",
+    "finance.get_market_data",
+    "finance.execute_trade",
+    "finance.transfer_funds",
+    "finance.generate_report"
+  ],
+  "contract_signature": "sha256:cf0f2331179c00a4dfa0ae85790034b659ab19f20bc3358f35b6b102a61f9448",
+  "lineage": {
+    "project_ref": "studio-source:finance",
+    "product_revision": {
+      "ref": "finance:source-spec:v1",
+      "artifact_id": "finance-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "finance:developer-definition:v1",
+      "artifact_id": "finance-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:cf0f2331179c00a4dfa0ae85790034b659ab19f20bc3358f35b6b102a61f9448"
+    }
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 0,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capability_count": 5
+  },
+  "generated_at": "2026-05-08T00:00:00Z"
+}

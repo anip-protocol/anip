@@ -1,0 +1,46 @@
+{
+  "description": "Deployment-time backend selection template. Edit only when a governed capability has multiple backend realizations.",
+  "schema_version": "anip-integration-fronting-selection/v0",
+  "selection": {
+    "slack.announcement.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "slack_web_api",
+      "available": [
+        "native_api:slack_web_api:slack.web.request_channel_announcement",
+        "mcp:slack_mcp:slack.mcp.request_channel_announcement"
+      ]
+    },
+    "slack.channel.read_context": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "slack_web_api",
+      "available": [
+        "native_api:slack_web_api:slack.web.read_channel_context",
+        "mcp:slack_mcp:slack.mcp.read_channel_context"
+      ]
+    },
+    "slack.incident_update.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "slack_web_api",
+      "available": [
+        "native_api:slack_web_api:slack.web.prepare_incident_update",
+        "mcp:slack_mcp:slack.mcp.prepare_incident_update"
+      ]
+    },
+    "slack.message.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "slack_web_api",
+      "available": [
+        "native_api:slack_web_api:slack.web.prepare_channel_message",
+        "mcp:slack_mcp:slack.mcp.prepare_channel_message"
+      ]
+    },
+    "slack.thread.summarize": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "slack_web_api",
+      "available": [
+        "native_api:slack_web_api:slack.web.summarize_thread",
+        "mcp:slack_mcp:slack.mcp.summarize_thread"
+      ]
+    }
+  }
+}

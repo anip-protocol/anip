@@ -1,0 +1,7 @@
+{
+  "artifact_type": "agent_runtime_customization_overrides",
+  "capability_selection": {},
+  "description": "Editable app-owned overrides. Keep package or domain-specific language interpretation here, not in shared ANIP runtime utilities.",
+  "normalization": {},
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

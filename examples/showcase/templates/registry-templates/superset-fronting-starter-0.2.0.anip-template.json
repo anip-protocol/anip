@@ -1,0 +1,3412 @@
+{
+  "template_id": "superset-fronting-starter",
+  "template_version": "0.2.0",
+  "manifest": {
+    "schema": "anip-starter-template-manifest/v0",
+    "template_id": "superset-fronting-starter",
+    "template_title": "Superset Fronting Starter",
+    "template_kind": "fronting_starter",
+    "package_version": "0.2.0",
+    "anip_spec_version": "anip/0.24",
+    "studio_version": "0.8.0",
+    "template_digest": "sha256:c00843f00dda70544ab45392a14b0c118226cf01ac12cc3d8b7ef6fc5b05cc37",
+    "counts": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 14,
+      "capability_mappings": 6
+    },
+    "industry": "analytics",
+    "systems": [
+      "superset"
+    ]
+  },
+  "template": {
+    "schema": "anip-starter-template/v0",
+    "anipSpecVersion": "anip/0.24",
+    "id": "superset-fronting-starter",
+    "kind": "fronting_starter",
+    "projectType": "governed_service_project",
+    "title": "Superset Fronting Starter",
+    "summary": "Template-suggested Superset API/MCP fronting structure with reviewed capability candidates.",
+    "description": "Starts a governed Superset fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+    "domain": "superset",
+    "recommendedBrief": "Create a governed ANIP fronting layer for Superset. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+    "documents": [
+      {
+        "idSuffix": "template-fronting-intent",
+        "title": "Superset governed fronting intent",
+        "kind": "business_intent",
+        "filename": "superset-fronting-intent.md",
+        "content": "# Superset Governed Fronting Intent\n\n> Imported from starter template `superset-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Superset capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- superset.analytics.discover_context: Discover allowed Superset datasets, charts, dashboards, metrics, and dimensions without exposing raw analytics tools.\n- superset.analytics.answer_question: Answer an analytics question against allowed datasets and metrics using bounded chart-data or provider-owned semantic execution.\n- superset.chart.preview.create: Create a Superset chart preview from governed metric, dimension, and visualization intent without saving it by default.\n- superset.chart.publish.request: Request saving or updating a Superset chart from a reviewed preview.\n- superset.dashboard.draft.prepare: Prepare a Superset dashboard draft or update proposal without publishing it.\n- superset.dataset.draft.prepare: Prepare a virtual dataset or semantic dataset draft under governed data-scope constraints.\n\n## Governance posture\n- Raw Superset tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+      },
+      {
+        "idSuffix": "template-integration-evidence",
+        "title": "Superset integration evidence",
+        "kind": "api_docs",
+        "filename": "superset-integration-evidence.template.md",
+        "content": "# Superset Integration Evidence Template\n\n> Imported from starter template `superset-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: SUPERSET_API_URL\nMCP connection: SUPERSET_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- superset.api.list_datasets: GET /superset/analytics/context\n- superset.api.list_charts: GET /superset/analytics/context\n- superset.api.list_dashboards: GET /superset/analytics/context\n- superset.api.get_dataset_info: GET /superset/analytics/context\n- superset.api.chart_data: GET /superset/analytics/answer\n- superset.api.get_dataset_info: GET /superset/analytics/answer\n- superset.api.chart_preview: POST /superset/charts/preview\n- superset.api.chart_data: POST /superset/charts/preview\n- superset.api.create_chart: POST /superset/charts/publish-request\n- superset.api.update_chart: POST /superset/charts/publish-request\n- superset.api.create_dashboard: POST /superset/dashboards/draft\n- superset.api.update_dashboard: POST /superset/dashboards/draft\n- superset.api.get_database_info: POST /superset/datasets/draft\n- superset.api.get_dataset_info: POST /superset/datasets/draft\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+      },
+      {
+        "idSuffix": "template-developer-evidence",
+        "title": "Superset developer evidence",
+        "kind": "api_docs",
+        "filename": "superset-developer-evidence.template.md",
+        "content": "# Superset Developer Evidence\n\nImported from starter template `superset-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| superset.analytics.discover_context | superset-fronting | read | read | 5 | superset.api.list_datasets; superset.api.list_charts; superset.api.list_dashboards; superset.api.get_dataset_info |\n| superset.analytics.answer_question | superset-fronting | read | read | 8 | superset.api.chart_data; superset.api.get_dataset_info |\n| superset.chart.preview.create | superset-fronting | write | write_adjacent | 8 | superset.api.chart_preview; superset.api.chart_data |\n| superset.chart.publish.request | superset-governance | write | write_adjacent | 5 | superset.api.create_chart; superset.api.update_chart |\n| superset.dashboard.draft.prepare | superset-fronting | write | write_adjacent | 6 | superset.api.create_dashboard; superset.api.update_dashboard |\n| superset.dataset.draft.prepare | superset-fronting | write | write_adjacent | 6 | superset.api.get_database_info; superset.api.get_dataset_info |\n\n## Reviewed Developer Evidence\n\nThe starter also carries first-class `integration_fronting_capability_mapping` records. Use this document as readable developer evidence, not as the only machine-readable source.\n\n### Runtime governance\n\n| capability_id | execution_posture | intent_type | produces | does_not_produce |\n| --- | --- | --- | --- | --- |\n| superset.analytics.discover_context | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| superset.analytics.answer_question | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| superset.chart.preview.create | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.chart.publish.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.dashboard.draft.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.dataset.draft.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n\n### Input contracts\n\n| capability_id | input | type | required | semantic_type | entity_reference |\n| --- | --- | --- | --- | --- | --- |\n| superset.analytics.discover_context | workspace_scope | string | yes | workspace_scope | no |\n| superset.analytics.discover_context | query | string | yes | search_query | no |\n| superset.analytics.discover_context | asset_type | string | no |  | no |\n| superset.analytics.discover_context | limit | integer | no |  | no |\n| superset.analytics.discover_context | backend_options | object | no |  | no |\n| superset.analytics.answer_question | question | string | yes | analytics_question | no |\n| superset.analytics.answer_question | dataset_ref | string | yes | dataset_ref | no |\n| superset.analytics.answer_question | metric | string | no |  | no |\n| superset.analytics.answer_question | dimension | string | no |  | no |\n| superset.analytics.answer_question | time_window | string | no |  | no |\n| superset.analytics.answer_question | filters | object | no |  | no |\n| superset.analytics.answer_question | limit | integer | no |  | no |\n| superset.analytics.answer_question | backend_options | object | no |  | no |\n| superset.chart.preview.create | dataset_ref | string | yes | dataset_ref | no |\n| superset.chart.preview.create | metric | string | yes | metric_ref | no |\n| superset.chart.preview.create | visualization_type | string | yes |  | no |\n| superset.chart.preview.create | dimension | string | no |  | no |\n| superset.chart.preview.create | time_window | string | no |  | no |\n| superset.chart.preview.create | filters | object | no |  | no |\n| superset.chart.preview.create | title | string | no |  | no |\n| superset.chart.preview.create | backend_options | object | no |  | no |\n| superset.chart.publish.request | chart_preview_ref | string | yes | chart_preview_ref | no |\n| superset.chart.publish.request | dashboard_scope | string | yes | dashboard_scope | no |\n| superset.chart.publish.request | reason | string | yes |  | no |\n| superset.chart.publish.request | title | string | no |  | no |\n| superset.chart.publish.request | backend_options | object | no |  | no |\n| superset.dashboard.draft.prepare | dashboard_scope | string | yes | dashboard_scope | no |\n| superset.dashboard.draft.prepare | objective | string | yes | business_objective | no |\n| superset.dashboard.draft.prepare | chart_refs | array<string> | yes | chart_ref | no |\n| superset.dashboard.draft.prepare | layout_hint | string | no |  | no |\n| superset.dashboard.draft.prepare | audience | string | no |  | no |\n| superset.dashboard.draft.prepare | backend_options | object | no |  | no |\n| superset.dataset.draft.prepare | database_ref | string | yes | database_ref | no |\n| superset.dataset.draft.prepare | dataset_purpose | string | yes | dataset_purpose | no |\n| superset.dataset.draft.prepare | query_intent | string | yes | query_intent | no |\n| superset.dataset.draft.prepare | source_tables | array<string> | no |  | no |\n| superset.dataset.draft.prepare | metrics | array<string> | no |  | no |\n| superset.dataset.draft.prepare | backend_options | object | no |  | no |"
+      }
+    ],
+    "connections": [
+      {
+        "idSuffix": "superset-api",
+        "display_name": "Superset API",
+        "backend_kind": "native_api",
+        "system_kind": "superset",
+        "endpoint_ref": "SUPERSET_API_URL",
+        "auth_mode": "service_delegated",
+        "identity_provider_ref": "workspace-identity",
+        "secret_ref": "SUPERSET_API_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter"
+        }
+      },
+      {
+        "idSuffix": "superset-mcp",
+        "display_name": "Superset MCP",
+        "backend_kind": "mcp",
+        "system_kind": "superset",
+        "endpoint_ref": "SUPERSET_MCP_ENDPOINT",
+        "auth_mode": "external",
+        "identity_provider_ref": "superset-oauth",
+        "secret_ref": "SUPERSET_MCP_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter"
+        }
+      }
+    ],
+    "discoveryRecords": [
+      {
+        "idSuffix": "superset-analytics-discover-context-superset-api-list-datasets",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.list_datasets",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.discover_context"
+        }
+      },
+      {
+        "idSuffix": "superset-analytics-discover-context-superset-api-list-charts",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.list_charts",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.discover_context"
+        }
+      },
+      {
+        "idSuffix": "superset-analytics-discover-context-superset-api-list-dashboards",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.list_dashboards",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.discover_context"
+        }
+      },
+      {
+        "idSuffix": "superset-analytics-discover-context-superset-api-get-dataset-info",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.get_dataset_info",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.discover_context"
+        }
+      },
+      {
+        "idSuffix": "superset-analytics-answer-question-superset-api-chart-data",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.chart_data",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/answer",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "question",
+            "dataset_ref"
+          ],
+          "optional": [
+            "metric",
+            "dimension",
+            "time_window",
+            "filters",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.answer_question"
+        }
+      },
+      {
+        "idSuffix": "superset-analytics-answer-question-superset-api-get-dataset-info",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.get_dataset_info",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/superset/analytics/answer",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "question",
+            "dataset_ref"
+          ],
+          "optional": [
+            "metric",
+            "dimension",
+            "time_window",
+            "filters",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.analytics.answer_question"
+        }
+      },
+      {
+        "idSuffix": "superset-chart-preview-create-superset-api-chart-preview",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.chart_preview",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/charts/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "dataset_ref",
+            "metric",
+            "visualization_type"
+          ],
+          "optional": [
+            "dimension",
+            "time_window",
+            "filters",
+            "title",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.chart.preview.create"
+        }
+      },
+      {
+        "idSuffix": "superset-chart-preview-create-superset-api-chart-data",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.chart_data",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/charts/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "dataset_ref",
+            "metric",
+            "visualization_type"
+          ],
+          "optional": [
+            "dimension",
+            "time_window",
+            "filters",
+            "title",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.chart.preview.create"
+        }
+      },
+      {
+        "idSuffix": "superset-chart-publish-request-superset-api-create-chart",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.create_chart",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/charts/publish-request",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "chart_preview_ref",
+            "dashboard_scope",
+            "reason"
+          ],
+          "optional": [
+            "title",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.chart.publish.request"
+        }
+      },
+      {
+        "idSuffix": "superset-chart-publish-request-superset-api-update-chart",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.update_chart",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/charts/publish-request",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "chart_preview_ref",
+            "dashboard_scope",
+            "reason"
+          ],
+          "optional": [
+            "title",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.chart.publish.request"
+        }
+      },
+      {
+        "idSuffix": "superset-dashboard-draft-prepare-superset-api-create-dashboard",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.create_dashboard",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/dashboards/draft",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "dashboard_scope",
+            "objective",
+            "chart_refs"
+          ],
+          "optional": [
+            "layout_hint",
+            "audience",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.dashboard.draft.prepare"
+        }
+      },
+      {
+        "idSuffix": "superset-dashboard-draft-prepare-superset-api-update-dashboard",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.update_dashboard",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/dashboards/draft",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "dashboard_scope",
+            "objective",
+            "chart_refs"
+          ],
+          "optional": [
+            "layout_hint",
+            "audience",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.dashboard.draft.prepare"
+        }
+      },
+      {
+        "idSuffix": "superset-dataset-draft-prepare-superset-api-get-database-info",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.get_database_info",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/datasets/draft",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "database_ref",
+            "dataset_purpose",
+            "query_intent"
+          ],
+          "optional": [
+            "source_tables",
+            "metrics",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.dataset.draft.prepare"
+        }
+      },
+      {
+        "idSuffix": "superset-dataset-draft-prepare-superset-api-get-dataset-info",
+        "connectionIdSuffix": "superset-api",
+        "operation_id": "superset.api.get_dataset_info",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/superset/datasets/draft",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "database_ref",
+            "dataset_purpose",
+            "query_intent"
+          ],
+          "optional": [
+            "source_tables",
+            "metrics",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "superset-fronting-starter",
+          "capability_id": "superset.dataset.draft.prepare"
+        }
+      }
+    ],
+    "capabilityMappings": [
+      {
+        "idSuffix": "mapping-superset-analytics-discover-context",
+        "title": "Discover Analytics Context",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Discover Analytics Context",
+          "capability_id": "superset.analytics.discover_context",
+          "intent": "Discover allowed Superset datasets, charts, dashboards, metrics, and dimensions without exposing raw analytics tools.",
+          "service_id": "superset-fronting",
+          "service_name": "Superset Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.list_datasets",
+            "superset.api.list_charts",
+            "superset.api.list_dashboards",
+            "superset.api.get_dataset_info"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.list_datasets",
+                "superset.api.list_charts",
+                "superset.api.list_dashboards",
+                "superset.api.get_dataset_info"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "asset_type",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "asset_type",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-analytics-discover-context-superset-api-list-datasets",
+                "superset-analytics-discover-context-superset-api-list-charts",
+                "superset-analytics-discover-context-superset-api-list-dashboards",
+                "superset-analytics-discover-context-superset-api-get-dataset-info"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "asset_type",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "asset_type",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "read_only",
+          "side_effect_level": "read",
+          "subject_kind": "analytics_catalog",
+          "context_type": "analytics_discovery",
+          "output_intent": "bounded_analytics_catalog",
+          "required_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional_inputs": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "workspace_scope",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed analytics workspace, database, or tenant scope.",
+              "allowed_values": [],
+              "semantic_type": "workspace_scope",
+              "clarification_hint": "Ask which analytics workspace or governed scope should be searched."
+            },
+            {
+              "input_name": "query",
+              "input_type": "string",
+              "required": true,
+              "summary": "Search intent for datasets, dashboards, charts, metrics, or dimensions.",
+              "allowed_values": [],
+              "semantic_type": "search_query",
+              "clarification_hint": "Ask what analytics asset or metric context the user needs."
+            },
+            {
+              "input_name": "asset_type",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional asset type filter.",
+              "allowed_values": [
+                "dataset",
+                "chart",
+                "dashboard",
+                "metric",
+                "dimension"
+              ]
+            },
+            {
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum catalog results to return.",
+              "default_value": "20",
+              "allowed_values": []
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded provider-specific discovery options such as selected fields or pagination.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "derived_optional_backend_inputs": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "asset_type",
+            "limit",
+            "backend_options"
+          ],
+          "approval_rule_refs": [],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.workspace_scope",
+            "clarify.query"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-superset-analytics-answer-question",
+        "title": "Answer Governed Analytics Question",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Answer Governed Analytics Question",
+          "capability_id": "superset.analytics.answer_question",
+          "intent": "Answer an analytics question against allowed datasets and metrics using bounded chart-data or provider-owned semantic execution.",
+          "service_id": "superset-fronting",
+          "service_name": "Superset Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.chart_data",
+            "superset.api.get_dataset_info"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.chart_data",
+                "superset.api.get_dataset_info"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "question",
+                "dataset_ref"
+              ],
+              "derived_optional_backend_inputs": [
+                "metric",
+                "dimension",
+                "time_window",
+                "filters",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "question",
+                "dataset_ref"
+              ],
+              "explicit_optional_backend_inputs": [
+                "metric",
+                "dimension",
+                "time_window",
+                "filters",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-analytics-answer-question-superset-api-chart-data",
+                "superset-analytics-answer-question-superset-api-get-dataset-info"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "question",
+                "dataset_ref"
+              ],
+              "derived_optional_backend_inputs": [
+                "metric",
+                "dimension",
+                "time_window",
+                "filters",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "question",
+                "dataset_ref"
+              ],
+              "explicit_optional_backend_inputs": [
+                "metric",
+                "dimension",
+                "time_window",
+                "filters",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "read_only",
+          "side_effect_level": "read",
+          "subject_kind": "analytics_question",
+          "context_type": "governed_analytics_query",
+          "output_intent": "bounded_analytics_answer",
+          "required_inputs": [
+            "question",
+            "dataset_ref"
+          ],
+          "optional_inputs": [
+            "metric",
+            "dimension",
+            "time_window",
+            "filters",
+            "limit",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "question",
+              "input_type": "string",
+              "required": true,
+              "summary": "Natural-language analytics question to answer.",
+              "allowed_values": [],
+              "semantic_type": "analytics_question",
+              "clarification_hint": "Ask for the analytics question when the request is not concrete."
+            },
+            {
+              "input_name": "dataset_ref",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed dataset reference to query.",
+              "allowed_values": [],
+              "semantic_type": "dataset_ref",
+              "clarification_hint": "Ask which approved dataset should be used."
+            },
+            {
+              "input_name": "metric",
+              "input_type": "string",
+              "required": false,
+              "summary": "Approved metric to use.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "dimension",
+              "input_type": "string",
+              "required": false,
+              "summary": "Approved grouping dimension.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "time_window",
+              "input_type": "string",
+              "required": false,
+              "summary": "Bounded time window for the answer.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "filters",
+              "input_type": "object",
+              "required": false,
+              "summary": "Governed filters within allowed dataset scope.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum rows or groups to consider.",
+              "default_value": "100",
+              "allowed_values": []
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded provider-specific query options. Raw SQL is not accepted here.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "question",
+            "dataset_ref"
+          ],
+          "derived_optional_backend_inputs": [
+            "metric",
+            "dimension",
+            "time_window",
+            "filters",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "question",
+            "dataset_ref"
+          ],
+          "explicit_optional_backend_inputs": [
+            "metric",
+            "dimension",
+            "time_window",
+            "filters",
+            "limit",
+            "backend_options"
+          ],
+          "approval_rule_refs": [],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.question",
+            "clarify.dataset_ref"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-superset-chart-preview-create",
+        "title": "Create Chart Preview",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Create Chart Preview",
+          "capability_id": "superset.chart.preview.create",
+          "intent": "Create a Superset chart preview from governed metric, dimension, and visualization intent without saving it by default.",
+          "service_id": "superset-fronting",
+          "service_name": "Superset Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.chart_preview",
+            "superset.api.chart_data"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.chart_preview",
+                "superset.api.chart_data"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "dataset_ref",
+                "metric",
+                "visualization_type"
+              ],
+              "derived_optional_backend_inputs": [
+                "dimension",
+                "time_window",
+                "filters",
+                "title",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "dataset_ref",
+                "metric",
+                "visualization_type"
+              ],
+              "explicit_optional_backend_inputs": [
+                "dimension",
+                "time_window",
+                "filters",
+                "title",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-chart-preview-create-superset-api-chart-preview",
+                "superset-chart-preview-create-superset-api-chart-data"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "dataset_ref",
+                "metric",
+                "visualization_type"
+              ],
+              "derived_optional_backend_inputs": [
+                "dimension",
+                "time_window",
+                "filters",
+                "title",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "dataset_ref",
+                "metric",
+                "visualization_type"
+              ],
+              "explicit_optional_backend_inputs": [
+                "dimension",
+                "time_window",
+                "filters",
+                "title",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "superset_chart",
+          "context_type": "chart_preview",
+          "output_intent": "chart_preview",
+          "required_inputs": [
+            "dataset_ref",
+            "metric",
+            "visualization_type"
+          ],
+          "optional_inputs": [
+            "dimension",
+            "time_window",
+            "filters",
+            "title",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "dataset_ref",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed dataset reference for the chart.",
+              "allowed_values": [],
+              "semantic_type": "dataset_ref",
+              "clarification_hint": "Ask which approved dataset should be charted."
+            },
+            {
+              "input_name": "metric",
+              "input_type": "string",
+              "required": true,
+              "summary": "Approved metric to visualize.",
+              "allowed_values": [],
+              "semantic_type": "metric_ref",
+              "clarification_hint": "Ask which approved metric should be visualized."
+            },
+            {
+              "input_name": "visualization_type",
+              "input_type": "string",
+              "required": true,
+              "summary": "Requested chart type.",
+              "allowed_values": [
+                "bar",
+                "line",
+                "table",
+                "big_number",
+                "pie",
+                "area"
+              ],
+              "clarification_hint": "Ask which chart type should be previewed."
+            },
+            {
+              "input_name": "dimension",
+              "input_type": "string",
+              "required": false,
+              "summary": "Approved grouping dimension.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "time_window",
+              "input_type": "string",
+              "required": false,
+              "summary": "Bounded time window for the chart.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "filters",
+              "input_type": "object",
+              "required": false,
+              "summary": "Governed chart filters.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "title",
+              "input_type": "string",
+              "required": false,
+              "summary": "Draft chart title.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded preview rendering options such as output format.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "dataset_ref",
+            "metric",
+            "visualization_type"
+          ],
+          "derived_optional_backend_inputs": [
+            "dimension",
+            "time_window",
+            "filters",
+            "title",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "dataset_ref",
+            "metric",
+            "visualization_type"
+          ],
+          "explicit_optional_backend_inputs": [
+            "dimension",
+            "time_window",
+            "filters",
+            "title",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.dataset_ref",
+            "clarify.metric",
+            "clarify.visualization_type"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-superset-chart-publish-request",
+        "title": "Request Chart Publish",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Request Chart Publish",
+          "capability_id": "superset.chart.publish.request",
+          "intent": "Request saving or updating a Superset chart from a reviewed preview.",
+          "service_id": "superset-governance",
+          "service_name": "Superset Governance",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.create_chart",
+            "superset.api.update_chart"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.create_chart",
+                "superset.api.update_chart"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "chart_preview_ref",
+                "dashboard_scope",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "title",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "chart_preview_ref",
+                "dashboard_scope",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "title",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-chart-publish-request-superset-api-create-chart",
+                "superset-chart-publish-request-superset-api-update-chart"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "chart_preview_ref",
+                "dashboard_scope",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "title",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "chart_preview_ref",
+                "dashboard_scope",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "title",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "superset_chart",
+          "context_type": "chart_publish_request",
+          "output_intent": "chart_publish_preview",
+          "required_inputs": [
+            "chart_preview_ref",
+            "dashboard_scope",
+            "reason"
+          ],
+          "optional_inputs": [
+            "title",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "chart_preview_ref",
+              "input_type": "string",
+              "required": true,
+              "summary": "Reviewed chart preview reference.",
+              "allowed_values": [],
+              "semantic_type": "chart_preview_ref",
+              "clarification_hint": "Ask which reviewed chart preview should be saved."
+            },
+            {
+              "input_name": "dashboard_scope",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed dashboard or workspace scope for the saved chart.",
+              "allowed_values": [],
+              "semantic_type": "dashboard_scope",
+              "clarification_hint": "Ask where the chart should be published."
+            },
+            {
+              "input_name": "reason",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business reason for publishing the chart.",
+              "allowed_values": [],
+              "clarification_hint": "Ask why this chart should be saved or updated."
+            },
+            {
+              "input_name": "title",
+              "input_type": "string",
+              "required": false,
+              "summary": "Final chart title.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded chart-save options. Must not bypass approval or dashboard scope.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "chart_preview_ref",
+            "dashboard_scope",
+            "reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "title",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "chart_preview_ref",
+            "dashboard_scope",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "title",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.chart_preview_ref",
+            "clarify.dashboard_scope",
+            "clarify.reason"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-superset-dashboard-draft-prepare",
+        "title": "Prepare Dashboard Draft",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Dashboard Draft",
+          "capability_id": "superset.dashboard.draft.prepare",
+          "intent": "Prepare a Superset dashboard draft or update proposal without publishing it.",
+          "service_id": "superset-fronting",
+          "service_name": "Superset Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.create_dashboard",
+            "superset.api.update_dashboard"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.create_dashboard",
+                "superset.api.update_dashboard"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "dashboard_scope",
+                "objective",
+                "chart_refs"
+              ],
+              "derived_optional_backend_inputs": [
+                "layout_hint",
+                "audience",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "dashboard_scope",
+                "objective",
+                "chart_refs"
+              ],
+              "explicit_optional_backend_inputs": [
+                "layout_hint",
+                "audience",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-dashboard-draft-prepare-superset-api-create-dashboard",
+                "superset-dashboard-draft-prepare-superset-api-update-dashboard"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "dashboard_scope",
+                "objective",
+                "chart_refs"
+              ],
+              "derived_optional_backend_inputs": [
+                "layout_hint",
+                "audience",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "dashboard_scope",
+                "objective",
+                "chart_refs"
+              ],
+              "explicit_optional_backend_inputs": [
+                "layout_hint",
+                "audience",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "superset_dashboard",
+          "context_type": "dashboard_draft",
+          "output_intent": "dashboard_draft_preview",
+          "required_inputs": [
+            "dashboard_scope",
+            "objective",
+            "chart_refs"
+          ],
+          "optional_inputs": [
+            "layout_hint",
+            "audience",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "dashboard_scope",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed dashboard, workspace, or team scope.",
+              "allowed_values": [],
+              "semantic_type": "dashboard_scope",
+              "clarification_hint": "Ask which dashboard scope should receive the draft."
+            },
+            {
+              "input_name": "objective",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business objective for the dashboard.",
+              "allowed_values": [],
+              "semantic_type": "business_objective",
+              "clarification_hint": "Ask what decision, review, or audience outcome the dashboard draft should support."
+            },
+            {
+              "input_name": "chart_refs",
+              "input_type": "array<string>",
+              "required": true,
+              "summary": "Reviewed chart references to include.",
+              "allowed_values": [],
+              "semantic_type": "chart_ref",
+              "clarification_hint": "Ask which reviewed chart previews or existing charts should be included."
+            },
+            {
+              "input_name": "layout_hint",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional layout guidance.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "audience",
+              "input_type": "string",
+              "required": false,
+              "summary": "Intended dashboard audience.",
+              "allowed_values": [
+                "executive",
+                "operations",
+                "analytics",
+                "team"
+              ]
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded dashboard draft options. Must not publish without approval.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "dashboard_scope",
+            "objective",
+            "chart_refs"
+          ],
+          "derived_optional_backend_inputs": [
+            "layout_hint",
+            "audience",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "dashboard_scope",
+            "objective",
+            "chart_refs"
+          ],
+          "explicit_optional_backend_inputs": [
+            "layout_hint",
+            "audience",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.dashboard_scope",
+            "clarify.objective",
+            "clarify.chart_refs"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-superset-dataset-draft-prepare",
+        "title": "Prepare Dataset Draft",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Dataset Draft",
+          "capability_id": "superset.dataset.draft.prepare",
+          "intent": "Prepare a virtual dataset or semantic dataset draft under governed data-scope constraints.",
+          "service_id": "superset-fronting",
+          "service_name": "Superset Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "superset-api",
+          "raw_operation_refs": [
+            "superset.api.get_database_info",
+            "superset.api.get_dataset_info"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "superset-api",
+              "raw_operation_refs": [
+                "superset.api.get_database_info",
+                "superset.api.get_dataset_info"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "database_ref",
+                "dataset_purpose",
+                "query_intent"
+              ],
+              "derived_optional_backend_inputs": [
+                "source_tables",
+                "metrics",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "database_ref",
+                "dataset_purpose",
+                "query_intent"
+              ],
+              "explicit_optional_backend_inputs": [
+                "source_tables",
+                "metrics",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "superset-dataset-draft-prepare-superset-api-get-database-info",
+                "superset-dataset-draft-prepare-superset-api-get-dataset-info"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "superset-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "database_ref",
+                "dataset_purpose",
+                "query_intent"
+              ],
+              "derived_optional_backend_inputs": [
+                "source_tables",
+                "metrics",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "database_ref",
+                "dataset_purpose",
+                "query_intent"
+              ],
+              "explicit_optional_backend_inputs": [
+                "source_tables",
+                "metrics",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "superset_dataset",
+          "context_type": "dataset_draft",
+          "output_intent": "dataset_draft_preview",
+          "required_inputs": [
+            "database_ref",
+            "dataset_purpose",
+            "query_intent"
+          ],
+          "optional_inputs": [
+            "source_tables",
+            "metrics",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "database_ref",
+              "input_type": "string",
+              "required": true,
+              "summary": "Allowed database reference.",
+              "allowed_values": [],
+              "semantic_type": "database_ref",
+              "clarification_hint": "Ask which approved database should back the dataset draft."
+            },
+            {
+              "input_name": "dataset_purpose",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business purpose for the dataset or saved query.",
+              "allowed_values": [],
+              "semantic_type": "dataset_purpose",
+              "clarification_hint": "Ask what governed business purpose the dataset draft should serve."
+            },
+            {
+              "input_name": "query_intent",
+              "input_type": "string",
+              "required": true,
+              "summary": "Declarative query intent. Raw SQL is not accepted from agents by default.",
+              "allowed_values": [],
+              "semantic_type": "query_intent",
+              "clarification_hint": "Ask for the query intent in business terms rather than accepting raw SQL."
+            },
+            {
+              "input_name": "source_tables",
+              "input_type": "array<string>",
+              "required": false,
+              "summary": "Approved source tables to use.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "metrics",
+              "input_type": "array<string>",
+              "required": false,
+              "summary": "Approved metrics to define or expose.",
+              "allowed_values": []
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded dataset draft options. Must not allow arbitrary SQL execution.",
+              "allowed_values": []
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "database_ref",
+            "dataset_purpose",
+            "query_intent"
+          ],
+          "derived_optional_backend_inputs": [
+            "source_tables",
+            "metrics",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "database_ref",
+            "dataset_purpose",
+            "query_intent"
+          ],
+          "explicit_optional_backend_inputs": [
+            "source_tables",
+            "metrics",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.database_ref",
+            "clarify.dataset_purpose",
+            "clarify.query_intent"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      }
+    ]
+  },
+  "package": {
+    "schema": "anip-starter-template-package/v0",
+    "package_kind": "anip_starter_template",
+    "package_version": "0.2.0",
+    "exported_at": "2026-06-06T00:00:00Z",
+    "exported_by": {
+      "studio_version": "0.8.0",
+      "anip_spec_version": "anip/0.24"
+    },
+    "source_project": {
+      "id": "template-source:superset-fronting-starter",
+      "name": "Superset Fronting Starter",
+      "project_type": "governed_service_project",
+      "domain": "superset"
+    },
+    "manifest": {
+      "schema": "anip-starter-template-manifest/v0",
+      "template_id": "superset-fronting-starter",
+      "template_title": "Superset Fronting Starter",
+      "template_kind": "fronting_starter",
+      "package_version": "0.2.0",
+      "anip_spec_version": "anip/0.24",
+      "studio_version": "0.8.0",
+      "template_digest": "sha256:c00843f00dda70544ab45392a14b0c118226cf01ac12cc3d8b7ef6fc5b05cc37",
+      "counts": {
+        "documents": 3,
+        "connections": 2,
+        "discovery_records": 14,
+        "capability_mappings": 6
+      },
+      "industry": "analytics",
+      "systems": [
+        "superset"
+      ]
+    },
+    "selection": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 14,
+      "capability_mappings": 6
+    },
+    "warnings": [
+      "Template-suggested starter data must be reviewed before baseline locking or publication.",
+      "Do not include workspace secrets or customer-private source documents in shared templates."
+    ],
+    "template": {
+      "schema": "anip-starter-template/v0",
+      "anipSpecVersion": "anip/0.24",
+      "id": "superset-fronting-starter",
+      "kind": "fronting_starter",
+      "projectType": "governed_service_project",
+      "title": "Superset Fronting Starter",
+      "summary": "Template-suggested Superset API/MCP fronting structure with reviewed capability candidates.",
+      "description": "Starts a governed Superset fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+      "domain": "superset",
+      "recommendedBrief": "Create a governed ANIP fronting layer for Superset. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+      "documents": [
+        {
+          "idSuffix": "template-fronting-intent",
+          "title": "Superset governed fronting intent",
+          "kind": "business_intent",
+          "filename": "superset-fronting-intent.md",
+          "content": "# Superset Governed Fronting Intent\n\n> Imported from starter template `superset-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Superset capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- superset.analytics.discover_context: Discover allowed Superset datasets, charts, dashboards, metrics, and dimensions without exposing raw analytics tools.\n- superset.analytics.answer_question: Answer an analytics question against allowed datasets and metrics using bounded chart-data or provider-owned semantic execution.\n- superset.chart.preview.create: Create a Superset chart preview from governed metric, dimension, and visualization intent without saving it by default.\n- superset.chart.publish.request: Request saving or updating a Superset chart from a reviewed preview.\n- superset.dashboard.draft.prepare: Prepare a Superset dashboard draft or update proposal without publishing it.\n- superset.dataset.draft.prepare: Prepare a virtual dataset or semantic dataset draft under governed data-scope constraints.\n\n## Governance posture\n- Raw Superset tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+        },
+        {
+          "idSuffix": "template-integration-evidence",
+          "title": "Superset integration evidence",
+          "kind": "api_docs",
+          "filename": "superset-integration-evidence.template.md",
+          "content": "# Superset Integration Evidence Template\n\n> Imported from starter template `superset-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: SUPERSET_API_URL\nMCP connection: SUPERSET_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- superset.api.list_datasets: GET /superset/analytics/context\n- superset.api.list_charts: GET /superset/analytics/context\n- superset.api.list_dashboards: GET /superset/analytics/context\n- superset.api.get_dataset_info: GET /superset/analytics/context\n- superset.api.chart_data: GET /superset/analytics/answer\n- superset.api.get_dataset_info: GET /superset/analytics/answer\n- superset.api.chart_preview: POST /superset/charts/preview\n- superset.api.chart_data: POST /superset/charts/preview\n- superset.api.create_chart: POST /superset/charts/publish-request\n- superset.api.update_chart: POST /superset/charts/publish-request\n- superset.api.create_dashboard: POST /superset/dashboards/draft\n- superset.api.update_dashboard: POST /superset/dashboards/draft\n- superset.api.get_database_info: POST /superset/datasets/draft\n- superset.api.get_dataset_info: POST /superset/datasets/draft\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+        },
+        {
+          "idSuffix": "template-developer-evidence",
+          "title": "Superset developer evidence",
+          "kind": "api_docs",
+          "filename": "superset-developer-evidence.template.md",
+          "content": "# Superset Developer Evidence\n\nImported from starter template `superset-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| superset.analytics.discover_context | superset-fronting | read | read | 5 | superset.api.list_datasets; superset.api.list_charts; superset.api.list_dashboards; superset.api.get_dataset_info |\n| superset.analytics.answer_question | superset-fronting | read | read | 8 | superset.api.chart_data; superset.api.get_dataset_info |\n| superset.chart.preview.create | superset-fronting | write | write_adjacent | 8 | superset.api.chart_preview; superset.api.chart_data |\n| superset.chart.publish.request | superset-governance | write | write_adjacent | 5 | superset.api.create_chart; superset.api.update_chart |\n| superset.dashboard.draft.prepare | superset-fronting | write | write_adjacent | 6 | superset.api.create_dashboard; superset.api.update_dashboard |\n| superset.dataset.draft.prepare | superset-fronting | write | write_adjacent | 6 | superset.api.get_database_info; superset.api.get_dataset_info |\n\n## Reviewed Developer Evidence\n\nThe starter also carries first-class `integration_fronting_capability_mapping` records. Use this document as readable developer evidence, not as the only machine-readable source.\n\n### Runtime governance\n\n| capability_id | execution_posture | intent_type | produces | does_not_produce |\n| --- | --- | --- | --- | --- |\n| superset.analytics.discover_context | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| superset.analytics.answer_question | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| superset.chart.preview.create | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.chart.publish.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.dashboard.draft.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| superset.dataset.draft.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n\n### Input contracts\n\n| capability_id | input | type | required | semantic_type | entity_reference |\n| --- | --- | --- | --- | --- | --- |\n| superset.analytics.discover_context | workspace_scope | string | yes | workspace_scope | no |\n| superset.analytics.discover_context | query | string | yes | search_query | no |\n| superset.analytics.discover_context | asset_type | string | no |  | no |\n| superset.analytics.discover_context | limit | integer | no |  | no |\n| superset.analytics.discover_context | backend_options | object | no |  | no |\n| superset.analytics.answer_question | question | string | yes | analytics_question | no |\n| superset.analytics.answer_question | dataset_ref | string | yes | dataset_ref | no |\n| superset.analytics.answer_question | metric | string | no |  | no |\n| superset.analytics.answer_question | dimension | string | no |  | no |\n| superset.analytics.answer_question | time_window | string | no |  | no |\n| superset.analytics.answer_question | filters | object | no |  | no |\n| superset.analytics.answer_question | limit | integer | no |  | no |\n| superset.analytics.answer_question | backend_options | object | no |  | no |\n| superset.chart.preview.create | dataset_ref | string | yes | dataset_ref | no |\n| superset.chart.preview.create | metric | string | yes | metric_ref | no |\n| superset.chart.preview.create | visualization_type | string | yes |  | no |\n| superset.chart.preview.create | dimension | string | no |  | no |\n| superset.chart.preview.create | time_window | string | no |  | no |\n| superset.chart.preview.create | filters | object | no |  | no |\n| superset.chart.preview.create | title | string | no |  | no |\n| superset.chart.preview.create | backend_options | object | no |  | no |\n| superset.chart.publish.request | chart_preview_ref | string | yes | chart_preview_ref | no |\n| superset.chart.publish.request | dashboard_scope | string | yes | dashboard_scope | no |\n| superset.chart.publish.request | reason | string | yes |  | no |\n| superset.chart.publish.request | title | string | no |  | no |\n| superset.chart.publish.request | backend_options | object | no |  | no |\n| superset.dashboard.draft.prepare | dashboard_scope | string | yes | dashboard_scope | no |\n| superset.dashboard.draft.prepare | objective | string | yes | business_objective | no |\n| superset.dashboard.draft.prepare | chart_refs | array<string> | yes | chart_ref | no |\n| superset.dashboard.draft.prepare | layout_hint | string | no |  | no |\n| superset.dashboard.draft.prepare | audience | string | no |  | no |\n| superset.dashboard.draft.prepare | backend_options | object | no |  | no |\n| superset.dataset.draft.prepare | database_ref | string | yes | database_ref | no |\n| superset.dataset.draft.prepare | dataset_purpose | string | yes | dataset_purpose | no |\n| superset.dataset.draft.prepare | query_intent | string | yes | query_intent | no |\n| superset.dataset.draft.prepare | source_tables | array<string> | no |  | no |\n| superset.dataset.draft.prepare | metrics | array<string> | no |  | no |\n| superset.dataset.draft.prepare | backend_options | object | no |  | no |"
+        }
+      ],
+      "connections": [
+        {
+          "idSuffix": "superset-api",
+          "display_name": "Superset API",
+          "backend_kind": "native_api",
+          "system_kind": "superset",
+          "endpoint_ref": "SUPERSET_API_URL",
+          "auth_mode": "service_delegated",
+          "identity_provider_ref": "workspace-identity",
+          "secret_ref": "SUPERSET_API_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter"
+          }
+        },
+        {
+          "idSuffix": "superset-mcp",
+          "display_name": "Superset MCP",
+          "backend_kind": "mcp",
+          "system_kind": "superset",
+          "endpoint_ref": "SUPERSET_MCP_ENDPOINT",
+          "auth_mode": "external",
+          "identity_provider_ref": "superset-oauth",
+          "secret_ref": "SUPERSET_MCP_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter"
+          }
+        }
+      ],
+      "discoveryRecords": [
+        {
+          "idSuffix": "superset-analytics-discover-context-superset-api-list-datasets",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.list_datasets",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.discover_context"
+          }
+        },
+        {
+          "idSuffix": "superset-analytics-discover-context-superset-api-list-charts",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.list_charts",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.discover_context"
+          }
+        },
+        {
+          "idSuffix": "superset-analytics-discover-context-superset-api-list-dashboards",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.list_dashboards",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.discover_context"
+          }
+        },
+        {
+          "idSuffix": "superset-analytics-discover-context-superset-api-get-dataset-info",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.get_dataset_info",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.discover_context"
+          }
+        },
+        {
+          "idSuffix": "superset-analytics-answer-question-superset-api-chart-data",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.chart_data",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/answer",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "question",
+              "dataset_ref"
+            ],
+            "optional": [
+              "metric",
+              "dimension",
+              "time_window",
+              "filters",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.answer_question"
+          }
+        },
+        {
+          "idSuffix": "superset-analytics-answer-question-superset-api-get-dataset-info",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.get_dataset_info",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/superset/analytics/answer",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "question",
+              "dataset_ref"
+            ],
+            "optional": [
+              "metric",
+              "dimension",
+              "time_window",
+              "filters",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.analytics.answer_question"
+          }
+        },
+        {
+          "idSuffix": "superset-chart-preview-create-superset-api-chart-preview",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.chart_preview",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/charts/preview",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "dataset_ref",
+              "metric",
+              "visualization_type"
+            ],
+            "optional": [
+              "dimension",
+              "time_window",
+              "filters",
+              "title",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.chart.preview.create"
+          }
+        },
+        {
+          "idSuffix": "superset-chart-preview-create-superset-api-chart-data",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.chart_data",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/charts/preview",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "dataset_ref",
+              "metric",
+              "visualization_type"
+            ],
+            "optional": [
+              "dimension",
+              "time_window",
+              "filters",
+              "title",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.chart.preview.create"
+          }
+        },
+        {
+          "idSuffix": "superset-chart-publish-request-superset-api-create-chart",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.create_chart",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/charts/publish-request",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "chart_preview_ref",
+              "dashboard_scope",
+              "reason"
+            ],
+            "optional": [
+              "title",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.chart.publish.request"
+          }
+        },
+        {
+          "idSuffix": "superset-chart-publish-request-superset-api-update-chart",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.update_chart",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/charts/publish-request",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "chart_preview_ref",
+              "dashboard_scope",
+              "reason"
+            ],
+            "optional": [
+              "title",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.chart.publish.request"
+          }
+        },
+        {
+          "idSuffix": "superset-dashboard-draft-prepare-superset-api-create-dashboard",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.create_dashboard",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/dashboards/draft",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "dashboard_scope",
+              "objective",
+              "chart_refs"
+            ],
+            "optional": [
+              "layout_hint",
+              "audience",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.dashboard.draft.prepare"
+          }
+        },
+        {
+          "idSuffix": "superset-dashboard-draft-prepare-superset-api-update-dashboard",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.update_dashboard",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/dashboards/draft",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "dashboard_scope",
+              "objective",
+              "chart_refs"
+            ],
+            "optional": [
+              "layout_hint",
+              "audience",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.dashboard.draft.prepare"
+          }
+        },
+        {
+          "idSuffix": "superset-dataset-draft-prepare-superset-api-get-database-info",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.get_database_info",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/datasets/draft",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "database_ref",
+              "dataset_purpose",
+              "query_intent"
+            ],
+            "optional": [
+              "source_tables",
+              "metrics",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.dataset.draft.prepare"
+          }
+        },
+        {
+          "idSuffix": "superset-dataset-draft-prepare-superset-api-get-dataset-info",
+          "connectionIdSuffix": "superset-api",
+          "operation_id": "superset.api.get_dataset_info",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/superset/datasets/draft",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "database_ref",
+              "dataset_purpose",
+              "query_intent"
+            ],
+            "optional": [
+              "source_tables",
+              "metrics",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "superset-fronting-starter",
+            "capability_id": "superset.dataset.draft.prepare"
+          }
+        }
+      ],
+      "capabilityMappings": [
+        {
+          "idSuffix": "mapping-superset-analytics-discover-context",
+          "title": "Discover Analytics Context",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Discover Analytics Context",
+            "capability_id": "superset.analytics.discover_context",
+            "intent": "Discover allowed Superset datasets, charts, dashboards, metrics, and dimensions without exposing raw analytics tools.",
+            "service_id": "superset-fronting",
+            "service_name": "Superset Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.list_datasets",
+              "superset.api.list_charts",
+              "superset.api.list_dashboards",
+              "superset.api.get_dataset_info"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.list_datasets",
+                  "superset.api.list_charts",
+                  "superset.api.list_dashboards",
+                  "superset.api.get_dataset_info"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "asset_type",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "asset_type",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-analytics-discover-context-superset-api-list-datasets",
+                  "superset-analytics-discover-context-superset-api-list-charts",
+                  "superset-analytics-discover-context-superset-api-list-dashboards",
+                  "superset-analytics-discover-context-superset-api-get-dataset-info"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "asset_type",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "asset_type",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "read_only",
+            "side_effect_level": "read",
+            "subject_kind": "analytics_catalog",
+            "context_type": "analytics_discovery",
+            "output_intent": "bounded_analytics_catalog",
+            "required_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional_inputs": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "workspace_scope",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed analytics workspace, database, or tenant scope.",
+                "allowed_values": [],
+                "semantic_type": "workspace_scope",
+                "clarification_hint": "Ask which analytics workspace or governed scope should be searched."
+              },
+              {
+                "input_name": "query",
+                "input_type": "string",
+                "required": true,
+                "summary": "Search intent for datasets, dashboards, charts, metrics, or dimensions.",
+                "allowed_values": [],
+                "semantic_type": "search_query",
+                "clarification_hint": "Ask what analytics asset or metric context the user needs."
+              },
+              {
+                "input_name": "asset_type",
+                "input_type": "string",
+                "required": false,
+                "summary": "Optional asset type filter.",
+                "allowed_values": [
+                  "dataset",
+                  "chart",
+                  "dashboard",
+                  "metric",
+                  "dimension"
+                ]
+              },
+              {
+                "input_name": "limit",
+                "input_type": "integer",
+                "required": false,
+                "summary": "Maximum catalog results to return.",
+                "default_value": "20",
+                "allowed_values": []
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded provider-specific discovery options such as selected fields or pagination.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "derived_optional_backend_inputs": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "asset_type",
+              "limit",
+              "backend_options"
+            ],
+            "approval_rule_refs": [],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.workspace_scope",
+              "clarify.query"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-superset-analytics-answer-question",
+          "title": "Answer Governed Analytics Question",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Answer Governed Analytics Question",
+            "capability_id": "superset.analytics.answer_question",
+            "intent": "Answer an analytics question against allowed datasets and metrics using bounded chart-data or provider-owned semantic execution.",
+            "service_id": "superset-fronting",
+            "service_name": "Superset Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.chart_data",
+              "superset.api.get_dataset_info"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.chart_data",
+                  "superset.api.get_dataset_info"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "question",
+                  "dataset_ref"
+                ],
+                "derived_optional_backend_inputs": [
+                  "metric",
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "question",
+                  "dataset_ref"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "metric",
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-analytics-answer-question-superset-api-chart-data",
+                  "superset-analytics-answer-question-superset-api-get-dataset-info"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "question",
+                  "dataset_ref"
+                ],
+                "derived_optional_backend_inputs": [
+                  "metric",
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "question",
+                  "dataset_ref"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "metric",
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "read_only",
+            "side_effect_level": "read",
+            "subject_kind": "analytics_question",
+            "context_type": "governed_analytics_query",
+            "output_intent": "bounded_analytics_answer",
+            "required_inputs": [
+              "question",
+              "dataset_ref"
+            ],
+            "optional_inputs": [
+              "metric",
+              "dimension",
+              "time_window",
+              "filters",
+              "limit",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "question",
+                "input_type": "string",
+                "required": true,
+                "summary": "Natural-language analytics question to answer.",
+                "allowed_values": [],
+                "semantic_type": "analytics_question",
+                "clarification_hint": "Ask for the analytics question when the request is not concrete."
+              },
+              {
+                "input_name": "dataset_ref",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed dataset reference to query.",
+                "allowed_values": [],
+                "semantic_type": "dataset_ref",
+                "clarification_hint": "Ask which approved dataset should be used."
+              },
+              {
+                "input_name": "metric",
+                "input_type": "string",
+                "required": false,
+                "summary": "Approved metric to use.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "dimension",
+                "input_type": "string",
+                "required": false,
+                "summary": "Approved grouping dimension.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "time_window",
+                "input_type": "string",
+                "required": false,
+                "summary": "Bounded time window for the answer.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "filters",
+                "input_type": "object",
+                "required": false,
+                "summary": "Governed filters within allowed dataset scope.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "limit",
+                "input_type": "integer",
+                "required": false,
+                "summary": "Maximum rows or groups to consider.",
+                "default_value": "100",
+                "allowed_values": []
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded provider-specific query options. Raw SQL is not accepted here.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "question",
+              "dataset_ref"
+            ],
+            "derived_optional_backend_inputs": [
+              "metric",
+              "dimension",
+              "time_window",
+              "filters",
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "question",
+              "dataset_ref"
+            ],
+            "explicit_optional_backend_inputs": [
+              "metric",
+              "dimension",
+              "time_window",
+              "filters",
+              "limit",
+              "backend_options"
+            ],
+            "approval_rule_refs": [],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.question",
+              "clarify.dataset_ref"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-superset-chart-preview-create",
+          "title": "Create Chart Preview",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Create Chart Preview",
+            "capability_id": "superset.chart.preview.create",
+            "intent": "Create a Superset chart preview from governed metric, dimension, and visualization intent without saving it by default.",
+            "service_id": "superset-fronting",
+            "service_name": "Superset Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.chart_preview",
+              "superset.api.chart_data"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.chart_preview",
+                  "superset.api.chart_data"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "dataset_ref",
+                  "metric",
+                  "visualization_type"
+                ],
+                "derived_optional_backend_inputs": [
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "title",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "dataset_ref",
+                  "metric",
+                  "visualization_type"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "title",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-chart-preview-create-superset-api-chart-preview",
+                  "superset-chart-preview-create-superset-api-chart-data"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "dataset_ref",
+                  "metric",
+                  "visualization_type"
+                ],
+                "derived_optional_backend_inputs": [
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "title",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "dataset_ref",
+                  "metric",
+                  "visualization_type"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "dimension",
+                  "time_window",
+                  "filters",
+                  "title",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "superset_chart",
+            "context_type": "chart_preview",
+            "output_intent": "chart_preview",
+            "required_inputs": [
+              "dataset_ref",
+              "metric",
+              "visualization_type"
+            ],
+            "optional_inputs": [
+              "dimension",
+              "time_window",
+              "filters",
+              "title",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "dataset_ref",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed dataset reference for the chart.",
+                "allowed_values": [],
+                "semantic_type": "dataset_ref",
+                "clarification_hint": "Ask which approved dataset should be charted."
+              },
+              {
+                "input_name": "metric",
+                "input_type": "string",
+                "required": true,
+                "summary": "Approved metric to visualize.",
+                "allowed_values": [],
+                "semantic_type": "metric_ref",
+                "clarification_hint": "Ask which approved metric should be visualized."
+              },
+              {
+                "input_name": "visualization_type",
+                "input_type": "string",
+                "required": true,
+                "summary": "Requested chart type.",
+                "allowed_values": [
+                  "bar",
+                  "line",
+                  "table",
+                  "big_number",
+                  "pie",
+                  "area"
+                ],
+                "clarification_hint": "Ask which chart type should be previewed."
+              },
+              {
+                "input_name": "dimension",
+                "input_type": "string",
+                "required": false,
+                "summary": "Approved grouping dimension.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "time_window",
+                "input_type": "string",
+                "required": false,
+                "summary": "Bounded time window for the chart.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "filters",
+                "input_type": "object",
+                "required": false,
+                "summary": "Governed chart filters.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "title",
+                "input_type": "string",
+                "required": false,
+                "summary": "Draft chart title.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded preview rendering options such as output format.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "dataset_ref",
+              "metric",
+              "visualization_type"
+            ],
+            "derived_optional_backend_inputs": [
+              "dimension",
+              "time_window",
+              "filters",
+              "title",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "dataset_ref",
+              "metric",
+              "visualization_type"
+            ],
+            "explicit_optional_backend_inputs": [
+              "dimension",
+              "time_window",
+              "filters",
+              "title",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.dataset_ref",
+              "clarify.metric",
+              "clarify.visualization_type"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-superset-chart-publish-request",
+          "title": "Request Chart Publish",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Request Chart Publish",
+            "capability_id": "superset.chart.publish.request",
+            "intent": "Request saving or updating a Superset chart from a reviewed preview.",
+            "service_id": "superset-governance",
+            "service_name": "Superset Governance",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.create_chart",
+              "superset.api.update_chart"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.create_chart",
+                  "superset.api.update_chart"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "chart_preview_ref",
+                  "dashboard_scope",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "title",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "chart_preview_ref",
+                  "dashboard_scope",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "title",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-chart-publish-request-superset-api-create-chart",
+                  "superset-chart-publish-request-superset-api-update-chart"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "chart_preview_ref",
+                  "dashboard_scope",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "title",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "chart_preview_ref",
+                  "dashboard_scope",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "title",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "superset_chart",
+            "context_type": "chart_publish_request",
+            "output_intent": "chart_publish_preview",
+            "required_inputs": [
+              "chart_preview_ref",
+              "dashboard_scope",
+              "reason"
+            ],
+            "optional_inputs": [
+              "title",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "chart_preview_ref",
+                "input_type": "string",
+                "required": true,
+                "summary": "Reviewed chart preview reference.",
+                "allowed_values": [],
+                "semantic_type": "chart_preview_ref",
+                "clarification_hint": "Ask which reviewed chart preview should be saved."
+              },
+              {
+                "input_name": "dashboard_scope",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed dashboard or workspace scope for the saved chart.",
+                "allowed_values": [],
+                "semantic_type": "dashboard_scope",
+                "clarification_hint": "Ask where the chart should be published."
+              },
+              {
+                "input_name": "reason",
+                "input_type": "string",
+                "required": true,
+                "summary": "Business reason for publishing the chart.",
+                "allowed_values": [],
+                "clarification_hint": "Ask why this chart should be saved or updated."
+              },
+              {
+                "input_name": "title",
+                "input_type": "string",
+                "required": false,
+                "summary": "Final chart title.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded chart-save options. Must not bypass approval or dashboard scope.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "chart_preview_ref",
+              "dashboard_scope",
+              "reason"
+            ],
+            "derived_optional_backend_inputs": [
+              "title",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "chart_preview_ref",
+              "dashboard_scope",
+              "reason"
+            ],
+            "explicit_optional_backend_inputs": [
+              "title",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.chart_preview_ref",
+              "clarify.dashboard_scope",
+              "clarify.reason"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-superset-dashboard-draft-prepare",
+          "title": "Prepare Dashboard Draft",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Dashboard Draft",
+            "capability_id": "superset.dashboard.draft.prepare",
+            "intent": "Prepare a Superset dashboard draft or update proposal without publishing it.",
+            "service_id": "superset-fronting",
+            "service_name": "Superset Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.create_dashboard",
+              "superset.api.update_dashboard"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.create_dashboard",
+                  "superset.api.update_dashboard"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "dashboard_scope",
+                  "objective",
+                  "chart_refs"
+                ],
+                "derived_optional_backend_inputs": [
+                  "layout_hint",
+                  "audience",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "dashboard_scope",
+                  "objective",
+                  "chart_refs"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "layout_hint",
+                  "audience",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-dashboard-draft-prepare-superset-api-create-dashboard",
+                  "superset-dashboard-draft-prepare-superset-api-update-dashboard"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "dashboard_scope",
+                  "objective",
+                  "chart_refs"
+                ],
+                "derived_optional_backend_inputs": [
+                  "layout_hint",
+                  "audience",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "dashboard_scope",
+                  "objective",
+                  "chart_refs"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "layout_hint",
+                  "audience",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "superset_dashboard",
+            "context_type": "dashboard_draft",
+            "output_intent": "dashboard_draft_preview",
+            "required_inputs": [
+              "dashboard_scope",
+              "objective",
+              "chart_refs"
+            ],
+            "optional_inputs": [
+              "layout_hint",
+              "audience",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "dashboard_scope",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed dashboard, workspace, or team scope.",
+                "allowed_values": [],
+                "semantic_type": "dashboard_scope",
+                "clarification_hint": "Ask which dashboard scope should receive the draft."
+              },
+              {
+                "input_name": "objective",
+                "input_type": "string",
+                "required": true,
+                "summary": "Business objective for the dashboard.",
+                "allowed_values": [],
+                "semantic_type": "business_objective",
+                "clarification_hint": "Ask what decision, review, or audience outcome the dashboard draft should support."
+              },
+              {
+                "input_name": "chart_refs",
+                "input_type": "array<string>",
+                "required": true,
+                "summary": "Reviewed chart references to include.",
+                "allowed_values": [],
+                "semantic_type": "chart_ref",
+                "clarification_hint": "Ask which reviewed chart previews or existing charts should be included."
+              },
+              {
+                "input_name": "layout_hint",
+                "input_type": "string",
+                "required": false,
+                "summary": "Optional layout guidance.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "audience",
+                "input_type": "string",
+                "required": false,
+                "summary": "Intended dashboard audience.",
+                "allowed_values": [
+                  "executive",
+                  "operations",
+                  "analytics",
+                  "team"
+                ]
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded dashboard draft options. Must not publish without approval.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "dashboard_scope",
+              "objective",
+              "chart_refs"
+            ],
+            "derived_optional_backend_inputs": [
+              "layout_hint",
+              "audience",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "dashboard_scope",
+              "objective",
+              "chart_refs"
+            ],
+            "explicit_optional_backend_inputs": [
+              "layout_hint",
+              "audience",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.dashboard_scope",
+              "clarify.objective",
+              "clarify.chart_refs"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-superset-dataset-draft-prepare",
+          "title": "Prepare Dataset Draft",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Dataset Draft",
+            "capability_id": "superset.dataset.draft.prepare",
+            "intent": "Prepare a virtual dataset or semantic dataset draft under governed data-scope constraints.",
+            "service_id": "superset-fronting",
+            "service_name": "Superset Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "superset-api",
+            "raw_operation_refs": [
+              "superset.api.get_database_info",
+              "superset.api.get_dataset_info"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "superset-api",
+                "raw_operation_refs": [
+                  "superset.api.get_database_info",
+                  "superset.api.get_dataset_info"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "database_ref",
+                  "dataset_purpose",
+                  "query_intent"
+                ],
+                "derived_optional_backend_inputs": [
+                  "source_tables",
+                  "metrics",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "database_ref",
+                  "dataset_purpose",
+                  "query_intent"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "source_tables",
+                  "metrics",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "superset-dataset-draft-prepare-superset-api-get-database-info",
+                  "superset-dataset-draft-prepare-superset-api-get-dataset-info"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "superset-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "database_ref",
+                  "dataset_purpose",
+                  "query_intent"
+                ],
+                "derived_optional_backend_inputs": [
+                  "source_tables",
+                  "metrics",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "database_ref",
+                  "dataset_purpose",
+                  "query_intent"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "source_tables",
+                  "metrics",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "superset_dataset",
+            "context_type": "dataset_draft",
+            "output_intent": "dataset_draft_preview",
+            "required_inputs": [
+              "database_ref",
+              "dataset_purpose",
+              "query_intent"
+            ],
+            "optional_inputs": [
+              "source_tables",
+              "metrics",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "database_ref",
+                "input_type": "string",
+                "required": true,
+                "summary": "Allowed database reference.",
+                "allowed_values": [],
+                "semantic_type": "database_ref",
+                "clarification_hint": "Ask which approved database should back the dataset draft."
+              },
+              {
+                "input_name": "dataset_purpose",
+                "input_type": "string",
+                "required": true,
+                "summary": "Business purpose for the dataset or saved query.",
+                "allowed_values": [],
+                "semantic_type": "dataset_purpose",
+                "clarification_hint": "Ask what governed business purpose the dataset draft should serve."
+              },
+              {
+                "input_name": "query_intent",
+                "input_type": "string",
+                "required": true,
+                "summary": "Declarative query intent. Raw SQL is not accepted from agents by default.",
+                "allowed_values": [],
+                "semantic_type": "query_intent",
+                "clarification_hint": "Ask for the query intent in business terms rather than accepting raw SQL."
+              },
+              {
+                "input_name": "source_tables",
+                "input_type": "array<string>",
+                "required": false,
+                "summary": "Approved source tables to use.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "metrics",
+                "input_type": "array<string>",
+                "required": false,
+                "summary": "Approved metrics to define or expose.",
+                "allowed_values": []
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded dataset draft options. Must not allow arbitrary SQL execution.",
+                "allowed_values": []
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "database_ref",
+              "dataset_purpose",
+              "query_intent"
+            ],
+            "derived_optional_backend_inputs": [
+              "source_tables",
+              "metrics",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "database_ref",
+              "dataset_purpose",
+              "query_intent"
+            ],
+            "explicit_optional_backend_inputs": [
+              "source_tables",
+              "metrics",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.database_ref",
+              "clarify.dataset_purpose",
+              "clarify.query_intent"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

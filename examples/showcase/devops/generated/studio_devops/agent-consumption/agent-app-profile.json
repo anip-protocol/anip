@@ -1,0 +1,239 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "devops.delete_resource": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Destroy environment",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Destroy environment",
+          "approval.execute"
+        ],
+        "produces": [
+          "Execute approved action",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Permanently delete an infrastructure resource.",
+      "required_context": [
+        {
+          "input": "resource_type",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "resource_name",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "devops.destroy_environment": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Delegate destructive environment removal",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delegate destructive environment removal",
+          "approval.execute"
+        ],
+        "produces": [
+          "Execute approved action",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Permanently destroy a non-production environment; direct principal action is required.",
+      "required_context": [
+        {
+          "input": "environment_name",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "devops.get_service_health": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Change infrastructure"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_framing": "Get health and performance metrics for a service.",
+      "required_context": [
+        {
+          "input": "service_name",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "devops.list_deployments": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Change infrastructure"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_framing": "List current service deployments and status."
+    },
+    "devops.rollback_deployment": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Delete infrastructure",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure",
+          "approval.execute"
+        ],
+        "produces": [
+          "Change system state",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Roll back a service deployment to a previous version.",
+      "required_context": [
+        {
+          "input": "service_name",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "target_version",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "devops.scale_replicas": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Delete infrastructure",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure",
+          "approval.execute"
+        ],
+        "produces": [
+          "Change system state",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Scale the replica count for a deployment.",
+      "required_context": [
+        {
+          "input": "service_name",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "replicas",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "devops.update_config": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Delete infrastructure",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure",
+          "approval.execute"
+        ],
+        "produces": [
+          "Change system state",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Update a configuration key-value pair for a service.",
+      "required_context": [
+        {
+          "input": "service_name",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "value",
+          "missing_behavior": "clarify"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

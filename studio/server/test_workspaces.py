@@ -58,3 +58,52 @@ def test_projects_can_be_scoped_to_workspace(client):
     resp = client.get("/api/workspaces/ws-a")
     assert resp.status_code == 200
     assert resp.json()["projects_count"] == 1
+
+
+def test_clone_workspace_copies_projects(client):
+    client.post(
+        "/api/workspaces",
+        json={
+            "id": "ws-source",
+            "name": "Source Workspace",
+            "summary": "Original workspace",
+        },
+    )
+    client.post(
+        "/api/projects",
+        json={
+            "id": "proj-source-a",
+            "workspace_id": "ws-source",
+            "name": "Source Project A",
+        },
+    )
+    client.post(
+        "/api/projects",
+        json={
+            "id": "proj-source-b",
+            "workspace_id": "ws-source",
+            "name": "Source Project B",
+        },
+    )
+
+    cloned = client.post(
+        "/api/workspaces/ws-source/clone",
+        json={
+            "id": "ws-clone",
+            "name": "Source Workspace Copy",
+            "summary": "Cloned workspace",
+        },
+    )
+    assert cloned.status_code == 201, cloned.text
+    clone_row = cloned.json()
+    assert clone_row["id"] == "ws-clone"
+    assert clone_row["name"] == "Source Workspace Copy"
+    assert clone_row["summary"] == "Cloned workspace"
+    assert clone_row["projects_count"] == 2
+
+    cloned_projects = client.get("/api/projects?workspace_id=ws-clone")
+    assert cloned_projects.status_code == 200
+    project_rows = cloned_projects.json()
+    assert len(project_rows) == 2
+    assert {row["name"] for row in project_rows} == {"Source Project A", "Source Project B"}
+    assert all(row["id"] not in {"proj-source-a", "proj-source-b"} for row in project_rows)

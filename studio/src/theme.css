@@ -29,4 +29,210 @@
   --design-category-orchestration: #fbbf24;
   --design-category-observability: #60a5fa;
   --design-category-cross-service: #a78bfa;
+
+  /* Layered neutral surfaces. Error/warning/special states override these. */
+  --surface-depth-panel: rgba(15, 23, 42, 0.46);
+  --surface-depth-card: linear-gradient(145deg, rgba(30, 41, 59, 0.42), rgba(15, 23, 42, 0.3));
+  --surface-depth-card-nested: linear-gradient(145deg, rgba(51, 65, 85, 0.36), rgba(15, 23, 42, 0.38));
+  --surface-depth-inset: linear-gradient(145deg, rgba(15, 23, 42, 0.42), rgba(2, 6, 23, 0.24));
+  --surface-depth-control: rgba(2, 6, 23, 0.52);
+  --surface-border-panel: rgba(148, 163, 184, 0.18);
+  --surface-border-card: rgba(148, 163, 184, 0.2);
+  --surface-shadow-panel: 0 18px 42px rgba(2, 6, 23, 0.13);
+  --surface-shadow-card: 0 14px 32px rgba(2, 6, 23, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --surface-shadow-card-nested: 0 10px 24px rgba(2, 6, 23, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.studio-surface {
+  background: var(--surface-depth-panel);
+  border-color: var(--surface-border-panel);
+  box-shadow: var(--surface-shadow-panel);
+}
+
+.studio-surface-card {
+  background: var(--surface-depth-card);
+  border-color: var(--surface-border-card);
+  box-shadow: var(--surface-shadow-card);
+}
+
+.studio-surface-nested {
+  background: var(--surface-depth-card-nested);
+  border-color: var(--surface-border-card);
+  box-shadow: var(--surface-shadow-card-nested);
+}
+
+.studio-surface-inset {
+  background: var(--surface-depth-inset);
+  border-color: var(--surface-border-card);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:not([class]),
+.btn,
+.secondary-btn,
+.retry-btn,
+.connect-btn,
+.download-button,
+.copy-btn,
+.card-btn,
+.mini-btn,
+.assistant-btn,
+.intent-btn,
+.assistant-config-save,
+.assistant-config-close,
+.confirm-btn,
+.tb-btn,
+.kv-add,
+.sl-add,
+.add-btn,
+.filter-chip,
+.mode-btn,
+.lane-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    opacity var(--transition);
+}
+
+button:not([class]):hover:not(:disabled),
+.btn:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled),
+.retry-btn:hover:not(:disabled),
+.connect-btn:hover:not(:disabled),
+.download-button:hover:not(:disabled),
+.copy-btn:hover:not(:disabled),
+.card-btn:hover:not(:disabled),
+.mini-btn:hover:not(:disabled),
+.assistant-btn:hover:not(:disabled),
+.intent-btn:hover:not(:disabled),
+.assistant-config-close:hover:not(:disabled),
+.confirm-btn.secondary:hover:not(:disabled),
+.tb-btn:hover:not(:disabled),
+.kv-add:hover:not(:disabled),
+.sl-add:hover:not(:disabled),
+.add-btn:hover:not(:disabled),
+.filter-chip:hover:not(:disabled),
+.mode-btn:hover:not(:disabled),
+.lane-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
+button:not([class]):disabled,
+.btn:disabled,
+.secondary-btn:disabled,
+.retry-btn:disabled,
+.connect-btn:disabled,
+.download-button:disabled,
+.copy-btn:disabled,
+.card-btn:disabled,
+.mini-btn:disabled,
+.assistant-btn:disabled,
+.intent-btn:disabled,
+.assistant-config-save:disabled,
+.assistant-config-close:disabled,
+.confirm-btn:disabled,
+.tb-btn:disabled,
+.kv-add:disabled,
+.sl-add:disabled,
+.add-btn:disabled,
+.filter-chip:disabled,
+.mode-btn:disabled,
+.lane-button:disabled {
+  opacity: 0.55;
+}
+
+.btn-primary,
+.connect-btn,
+.assistant-config-save,
+.confirm-btn.primary,
+.tb-btn.primary,
+.intent-btn-primary,
+.card-btn-design {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled),
+.connect-btn:hover:not(:disabled),
+.assistant-config-save:hover:not(:disabled),
+.confirm-btn.primary:hover:not(:disabled),
+.tb-btn.primary:hover:not(:disabled),
+.intent-btn-primary:hover:not(:disabled),
+.card-btn-design:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+.btn-secondary,
+.secondary-btn,
+.confirm-btn.secondary,
+.tb-btn.secondary {
+  background: var(--bg-input);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.btn-tertiary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.btn-tertiary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
+.btn-danger,
+.delete-link,
+.kv-delete,
+.sl-delete,
+.remove-btn,
+.clear-btn {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--error);
+}
+
+.btn-danger:hover:not(:disabled),
+.delete-link:hover:not(:disabled),
+.kv-delete:hover:not(:disabled),
+.sl-delete:hover:not(:disabled),
+.remove-btn:hover:not(:disabled),
+.clear-btn:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.6);
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
 }

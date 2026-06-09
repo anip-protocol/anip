@@ -1,0 +1,340 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Trade without authority",
+            "Ignore price context"
+          ],
+          "produces": [
+            "Execute approved action"
+          ]
+        },
+        "intent": {
+          "category": "finance.execute.trade",
+          "summary": "Execute a buy or sell trade after current market data is available."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "symbol",
+            "summary": "Ticker symbol."
+          },
+          {
+            "behavior": "clarify",
+            "input": "quantity",
+            "summary": "Number of shares to trade."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade without authority",
+          "Ignore price context"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "capability_id": "finance.execute_trade",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for symbol when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "symbol",
+          "input_type": "string",
+          "required": true,
+          "summary": "Ticker symbol."
+        },
+        {
+          "allowed_values": [
+            "buy",
+            "sell"
+          ],
+          "clarification_hint": "Ask for side when it is missing or ambiguous.",
+          "default_value": "buy",
+          "entity_reference": false,
+          "input_name": "side",
+          "input_type": "string",
+          "required": false,
+          "summary": "Trade side."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for quantity when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "quantity",
+          "input_type": "integer",
+          "required": true,
+          "summary": "Number of shares to trade."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "finance.trade"
+      ],
+      "service_id": "finance-ops-service",
+      "summary": "Execute a buy or sell trade after current market data is available.",
+      "title": "Execute trade"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Trade",
+            "Transfer funds"
+          ],
+          "produces": [
+            "Draft content",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "finance.generate.report",
+          "summary": "Generate a daily, holdings, or transaction report."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "report_type",
+            "summary": "Report type."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade",
+          "Transfer funds"
+        ],
+        "produces": [
+          "Draft content",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "finance.generate_report",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [
+            "daily_summary",
+            "holdings",
+            "transactions"
+          ],
+          "clarification_hint": "Ask for report_type when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "report_type",
+          "input_type": "string",
+          "required": true,
+          "summary": "Report type."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "finance.read"
+      ],
+      "service_id": "finance-ops-service",
+      "summary": "Generate a daily, holdings, or transaction report.",
+      "title": "Generate report"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Trade"
+          ],
+          "produces": [
+            "Read bounded data"
+          ]
+        },
+        "intent": {
+          "category": "finance.get.market.data",
+          "summary": "Get current market data for a ticker symbol."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "symbol",
+            "summary": "Ticker symbol."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_id": "finance.get_market_data",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for symbol when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "symbol",
+          "input_type": "string",
+          "required": true,
+          "summary": "Ticker symbol."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "finance.read"
+      ],
+      "service_id": "finance-ops-service",
+      "summary": "Get current market data for a ticker symbol.",
+      "title": "Get market data"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Trade",
+            "Transfer funds"
+          ],
+          "produces": [
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "finance.query.portfolio",
+          "summary": "Query current holdings and valuations."
+        },
+        "required_context": []
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade",
+          "Transfer funds"
+        ],
+        "produces": [
+          "Summarize information"
+        ]
+      },
+      "capability_id": "finance.query_portfolio",
+      "kind": "atomic",
+      "minimum_scope": [
+        "finance.read"
+      ],
+      "service_id": "finance-ops-service",
+      "summary": "Query current holdings and valuations.",
+      "title": "Query portfolio"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Transfer without authority"
+          ],
+          "produces": [
+            "Change system state"
+          ]
+        },
+        "intent": {
+          "category": "finance.transfer.funds",
+          "summary": "Transfer funds between accounts with transactional recovery posture."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "from_account",
+            "summary": "Source account."
+          },
+          {
+            "behavior": "clarify",
+            "input": "to_account",
+            "summary": "Destination account."
+          },
+          {
+            "behavior": "clarify",
+            "input": "amount",
+            "summary": "Transfer amount in USD."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Transfer without authority"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "capability_id": "finance.transfer_funds",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for from_account when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "from_account",
+          "input_type": "string",
+          "required": true,
+          "summary": "Source account."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for to_account when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "to_account",
+          "input_type": "string",
+          "required": true,
+          "summary": "Destination account."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for amount when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "amount",
+          "input_type": "number",
+          "required": true,
+          "summary": "Transfer amount in USD."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "finance.transfer"
+      ],
+      "service_id": "finance-ops-service",
+      "summary": "Transfer funds between accounts with transactional recovery posture.",
+      "title": "Transfer funds"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

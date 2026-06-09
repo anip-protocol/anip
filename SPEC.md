@@ -548,6 +548,7 @@ The `resolution.action` field MUST be one of the following canonical values. Ser
 | `request_matching_currency_delegation` | Token budget currency does not match capability cost currency. |
 | `request_new_delegation` | Token purpose binding is wrong or a fresh token is otherwise needed. |
 | `request_capability_binding` | A required capability binding (non-quote) is missing or invalid. |
+| `request_approval` | A persisted approval request must be approved before the caller can continue the operation. |
 | `wait_and_retry` | Transient unavailability — capability will become available at `estimated_availability`. |
 | `obtain_quote_first` | Budget cannot be enforced without a bound price — get a quote first. |
 | `obtain_binding` | A required binding field is missing from invocation parameters. |
@@ -587,6 +588,7 @@ Every canonical `resolution.action` maps to exactly one `recovery_class`. Servic
 | `retry_now` | `retry_now` |
 | `provide_credentials` | `retry_now` |
 | `wait_and_retry` | `wait_then_retry` |
+| `request_approval` | `wait_then_retry` |
 | `obtain_binding` | `refresh_then_retry` |
 | `refresh_binding` | `refresh_then_retry` |
 | `obtain_quote_first` | `refresh_then_retry` |
@@ -959,8 +961,8 @@ failure:
   type: approval_required
   detail: "transfer_funds requires approval for amounts > $10,000"
   resolution:
-    action: contact_service_owner
-    recovery_class: terminal
+    action: request_approval
+    recovery_class: wait_then_retry
   retry: false
   approval_required:
     approval_request_id: apr_8a7c
@@ -2867,8 +2869,8 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Structured recovery targets (§4.5)** | MAY — v0.21 | Implemented: `recovery_target` with kind/target/continuity/retry_after_target in resolution objects | Multi-step recovery chains |
 | **Canonical parent_token semantics (§6.3)** | MUST — v0.22 | Implemented: parent_token is a token ID string, not JWT; consistent across all runtimes | — |
 | **Delegated capability-targeted issuance (§6.3)** | SHOULD — v0.22 | Implemented: `issueDelegatedCapabilityToken()` helper in all runtimes | — |
-| **Capability composition (§4.6)** | MAY — v0.23 | Schema and core model support landed: `CapabilityKind`, `Composition`, `CompositionStep`, `FailurePolicy`, `AuditPolicy`, `EmptyResultPolicy`, `AuthorityBoundary` types in all five runtime cores with structural validation. Composition execution, step DAG validation, empty-result branching, and audit lineage emission are pending. | Composition execution; multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
-| **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Schema and core model support landed: `ApprovalRequest`, `ApprovalGrant`, `GrantPolicy`, `ApprovalRequiredMetadata`, `IssueApprovalGrantRequest`/`Response` types in all five runtime cores. Persistence, signing, atomic `approve_request_and_store_grant` / `try_reserve_grant` storage primitives, `POST /anip/approval_grants` endpoint handler, audit linkage events, and capability-runtime integration are pending. **Services MUST NOT advertise `anip/0.23` until the full runtime is present** — see §10. | Persistence + signing + atomic primitives + endpoint handler; denial flow; multi-approver workflows; cross-service approval propagation |
+| **Capability composition (§4.6)** | MAY — v0.23 | Implemented: schema and core model support, structural validation, same-service execution, ordered step evaluation, empty-result branching, failure policy handling, and audit lineage in the runtime cores. | Multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
+| **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Implemented: request/grant models, grant policy, approval-required metadata, persistence, signing, atomic approve/store and reserve primitives, `POST /anip/approval_grants`, discovery advertisement, audit linkage, and runtime continuation validation. | Denial flow; multi-approver workflows; cross-service approval propagation |
 | **Input resolution metadata (§4.10)** | MAY — v0.24 | Schema and core model support landed: `InputResolution`, `InputMeaning`, `ResolutionMode`, `ResolutionBehavior` types plus adjacent hint fields (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) on `CapabilityInput` in all five runtime cores, with decode-layer enum rejection and model-level cross-field validators (`closed_values` requires `allowed_values`; `on_missing=use_default` requires non-null `default`). Auto-invoke wiring for the static-typed runtimes' validators on manifest/service-definition load (Go, Java, C#), generator pass-through into service-definition and agent-consumption artifacts, Studio UI editing, registry display, and runtime consumption of `resolution.mode` are pending. | Auto-invoke wiring for Go/Java/C# validators; generator pass-through; Studio UI; registry display; runtime consumption |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 

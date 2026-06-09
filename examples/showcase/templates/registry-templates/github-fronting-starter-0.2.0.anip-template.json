@@ -1,0 +1,4711 @@
+{
+  "template_id": "github-fronting-starter",
+  "template_version": "0.2.0",
+  "manifest": {
+    "schema": "anip-starter-template-manifest/v0",
+    "template_id": "github-fronting-starter",
+    "template_title": "GitHub Fronting Starter",
+    "template_kind": "fronting_starter",
+    "package_version": "0.2.0",
+    "anip_spec_version": "anip/0.24",
+    "studio_version": "0.8.0",
+    "template_digest": "sha256:e33e4bf53d2dbc93d1dc23cd6df40d7f586a33c7834d980df50197dab5681724",
+    "counts": {
+      "documents": 2,
+      "connections": 1,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "industry": "software_delivery",
+    "systems": [
+      "github"
+    ]
+  },
+  "template": {
+    "schema": "anip-starter-template/v0",
+    "anipSpecVersion": "anip/0.24",
+    "id": "github-fronting-starter",
+    "kind": "fronting_starter",
+    "projectType": "governed_service_project",
+    "title": "GitHub Fronting Starter",
+    "summary": "Govern GitHub repository and issue operations behind ANIP capabilities with explicit preview, approval, mutation, audit, and repository-scope controls.",
+    "description": "Exported from a reviewed Studio project. Review selected source docs, connection refs, backend operations, and mappings before locking or generation.",
+    "domain": "github",
+    "recommendedBrief": "Govern GitHub repository and issue operations behind ANIP capabilities with explicit preview, approval, mutation, audit, and repository-scope controls.",
+    "documents": [
+      {
+        "idSuffix": "developer-tools-fronting-intent",
+        "title": "GitHub Fronting Showcase 0.2.0 fronting intent",
+        "kind": "business_intent",
+        "filename": "developer-tools-fronting-intent.md",
+        "content": "# GitHub Fronting Showcase 0.2.0 Fronting Intent\n\nCreate an ANIP governed fronting service for GitHub. The service should expose business-safe repository and issue capabilities instead of raw GitHub API operations. It must support repository inspection, issue search, issue preview, approved issue creation, and governed mutation boundaries. The contract must make allowed organization/repository scope, approval requirements, denied operations, audit metadata, backend GitHub operations, and live adapter expectations explicit.\n\n## Next review step\nAdd integration evidence from a real source before contract generation. Use uploaded OpenAPI, GraphQL, MCP schema, API docs, permission matrices, live discovery, or manual operation entry. Studio must not invent backend operations from the project name or domain."
+      },
+      {
+        "idSuffix": "source-spec",
+        "title": "GitHub governed fronting source specification",
+        "kind": "api_docs",
+        "filename": "source-spec.md",
+        "content": "# GitHub Governed Fronting Showcase Source Specification\n\nThis source document models a realistic fronting use case: GitHub REST/GraphQL APIs exist downstream, but agents should only see governed repository capabilities.\n\n## Purpose\n\nDemonstrate that ANIP can govern repository and delivery operations without exposing broad code-hosting tools directly to agents.\n\nThe ANIP contract owns the capability semantics. Native GitHub APIs are the backend because they are durable service integration surfaces. GitHub MCP may be useful as a comparison point for raw tool exposure, but this package does not use MCP as the ANIP execution interface.\n\n## Service Boundary\n\n- Service ID: `github-governance-service`\n- Service name: GitHub Governance Service\n- Primary backend: native GitHub REST/GraphQL API adapter\n- Deployment posture: centralized ANIP fronting service with enterprise identity, repo allowlists, approval records, and audit.\n\n## Backend Evidence\n\nNative GitHub API supply:\n\n- Repository issue and pull request search through REST or GraphQL.\n- Issue preview mapped to issue creation fields.\n- Pull request comment preview mapped to review/comment APIs.\n- Workflow dispatch request mapped to GitHub Actions workflow dispatch.\n- Release-note draft generation from issue, pull request, milestone, or comparison data.\n\nMCP comparison:\n\n- GitHub MCP may expose repository search, issue, pull request, workflow, and release operations.\n- This showcase intentionally does not bind ANIP capabilities to GitHub MCP tools. The agent-facing surface remains ANIP capabilities backed by bounded GitHub API operations.\n\n## Governed Capability Surface\n\n| Capability | User intent | Required inputs | Optional governed inputs | Outcome posture |\n| --- | --- | --- | --- | --- |\n| `github.repo.search_context` | Search bounded issue and pull request context in an allowed repository. | `owner`, `repo`, `query` | `state`, `labels`, `limit`, `backend_options` | Read-only. Returns bounded summaries, not raw repository export. |\n| `github.issue.prepare` | Prepare an issue with labels and assignees. | `owner`, `repo`, `title`, `body` | `labels`, `assignees`, `milestone`, `backend_options` | Preview-only. Requires approval before creation. |\n| `github.pr.comment.prepare` | Prepare a pull request comment from review or release context. | `owner`, `repo`, `pull_number`, `comment_purpose`, `context` | `visibility`, `backend_options` | Preview-only. Requires approval before posting. |\n| `github.workflow.dispatch.request` | Request a GitHub Actions workflow run. | `owner`, `repo`, `workflow_id`, `ref` | `inputs`, `backend_options` | Approval-gated. Restricted workflows require explicit grant. |\n| `github.release_notes.prepare` | Draft release notes from bounded repository context. | `owner`, `repo`, `range` | `audience`, `include_prs`, `backend_options` | Draft-only. Does not create or publish a release. |\n\n`backend_options` is allowed only for bounded provider features such as selected fields, GraphQL pagination, or expand-like metadata. It must not allow arbitrary mutation payloads, secret access, workflow bypass, or unbounded repository export.\n\n## Policy Semantics\n\n- Repository scope is explicit and allowlisted.\n- Missing repo, pull request, workflow, or range context returns `clarification_required`.\n- Issue creation, PR comments, workflow dispatches, and release publication are not executed without approval.\n- Secret exfiltration, raw file export, unbounded codebase dumps, and direct workflow bypass are denied.\n- Native REST/GraphQL is the execution binding for this package. MCP can be used as a comparison surface, but is not required for ANIP.\n\n## Why ANIP Helps\n\nGitHub MCP gives agents access to powerful tools. ANIP turns that access into reviewed capabilities with explicit approvals, denial rules, clarification behavior, and audit records.\n"
+      }
+    ],
+    "connections": [
+      {
+        "idSuffix": "developer-tools-api",
+        "display_name": "Developer Tools Api",
+        "backend_kind": "native_api",
+        "system_kind": "github",
+        "endpoint_ref": "GITHUB_BASE_URL",
+        "auth_mode": "service_delegated",
+        "identity_provider_ref": "workspace-identity",
+        "secret_ref": "GITHUB_API_TOKEN",
+        "metadata": {
+          "exported_from_mapping_connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      }
+    ],
+    "discoveryRecords": [
+      {
+        "idSuffix": "github-api-search_repository_context",
+        "connectionIdSuffix": "developer-tools-api",
+        "operation_id": "github.api.search_repository_context",
+        "backend_kind": "native_api",
+        "method": "CALL",
+        "path_template": "/backend-operations/github-api-search_repository_context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "owner",
+            "repo",
+            "query"
+          ],
+          "optional": [
+            "state",
+            "labels",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+        ],
+        "data": {
+          "capability_id": "github.repo.search_context",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      },
+      {
+        "idSuffix": "github-api-prepare_issue",
+        "connectionIdSuffix": "developer-tools-api",
+        "operation_id": "github.api.prepare_issue",
+        "backend_kind": "native_api",
+        "method": "CALL",
+        "path_template": "/backend-operations/github-api-prepare_issue",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "owner",
+            "repo",
+            "title",
+            "body"
+          ],
+          "optional": [
+            "labels",
+            "assignees",
+            "milestone",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+        ],
+        "data": {
+          "capability_id": "github.issue.prepare",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      },
+      {
+        "idSuffix": "github-api-prepare_pull_request_comment",
+        "connectionIdSuffix": "developer-tools-api",
+        "operation_id": "github.api.prepare_pull_request_comment",
+        "backend_kind": "native_api",
+        "method": "CALL",
+        "path_template": "/backend-operations/github-api-prepare_pull_request_comment",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "owner",
+            "repo",
+            "pull_number",
+            "comment_purpose",
+            "context"
+          ],
+          "optional": [
+            "visibility",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+        ],
+        "data": {
+          "capability_id": "github.pr.comment.prepare",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      },
+      {
+        "idSuffix": "github-api-request_workflow_dispatch",
+        "connectionIdSuffix": "developer-tools-api",
+        "operation_id": "github.api.request_workflow_dispatch",
+        "backend_kind": "native_api",
+        "method": "CALL",
+        "path_template": "/backend-operations/github-api-request_workflow_dispatch",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "owner",
+            "repo",
+            "workflow_id",
+            "ref"
+          ],
+          "optional": [
+            "inputs",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+        ],
+        "data": {
+          "capability_id": "github.workflow.dispatch.request",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      },
+      {
+        "idSuffix": "github-api-prepare_release_notes",
+        "connectionIdSuffix": "developer-tools-api",
+        "operation_id": "github.api.prepare_release_notes",
+        "backend_kind": "native_api",
+        "method": "CALL",
+        "path_template": "/backend-operations/github-api-prepare_release_notes",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "owner",
+            "repo",
+            "range"
+          ],
+          "optional": [
+            "audience",
+            "include_prs",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+        ],
+        "data": {
+          "capability_id": "github.release_notes.prepare",
+          "synthesized_from_fronting_mapping": true,
+          "template_suggested": true
+        }
+      }
+    ],
+    "capabilityMappings": [
+      {
+        "idSuffix": "github-repo-search_context",
+        "title": "Search Context Fronting Mapping",
+        "data": {
+          "title": "Search Context",
+          "intent": "Search bounded GitHub repository issues and pull requests without raw repository export",
+          "summary": "Search bounded GitHub repository issues and pull requests without raw repository export",
+          "service_id": "github-governance-service",
+          "backend_kind": "native_api",
+          "context_type": "repository_context_search",
+          "service_name": "Github Governance Service",
+          "subject_kind": "github_repository",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "github.repo.search_context",
+          "output_intent": "bounded_repository_results",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "developer-tools-api",
+          "input_metadata": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository owner to use"
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository to use"
+            },
+            {
+              "summary": "Bounded issue and pull request search intent",
+              "required": true,
+              "input_name": "query",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "search_query",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask what repository context to search for"
+            },
+            {
+              "default": "open",
+              "summary": "Issue or pull request state filter",
+              "required": false,
+              "input_name": "state",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "default_value": "open",
+              "semantic_type": "issue_state",
+              "allowed_values": [
+                "open",
+                "closed",
+                "all"
+              ],
+              "entity_reference": false
+            },
+            {
+              "summary": "Optional GitHub label filters",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.label_catalog",
+              "semantic_type": "label_filter",
+              "allowed_values": [],
+              "entity_reference": true
+            },
+            {
+              "default": "20",
+              "summary": "Maximum bounded result count",
+              "required": false,
+              "input_name": "limit",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "default_value": "20",
+              "semantic_type": "quantity_limit",
+              "allowed_values": [],
+              "entity_reference": false
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false
+            }
+          ],
+          "operation_type": "read",
+          "optional_inputs": [
+            "state",
+            "labels",
+            "limit",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "owner",
+            "repo",
+            "query"
+          ],
+          "backend_bindings": [
+            {
+              "status": "accepted",
+              "backend_kind": "native_api",
+              "status_detail": "Materialized from reviewed developer capability evidence.",
+              "connection_ref": "developer-tools-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "github.api.search_repository_context"
+              ],
+              "matched_discovery_record_ids": [
+                "github-api-search_repository_context"
+              ],
+              "derived_optional_backend_inputs": [
+                "state",
+                "labels",
+                "limit",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "owner",
+                "repo",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "state",
+                "labels",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "owner",
+                "repo",
+                "query"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "read_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "read",
+          "approval_rule_refs": [],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.search_repository_context"
+          ],
+          "clarification_rule_refs": [
+            "clarify.owner",
+            "clarify.repo",
+            "clarify.query"
+          ],
+          "derived_optional_backend_inputs": [
+            "state",
+            "labels",
+            "limit",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "owner",
+            "repo",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "state",
+            "labels",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "owner",
+            "repo",
+            "query"
+          ],
+          "template_suggested": true,
+          "exported_from_artifact_id": "pm-artifact-5aad543f-1c4f-4a20-879e-edf9aebc0935",
+          "inputs": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository owner to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded issue and pull request search intent",
+              "required": true,
+              "input_name": "query",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "search_query",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask what repository context to search for",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Issue or pull request state filter",
+              "required": false,
+              "input_name": "state",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "open",
+              "semantic_type": "issue_state",
+              "allowed_values": [
+                "open",
+                "closed",
+                "all"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Optional GitHub label filters",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.label_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.label_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "label_filter",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Maximum bounded result count",
+              "required": false,
+              "input_name": "limit",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "20",
+              "semantic_type": "quantity_limit",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent_type": "read_only",
+          "business_effects": {
+            "produces": [
+              "content.summary",
+              "data.read"
+            ],
+            "does_not_produce": [
+              "raw_data_export",
+              "system.mutation"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "github-issue-prepare",
+        "title": "Prepare Fronting Mapping",
+        "data": {
+          "title": "Prepare",
+          "intent": "Prepare a GitHub issue preview before any issue is created",
+          "summary": "Prepare a GitHub issue preview before any issue is created",
+          "service_id": "github-governance-service",
+          "backend_kind": "native_api",
+          "context_type": "issue_preparation",
+          "service_name": "Github Governance Service",
+          "subject_kind": "github_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "github.issue.prepare",
+          "output_intent": "issue_creation_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "developer-tools-api",
+          "input_metadata": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository owner to use"
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository to use"
+            },
+            {
+              "summary": "Issue title",
+              "required": true,
+              "input_name": "title",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "issue_title",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask for the issue title"
+            },
+            {
+              "summary": "Issue body",
+              "required": true,
+              "input_name": "body",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "issue_body",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask for the issue body"
+            },
+            {
+              "summary": "Optional labels for the issue preview",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.label_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.label_catalog",
+              "semantic_type": "label_filter",
+              "allowed_values": [],
+              "entity_reference": true
+            },
+            {
+              "summary": "Optional assignees for the issue preview",
+              "required": false,
+              "input_name": "assignees",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.user_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.user_catalog",
+              "semantic_type": "user_reference",
+              "allowed_values": [],
+              "entity_reference": true
+            },
+            {
+              "summary": "Optional milestone for the issue preview",
+              "required": false,
+              "input_name": "milestone",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.milestone_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.milestone_catalog",
+              "semantic_type": "milestone_reference",
+              "allowed_values": [],
+              "entity_reference": true
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false
+            }
+          ],
+          "operation_type": "write",
+          "optional_inputs": [
+            "labels",
+            "assignees",
+            "milestone",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "owner",
+            "repo",
+            "title",
+            "body"
+          ],
+          "backend_bindings": [
+            {
+              "status": "accepted",
+              "backend_kind": "native_api",
+              "status_detail": "Materialized from reviewed developer capability evidence.",
+              "connection_ref": "developer-tools-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "github.api.prepare_issue"
+              ],
+              "matched_discovery_record_ids": [
+                "github-api-prepare_issue"
+              ],
+              "derived_optional_backend_inputs": [
+                "labels",
+                "assignees",
+                "milestone",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "owner",
+                "repo",
+                "title",
+                "body"
+              ],
+              "explicit_optional_backend_inputs": [
+                "labels",
+                "assignees",
+                "milestone",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "owner",
+                "repo",
+                "title",
+                "body"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.github-issue-prepare"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_issue"
+          ],
+          "clarification_rule_refs": [
+            "clarify.owner",
+            "clarify.repo",
+            "clarify.title",
+            "clarify.body"
+          ],
+          "derived_optional_backend_inputs": [
+            "labels",
+            "assignees",
+            "milestone",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "owner",
+            "repo",
+            "title",
+            "body"
+          ],
+          "explicit_optional_backend_inputs": [
+            "labels",
+            "assignees",
+            "milestone",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "owner",
+            "repo",
+            "title",
+            "body"
+          ],
+          "template_suggested": true,
+          "exported_from_artifact_id": "pm-artifact-5b03009b-2913-4f2a-9c1b-094211de0543",
+          "inputs": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository owner to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Issue title",
+              "required": true,
+              "input_name": "title",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_title",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask for the issue title",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Issue body",
+              "required": true,
+              "input_name": "body",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_body",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask for the issue body",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Optional labels for the issue preview",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.label_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.label_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "label_filter",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Optional assignees for the issue preview",
+              "required": false,
+              "input_name": "assignees",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.user_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.user_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "user_reference",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Optional milestone for the issue preview",
+              "required": false,
+              "input_name": "milestone",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.milestone_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.milestone_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "milestone_reference",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "github-pr-comment-prepare",
+        "title": "Prepare Fronting Mapping",
+        "data": {
+          "title": "Prepare",
+          "intent": "Prepare a pull request comment preview without posting it",
+          "summary": "Prepare a pull request comment preview without posting it",
+          "service_id": "github-governance-service",
+          "backend_kind": "native_api",
+          "context_type": "pull_request_comment_preparation",
+          "service_name": "Github Governance Service",
+          "subject_kind": "github_pull_request",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "github.pr.comment.prepare",
+          "output_intent": "comment_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "developer-tools-api",
+          "input_metadata": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository owner to use"
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository to use"
+            },
+            {
+              "summary": "Pull request number",
+              "required": true,
+              "input_name": "pull_number",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.pull_request_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.pull_request_catalog",
+              "semantic_type": "pull_request_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which pull request to comment on"
+            },
+            {
+              "summary": "Purpose of the prepared pull request comment",
+              "required": true,
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "comment_purpose",
+              "allowed_values": [
+                "review_note",
+                "release_note",
+                "triage_update"
+              ],
+              "entity_reference": false,
+              "clarification_hint": "Ask what kind of comment to prepare"
+            },
+            {
+              "summary": "Context to use for the prepared comment",
+              "required": true,
+              "input_name": "context",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "comment_context",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask for the comment context"
+            },
+            {
+              "default": "internal",
+              "summary": "Comment visibility posture",
+              "required": false,
+              "input_name": "visibility",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "default_value": "internal",
+              "semantic_type": "visibility",
+              "allowed_values": [
+                "internal",
+                "public"
+              ],
+              "entity_reference": false
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false
+            }
+          ],
+          "operation_type": "write",
+          "optional_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "owner",
+            "repo",
+            "pull_number",
+            "comment_purpose",
+            "context"
+          ],
+          "backend_bindings": [
+            {
+              "status": "accepted",
+              "backend_kind": "native_api",
+              "status_detail": "Materialized from reviewed developer capability evidence.",
+              "connection_ref": "developer-tools-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "github.api.prepare_pull_request_comment"
+              ],
+              "matched_discovery_record_ids": [
+                "github-api-prepare_pull_request_comment"
+              ],
+              "derived_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "owner",
+                "repo",
+                "pull_number",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "owner",
+                "repo",
+                "pull_number",
+                "comment_purpose",
+                "context"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.github-pr-comment-prepare"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_pull_request_comment"
+          ],
+          "clarification_rule_refs": [
+            "clarify.owner",
+            "clarify.repo",
+            "clarify.pull_number",
+            "clarify.comment_purpose",
+            "clarify.context"
+          ],
+          "derived_optional_backend_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "owner",
+            "repo",
+            "pull_number",
+            "comment_purpose",
+            "context"
+          ],
+          "explicit_optional_backend_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "owner",
+            "repo",
+            "pull_number",
+            "comment_purpose",
+            "context"
+          ],
+          "template_suggested": true,
+          "exported_from_artifact_id": "pm-artifact-678a6e83-b71f-469b-a383-ccf20f9dd0f3",
+          "inputs": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository owner to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Pull request number",
+              "required": true,
+              "input_name": "pull_number",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.pull_request_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.pull_request_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "pull_request_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which pull request to comment on",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Purpose of the prepared pull request comment",
+              "required": true,
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "comment_purpose",
+              "allowed_values": [
+                "review_note",
+                "release_note",
+                "triage_update"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask what kind of comment to prepare",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Context to use for the prepared comment",
+              "required": true,
+              "input_name": "context",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "comment_context",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask for the comment context",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Comment visibility posture",
+              "required": false,
+              "input_name": "visibility",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "internal",
+              "semantic_type": "visibility",
+              "allowed_values": [
+                "internal",
+                "public"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "github-workflow-dispatch-request",
+        "title": "Request Fronting Mapping",
+        "data": {
+          "title": "Request",
+          "intent": "Prepare a governed workflow dispatch request and stop for approval",
+          "summary": "Prepare a governed workflow dispatch request and stop for approval",
+          "service_id": "github-governance-service",
+          "backend_kind": "native_api",
+          "context_type": "workflow_dispatch",
+          "service_name": "Github Governance Service",
+          "subject_kind": "github_workflow",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "github.workflow.dispatch.request",
+          "output_intent": "workflow_dispatch_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "developer-tools-api",
+          "input_metadata": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository owner to use"
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository to use"
+            },
+            {
+              "summary": "Workflow id or filename",
+              "required": true,
+              "input_name": "workflow_id",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.workflow_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.workflow_catalog",
+              "semantic_type": "workflow_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which workflow to request"
+            },
+            {
+              "summary": "Branch or tag ref",
+              "required": true,
+              "input_name": "ref",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "git_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which branch or tag to dispatch"
+            },
+            {
+              "summary": "Optional workflow input object",
+              "required": false,
+              "input_name": "inputs",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "workflow_inputs",
+              "allowed_values": [],
+              "entity_reference": false
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false
+            }
+          ],
+          "operation_type": "write",
+          "optional_inputs": [
+            "inputs",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "owner",
+            "repo",
+            "workflow_id",
+            "ref"
+          ],
+          "backend_bindings": [
+            {
+              "status": "accepted",
+              "backend_kind": "native_api",
+              "status_detail": "Materialized from reviewed developer capability evidence.",
+              "connection_ref": "developer-tools-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "github.api.request_workflow_dispatch"
+              ],
+              "matched_discovery_record_ids": [
+                "github-api-request_workflow_dispatch"
+              ],
+              "derived_optional_backend_inputs": [
+                "inputs",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "owner",
+                "repo",
+                "workflow_id",
+                "ref"
+              ],
+              "explicit_optional_backend_inputs": [
+                "inputs",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "owner",
+                "repo",
+                "workflow_id",
+                "ref"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.github-workflow-dispatch-request"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.request_workflow_dispatch"
+          ],
+          "clarification_rule_refs": [
+            "clarify.owner",
+            "clarify.repo",
+            "clarify.workflow_id",
+            "clarify.ref"
+          ],
+          "derived_optional_backend_inputs": [
+            "inputs",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "owner",
+            "repo",
+            "workflow_id",
+            "ref"
+          ],
+          "explicit_optional_backend_inputs": [
+            "inputs",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "owner",
+            "repo",
+            "workflow_id",
+            "ref"
+          ],
+          "template_suggested": true,
+          "exported_from_artifact_id": "pm-artifact-0a9592b9-6961-45b6-b8ae-b88144d8f686",
+          "inputs": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository owner to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Workflow id or filename",
+              "required": true,
+              "input_name": "workflow_id",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.workflow_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.workflow_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "workflow_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which workflow to request",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Branch or tag ref",
+              "required": true,
+              "input_name": "ref",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "git_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which branch or tag to dispatch",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Optional workflow input object",
+              "required": false,
+              "input_name": "inputs",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "workflow_inputs",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "github-release_notes-prepare",
+        "title": "Prepare Fronting Mapping",
+        "data": {
+          "title": "Prepare",
+          "intent": "Prepare bounded release notes without creating or publishing a release",
+          "summary": "Prepare bounded release notes without creating or publishing a release",
+          "service_id": "github-governance-service",
+          "backend_kind": "native_api",
+          "context_type": "release_notes_preparation",
+          "service_name": "Github Governance Service",
+          "subject_kind": "github_release",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "github.release_notes.prepare",
+          "output_intent": "release_notes_draft",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "developer-tools-api",
+          "input_metadata": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository owner to use"
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask which repository to use"
+            },
+            {
+              "summary": "Tag range or comparison range",
+              "required": true,
+              "input_name": "range",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "release_range",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask which release range to summarize"
+            },
+            {
+              "default": "engineering",
+              "summary": "Release note audience",
+              "required": false,
+              "input_name": "audience",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "default_value": "engineering",
+              "semantic_type": "audience",
+              "allowed_values": [
+                "engineering",
+                "customer",
+                "internal"
+              ],
+              "entity_reference": false
+            },
+            {
+              "default": "true",
+              "summary": "Whether to include pull request details",
+              "required": false,
+              "input_name": "include_prs",
+              "input_type": "boolean",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "default_value": "true",
+              "semantic_type": "include_prs",
+              "allowed_values": [],
+              "entity_reference": false
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false
+            }
+          ],
+          "operation_type": "read",
+          "optional_inputs": [
+            "audience",
+            "include_prs",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "owner",
+            "repo",
+            "range"
+          ],
+          "backend_bindings": [
+            {
+              "status": "accepted",
+              "backend_kind": "native_api",
+              "status_detail": "Materialized from reviewed developer capability evidence.",
+              "connection_ref": "developer-tools-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "github.api.prepare_release_notes"
+              ],
+              "matched_discovery_record_ids": [
+                "github-api-prepare_release_notes"
+              ],
+              "derived_optional_backend_inputs": [
+                "audience",
+                "include_prs",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "owner",
+                "repo",
+                "range"
+              ],
+              "explicit_optional_backend_inputs": [
+                "audience",
+                "include_prs",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "owner",
+                "repo",
+                "range"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "read_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "read",
+          "approval_rule_refs": [],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_release_notes"
+          ],
+          "clarification_rule_refs": [
+            "clarify.owner",
+            "clarify.repo",
+            "clarify.range"
+          ],
+          "derived_optional_backend_inputs": [
+            "audience",
+            "include_prs",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "owner",
+            "repo",
+            "range"
+          ],
+          "explicit_optional_backend_inputs": [
+            "audience",
+            "include_prs",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "owner",
+            "repo",
+            "range"
+          ],
+          "template_suggested": true,
+          "exported_from_artifact_id": "pm-artifact-ea5db8ce-f3a6-473b-8534-5bdba6361279",
+          "inputs": [
+            {
+              "summary": "GitHub repository owner or organization",
+              "required": true,
+              "input_name": "owner",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_owner",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository owner to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "GitHub repository name",
+              "required": true,
+              "input_name": "repo",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "github.repository_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "github.repository_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "repo_name",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which repository to use",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Tag range or comparison range",
+              "required": true,
+              "input_name": "range",
+              "input_type": "string",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "release_range",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "Ask which release range to summarize",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Release note audience",
+              "required": false,
+              "input_name": "audience",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "engineering",
+              "semantic_type": "audience",
+              "allowed_values": [
+                "engineering",
+                "customer",
+                "internal"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Whether to include pull request details",
+              "required": false,
+              "input_name": "include_prs",
+              "input_type": "boolean",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "use_default",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "true",
+              "semantic_type": "include_prs",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Bounded provider options only",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent_type": "read_only",
+          "business_effects": {
+            "produces": [
+              "content.draft",
+              "data.aggregate"
+            ],
+            "does_not_produce": [
+              "external_dispatch",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "package": {
+    "schema": "anip-starter-template-package/v0",
+    "package_kind": "anip_starter_template",
+    "package_version": "0.2.0",
+    "exported_at": "2026-06-06T06:32:46.592Z",
+    "exported_by": {
+      "studio_version": "0.8.0",
+      "anip_spec_version": "anip/0.24"
+    },
+    "source_project": {
+      "id": "github-fronting-showcase-0-2-0",
+      "name": "GitHub Fronting",
+      "project_type": "governed_service_project",
+      "domain": "github"
+    },
+    "manifest": {
+      "schema": "anip-starter-template-manifest/v0",
+      "template_id": "github-fronting-starter",
+      "template_title": "GitHub Fronting Starter",
+      "template_kind": "fronting_starter",
+      "package_version": "0.2.0",
+      "anip_spec_version": "anip/0.24",
+      "studio_version": "0.8.0",
+      "template_digest": "sha256:e33e4bf53d2dbc93d1dc23cd6df40d7f586a33c7834d980df50197dab5681724",
+      "counts": {
+        "documents": 2,
+        "connections": 1,
+        "discovery_records": 5,
+        "capability_mappings": 5
+      },
+      "industry": "software_delivery",
+      "systems": [
+        "github"
+      ]
+    },
+    "selection": {
+      "documents": 2,
+      "connections": 1,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "warnings": [
+      "Source documents are included only when explicitly selected.",
+      "Secret values are not exported; only secret references are included.",
+      "Template data is starter evidence, not locked contract truth."
+    ],
+    "template": {
+      "schema": "anip-starter-template/v0",
+      "anipSpecVersion": "anip/0.24",
+      "id": "github-fronting-starter",
+      "kind": "fronting_starter",
+      "projectType": "governed_service_project",
+      "title": "GitHub Fronting Starter",
+      "summary": "Govern GitHub repository and issue operations behind ANIP capabilities with explicit preview, approval, mutation, audit, and repository-scope controls.",
+      "description": "Exported from a reviewed Studio project. Review selected source docs, connection refs, backend operations, and mappings before locking or generation.",
+      "domain": "github",
+      "recommendedBrief": "Govern GitHub repository and issue operations behind ANIP capabilities with explicit preview, approval, mutation, audit, and repository-scope controls.",
+      "documents": [
+        {
+          "idSuffix": "developer-tools-fronting-intent",
+          "title": "GitHub Fronting Showcase 0.2.0 fronting intent",
+          "kind": "business_intent",
+          "filename": "developer-tools-fronting-intent.md",
+          "content": "# GitHub Fronting Showcase 0.2.0 Fronting Intent\n\nCreate an ANIP governed fronting service for GitHub. The service should expose business-safe repository and issue capabilities instead of raw GitHub API operations. It must support repository inspection, issue search, issue preview, approved issue creation, and governed mutation boundaries. The contract must make allowed organization/repository scope, approval requirements, denied operations, audit metadata, backend GitHub operations, and live adapter expectations explicit.\n\n## Next review step\nAdd integration evidence from a real source before contract generation. Use uploaded OpenAPI, GraphQL, MCP schema, API docs, permission matrices, live discovery, or manual operation entry. Studio must not invent backend operations from the project name or domain."
+        },
+        {
+          "idSuffix": "source-spec",
+          "title": "GitHub governed fronting source specification",
+          "kind": "api_docs",
+          "filename": "source-spec.md",
+          "content": "# GitHub Governed Fronting Showcase Source Specification\n\nThis source document models a realistic fronting use case: GitHub REST/GraphQL APIs exist downstream, but agents should only see governed repository capabilities.\n\n## Purpose\n\nDemonstrate that ANIP can govern repository and delivery operations without exposing broad code-hosting tools directly to agents.\n\nThe ANIP contract owns the capability semantics. Native GitHub APIs are the backend because they are durable service integration surfaces. GitHub MCP may be useful as a comparison point for raw tool exposure, but this package does not use MCP as the ANIP execution interface.\n\n## Service Boundary\n\n- Service ID: `github-governance-service`\n- Service name: GitHub Governance Service\n- Primary backend: native GitHub REST/GraphQL API adapter\n- Deployment posture: centralized ANIP fronting service with enterprise identity, repo allowlists, approval records, and audit.\n\n## Backend Evidence\n\nNative GitHub API supply:\n\n- Repository issue and pull request search through REST or GraphQL.\n- Issue preview mapped to issue creation fields.\n- Pull request comment preview mapped to review/comment APIs.\n- Workflow dispatch request mapped to GitHub Actions workflow dispatch.\n- Release-note draft generation from issue, pull request, milestone, or comparison data.\n\nMCP comparison:\n\n- GitHub MCP may expose repository search, issue, pull request, workflow, and release operations.\n- This showcase intentionally does not bind ANIP capabilities to GitHub MCP tools. The agent-facing surface remains ANIP capabilities backed by bounded GitHub API operations.\n\n## Governed Capability Surface\n\n| Capability | User intent | Required inputs | Optional governed inputs | Outcome posture |\n| --- | --- | --- | --- | --- |\n| `github.repo.search_context` | Search bounded issue and pull request context in an allowed repository. | `owner`, `repo`, `query` | `state`, `labels`, `limit`, `backend_options` | Read-only. Returns bounded summaries, not raw repository export. |\n| `github.issue.prepare` | Prepare an issue with labels and assignees. | `owner`, `repo`, `title`, `body` | `labels`, `assignees`, `milestone`, `backend_options` | Preview-only. Requires approval before creation. |\n| `github.pr.comment.prepare` | Prepare a pull request comment from review or release context. | `owner`, `repo`, `pull_number`, `comment_purpose`, `context` | `visibility`, `backend_options` | Preview-only. Requires approval before posting. |\n| `github.workflow.dispatch.request` | Request a GitHub Actions workflow run. | `owner`, `repo`, `workflow_id`, `ref` | `inputs`, `backend_options` | Approval-gated. Restricted workflows require explicit grant. |\n| `github.release_notes.prepare` | Draft release notes from bounded repository context. | `owner`, `repo`, `range` | `audience`, `include_prs`, `backend_options` | Draft-only. Does not create or publish a release. |\n\n`backend_options` is allowed only for bounded provider features such as selected fields, GraphQL pagination, or expand-like metadata. It must not allow arbitrary mutation payloads, secret access, workflow bypass, or unbounded repository export.\n\n## Policy Semantics\n\n- Repository scope is explicit and allowlisted.\n- Missing repo, pull request, workflow, or range context returns `clarification_required`.\n- Issue creation, PR comments, workflow dispatches, and release publication are not executed without approval.\n- Secret exfiltration, raw file export, unbounded codebase dumps, and direct workflow bypass are denied.\n- Native REST/GraphQL is the execution binding for this package. MCP can be used as a comparison surface, but is not required for ANIP.\n\n## Why ANIP Helps\n\nGitHub MCP gives agents access to powerful tools. ANIP turns that access into reviewed capabilities with explicit approvals, denial rules, clarification behavior, and audit records.\n"
+        }
+      ],
+      "connections": [
+        {
+          "idSuffix": "developer-tools-api",
+          "display_name": "Developer Tools Api",
+          "backend_kind": "native_api",
+          "system_kind": "github",
+          "endpoint_ref": "GITHUB_BASE_URL",
+          "auth_mode": "service_delegated",
+          "identity_provider_ref": "workspace-identity",
+          "secret_ref": "GITHUB_API_TOKEN",
+          "metadata": {
+            "exported_from_mapping_connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        }
+      ],
+      "discoveryRecords": [
+        {
+          "idSuffix": "github-api-search_repository_context",
+          "connectionIdSuffix": "developer-tools-api",
+          "operation_id": "github.api.search_repository_context",
+          "backend_kind": "native_api",
+          "method": "CALL",
+          "path_template": "/backend-operations/github-api-search_repository_context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "optional": [
+              "state",
+              "labels",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+          ],
+          "data": {
+            "capability_id": "github.repo.search_context",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        },
+        {
+          "idSuffix": "github-api-prepare_issue",
+          "connectionIdSuffix": "developer-tools-api",
+          "operation_id": "github.api.prepare_issue",
+          "backend_kind": "native_api",
+          "method": "CALL",
+          "path_template": "/backend-operations/github-api-prepare_issue",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "optional": [
+              "labels",
+              "assignees",
+              "milestone",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+          ],
+          "data": {
+            "capability_id": "github.issue.prepare",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        },
+        {
+          "idSuffix": "github-api-prepare_pull_request_comment",
+          "connectionIdSuffix": "developer-tools-api",
+          "operation_id": "github.api.prepare_pull_request_comment",
+          "backend_kind": "native_api",
+          "method": "CALL",
+          "path_template": "/backend-operations/github-api-prepare_pull_request_comment",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "optional": [
+              "visibility",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+          ],
+          "data": {
+            "capability_id": "github.pr.comment.prepare",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        },
+        {
+          "idSuffix": "github-api-request_workflow_dispatch",
+          "connectionIdSuffix": "developer-tools-api",
+          "operation_id": "github.api.request_workflow_dispatch",
+          "backend_kind": "native_api",
+          "method": "CALL",
+          "path_template": "/backend-operations/github-api-request_workflow_dispatch",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "optional": [
+              "inputs",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+          ],
+          "data": {
+            "capability_id": "github.workflow.dispatch.request",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        },
+        {
+          "idSuffix": "github-api-prepare_release_notes",
+          "connectionIdSuffix": "developer-tools-api",
+          "operation_id": "github.api.prepare_release_notes",
+          "backend_kind": "native_api",
+          "method": "CALL",
+          "path_template": "/backend-operations/github-api-prepare_release_notes",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "optional": [
+              "audience",
+              "include_prs",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Synthesized from reviewed fronting mapping metadata; verify backend endpoint details before locking a derived project."
+          ],
+          "data": {
+            "capability_id": "github.release_notes.prepare",
+            "synthesized_from_fronting_mapping": true,
+            "template_suggested": true
+          }
+        }
+      ],
+      "capabilityMappings": [
+        {
+          "idSuffix": "github-repo-search_context",
+          "title": "Search Context Fronting Mapping",
+          "data": {
+            "title": "Search Context",
+            "intent": "Search bounded GitHub repository issues and pull requests without raw repository export",
+            "summary": "Search bounded GitHub repository issues and pull requests without raw repository export",
+            "service_id": "github-governance-service",
+            "backend_kind": "native_api",
+            "context_type": "repository_context_search",
+            "service_name": "Github Governance Service",
+            "subject_kind": "github_repository",
+            "artifact_type": "integration_fronting_capability_mapping",
+            "capability_id": "github.repo.search_context",
+            "output_intent": "bounded_repository_results",
+            "review_status": "template_suggested",
+            "audit_required": true,
+            "connection_ref": "developer-tools-api",
+            "input_metadata": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository owner to use"
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository to use"
+              },
+              {
+                "summary": "Bounded issue and pull request search intent",
+                "required": true,
+                "input_name": "query",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "search_query",
+                "allowed_values": [],
+                "entity_reference": false,
+                "clarification_hint": "Ask what repository context to search for"
+              },
+              {
+                "default": "open",
+                "summary": "Issue or pull request state filter",
+                "required": false,
+                "input_name": "state",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "default_value": "open",
+                "semantic_type": "issue_state",
+                "allowed_values": [
+                  "open",
+                  "closed",
+                  "all"
+                ],
+                "entity_reference": false
+              },
+              {
+                "summary": "Optional GitHub label filters",
+                "required": false,
+                "input_name": "labels",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.label_catalog",
+                "semantic_type": "label_filter",
+                "allowed_values": [],
+                "entity_reference": true
+              },
+              {
+                "default": "20",
+                "summary": "Maximum bounded result count",
+                "required": false,
+                "input_name": "limit",
+                "input_type": "integer",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "default_value": "20",
+                "semantic_type": "quantity_limit",
+                "allowed_values": [],
+                "entity_reference": false
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false
+              }
+            ],
+            "operation_type": "read",
+            "optional_inputs": [
+              "state",
+              "labels",
+              "limit",
+              "backend_options"
+            ],
+            "required_inputs": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "backend_bindings": [
+              {
+                "status": "accepted",
+                "backend_kind": "native_api",
+                "status_detail": "Materialized from reviewed developer capability evidence.",
+                "connection_ref": "developer-tools-api",
+                "backend_input_mode": "explicit",
+                "raw_operation_refs": [
+                  "github.api.search_repository_context"
+                ],
+                "matched_discovery_record_ids": [
+                  "github-api-search_repository_context"
+                ],
+                "derived_optional_backend_inputs": [
+                  "state",
+                  "labels",
+                  "limit",
+                  "backend_options"
+                ],
+                "derived_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "state",
+                  "labels",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "query"
+                ]
+              }
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "execution_posture": "read_only",
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "side_effect_level": "read",
+            "approval_rule_refs": [],
+            "backend_input_mode": "explicit",
+            "raw_operation_refs": [
+              "github.api.search_repository_context"
+            ],
+            "clarification_rule_refs": [
+              "clarify.owner",
+              "clarify.repo",
+              "clarify.query"
+            ],
+            "derived_optional_backend_inputs": [
+              "state",
+              "labels",
+              "limit",
+              "backend_options"
+            ],
+            "derived_required_backend_inputs": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "state",
+              "labels",
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "template_suggested": true,
+            "exported_from_artifact_id": "pm-artifact-5aad543f-1c4f-4a20-879e-edf9aebc0935",
+            "inputs": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository owner to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded issue and pull request search intent",
+                "required": true,
+                "input_name": "query",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "search_query",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask what repository context to search for",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Issue or pull request state filter",
+                "required": false,
+                "input_name": "state",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "open",
+                "semantic_type": "issue_state",
+                "allowed_values": [
+                  "open",
+                  "closed",
+                  "all"
+                ],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Optional GitHub label filters",
+                "required": false,
+                "input_name": "labels",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.label_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.label_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "label_filter",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Maximum bounded result count",
+                "required": false,
+                "input_name": "limit",
+                "input_type": "integer",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "20",
+                "semantic_type": "quantity_limit",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              }
+            ],
+            "intent_type": "read_only",
+            "business_effects": {
+              "produces": [
+                "content.summary",
+                "data.read"
+              ],
+              "does_not_produce": [
+                "raw_data_export",
+                "system.mutation"
+              ]
+            }
+          }
+        },
+        {
+          "idSuffix": "github-issue-prepare",
+          "title": "Prepare Fronting Mapping",
+          "data": {
+            "title": "Prepare",
+            "intent": "Prepare a GitHub issue preview before any issue is created",
+            "summary": "Prepare a GitHub issue preview before any issue is created",
+            "service_id": "github-governance-service",
+            "backend_kind": "native_api",
+            "context_type": "issue_preparation",
+            "service_name": "Github Governance Service",
+            "subject_kind": "github_issue",
+            "artifact_type": "integration_fronting_capability_mapping",
+            "capability_id": "github.issue.prepare",
+            "output_intent": "issue_creation_preview",
+            "review_status": "template_suggested",
+            "audit_required": true,
+            "connection_ref": "developer-tools-api",
+            "input_metadata": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository owner to use"
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository to use"
+              },
+              {
+                "summary": "Issue title",
+                "required": true,
+                "input_name": "title",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "issue_title",
+                "allowed_values": [],
+                "entity_reference": false,
+                "clarification_hint": "Ask for the issue title"
+              },
+              {
+                "summary": "Issue body",
+                "required": true,
+                "input_name": "body",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "issue_body",
+                "allowed_values": [],
+                "entity_reference": false,
+                "clarification_hint": "Ask for the issue body"
+              },
+              {
+                "summary": "Optional labels for the issue preview",
+                "required": false,
+                "input_name": "labels",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.label_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.label_catalog",
+                "semantic_type": "label_filter",
+                "allowed_values": [],
+                "entity_reference": true
+              },
+              {
+                "summary": "Optional assignees for the issue preview",
+                "required": false,
+                "input_name": "assignees",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.user_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.user_catalog",
+                "semantic_type": "user_reference",
+                "allowed_values": [],
+                "entity_reference": true
+              },
+              {
+                "summary": "Optional milestone for the issue preview",
+                "required": false,
+                "input_name": "milestone",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.milestone_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.milestone_catalog",
+                "semantic_type": "milestone_reference",
+                "allowed_values": [],
+                "entity_reference": true
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false
+              }
+            ],
+            "operation_type": "write",
+            "optional_inputs": [
+              "labels",
+              "assignees",
+              "milestone",
+              "backend_options"
+            ],
+            "required_inputs": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "backend_bindings": [
+              {
+                "status": "accepted",
+                "backend_kind": "native_api",
+                "status_detail": "Materialized from reviewed developer capability evidence.",
+                "connection_ref": "developer-tools-api",
+                "backend_input_mode": "explicit",
+                "raw_operation_refs": [
+                  "github.api.prepare_issue"
+                ],
+                "matched_discovery_record_ids": [
+                  "github-api-prepare_issue"
+                ],
+                "derived_optional_backend_inputs": [
+                  "labels",
+                  "assignees",
+                  "milestone",
+                  "backend_options"
+                ],
+                "derived_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "title",
+                  "body"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "labels",
+                  "assignees",
+                  "milestone",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "title",
+                  "body"
+                ]
+              }
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "execution_posture": "prepare_only",
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "side_effect_level": "write_adjacent",
+            "approval_rule_refs": [
+              "approval.github-issue-prepare"
+            ],
+            "backend_input_mode": "explicit",
+            "raw_operation_refs": [
+              "github.api.prepare_issue"
+            ],
+            "clarification_rule_refs": [
+              "clarify.owner",
+              "clarify.repo",
+              "clarify.title",
+              "clarify.body"
+            ],
+            "derived_optional_backend_inputs": [
+              "labels",
+              "assignees",
+              "milestone",
+              "backend_options"
+            ],
+            "derived_required_backend_inputs": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "explicit_optional_backend_inputs": [
+              "labels",
+              "assignees",
+              "milestone",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "template_suggested": true,
+            "exported_from_artifact_id": "pm-artifact-5b03009b-2913-4f2a-9c1b-094211de0543",
+            "inputs": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository owner to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Issue title",
+                "required": true,
+                "input_name": "title",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "issue_title",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask for the issue title",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Issue body",
+                "required": true,
+                "input_name": "body",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "issue_body",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask for the issue body",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Optional labels for the issue preview",
+                "required": false,
+                "input_name": "labels",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.label_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.label_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "label_filter",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Optional assignees for the issue preview",
+                "required": false,
+                "input_name": "assignees",
+                "input_type": "array<string>",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.user_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.user_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "user_reference",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Optional milestone for the issue preview",
+                "required": false,
+                "input_name": "milestone",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.milestone_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.milestone_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "milestone_reference",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              }
+            ],
+            "intent_type": "prepare_only",
+            "grant_policy": {
+              "max_uses": 1,
+              "default_grant_type": "one_time",
+              "expires_in_seconds": 900,
+              "allowed_grant_types": [
+                "one_time",
+                "session_bound"
+              ]
+            },
+            "business_effects": {
+              "produces": [
+                "approval.request",
+                "system.preview_mutation",
+                "content.draft"
+              ],
+              "does_not_produce": [
+                "approval.execute",
+                "system.mutation",
+                "raw_data_export"
+              ]
+            }
+          }
+        },
+        {
+          "idSuffix": "github-pr-comment-prepare",
+          "title": "Prepare Fronting Mapping",
+          "data": {
+            "title": "Prepare",
+            "intent": "Prepare a pull request comment preview without posting it",
+            "summary": "Prepare a pull request comment preview without posting it",
+            "service_id": "github-governance-service",
+            "backend_kind": "native_api",
+            "context_type": "pull_request_comment_preparation",
+            "service_name": "Github Governance Service",
+            "subject_kind": "github_pull_request",
+            "artifact_type": "integration_fronting_capability_mapping",
+            "capability_id": "github.pr.comment.prepare",
+            "output_intent": "comment_preview",
+            "review_status": "template_suggested",
+            "audit_required": true,
+            "connection_ref": "developer-tools-api",
+            "input_metadata": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository owner to use"
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository to use"
+              },
+              {
+                "summary": "Pull request number",
+                "required": true,
+                "input_name": "pull_number",
+                "input_type": "integer",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.pull_request_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.pull_request_catalog",
+                "semantic_type": "pull_request_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which pull request to comment on"
+              },
+              {
+                "summary": "Purpose of the prepared pull request comment",
+                "required": true,
+                "input_name": "comment_purpose",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "comment_purpose",
+                "allowed_values": [
+                  "review_note",
+                  "release_note",
+                  "triage_update"
+                ],
+                "entity_reference": false,
+                "clarification_hint": "Ask what kind of comment to prepare"
+              },
+              {
+                "summary": "Context to use for the prepared comment",
+                "required": true,
+                "input_name": "context",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "comment_context",
+                "allowed_values": [],
+                "entity_reference": false,
+                "clarification_hint": "Ask for the comment context"
+              },
+              {
+                "default": "internal",
+                "summary": "Comment visibility posture",
+                "required": false,
+                "input_name": "visibility",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "default_value": "internal",
+                "semantic_type": "visibility",
+                "allowed_values": [
+                  "internal",
+                  "public"
+                ],
+                "entity_reference": false
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false
+              }
+            ],
+            "operation_type": "write",
+            "optional_inputs": [
+              "visibility",
+              "backend_options"
+            ],
+            "required_inputs": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "backend_bindings": [
+              {
+                "status": "accepted",
+                "backend_kind": "native_api",
+                "status_detail": "Materialized from reviewed developer capability evidence.",
+                "connection_ref": "developer-tools-api",
+                "backend_input_mode": "explicit",
+                "raw_operation_refs": [
+                  "github.api.prepare_pull_request_comment"
+                ],
+                "matched_discovery_record_ids": [
+                  "github-api-prepare_pull_request_comment"
+                ],
+                "derived_optional_backend_inputs": [
+                  "visibility",
+                  "backend_options"
+                ],
+                "derived_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "pull_number",
+                  "comment_purpose",
+                  "context"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "visibility",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "pull_number",
+                  "comment_purpose",
+                  "context"
+                ]
+              }
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "execution_posture": "prepare_only",
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "side_effect_level": "write_adjacent",
+            "approval_rule_refs": [
+              "approval.github-pr-comment-prepare"
+            ],
+            "backend_input_mode": "explicit",
+            "raw_operation_refs": [
+              "github.api.prepare_pull_request_comment"
+            ],
+            "clarification_rule_refs": [
+              "clarify.owner",
+              "clarify.repo",
+              "clarify.pull_number",
+              "clarify.comment_purpose",
+              "clarify.context"
+            ],
+            "derived_optional_backend_inputs": [
+              "visibility",
+              "backend_options"
+            ],
+            "derived_required_backend_inputs": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "explicit_optional_backend_inputs": [
+              "visibility",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "template_suggested": true,
+            "exported_from_artifact_id": "pm-artifact-678a6e83-b71f-469b-a383-ccf20f9dd0f3",
+            "inputs": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository owner to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Pull request number",
+                "required": true,
+                "input_name": "pull_number",
+                "input_type": "integer",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.pull_request_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.pull_request_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "pull_request_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which pull request to comment on",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Purpose of the prepared pull request comment",
+                "required": true,
+                "input_name": "comment_purpose",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "comment_purpose",
+                "allowed_values": [
+                  "review_note",
+                  "release_note",
+                  "triage_update"
+                ],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask what kind of comment to prepare",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Context to use for the prepared comment",
+                "required": true,
+                "input_name": "context",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "comment_context",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask for the comment context",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Comment visibility posture",
+                "required": false,
+                "input_name": "visibility",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "internal",
+                "semantic_type": "visibility",
+                "allowed_values": [
+                  "internal",
+                  "public"
+                ],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              }
+            ],
+            "intent_type": "prepare_only",
+            "grant_policy": {
+              "max_uses": 1,
+              "default_grant_type": "one_time",
+              "expires_in_seconds": 900,
+              "allowed_grant_types": [
+                "one_time",
+                "session_bound"
+              ]
+            },
+            "business_effects": {
+              "produces": [
+                "approval.request",
+                "system.preview_mutation",
+                "content.draft"
+              ],
+              "does_not_produce": [
+                "approval.execute",
+                "system.mutation",
+                "raw_data_export"
+              ]
+            }
+          }
+        },
+        {
+          "idSuffix": "github-workflow-dispatch-request",
+          "title": "Request Fronting Mapping",
+          "data": {
+            "title": "Request",
+            "intent": "Prepare a governed workflow dispatch request and stop for approval",
+            "summary": "Prepare a governed workflow dispatch request and stop for approval",
+            "service_id": "github-governance-service",
+            "backend_kind": "native_api",
+            "context_type": "workflow_dispatch",
+            "service_name": "Github Governance Service",
+            "subject_kind": "github_workflow",
+            "artifact_type": "integration_fronting_capability_mapping",
+            "capability_id": "github.workflow.dispatch.request",
+            "output_intent": "workflow_dispatch_preview",
+            "review_status": "template_suggested",
+            "audit_required": true,
+            "connection_ref": "developer-tools-api",
+            "input_metadata": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository owner to use"
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository to use"
+              },
+              {
+                "summary": "Workflow id or filename",
+                "required": true,
+                "input_name": "workflow_id",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.workflow_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.workflow_catalog",
+                "semantic_type": "workflow_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which workflow to request"
+              },
+              {
+                "summary": "Branch or tag ref",
+                "required": true,
+                "input_name": "ref",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "git_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which branch or tag to dispatch"
+              },
+              {
+                "summary": "Optional workflow input object",
+                "required": false,
+                "input_name": "inputs",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "workflow_inputs",
+                "allowed_values": [],
+                "entity_reference": false
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false
+              }
+            ],
+            "operation_type": "write",
+            "optional_inputs": [
+              "inputs",
+              "backend_options"
+            ],
+            "required_inputs": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "backend_bindings": [
+              {
+                "status": "accepted",
+                "backend_kind": "native_api",
+                "status_detail": "Materialized from reviewed developer capability evidence.",
+                "connection_ref": "developer-tools-api",
+                "backend_input_mode": "explicit",
+                "raw_operation_refs": [
+                  "github.api.request_workflow_dispatch"
+                ],
+                "matched_discovery_record_ids": [
+                  "github-api-request_workflow_dispatch"
+                ],
+                "derived_optional_backend_inputs": [
+                  "inputs",
+                  "backend_options"
+                ],
+                "derived_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "workflow_id",
+                  "ref"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "inputs",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "workflow_id",
+                  "ref"
+                ]
+              }
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "execution_posture": "prepare_only",
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "side_effect_level": "write_adjacent",
+            "approval_rule_refs": [
+              "approval.github-workflow-dispatch-request"
+            ],
+            "backend_input_mode": "explicit",
+            "raw_operation_refs": [
+              "github.api.request_workflow_dispatch"
+            ],
+            "clarification_rule_refs": [
+              "clarify.owner",
+              "clarify.repo",
+              "clarify.workflow_id",
+              "clarify.ref"
+            ],
+            "derived_optional_backend_inputs": [
+              "inputs",
+              "backend_options"
+            ],
+            "derived_required_backend_inputs": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "explicit_optional_backend_inputs": [
+              "inputs",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "template_suggested": true,
+            "exported_from_artifact_id": "pm-artifact-0a9592b9-6961-45b6-b8ae-b88144d8f686",
+            "inputs": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository owner to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Workflow id or filename",
+                "required": true,
+                "input_name": "workflow_id",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.workflow_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.workflow_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "workflow_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which workflow to request",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Branch or tag ref",
+                "required": true,
+                "input_name": "ref",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "git_ref",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which branch or tag to dispatch",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Optional workflow input object",
+                "required": false,
+                "input_name": "inputs",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "workflow_inputs",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              }
+            ],
+            "intent_type": "prepare_only",
+            "grant_policy": {
+              "max_uses": 1,
+              "default_grant_type": "one_time",
+              "expires_in_seconds": 900,
+              "allowed_grant_types": [
+                "one_time",
+                "session_bound"
+              ]
+            },
+            "business_effects": {
+              "produces": [
+                "approval.request",
+                "system.preview_mutation",
+                "content.draft"
+              ],
+              "does_not_produce": [
+                "approval.execute",
+                "system.mutation",
+                "raw_data_export"
+              ]
+            }
+          }
+        },
+        {
+          "idSuffix": "github-release_notes-prepare",
+          "title": "Prepare Fronting Mapping",
+          "data": {
+            "title": "Prepare",
+            "intent": "Prepare bounded release notes without creating or publishing a release",
+            "summary": "Prepare bounded release notes without creating or publishing a release",
+            "service_id": "github-governance-service",
+            "backend_kind": "native_api",
+            "context_type": "release_notes_preparation",
+            "service_name": "Github Governance Service",
+            "subject_kind": "github_release",
+            "artifact_type": "integration_fronting_capability_mapping",
+            "capability_id": "github.release_notes.prepare",
+            "output_intent": "release_notes_draft",
+            "review_status": "template_suggested",
+            "audit_required": true,
+            "connection_ref": "developer-tools-api",
+            "input_metadata": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository owner to use"
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "clarification_hint": "Ask which repository to use"
+              },
+              {
+                "summary": "Tag range or comparison range",
+                "required": true,
+                "input_name": "range",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "release_range",
+                "allowed_values": [],
+                "entity_reference": false,
+                "clarification_hint": "Ask which release range to summarize"
+              },
+              {
+                "default": "engineering",
+                "summary": "Release note audience",
+                "required": false,
+                "input_name": "audience",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "default_value": "engineering",
+                "semantic_type": "audience",
+                "allowed_values": [
+                  "engineering",
+                  "customer",
+                  "internal"
+                ],
+                "entity_reference": false
+              },
+              {
+                "default": "true",
+                "summary": "Whether to include pull request details",
+                "required": false,
+                "input_name": "include_prs",
+                "input_type": "boolean",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "default_value": "true",
+                "semantic_type": "include_prs",
+                "allowed_values": [],
+                "entity_reference": false
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false
+              }
+            ],
+            "operation_type": "read",
+            "optional_inputs": [
+              "audience",
+              "include_prs",
+              "backend_options"
+            ],
+            "required_inputs": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "backend_bindings": [
+              {
+                "status": "accepted",
+                "backend_kind": "native_api",
+                "status_detail": "Materialized from reviewed developer capability evidence.",
+                "connection_ref": "developer-tools-api",
+                "backend_input_mode": "explicit",
+                "raw_operation_refs": [
+                  "github.api.prepare_release_notes"
+                ],
+                "matched_discovery_record_ids": [
+                  "github-api-prepare_release_notes"
+                ],
+                "derived_optional_backend_inputs": [
+                  "audience",
+                  "include_prs",
+                  "backend_options"
+                ],
+                "derived_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "range"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "audience",
+                  "include_prs",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "owner",
+                  "repo",
+                  "range"
+                ]
+              }
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "execution_posture": "read_only",
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "side_effect_level": "read",
+            "approval_rule_refs": [],
+            "backend_input_mode": "explicit",
+            "raw_operation_refs": [
+              "github.api.prepare_release_notes"
+            ],
+            "clarification_rule_refs": [
+              "clarify.owner",
+              "clarify.repo",
+              "clarify.range"
+            ],
+            "derived_optional_backend_inputs": [
+              "audience",
+              "include_prs",
+              "backend_options"
+            ],
+            "derived_required_backend_inputs": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "explicit_optional_backend_inputs": [
+              "audience",
+              "include_prs",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "template_suggested": true,
+            "exported_from_artifact_id": "pm-artifact-ea5db8ce-f3a6-473b-8534-5bdba6361279",
+            "inputs": [
+              {
+                "summary": "GitHub repository owner or organization",
+                "required": true,
+                "input_name": "owner",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_owner",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository owner to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "GitHub repository name",
+                "required": true,
+                "input_name": "repo",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "backend_resolved",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "resolver_ref": "github.repository_catalog",
+                  "on_unresolved": "clarify"
+                },
+                "catalog_ref": "github.repository_catalog",
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "repo_name",
+                "allowed_values": [],
+                "entity_reference": true,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which repository to use",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Tag range or comparison range",
+                "required": true,
+                "input_name": "range",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "clarify",
+                  "on_missing": "clarify",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "release_range",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "Ask which release range to summarize",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Release note audience",
+                "required": false,
+                "input_name": "audience",
+                "input_type": "string",
+                "resolution": {
+                  "mode": "closed_values",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "engineering",
+                "semantic_type": "audience",
+                "allowed_values": [
+                  "engineering",
+                  "customer",
+                  "internal"
+                ],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Whether to include pull request details",
+                "required": false,
+                "input_name": "include_prs",
+                "input_type": "boolean",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "use_default",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "true",
+                "semantic_type": "include_prs",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              },
+              {
+                "summary": "Bounded provider options only",
+                "required": false,
+                "input_name": "backend_options",
+                "input_type": "object",
+                "resolution": {
+                  "mode": "explicit_only",
+                  "on_missing": "omit",
+                  "on_ambiguous": "clarify",
+                  "on_unresolved": "clarify"
+                },
+                "input_format": "",
+                "default_value": "",
+                "semantic_type": "backend_options",
+                "allowed_values": [],
+                "entity_reference": false,
+                "semantic_aliases": [],
+                "reference_catalog": [],
+                "clarification_hint": "",
+                "normalization_hint": "",
+                "validation_pattern": "",
+                "normalization_context": "",
+                "allowed_value_semantics": []
+              }
+            ],
+            "intent_type": "read_only",
+            "business_effects": {
+              "produces": [
+                "content.draft",
+                "data.aggregate"
+              ],
+              "does_not_produce": [
+                "external_dispatch",
+                "system.mutation",
+                "raw_data_export"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

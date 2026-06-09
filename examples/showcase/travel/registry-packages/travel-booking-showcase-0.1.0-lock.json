@@ -1,0 +1,60 @@
+{
+  "lock_kind": "publisher_recommended_lock",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "travel-booking-showcase",
+  "blueprint_version": "0.1.0",
+  "package_id": "travel-booking-showcase",
+  "package_version": "0.1.0",
+  "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+  "schema_version": "anip-service-definition/v1",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "verifier_packs": [
+    "anip-verifier@local"
+  ],
+  "runtime_packages": [],
+  "extension_packs": [],
+  "regression_packs": [],
+  "selected_service_ids": [
+    "travel-booking-service"
+  ],
+  "capability_ids": [
+    "travel.search_flights",
+    "travel.check_availability",
+    "travel.book_flight",
+    "travel.cancel_booking"
+  ],
+  "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+  "lineage": {
+    "project_ref": "studio-source:travel",
+    "product_revision": {
+      "ref": "travel:source-spec:v1",
+      "artifact_id": "travel-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "travel:developer-definition:v1",
+      "artifact_id": "travel-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+    }
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 0,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capability_count": 4
+  },
+  "generated_at": "2026-05-08T00:00:00Z"
+}

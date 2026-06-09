@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { requestConfirmation } from '../confirm'
 
 const props = defineProps<{
   modelValue: Record<string, any>
@@ -56,7 +57,15 @@ function addEntry() {
   emit('update:modelValue', { ...props.modelValue, [newKey]: '' })
 }
 
-function removeEntry(key: string) {
+async function removeEntry(key: string) {
+  const confirmed = await requestConfirmation({
+    title: 'Remove this entry?',
+    message: `This will remove "${key}" from the current context.`,
+    confirmLabel: 'Remove Entry',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   const copy = { ...props.modelValue }
   delete copy[key]
   emit('update:modelValue', copy)

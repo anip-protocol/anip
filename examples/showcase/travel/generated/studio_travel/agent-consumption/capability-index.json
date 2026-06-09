@@ -1,0 +1,276 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Book without quote",
+            "Ignore budget authority"
+          ],
+          "produces": [
+            "Execute approved action"
+          ]
+        },
+        "intent": {
+          "category": "travel.book.flight",
+          "summary": "Book a confirmed flight reservation from a current quote."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "flight_number",
+            "summary": "Flight to book."
+          },
+          {
+            "behavior": "clarify",
+            "input": "quote_id",
+            "summary": "Priced quote returned by search_flights."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book without quote",
+          "Ignore budget authority"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "capability_id": "travel.book_flight",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for flight_number when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "flight_number",
+          "input_type": "string",
+          "required": true,
+          "summary": "Flight to book."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for quote_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "quote_id",
+          "input_type": "object",
+          "required": true,
+          "summary": "Priced quote returned by search_flights."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for passengers when it is missing or ambiguous.",
+          "default_value": "1",
+          "entity_reference": false,
+          "input_name": "passengers",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Number of passengers."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "travel.book"
+      ],
+      "service_id": "travel-booking-service",
+      "summary": "Book a confirmed flight reservation from a current quote.",
+      "title": "Book flight"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Delete booking history"
+          ],
+          "produces": [
+            "Change system state"
+          ]
+        },
+        "intent": {
+          "category": "travel.cancel.booking",
+          "summary": "Cancel an existing booking within the transactional cancellation window."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "booking_id",
+            "summary": "Booking identifier to cancel."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete booking history"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "capability_id": "travel.cancel_booking",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for booking_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "booking_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Booking identifier to cancel."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "travel.book"
+      ],
+      "service_id": "travel-booking-service",
+      "summary": "Cancel an existing booking within the transactional cancellation window.",
+      "title": "Cancel booking"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ],
+          "produces": [
+            "Read bounded data"
+          ]
+        },
+        "intent": {
+          "category": "travel.check.availability",
+          "summary": "Check seat availability and current price for a specific flight."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "flight_number",
+            "summary": "Flight number to check."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_id": "travel.check_availability",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for flight_number when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "flight_number",
+          "input_type": "string",
+          "required": true,
+          "summary": "Flight number to check."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "travel.search"
+      ],
+      "service_id": "travel-booking-service",
+      "summary": "Check seat availability and current price for a specific flight.",
+      "title": "Check availability"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ],
+          "produces": [
+            "Summarize information",
+            "Return bounded options"
+          ]
+        },
+        "intent": {
+          "category": "travel.search.flights",
+          "summary": "Search available flights by origin and destination and return priced quote references."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "origin",
+            "summary": "Departure airport IATA code."
+          },
+          {
+            "behavior": "clarify",
+            "input": "destination",
+            "summary": "Arrival airport IATA code."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Summarize information",
+          "Return bounded options"
+        ]
+      },
+      "capability_id": "travel.search_flights",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for origin when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "origin",
+          "input_type": "airport_code",
+          "required": true,
+          "summary": "Departure airport IATA code."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for destination when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "destination",
+          "input_type": "airport_code",
+          "required": true,
+          "summary": "Arrival airport IATA code."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "travel.search"
+      ],
+      "service_id": "travel-booking-service",
+      "summary": "Search available flights by origin and destination and return priced quote references.",
+      "title": "Search flights"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

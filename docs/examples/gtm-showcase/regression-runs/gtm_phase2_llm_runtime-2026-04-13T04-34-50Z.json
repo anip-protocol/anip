@@ -1,0 +1,2905 @@
+{
+  "generated_at": "2026-04-13T04-34-50Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase2_llm_runtime",
+  "summary": {
+    "passed": 9,
+    "total": 9,
+    "by_category": {
+      "enrichment_happy_path": {
+        "passed": 2,
+        "total": 2
+      },
+      "cross_service": {
+        "passed": 1,
+        "total": 1
+      },
+      "clarification": {
+        "passed": 2,
+        "total": 2
+      },
+      "clarification_followup": {
+        "passed": 2,
+        "total": 2
+      },
+      "denied": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "enrichment-direct-named-accounts",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+          "expected": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "max_total_loops": 2,
+            "data_check": "account_enrichment_named_accounts"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context on specific accounts, which matches the bounded enrichment summary capability.",
+              "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "account_enrichment_named_accounts",
+            "details": {
+              "expected_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "independent",
+                  "mid_market",
+                  "2000_to_4999",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "Acme Corporation",
+                  "mid_market",
+                  "2000_to_4999",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "independent",
+                  "mid_market",
+                  "2000_to_4999",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "Acme Corporation",
+                  "mid_market",
+                  "2000_to_4999",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context on specific accounts, which matches the bounded enrichment summary capability.",
+              "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+            },
+            "planned_capability": "gtm.account_enrichment_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "accounts": [
+                  {
+                    "account_name": "Acme Corporation",
+                    "sector": "technology",
+                    "office_location": "United States",
+                    "parent_company": "independent",
+                    "revenue_band": "mid_market",
+                    "employee_band": "2000_to_4999",
+                    "icp_fit": "conditional_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "general_expansion",
+                    "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                  },
+                  {
+                    "account_name": "Codehow",
+                    "sector": "software",
+                    "office_location": "United States",
+                    "parent_company": "Acme Corporation",
+                    "revenue_band": "mid_market",
+                    "employee_band": "2000_to_4999",
+                    "icp_fit": "strong_fit",
+                    "intent_signal": "high",
+                    "likely_buying_motion": "cloud_modernization",
+                    "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                  }
+                ],
+                "bounded_to_account_count": 2,
+                "visibility": {
+                  "enrichment_access": "full"
+                }
+              },
+              "invocation_id": "inv-e0e18ac093f8",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "max_total_loops": 2,
+        "data_check": "account_enrichment_named_accounts"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for firmographic context on specific accounts, which matches the bounded enrichment summary capability.",
+          "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "account_enrichment_named_accounts",
+        "details": {
+          "expected_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "independent",
+              "mid_market",
+              "2000_to_4999",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "Acme Corporation",
+              "mid_market",
+              "2000_to_4999",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "independent",
+              "mid_market",
+              "2000_to_4999",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "Acme Corporation",
+              "mid_market",
+              "2000_to_4999",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for firmographic context on specific accounts, which matches the bounded enrichment summary capability.",
+          "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+        },
+        "planned_capability": "gtm.account_enrichment_summary",
+        "selected_capability": "gtm.account_enrichment_summary",
+        "selected_service": "enrichment",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "capability_metadata": {
+          "description": "Return bounded firmographic context and fit signals for selected accounts.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "account_names",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "accounts": [
+              {
+                "account_name": "Acme Corporation",
+                "sector": "technology",
+                "office_location": "United States",
+                "parent_company": "independent",
+                "revenue_band": "mid_market",
+                "employee_band": "2000_to_4999",
+                "icp_fit": "conditional_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "general_expansion",
+                "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+              },
+              {
+                "account_name": "Codehow",
+                "sector": "software",
+                "office_location": "United States",
+                "parent_company": "Acme Corporation",
+                "revenue_band": "mid_market",
+                "employee_band": "2000_to_4999",
+                "icp_fit": "strong_fit",
+                "intent_signal": "high",
+                "likely_buying_motion": "cloud_modernization",
+                "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+              }
+            ],
+            "bounded_to_account_count": 2,
+            "visibility": {
+              "enrichment_access": "full"
+            }
+          },
+          "invocation_id": "inv-e0e18ac093f8",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "enrichment-cross-service-top-risk-q2",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "min_prior_service_calls": 1,
+            "max_total_loops": 3,
+            "data_check": "account_enrichment_top_risk_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "account_names": "Betasoloin, Condax, Dalttechnology",
+              "limit": 5
+            },
+            "prior_service_calls": [
+              {
+                "service_url": "http://gtm-pipeline-service:9200",
+                "capability": "gtm.account_risk_summary",
+                "parameters": {
+                  "quarter": "2017-Q2",
+                  "limit": 5,
+                  "ranking_basis": "risk_score"
+                },
+                "result": {
+                  "success": true,
+                  "result": {
+                    "quarter": "2017-Q2",
+                    "owner_scope": "company",
+                    "ranking_basis": "risk_score",
+                    "accounts": [
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "West",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 246,
+                        "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                      },
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "East",
+                        "open_opportunity_count": 3,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 256,
+                        "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "West",
+                        "open_opportunity_count": 1,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 222,
+                        "sales_agents": "James Ascencio"
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "East",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 230,
+                        "sales_agents": "Cassey Cress"
+                      },
+                      {
+                        "account_name": "Dalttechnology",
+                        "regional_office": "West",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 211,
+                        "sales_agents": "Markita Hansen, Rosalina Dieter"
+                      }
+                    ],
+                    "visibility": {
+                      "financial_values": "full"
+                    }
+                  },
+                  "invocation_id": "inv-3baa4a192548",
+                  "client_reference_id": null,
+                  "task_id": null,
+                  "parent_invocation_id": null,
+                  "upstream_service": null
+                }
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 2,
+              "total_loops": 3
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for the top at-risk accounts in a specific quarter; account enrichment context depends on first identifying those accounts, so the best bounded first step is an at-risk account summary.",
+              "user_message": "I\u2019ll first identify the top 5 at-risk accounts for 2017-Q2, then use that list to gather enrichment context."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "account_enrichment_top_risk_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "independent",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ],
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "independent",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ],
+                [
+                  "Dalttechnology",
+                  "software",
+                  "United States",
+                  "Bubba Gump",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "independent",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ],
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "independent",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ],
+                [
+                  "Dalttechnology",
+                  "software",
+                  "United States",
+                  "Bubba Gump",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 2,
+              "total_loops": 3
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for the top at-risk accounts in a specific quarter; account enrichment context depends on first identifying those accounts, so the best bounded first step is an at-risk account summary.",
+              "user_message": "I\u2019ll first identify the top 5 at-risk accounts for 2017-Q2, then use that list to gather enrichment context."
+            },
+            "planned_capability": "gtm.account_risk_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "account_names": "Betasoloin, Condax, Dalttechnology",
+              "limit": 5
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [
+              {
+                "service_url": "http://gtm-pipeline-service:9200",
+                "capability": "gtm.account_risk_summary",
+                "parameters": {
+                  "quarter": "2017-Q2",
+                  "limit": 5,
+                  "ranking_basis": "risk_score"
+                },
+                "result": {
+                  "success": true,
+                  "result": {
+                    "quarter": "2017-Q2",
+                    "owner_scope": "company",
+                    "ranking_basis": "risk_score",
+                    "accounts": [
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "West",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 246,
+                        "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                      },
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "East",
+                        "open_opportunity_count": 3,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 256,
+                        "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "West",
+                        "open_opportunity_count": 1,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 222,
+                        "sales_agents": "James Ascencio"
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "East",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 230,
+                        "sales_agents": "Cassey Cress"
+                      },
+                      {
+                        "account_name": "Dalttechnology",
+                        "regional_office": "West",
+                        "open_opportunity_count": 2,
+                        "open_pipeline_value": null,
+                        "average_risk_score": 0.94,
+                        "max_days_open": 211,
+                        "sales_agents": "Markita Hansen, Rosalina Dieter"
+                      }
+                    ],
+                    "visibility": {
+                      "financial_values": "full"
+                    }
+                  },
+                  "invocation_id": "inv-3baa4a192548",
+                  "client_reference_id": null,
+                  "task_id": null,
+                  "parent_invocation_id": null,
+                  "upstream_service": null
+                }
+              }
+            ],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "sector": "medical",
+                    "office_location": "United States",
+                    "parent_company": "independent",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "regulated_growth",
+                    "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "sector": "medical",
+                    "office_location": "United States",
+                    "parent_company": "independent",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "regulated_growth",
+                    "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "sector": "software",
+                    "office_location": "United States",
+                    "parent_company": "Bubba Gump",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "high",
+                    "likely_buying_motion": "cloud_modernization",
+                    "enrichment_rationale": "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  }
+                ],
+                "bounded_to_account_count": 3,
+                "visibility": {
+                  "enrichment_access": "full"
+                }
+              },
+              "invocation_id": "inv-08cd9c64d404",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "min_prior_service_calls": 1,
+        "max_total_loops": 3,
+        "data_check": "account_enrichment_top_risk_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "account_names": "Betasoloin, Condax, Dalttechnology",
+          "limit": 5
+        },
+        "prior_service_calls": [
+          {
+            "service_url": "http://gtm-pipeline-service:9200",
+            "capability": "gtm.account_risk_summary",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "ranking_basis": "risk_score",
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 246,
+                    "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 256,
+                    "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 222,
+                    "sales_agents": "James Ascencio"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 230,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 211,
+                    "sales_agents": "Markita Hansen, Rosalina Dieter"
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-3baa4a192548",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 2,
+          "total_loops": 3
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for the top at-risk accounts in a specific quarter; account enrichment context depends on first identifying those accounts, so the best bounded first step is an at-risk account summary.",
+          "user_message": "I\u2019ll first identify the top 5 at-risk accounts for 2017-Q2, then use that list to gather enrichment context."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "account_enrichment_top_risk_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "independent",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ],
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "independent",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ],
+            [
+              "Dalttechnology",
+              "software",
+              "United States",
+              "Bubba Gump",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "independent",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ],
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "independent",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ],
+            [
+              "Dalttechnology",
+              "software",
+              "United States",
+              "Bubba Gump",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 2,
+          "total_loops": 3
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for the top at-risk accounts in a specific quarter; account enrichment context depends on first identifying those accounts, so the best bounded first step is an at-risk account summary.",
+          "user_message": "I\u2019ll first identify the top 5 at-risk accounts for 2017-Q2, then use that list to gather enrichment context."
+        },
+        "planned_capability": "gtm.account_risk_summary",
+        "selected_capability": "gtm.account_enrichment_summary",
+        "selected_service": "enrichment",
+        "parameters": {
+          "account_names": "Betasoloin, Condax, Dalttechnology",
+          "limit": 5
+        },
+        "capability_metadata": {
+          "description": "Return bounded firmographic context and fit signals for selected accounts.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "account_names",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [
+          {
+            "service_url": "http://gtm-pipeline-service:9200",
+            "capability": "gtm.account_risk_summary",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "ranking_basis": "risk_score",
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 246,
+                    "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 256,
+                    "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 222,
+                    "sales_agents": "James Ascencio"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 230,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 211,
+                    "sales_agents": "Markita Hansen, Rosalina Dieter"
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-3baa4a192548",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        ],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "accounts": [
+              {
+                "account_name": "Betasoloin",
+                "sector": "medical",
+                "office_location": "United States",
+                "parent_company": "independent",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "regulated_growth",
+                "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              },
+              {
+                "account_name": "Condax",
+                "sector": "medical",
+                "office_location": "United States",
+                "parent_company": "independent",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "regulated_growth",
+                "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              },
+              {
+                "account_name": "Dalttechnology",
+                "sector": "software",
+                "office_location": "United States",
+                "parent_company": "Bubba Gump",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "high",
+                "likely_buying_motion": "cloud_modernization",
+                "enrichment_rationale": "Sector=software; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              }
+            ],
+            "bounded_to_account_count": 3,
+            "visibility": {
+              "enrichment_access": "full"
+            }
+          },
+          "invocation_id": "inv-08cd9c64d404",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "lookalike-condax",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "success",
+            "max_total_loops": 2,
+            "data_check": "lookalike_condax"
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "Using the lookalike accounts capability for Condax."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "lookalike_condax",
+            "details": {
+              "expected_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "actual_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "expected_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ],
+              "actual_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Find lookalike accounts similar to Condax.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "Using the lookalike accounts capability for Condax."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "reference_account": "Condax",
+                "reference_profile": {
+                  "account_name": "Condax",
+                  "sector": "medical",
+                  "office_location": "United States",
+                  "revenue_band": "commercial",
+                  "employee_band": "under_500",
+                  "lookalike_key": "medical|United States|commercial|under_500",
+                  "icp_fit": "qualified_fit",
+                  "intent_signal": "medium"
+                },
+                "matches": [
+                  {
+                    "account_name": "Betasoloin",
+                    "sector": "medical",
+                    "office_location": "United States",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "regulated_growth",
+                    "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  }
+                ]
+              },
+              "invocation_id": "inv-1701245e1685",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "success",
+        "max_total_loops": 2,
+        "data_check": "lookalike_condax"
+      },
+      "actual": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "Using the lookalike accounts capability for Condax."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "lookalike_condax",
+        "details": {
+          "expected_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "actual_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "expected_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ],
+          "actual_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Find lookalike accounts similar to Condax.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "Using the lookalike accounts capability for Condax."
+        },
+        "planned_capability": "gtm.lookalike_accounts",
+        "selected_capability": "gtm.lookalike_accounts",
+        "selected_service": "enrichment",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "capability_metadata": {
+          "description": "Return bounded lookalike accounts using explainable similarity logic.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "reference_account",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "reference_account": "Condax",
+            "reference_profile": {
+              "account_name": "Condax",
+              "sector": "medical",
+              "office_location": "United States",
+              "revenue_band": "commercial",
+              "employee_band": "under_500",
+              "lookalike_key": "medical|United States|commercial|under_500",
+              "icp_fit": "qualified_fit",
+              "intent_signal": "medium"
+            },
+            "matches": [
+              {
+                "account_name": "Betasoloin",
+                "sector": "medical",
+                "office_location": "United States",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "regulated_growth",
+                "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              }
+            ]
+          },
+          "invocation_id": "inv-1701245e1685",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "clarify-enrichment-missing-account-scope",
+      "category": "clarification",
+      "question": "Summarize firmographic context for our most important accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for our most important accounts.",
+          "expected": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "parameters": {
+              "limit": 10
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. The scope of which accounts are 'most important' is underspecified, so I pass only the minimal bounded parameter.",
+              "user_message": "I\u2019ll use account enrichment to summarize firmographic context for a bounded set of important accounts. Since the specific account list wasn\u2019t provided, I\u2019m sending a minimal request for clarification/bounded results."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Summarize firmographic context for our most important accounts.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. The scope of which accounts are 'most important' is underspecified, so I pass only the minimal bounded parameter.",
+              "user_message": "I\u2019ll use account enrichment to summarize firmographic context for a bounded set of important accounts. Since the specific account list wasn\u2019t provided, I\u2019m sending a minimal request for clarification/bounded results."
+            },
+            "planned_capability": "gtm.account_enrichment_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "limit": 10
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "account scope is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "account_names",
+                  "hint": "Comma-separated account names"
+                }
+              },
+              "invocation_id": "inv-3c3cb2e11625",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "clarification_required",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "clarification_required",
+        "parameters": {
+          "limit": 10
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. The scope of which accounts are 'most important' is underspecified, so I pass only the minimal bounded parameter.",
+          "user_message": "I\u2019ll use account enrichment to summarize firmographic context for a bounded set of important accounts. Since the specific account list wasn\u2019t provided, I\u2019m sending a minimal request for clarification/bounded results."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Summarize firmographic context for our most important accounts.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. The scope of which accounts are 'most important' is underspecified, so I pass only the minimal bounded parameter.",
+          "user_message": "I\u2019ll use account enrichment to summarize firmographic context for a bounded set of important accounts. Since the specific account list wasn\u2019t provided, I\u2019m sending a minimal request for clarification/bounded results."
+        },
+        "planned_capability": "gtm.account_enrichment_summary",
+        "selected_capability": "gtm.account_enrichment_summary",
+        "selected_service": "enrichment",
+        "parameters": {
+          "limit": 10
+        },
+        "capability_metadata": {
+          "description": "Return bounded firmographic context and fit signals for selected accounts.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "account_names",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "clarification_required",
+            "detail": "account scope is missing",
+            "resolution": {
+              "action": "provide_missing_parameter",
+              "requires": "account_names",
+              "hint": "Comma-separated account names"
+            }
+          },
+          "invocation_id": "inv-3c3cb2e11625",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "clarify-lookalike-missing-reference",
+      "category": "clarification",
+      "question": "Find lookalike accounts for our best customer.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts for our best customer.",
+          "expected": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the governed service clarify any needed details.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing details."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Find lookalike accounts for our best customer.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the governed service clarify any needed details.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing details."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {},
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "reference account is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "reference_account",
+                  "hint": "Reference account name"
+                }
+              },
+              "invocation_id": "inv-d51349a44bd6",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "clarification_required",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "clarification_required",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the governed service clarify any needed details.",
+          "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing details."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Find lookalike accounts for our best customer.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the governed service clarify any needed details.",
+          "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing details."
+        },
+        "planned_capability": "gtm.lookalike_accounts",
+        "selected_capability": "gtm.lookalike_accounts",
+        "selected_service": "enrichment",
+        "parameters": {},
+        "capability_metadata": {
+          "description": "Return bounded lookalike accounts using explainable similarity logic.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "reference_account",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "clarification_required",
+            "detail": "reference account is missing",
+            "resolution": {
+              "action": "provide_missing_parameter",
+              "requires": "reference_account",
+              "hint": "Reference account name"
+            }
+          },
+          "invocation_id": "inv-d51349a44bd6",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "clarify-then-lookalike-followup",
+      "category": "clarification_followup",
+      "question": "Find lookalike accounts for our best customer.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts for our best customer.",
+          "expected": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the service clarify any missing details.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing scope if needed."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Find lookalike accounts for our best customer.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for lookalike accounts based on a reference customer, which matches the enrichment capability for explainable similarity. The request is underspecified, so I pass only the known reference account and let the service clarify any missing details.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing scope if needed."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {},
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "reference account is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "reference_account",
+                  "hint": "Reference account name"
+                }
+              },
+              "invocation_id": "inv-c5e3531ea74d",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use Condax.",
+          "expected": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "success",
+            "max_total_loops": 2,
+            "data_check": "lookalike_condax"
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user supplied the missing reference account for the existing lookalike-account request, so this remains the best matching enrichment capability.",
+              "user_message": "Using Condax as the reference account for lookalike analysis."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "lookalike_condax",
+            "details": {
+              "expected_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "actual_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "expected_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ],
+              "actual_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use Condax.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "Find lookalike accounts for our best customer."
+              },
+              {
+                "role": "assistant",
+                "content": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing scope if needed. | clarification_required | reference account is missing | provide_missing_parameter | reference_account"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user supplied the missing reference account for the existing lookalike-account request, so this remains the best matching enrichment capability.",
+              "user_message": "Using Condax as the reference account for lookalike analysis."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "reference_account": "Condax",
+                "reference_profile": {
+                  "account_name": "Condax",
+                  "sector": "medical",
+                  "office_location": "United States",
+                  "revenue_band": "commercial",
+                  "employee_band": "under_500",
+                  "lookalike_key": "medical|United States|commercial|under_500",
+                  "icp_fit": "qualified_fit",
+                  "intent_signal": "medium"
+                },
+                "matches": [
+                  {
+                    "account_name": "Betasoloin",
+                    "sector": "medical",
+                    "office_location": "United States",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "regulated_growth",
+                    "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  }
+                ]
+              },
+              "invocation_id": "inv-5a78b481e197",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "success",
+        "max_total_loops": 2,
+        "data_check": "lookalike_condax"
+      },
+      "actual": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user supplied the missing reference account for the existing lookalike-account request, so this remains the best matching enrichment capability.",
+          "user_message": "Using Condax as the reference account for lookalike analysis."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "lookalike_condax",
+        "details": {
+          "expected_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "actual_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "expected_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ],
+          "actual_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use Condax.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "Find lookalike accounts for our best customer."
+          },
+          {
+            "role": "assistant",
+            "content": "I\u2019ll use the lookalike accounts capability for your best customer and let the service clarify any missing scope if needed. | clarification_required | reference account is missing | provide_missing_parameter | reference_account"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user supplied the missing reference account for the existing lookalike-account request, so this remains the best matching enrichment capability.",
+          "user_message": "Using Condax as the reference account for lookalike analysis."
+        },
+        "planned_capability": "gtm.lookalike_accounts",
+        "selected_capability": "gtm.lookalike_accounts",
+        "selected_service": "enrichment",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "capability_metadata": {
+          "description": "Return bounded lookalike accounts using explainable similarity logic.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "reference_account",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "reference_account": "Condax",
+            "reference_profile": {
+              "account_name": "Condax",
+              "sector": "medical",
+              "office_location": "United States",
+              "revenue_band": "commercial",
+              "employee_band": "under_500",
+              "lookalike_key": "medical|United States|commercial|under_500",
+              "icp_fit": "qualified_fit",
+              "intent_signal": "medium"
+            },
+            "matches": [
+              {
+                "account_name": "Betasoloin",
+                "sector": "medical",
+                "office_location": "United States",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "regulated_growth",
+                "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              }
+            ]
+          },
+          "invocation_id": "inv-5a78b481e197",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "clarify-then-enrichment-followup",
+      "category": "clarification_followup",
+      "question": "Summarize firmographic context for our most important accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for our most important accounts.",
+          "expected": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "clarification_required",
+            "parameters": {
+              "limit": 10
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. No account names were provided, so I pass only the minimal known parameter and let the service clarify scope if needed.",
+              "user_message": "I\u2019ll use account enrichment to summarize firmographic context for the most important accounts. Since no account list was provided, I\u2019m sending a minimal bounded request and the service may ask for clarification."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Summarize firmographic context for our most important accounts.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for firmographic context for important accounts, which best matches bounded account enrichment. No account names were provided, so I pass only the minimal known parameter and let the service clarify scope if needed.",
+              "user_message": "I\u2019ll use account enrichment to summarize firmographic context for the most important accounts. Since no account list was provided, I\u2019m sending a minimal bounded request and the service may ask for clarification."
+            },
+            "planned_capability": "gtm.account_enrichment_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "limit": 10
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "account scope is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "account_names",
+                  "hint": "Comma-separated account names"
+                }
+              },
+              "invocation_id": "inv-b0810d278d1a",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use Acme Corporation and Codehow.",
+          "expected": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "max_total_loops": 2,
+            "data_check": "account_enrichment_named_accounts"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user provided specific account names and asked for firmographic context, which matches bounded account enrichment.",
+              "user_message": "Using account enrichment for Acme Corporation and Codehow."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "account_enrichment_named_accounts",
+            "details": {
+              "expected_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "independent",
+                  "mid_market",
+                  "2000_to_4999",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "Acme Corporation",
+                  "mid_market",
+                  "2000_to_4999",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "independent",
+                  "mid_market",
+                  "2000_to_4999",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "Acme Corporation",
+                  "mid_market",
+                  "2000_to_4999",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use Acme Corporation and Codehow.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "Summarize firmographic context for our most important accounts."
+              },
+              {
+                "role": "assistant",
+                "content": "I\u2019ll use account enrichment to summarize firmographic context for the most important accounts. Since no account list was provided, I\u2019m sending a minimal bounded request and the service may ask for clarification. | clarification_required | account scope is missing | provide_missing_parameter | account_names"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user provided specific account names and asked for firmographic context, which matches bounded account enrichment.",
+              "user_message": "Using account enrichment for Acme Corporation and Codehow."
+            },
+            "planned_capability": "gtm.account_enrichment_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "accounts": [
+                  {
+                    "account_name": "Acme Corporation",
+                    "sector": "technology",
+                    "office_location": "United States",
+                    "parent_company": "independent",
+                    "revenue_band": "mid_market",
+                    "employee_band": "2000_to_4999",
+                    "icp_fit": "conditional_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "general_expansion",
+                    "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                  },
+                  {
+                    "account_name": "Codehow",
+                    "sector": "software",
+                    "office_location": "United States",
+                    "parent_company": "Acme Corporation",
+                    "revenue_band": "mid_market",
+                    "employee_band": "2000_to_4999",
+                    "icp_fit": "strong_fit",
+                    "intent_signal": "high",
+                    "likely_buying_motion": "cloud_modernization",
+                    "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                  }
+                ],
+                "bounded_to_account_count": 2,
+                "visibility": {
+                  "enrichment_access": "full"
+                }
+              },
+              "invocation_id": "inv-56a44f6cf2c8",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "max_total_loops": 2,
+        "data_check": "account_enrichment_named_accounts"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user provided specific account names and asked for firmographic context, which matches bounded account enrichment.",
+          "user_message": "Using account enrichment for Acme Corporation and Codehow."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "account_enrichment_named_accounts",
+        "details": {
+          "expected_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "independent",
+              "mid_market",
+              "2000_to_4999",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "Acme Corporation",
+              "mid_market",
+              "2000_to_4999",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "independent",
+              "mid_market",
+              "2000_to_4999",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "Acme Corporation",
+              "mid_market",
+              "2000_to_4999",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use Acme Corporation and Codehow.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "Summarize firmographic context for our most important accounts."
+          },
+          {
+            "role": "assistant",
+            "content": "I\u2019ll use account enrichment to summarize firmographic context for the most important accounts. Since no account list was provided, I\u2019m sending a minimal bounded request and the service may ask for clarification. | clarification_required | account scope is missing | provide_missing_parameter | account_names"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user provided specific account names and asked for firmographic context, which matches bounded account enrichment.",
+          "user_message": "Using account enrichment for Acme Corporation and Codehow."
+        },
+        "planned_capability": "gtm.account_enrichment_summary",
+        "selected_capability": "gtm.account_enrichment_summary",
+        "selected_service": "enrichment",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "capability_metadata": {
+          "description": "Return bounded firmographic context and fit signals for selected accounts.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "account_names",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "accounts": [
+              {
+                "account_name": "Acme Corporation",
+                "sector": "technology",
+                "office_location": "United States",
+                "parent_company": "independent",
+                "revenue_band": "mid_market",
+                "employee_band": "2000_to_4999",
+                "icp_fit": "conditional_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "general_expansion",
+                "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+              },
+              {
+                "account_name": "Codehow",
+                "sector": "software",
+                "office_location": "United States",
+                "parent_company": "Acme Corporation",
+                "revenue_band": "mid_market",
+                "employee_band": "2000_to_4999",
+                "icp_fit": "strong_fit",
+                "intent_signal": "high",
+                "likely_buying_motion": "cloud_modernization",
+                "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+              }
+            ],
+            "bounded_to_account_count": 2,
+            "visibility": {
+              "enrichment_access": "full"
+            }
+          },
+          "invocation_id": "inv-56a44f6cf2c8",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "deny-lead-scoring-still-out-of-scope",
+      "category": "denied",
+      "question": "Score these inbound leads and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score these inbound leads and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "Lead-scoring behavior is outside the current GTM runtime boundary.",
+              "user_message": "Lead-scoring work is out of scope for the current GTM runtime."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Score these inbound leads and route the hot ones to sales.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "Lead-scoring behavior is outside the current GTM runtime boundary.",
+              "user_message": "Lead-scoring work is out of scope for the current GTM runtime."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Lead-scoring requests are out of scope for the current GTM runtime.",
+                "resolution": {
+                  "action": "request_in_scope_workflow",
+                  "requires": "pipeline analysis, enrichment summary, lookalike analysis, or follow-up preparation inside the current service boundary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "Lead-scoring behavior is outside the current GTM runtime boundary.",
+          "user_message": "Lead-scoring work is out of scope for the current GTM runtime."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Score these inbound leads and route the hot ones to sales.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "Lead-scoring behavior is outside the current GTM runtime boundary.",
+          "user_message": "Lead-scoring work is out of scope for the current GTM runtime."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Lead-scoring requests are out of scope for the current GTM runtime.",
+            "resolution": {
+              "action": "request_in_scope_workflow",
+              "requires": "pipeline analysis, enrichment summary, lookalike analysis, or follow-up preparation inside the current service boundary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-outreach-plus-raw-export",
+      "category": "denied",
+      "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+          "expected": {
+            "outcome": "denied",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    }
+  ]
+}

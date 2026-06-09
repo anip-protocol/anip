@@ -1,10 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Keep deployed Studio clean by default. Dogfood-only protocol pressure is
-# available only when the image is explicitly opted into it.
-if [ "${STUDIO_ALLOW_DOGFOOD:-0}" != "1" ]; then
-  unset STUDIO_DOGFOOD_PROFILE || true
+if [ "${STUDIO_MIGRATE_ONLY:-0}" = "1" ] || [ "${STUDIO_MIGRATE_ONLY:-}" = "true" ]; then
+  python -m studio.server.migrate
+  exit 0
 fi
 
 exec "$@"

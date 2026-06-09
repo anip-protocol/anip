@@ -1,0 +1,46 @@
+{
+  "description": "Deployment-time backend selection template. Edit only when a governed capability has multiple backend realizations.",
+  "schema_version": "anip-integration-fronting-selection/v0",
+  "selection": {
+    "github.issue.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "github_rest_graphql_api",
+      "available": [
+        "native_api:github_rest_graphql_api:github.api.prepare_issue",
+        "mcp:github_mcp:github.mcp.prepare_issue"
+      ]
+    },
+    "github.pr.comment.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "github_rest_graphql_api",
+      "available": [
+        "native_api:github_rest_graphql_api:github.api.prepare_pull_request_comment",
+        "mcp:github_mcp:github.mcp.prepare_pull_request_comment"
+      ]
+    },
+    "github.release_notes.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "github_rest_graphql_api",
+      "available": [
+        "native_api:github_rest_graphql_api:github.api.prepare_release_notes",
+        "mcp:github_mcp:github.mcp.prepare_release_notes"
+      ]
+    },
+    "github.repo.search_context": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "github_rest_graphql_api",
+      "available": [
+        "native_api:github_rest_graphql_api:github.api.search_repository_context",
+        "mcp:github_mcp:github.mcp.search_repository_context"
+      ]
+    },
+    "github.workflow.dispatch.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "github_rest_graphql_api",
+      "available": [
+        "native_api:github_rest_graphql_api:github.api.request_workflow_dispatch",
+        "mcp:github_mcp:github.mcp.request_workflow_dispatch"
+      ]
+    }
+  }
+}

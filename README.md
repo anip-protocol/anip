@@ -321,9 +321,9 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 | Python | PyPI | `pip install anip-service anip-fastapi` |
 | Java | Maven Central | `dev.anip:anip-service` |
 | Go | Module | `go get github.com/anip-protocol/anip/packages/go` |
-| C# | In-repo | NuGet publishing not yet configured |
+| C# | NuGet | `dotnet add package Anip.Service` and `dotnet add package Anip.AspNetCore` |
 
-[ANIP Studio](studio/) runs [embedded](studio/README.md#embedded-mode) or [standalone via Docker](studio/README.md#standalone-mode-docker). [Conformance suite](conformance/) and [contract testing](contract-tests/) available in-repo. Full package lists and details in [docs/distribution.md](docs/distribution.md).
+[ANIP Studio](studio/) runs as a full design/review/publishing product via Docker Compose, with a read-only showcase mode for public demos. [Conformance suite](conformance/) and [contract testing](contract-tests/) are available in-repo. Full package lists and details are in [docs/distribution.md](docs/distribution.md).
 
 ## Status
 
@@ -347,7 +347,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - TypeScript SDK packages: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`, `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/stdio`
 - Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`, `stdioapi`, `grpcapi`
 - Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`, `anip-stdio`
-- C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
+- C# SDK packages: `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
 - Transport bindings:
   - HTTP: default transport, all 5 runtimes, all framework adapters
   - stdio: native ANIP-over-stdio via JSON-RPC 2.0 on stdin/stdout — all 5 runtimes
@@ -356,10 +356,10 @@ This is a community effort. We'd rather define this standard thoughtfully and in
   - MCP: `@anip-dev/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
   - REST: `@anip-dev/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
   - GraphQL: `@anip-dev/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
-- [ANIP Studio](studio/) — inspection and invocation UI for ANIP services, embedded at `/studio` or standalone via Docker (`docker run -p 3000:8080 anip-studio`)
+- [ANIP Studio](studio/) — product/design workbench for PM and developer review, package/template publishing, generated-service validation, read-only showcase browsing, and service inspection
 - [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
 - [Contract testing](contract-tests/) — side-effect contract verification (read purity, event classification, cost presence, compensation workflows)
-- [Showcase apps](examples/showcase/) — travel booking, financial operations, DevOps infrastructure
+- [Showcase apps](examples/showcase/) — flagship GTM Agent plus governed fronting showcases for Jira, Slack, GitHub, GitLab, Linear, Notion, and Superset, alongside earlier travel, finance, and DevOps examples
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
@@ -383,7 +383,12 @@ If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md
 
 ## How This Was Built
 
-ANIP was designed through parallel sessions with Claude Opus and Claude Code as co-authors, with OpenAI Codex serving as adversarial reviewer — probing the delegation model, finding real security bypasses, and pushing the implementation until no serious findings remained. The commit history reflects that collaboration — every commit is co-authored, and we kept it that way deliberately. A protocol for agent-native interfaces, co-created with agents.
+ANIP was designed through parallel sessions with AI coding and review agents:
+drafting protocol surfaces, stress-testing delegation and approval behavior,
+finding security bypasses, and validating generated implementations across
+languages. The public history is intentionally curated for release readability;
+the product itself remains a protocol for agent-native interfaces, co-created
+with agents and tested against agent-driven usage.
 
 ## License
 

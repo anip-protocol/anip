@@ -1,0 +1,1743 @@
+{
+  "artifact_type": "agent_consumption_readiness",
+  "finding_reviews": {
+    "gtm.account_enrichment_summary:account_names:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.account_enrichment_summary:account_names:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.account_enrichment_summary:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.account_enrichment_summary:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.account_risk_summary:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.account_risk_summary:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.account_risk_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.account_risk_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.account_risk_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.account_risk_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_account_enrichment_summary:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.at_risk_account_enrichment_summary:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_account_enrichment_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_account_enrichment_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_account_enrichment_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_account_enrichment_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_followup_preparation:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_followup_preparation:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_followup_preparation:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_followup_preparation:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_reassignment_preparation:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_reassignment_preparation:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.at_risk_reassignment_preparation:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.at_risk_reassignment_preparation:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.bottleneck_account_outreach_draft:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.bottleneck_account_outreach_draft:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.bottleneck_account_outreach_draft:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.bottleneck_account_outreach_draft:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.bottleneck_account_outreach_draft:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.bottleneck_account_outreach_draft:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.bottleneck_account_outreach_draft:target_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.bottleneck_account_outreach_draft:target_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.draft_outreach_message:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.draft_outreach_message:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.draft_outreach_message:target_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.draft_outreach_message:target_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.lookalike_accounts:reference_account:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.lookalike_accounts:reference_account:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.objection_response_variants:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.objection_response_variants:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.objection_response_variants:target_ref:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.objection_response_variants:target_ref:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.pipeline_forecast_summary:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.pipeline_forecast_summary:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.pipeline_forecast_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.pipeline_forecast_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.pipeline_forecast_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.pipeline_forecast_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.pipeline_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.pipeline_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.pipeline_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.pipeline_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prepare_followup_tasks:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prepare_followup_tasks:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prepare_followup_tasks:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prepare_followup_tasks:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prepare_reassignment_plan:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prepare_reassignment_plan:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prepare_reassignment_plan:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prepare_reassignment_plan:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritize_accounts:cohort_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritize_accounts:cohort_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritize_accounts:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.prioritize_accounts:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritize_accounts:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritize_accounts:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritized_outreach_draft:cohort_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritized_outreach_draft:cohort_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritized_outreach_draft:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.prioritized_outreach_draft:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritized_outreach_draft:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritized_outreach_draft:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritized_routing_preparation:cohort_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritized_routing_preparation:cohort_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.prioritized_routing_preparation:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.prioritized_routing_preparation:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.product_pipeline_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.product_pipeline_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.product_pipeline_summary:product_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.product_pipeline_summary:product_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.product_pipeline_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.product_pipeline_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.route_leads:cohort_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.route_leads:cohort_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.route_leads:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.route_leads:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.sales_team_performance_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.sales_team_performance_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.sales_team_performance_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.sales_team_performance_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.score_leads:cohort_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.score_leads:cohort_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.score_leads:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.score_leads:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.score_leads:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.score_leads:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.stage_bottleneck_summary:derived-target": {
+      "decision": "explicit_app_glue",
+      "id": "gtm.stage_bottleneck_summary:derived-target",
+      "note": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.stage_bottleneck_summary:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.stage_bottleneck_summary:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.stage_bottleneck_summary:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.stage_bottleneck_summary:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.stalled_opportunity_review:owner_scope:optional-context-default": {
+      "decision": "acceptable_warning",
+      "id": "gtm.stalled_opportunity_review:owner_scope:optional-context-default",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.stalled_opportunity_review:quarter:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.stalled_opportunity_review:quarter:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    },
+    "gtm.suggest_followup_content:target_ref:clarification": {
+      "decision": "acceptable_warning",
+      "id": "gtm.suggest_followup_content:target_ref:clarification",
+      "note": "Operator review accepted this as a reviewed limitation for this contract-generation validation run.",
+      "review_method": "manual",
+      "reviewed_at": "2026-05-12T23:55:24.193Z"
+    }
+  },
+  "findings": [
+    {
+      "capability_id": "gtm.pipeline_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.pipeline_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.pipeline_forecast_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.stage_bottleneck_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.sales_team_performance_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.sales_team_performance_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.product_pipeline_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.product_pipeline_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.stalled_opportunity_review",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.stalled_opportunity_review:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.account_risk_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.account_risk_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.prepare_followup_tasks",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.prepare_followup_tasks:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.prepare_reassignment_plan",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.prepare_reassignment_plan:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.account_enrichment_summary",
+      "category": "clarification_behavior",
+      "detail": "account_names is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.account_enrichment_summary:account_names:clarification",
+      "input_name": "account_names",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.lookalike_accounts",
+      "category": "clarification_behavior",
+      "detail": "reference_account is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.lookalike_accounts:reference_account:clarification",
+      "input_name": "reference_account",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.at_risk_account_enrichment_summary:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.score_leads",
+      "category": "clarification_behavior",
+      "detail": "cohort_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.score_leads:cohort_ref:clarification",
+      "input_name": "cohort_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.prioritize_accounts",
+      "category": "clarification_behavior",
+      "detail": "cohort_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.prioritize_accounts:cohort_ref:clarification",
+      "input_name": "cohort_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.route_leads",
+      "category": "clarification_behavior",
+      "detail": "cohort_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.route_leads:cohort_ref:clarification",
+      "input_name": "cohort_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.draft_outreach_message",
+      "category": "clarification_behavior",
+      "detail": "target_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.draft_outreach_message:target_ref:clarification",
+      "input_name": "target_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.suggest_followup_content",
+      "category": "clarification_behavior",
+      "detail": "target_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.suggest_followup_content:target_ref:clarification",
+      "input_name": "target_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.bottleneck_account_outreach_draft:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "category": "clarification_behavior",
+      "detail": "target_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.bottleneck_account_outreach_draft:target_ref:clarification",
+      "input_name": "target_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "category": "clarification_behavior",
+      "detail": "cohort_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.prioritized_outreach_draft:cohort_ref:clarification",
+      "input_name": "cohort_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.at_risk_followup_preparation",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.at_risk_followup_preparation:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.at_risk_reassignment_preparation",
+      "category": "clarification_behavior",
+      "detail": "quarter is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.at_risk_reassignment_preparation:quarter:clarification",
+      "input_name": "quarter",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.prioritized_routing_preparation",
+      "category": "clarification_behavior",
+      "detail": "cohort_ref is required and appears to carry business scope or target context, but the contract does not define what the service or consuming app should ask when the user omits it or provides a vague value.",
+      "id": "gtm.prioritized_routing_preparation:cohort_ref:clarification",
+      "input_name": "cohort_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add the clarification prompt the runtime should return instead of guessing.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Missing input needs runtime clarification"
+    },
+    {
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.pipeline_forecast_summary:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.stage_bottleneck_summary:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.account_risk_summary",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.account_risk_summary:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.account_enrichment_summary",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.account_enrichment_summary:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.at_risk_account_enrichment_summary:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.score_leads",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.score_leads:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.prioritize_accounts",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.prioritize_accounts:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.draft_outreach_message",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.draft_outreach_message:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.objection_response_variants",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.objection_response_variants:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.bottleneck_account_outreach_draft:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "category": "derived_target",
+      "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+      "id": "gtm.prioritized_outreach_draft:derived-target",
+      "owner": "developer_contract",
+      "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+      "severity": "warning",
+      "source": "capability",
+      "title": "Who chooses the target group?"
+    },
+    {
+      "capability_id": "gtm.pipeline_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.pipeline_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.pipeline_forecast_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.stage_bottleneck_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.sales_team_performance_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.sales_team_performance_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.product_pipeline_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.product_pipeline_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.product_pipeline_summary",
+      "category": "declared_defaults",
+      "detail": "product_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.product_pipeline_summary:product_scope:optional-context-default",
+      "input_name": "product_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.stalled_opportunity_review",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.stalled_opportunity_review:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.account_risk_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.account_risk_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.prepare_followup_tasks",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.prepare_followup_tasks:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.prepare_reassignment_plan",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.prepare_reassignment_plan:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.at_risk_account_enrichment_summary:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.score_leads",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.score_leads:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.prioritize_accounts",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.prioritize_accounts:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.route_leads",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.route_leads:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.objection_response_variants",
+      "category": "declared_defaults",
+      "detail": "target_ref is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.objection_response_variants:target_ref:optional-context-default",
+      "input_name": "target_ref",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.bottleneck_account_outreach_draft:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.prioritized_outreach_draft:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.at_risk_followup_preparation",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.at_risk_followup_preparation:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.at_risk_reassignment_preparation",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.at_risk_reassignment_preparation:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    },
+    {
+      "capability_id": "gtm.prioritized_routing_preparation",
+      "category": "declared_defaults",
+      "detail": "owner_scope is optional but appears to change the business scope. The package should state what happens when the caller omits it.",
+      "id": "gtm.prioritized_routing_preparation:owner_scope:optional-context-default",
+      "input_name": "owner_scope",
+      "owner": "developer_contract",
+      "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+      "severity": "info",
+      "source": "capability",
+      "title": "Optional input needs an omission rule"
+    }
+  ],
+  "probes": [
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.pipeline_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.pipeline_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.pipeline_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.pipeline_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.pipeline_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.pipeline_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.pipeline_forecast_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.pipeline_forecast_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.pipeline_forecast_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.pipeline_forecast_summary:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.pipeline_forecast_summary for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.pipeline_forecast_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.pipeline_forecast_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.pipeline_forecast_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.pipeline_forecast_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.stage_bottleneck_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.stage_bottleneck_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.stage_bottleneck_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.stage_bottleneck_summary:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.stage_bottleneck_summary for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.stage_bottleneck_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.stage_bottleneck_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.stage_bottleneck_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.stage_bottleneck_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.sales_team_performance_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.sales_team_performance_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.sales_team_performance_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.sales_team_performance_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.sales_team_performance_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.sales_team_performance_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.product_pipeline_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.product_pipeline_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.product_pipeline_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.product_pipeline_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.product_pipeline_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.product_pipeline_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.stalled_opportunity_review:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.stalled_opportunity_review without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.stalled_opportunity_review"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.stalled_opportunity_review:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.stalled_opportunity_review to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.stalled_opportunity_review"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.account_risk_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.account_risk_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.account_risk_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.account_risk_summary:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.account_risk_summary for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.account_risk_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.account_risk_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.account_risk_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.account_risk_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prepare_followup_tasks:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.prepare_followup_tasks without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.prepare_followup_tasks"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.prepare_followup_tasks:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.prepare_followup_tasks to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.prepare_followup_tasks"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.prepare_followup_tasks:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.prepare_followup_tasks to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.prepare_followup_tasks"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prepare_reassignment_plan:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.prepare_reassignment_plan without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.prepare_reassignment_plan"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.prepare_reassignment_plan:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.prepare_reassignment_plan to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.prepare_reassignment_plan"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.prepare_reassignment_plan:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.prepare_reassignment_plan to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.prepare_reassignment_plan"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.account_enrichment_summary:account_names:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.account_enrichment_summary without account_names.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.account_enrichment_summary:account_names:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.account_enrichment_summary for top or priority results without naming a concrete value for account_names.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.account_enrichment_summary:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.account_enrichment_summary for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.account_enrichment_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.account_enrichment_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.lookalike_accounts:reference_account:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.lookalike_accounts without reference_account.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.lookalike_accounts"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.lookalike_accounts:reference_account:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.lookalike_accounts for top or priority results without naming a concrete value for reference_account.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.lookalike_accounts"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.lookalike_accounts:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.lookalike_accounts to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.lookalike_accounts"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.at_risk_account_enrichment_summary:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.at_risk_account_enrichment_summary without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.at_risk_account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.at_risk_account_enrichment_summary:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.at_risk_account_enrichment_summary for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.at_risk_account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.at_risk_account_enrichment_summary:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.at_risk_account_enrichment_summary to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.at_risk_account_enrichment_summary"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.score_leads:cohort_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.score_leads without cohort_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.score_leads"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.score_leads:cohort_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.score_leads for top or priority results without naming a concrete value for cohort_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.score_leads"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.score_leads:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.score_leads for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.score_leads"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.score_leads:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.score_leads to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.score_leads"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritize_accounts:cohort_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.prioritize_accounts without cohort_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.prioritize_accounts"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritize_accounts:cohort_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.prioritize_accounts for top or priority results without naming a concrete value for cohort_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.prioritize_accounts"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritize_accounts:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.prioritize_accounts for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.prioritize_accounts"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.prioritize_accounts:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.prioritize_accounts to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.prioritize_accounts"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.route_leads:cohort_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.route_leads without cohort_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.route_leads"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.route_leads:cohort_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.route_leads for top or priority results without naming a concrete value for cohort_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.route_leads"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.route_leads:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.route_leads to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.route_leads"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.route_leads:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.route_leads to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.route_leads"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.draft_outreach_message:target_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.draft_outreach_message without target_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.draft_outreach_message"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.draft_outreach_message:target_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.draft_outreach_message for top or priority results without naming a concrete value for target_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.draft_outreach_message"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.draft_outreach_message:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.draft_outreach_message for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.draft_outreach_message"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.draft_outreach_message:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.draft_outreach_message to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.draft_outreach_message"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.suggest_followup_content:target_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.suggest_followup_content without target_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.suggest_followup_content"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.suggest_followup_content:target_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.suggest_followup_content for top or priority results without naming a concrete value for target_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.suggest_followup_content"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.suggest_followup_content:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.suggest_followup_content to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.suggest_followup_content"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.objection_response_variants:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.objection_response_variants for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.objection_response_variants"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.objection_response_variants:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.objection_response_variants to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.objection_response_variants"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.bottleneck_account_outreach_draft:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.bottleneck_account_outreach_draft without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.bottleneck_account_outreach_draft:target_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.bottleneck_account_outreach_draft without target_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.bottleneck_account_outreach_draft:target_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.bottleneck_account_outreach_draft for top or priority results without naming a concrete value for target_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.bottleneck_account_outreach_draft:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.bottleneck_account_outreach_draft for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.bottleneck_account_outreach_draft:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.bottleneck_account_outreach_draft to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.bottleneck_account_outreach_draft:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.bottleneck_account_outreach_draft to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.bottleneck_account_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritized_outreach_draft:cohort_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.prioritized_outreach_draft without cohort_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.prioritized_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritized_outreach_draft:cohort_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.prioritized_outreach_draft for top or priority results without naming a concrete value for cohort_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.prioritized_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritized_outreach_draft:derived-target-probe",
+      "label": "Derived target probe",
+      "prompt": "Ask gtm.prioritized_outreach_draft for a top, selected, or derived target without explicitly naming the target entity.",
+      "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers.",
+      "target_capability_id": "gtm.prioritized_outreach_draft"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.prioritized_outreach_draft:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.prioritized_outreach_draft to send the result now.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.prioritized_outreach_draft"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.at_risk_followup_preparation:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.at_risk_followup_preparation without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.at_risk_followup_preparation"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.at_risk_followup_preparation:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.at_risk_followup_preparation to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.at_risk_followup_preparation"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.at_risk_followup_preparation:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.at_risk_followup_preparation to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.at_risk_followup_preparation"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.at_risk_reassignment_preparation:quarter:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.at_risk_reassignment_preparation without quarter.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.at_risk_reassignment_preparation"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.at_risk_reassignment_preparation:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.at_risk_reassignment_preparation to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.at_risk_reassignment_preparation"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.at_risk_reassignment_preparation:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.at_risk_reassignment_preparation to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.at_risk_reassignment_preparation"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritized_routing_preparation:cohort_ref:missing-context-probe",
+      "label": "Missing context probe",
+      "prompt": "Invoke gtm.prioritized_routing_preparation without cohort_ref.",
+      "rationale": "Required business context should produce a predictable clarification outcome.",
+      "target_capability_id": "gtm.prioritized_routing_preparation"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "gtm.prioritized_routing_preparation:cohort_ref:ungrounded-reference-probe",
+      "label": "Ungrounded reference probe",
+      "prompt": "Ask gtm.prioritized_routing_preparation for top or priority results without naming a concrete value for cohort_ref.",
+      "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+      "target_capability_id": "gtm.prioritized_routing_preparation"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "gtm.prioritized_routing_preparation:approval-boundary-probe",
+      "label": "Approval-preview boundary probe",
+      "prompt": "Ask for a read summary and also ask gtm.prioritized_routing_preparation to prepare, preview, plan, or route the governed action.",
+      "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+      "target_capability_id": "gtm.prioritized_routing_preparation"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "gtm.prioritized_routing_preparation:unsupported-effect-probe",
+      "label": "Unsupported effect probe",
+      "prompt": "Ask gtm.prioritized_routing_preparation to perform an explicitly unsupported effect.",
+      "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+      "target_capability_id": "gtm.prioritized_routing_preparation"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "scn-b3288671-1119-47aa-98ab-f9d9a2c2a423:unsupported-effect-probe",
+      "label": "Unsupported scenario effect probe",
+      "prompt": "Ask the package to send, export, publish, or mutate in the context of Prepare follow-up tasks or reassignment plans and stop at approval.",
+      "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "scn-8c83294f-e882-4c02-9a87-c99e67a279f8:unsupported-effect-probe",
+      "label": "Unsupported scenario effect probe",
+      "prompt": "Ask the package to send, export, publish, or mutate in the context of Enrich selected accounts and find lookalike accounts within a bounded scope.",
+      "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "scn-320d1ff6-3bac-4a93-a12b-97b69cbe999a:unsupported-effect-probe",
+      "label": "Unsupported scenario effect probe",
+      "prompt": "Ask the package to send, export, publish, or mutate in the context of Draft bounded outreach content for an approved target without sending.",
+      "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "scn-9b3f0543-7305-4c76-9974-60b9c96273a9:unsupported-effect-probe",
+      "label": "Unsupported scenario effect probe",
+      "prompt": "Ask the package to send, export, publish, or mutate in the context of Review pipeline health and forecast posture for a bounded quarter.",
+      "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+    }
+  ],
+  "required_app_glue": [
+    {
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.pipeline_forecast_summary:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.pipeline_forecast_summary app glue"
+    },
+    {
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.stage_bottleneck_summary:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.stage_bottleneck_summary app glue"
+    },
+    {
+      "capability_id": "gtm.account_risk_summary",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.account_risk_summary:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.account_risk_summary app glue"
+    },
+    {
+      "capability_id": "gtm.account_enrichment_summary",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.account_enrichment_summary:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.account_enrichment_summary app glue"
+    },
+    {
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.at_risk_account_enrichment_summary:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.at_risk_account_enrichment_summary app glue"
+    },
+    {
+      "capability_id": "gtm.score_leads",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.score_leads:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.score_leads app glue"
+    },
+    {
+      "capability_id": "gtm.prioritize_accounts",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.prioritize_accounts:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.prioritize_accounts app glue"
+    },
+    {
+      "capability_id": "gtm.draft_outreach_message",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.draft_outreach_message:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.draft_outreach_message app glue"
+    },
+    {
+      "capability_id": "gtm.objection_response_variants",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.objection_response_variants:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.objection_response_variants app glue"
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.bottleneck_account_outreach_draft:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.bottleneck_account_outreach_draft app glue"
+    },
+    {
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "category": "derived_target",
+      "detail": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "id": "gtm.prioritized_outreach_draft:derived-target:reviewed-app-glue",
+      "recommendation": "Keep this as explicit app-layer behavior. Do not hide it in the generic ANIP runtime or service invocation substrate.",
+      "title": "gtm.prioritized_outreach_draft app glue"
+    }
+  ],
+  "score": 100,
+  "status": "ready",
+  "summary": {
+    "blockers": 0,
+    "info": 0,
+    "probes": 78,
+    "required_app_glue": 11,
+    "warnings": 0
+  }
+}

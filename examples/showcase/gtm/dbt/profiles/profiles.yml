@@ -1,0 +1,12 @@
+gtm_showcase:
+  target: local
+  outputs:
+    local:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER', 'anip') }}"
+      password: "{{ env_var('PGPASSWORD', 'anip') }}"
+      dbname: "{{ env_var('PGDATABASE', 'anip_gtm') }}"
+      schema: "{{ env_var('PGSCHEMA', 'analytics_gtm') }}"
+      threads: 4

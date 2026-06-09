@@ -1,8 +1,10 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import type {
   WorkspaceDetail,
   ProjectSummary,
   ProjectDetail,
+  ProjectDocumentRecord,
+  RuntimeStatus,
   ArtifactRecord,
   RequirementsRecord,
   ProposalRecord,
@@ -15,14 +17,19 @@ import {
   listWorkspaces,
   getWorkspace,
   listProjects,
+  getProject,
+  listPmArtifacts,
   listRequirements,
   listScenarios,
+  listServiceMetadata,
   listProposals,
   listShapes,
   listEvaluations,
+  listProjectDocuments,
   listVocabulary,
+  getRuntimeStatus,
 } from './project-api'
-import { designStore } from './store'
+import { designStore, validateDraft } from './store'
 import { hydrateAnswersFromArtifact } from './guided/mappings'
 import { evaluateCompleteness } from './guided/hints'
 import { hydrateScenarioAnswers } from './guided/scenario-mappings'
@@ -38,8 +45,11 @@ interface ProjectState {
   projects: ProjectSummary[]
   activeProject: ProjectDetail | null
   artifacts: {
+    documents: ProjectDocumentRecord[]
+    pmArtifacts: ArtifactRecord[]
     requirements: RequirementsRecord[]
     scenarios: ArtifactRecord[]
+    serviceMetadata: ArtifactRecord[]
     proposals: ProposalRecord[]
     shapes: ShapeRecord[]
     evaluations: EvaluationRecord[]
@@ -53,6 +63,7 @@ interface ProjectState {
   loading: boolean
   error: string | null
   dbAvailable: boolean
+  runtimeStatus: RuntimeStatus | null
 }
 
 export const projectStore = reactive<ProjectState>({
@@ -61,8 +72,11 @@ export const projectStore = reactive<ProjectState>({
   projects: [],
   activeProject: null,
   artifacts: {
+    documents: [],
+    pmArtifacts: [],
     requirements: [],
     scenarios: [],
+    serviceMetadata: [],
     proposals: [],
     shapes: [],
     evaluations: [],
@@ -76,7 +90,103 @@ export const projectStore = reactive<ProjectState>({
   loading: false,
   error: null,
   dbAvailable: false,
+  runtimeStatus: null,
 })
+
+let activeProjectLoadVersion = 0
+
+function observedMetadataSelectionStorageKey(projectId: string): string {
+  return `studio.selectedObservedMetadata.${projectId}`
+}
+
+function activeContextSelectionStorageKey(projectId: string): string {
+  return `studio.activeContext.${projectId}`
+}
+
+function restoreObservedMetadataSelection(projectId: string): void {
+  if (typeof window === 'undefined') {
+    designStore.selectedObservedServiceMetadataId = null
+    return
+  }
+  const saved = window.localStorage.getItem(observedMetadataSelectionStorageKey(projectId))
+  if (saved && projectStore.artifacts.serviceMetadata.some((artifact) => artifact.id === saved)) {
+    designStore.selectedObservedServiceMetadataId = saved
+    return
+  }
+  designStore.selectedObservedServiceMetadataId = null
+}
+
+watch(
+  () => [projectStore.activeProject?.id ?? '', designStore.selectedObservedServiceMetadataId ?? ''] as const,
+  ([projectId, selectedArtifactId]) => {
+    if (!projectId || typeof window === 'undefined') return
+    const key = observedMetadataSelectionStorageKey(projectId)
+    if (selectedArtifactId) {
+      window.localStorage.setItem(key, selectedArtifactId)
+    } else {
+      window.localStorage.removeItem(key)
+    }
+  },
+  { flush: 'post' },
+)
+
+function restoreActiveContextSelection(projectId: string): void {
+  if (typeof window === 'undefined') return
+  const raw = window.localStorage.getItem(activeContextSelectionStorageKey(projectId))
+  if (!raw) return
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      requirementsId?: string | null
+      scenarioId?: string | null
+      shapeId?: string | null
+    }
+
+    if (
+      parsed.requirementsId &&
+      projectStore.artifacts.requirements.some((artifact) => artifact.id === parsed.requirementsId)
+    ) {
+      projectStore.activeRequirementsId = parsed.requirementsId
+    }
+
+    if (
+      parsed.scenarioId &&
+      projectStore.artifacts.scenarios.some((artifact) => artifact.id === parsed.scenarioId)
+    ) {
+      projectStore.activeScenarioId = parsed.scenarioId
+    }
+
+    if (
+      parsed.shapeId &&
+      projectStore.artifacts.shapes.some((artifact) => artifact.id === parsed.shapeId)
+    ) {
+      projectStore.activeShapeId = parsed.shapeId
+    }
+  } catch {
+    window.localStorage.removeItem(activeContextSelectionStorageKey(projectId))
+  }
+}
+
+watch(
+  () => [
+    projectStore.activeProject?.id ?? '',
+    projectStore.activeRequirementsId ?? '',
+    projectStore.activeScenarioId ?? '',
+    projectStore.activeShapeId ?? '',
+  ] as const,
+  ([projectId, requirementsId, scenarioId, shapeId]) => {
+    if (!projectId || typeof window === 'undefined') return
+    window.localStorage.setItem(
+      activeContextSelectionStorageKey(projectId),
+      JSON.stringify({
+        requirementsId: requirementsId || null,
+        scenarioId: scenarioId || null,
+        shapeId: shapeId || null,
+      }),
+    )
+  },
+  { flush: 'post' },
+)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -165,13 +275,18 @@ function autoSelectActiveIds(): void {
 // Public functions
 // ---------------------------------------------------------------------------
 
-/** Check if the sidecar/DB is reachable. Sets dbAvailable. Never throws. */
+/** Check if the Studio API is reachable. Sets dbAvailable. Never throws. */
 export async function checkDbAvailable(): Promise<void> {
   try {
     await listWorkspaces()
     projectStore.dbAvailable = true
   } catch {
     projectStore.dbAvailable = false
+  }
+  try {
+    projectStore.runtimeStatus = await getRuntimeStatus()
+  } catch {
+    projectStore.runtimeStatus = null
   }
 }
 
@@ -218,6 +333,7 @@ export async function loadProjects(workspaceId?: string): Promise<void> {
  * - Then auto-selects if exactly one active record exists
  */
 export async function loadProject(id: string): Promise<void> {
+  const loadVersion = ++activeProjectLoadVersion
   // Clear context immediately before any async work (switching projects)
   projectStore.activeRequirementsId = null
   projectStore.activeScenarioId = null
@@ -227,37 +343,47 @@ export async function loadProject(id: string): Promise<void> {
   setLoading(true)
   clearError()
   try {
-    const [detail, requirements, scenarios, proposals, shapes, evaluations] = await Promise.all([
-      // getProject returns ProjectDetail with counts — import lazily to avoid circular dep
-      fetch(`/api/projects/${id}`).then(r => {
-        if (!r.ok) throw new Error(`Failed to load project ${id}: ${r.status}`)
-        return r.json() as Promise<ProjectDetail>
-      }),
+    const [detail, documents, pmArtifacts, requirements, scenarios, serviceMetadata, proposals, shapes, evaluations, runtimeStatus] = await Promise.all([
+      getProject(id),
+      listProjectDocuments(id),
+      listPmArtifacts(id),
       listRequirements(id),
       listScenarios(id),
+      listServiceMetadata(id),
       listProposals(id),
       listShapes(id),
       listEvaluations(id),
+      getRuntimeStatus().catch(() => null),
     ])
 
+    if (loadVersion !== activeProjectLoadVersion) return
+
     projectStore.activeProject = detail
+    projectStore.runtimeStatus = runtimeStatus
     if (detail.workspace_id) {
       if (projectStore.activeWorkspace?.id !== detail.workspace_id) {
         await loadWorkspace(detail.workspace_id)
       }
     }
+    if (loadVersion !== activeProjectLoadVersion) return
+
+    projectStore.artifacts.documents = documents
+    projectStore.artifacts.pmArtifacts = pmArtifacts
     projectStore.artifacts.requirements = requirements
     projectStore.artifacts.scenarios = scenarios
+    projectStore.artifacts.serviceMetadata = serviceMetadata
     projectStore.artifacts.proposals = proposals
     projectStore.artifacts.shapes = shapes
     projectStore.artifacts.evaluations = evaluations
+    restoreObservedMetadataSelection(id)
+    restoreActiveContextSelection(id)
 
     // Auto-select if exactly one record of each type exists
     autoSelectActiveIds()
   } catch (err) {
-    setError(err)
+    if (loadVersion === activeProjectLoadVersion) setError(err)
   } finally {
-    setLoading(false)
+    if (loadVersion === activeProjectLoadVersion) setLoading(false)
   }
 }
 
@@ -365,6 +491,7 @@ export function openArtifactForEditing(
   }
 
   designStore.validationErrors = []
+  validateDraft()
   designStore.liveEvaluation = null
 }
 
@@ -374,10 +501,16 @@ export function openArtifactForEditing(
  * Active Context Reset Rules: clearProject() clears both active IDs to null.
  */
 export function clearProject(): void {
+  activeProjectLoadVersion += 1
+  projectStore.loading = false
+  projectStore.error = null
   projectStore.activeWorkspace = null
   projectStore.activeProject = null
+  projectStore.artifacts.documents = []
+  projectStore.artifacts.pmArtifacts = []
   projectStore.artifacts.requirements = []
   projectStore.artifacts.scenarios = []
+  projectStore.artifacts.serviceMetadata = []
   projectStore.artifacts.proposals = []
   projectStore.artifacts.shapes = []
   projectStore.artifacts.evaluations = []
@@ -387,6 +520,8 @@ export function clearProject(): void {
   projectStore.activeProposalId = null
   projectStore.activeShapeId = null
   projectStore.pendingIntentDraft = null
+  designStore.selectedObservedServiceMetadataId = null
+  projectStore.runtimeStatus = null
 }
 
 export function setActiveWorkspace(workspace: WorkspaceDetail | null): void {
@@ -459,15 +594,25 @@ export async function refreshArtifacts(): Promise<void> {
   const project = projectStore.activeProject
   if (!project) return
   try {
-    const [requirements, scenarios, proposals, shapes, evaluations] = await Promise.all([
+    const [detail, documents, pmArtifacts, requirements, scenarios, serviceMetadata, proposals, shapes, evaluations, runtimeStatus] = await Promise.all([
+      getProject(project.id),
+      listProjectDocuments(project.id),
+      listPmArtifacts(project.id),
       listRequirements(project.id),
       listScenarios(project.id),
+      listServiceMetadata(project.id),
       listProposals(project.id),
       listShapes(project.id),
       listEvaluations(project.id),
+      getRuntimeStatus().catch(() => null),
     ])
+    projectStore.activeProject = detail
+    projectStore.runtimeStatus = runtimeStatus
+    projectStore.artifacts.documents = documents
+    projectStore.artifacts.pmArtifacts = pmArtifacts
     projectStore.artifacts.requirements = requirements
     projectStore.artifacts.scenarios = scenarios
+    projectStore.artifacts.serviceMetadata = serviceMetadata
     projectStore.artifacts.proposals = proposals
     projectStore.artifacts.shapes = shapes
     projectStore.artifacts.evaluations = evaluations

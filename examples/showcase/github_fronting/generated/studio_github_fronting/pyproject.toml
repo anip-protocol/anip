@@ -1,0 +1,26 @@
+[project]
+name = "github-governed-fronting-showcase"
+version = "0.1.0"
+description = "Generated ANIP Python host"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-core @ file:///Users/samirski/Development/ANIP/packages/python/anip-core",
+    "anip-service @ file:///Users/samirski/Development/ANIP/packages/python/anip-service",
+    "anip-fastapi @ file:///Users/samirski/Development/ANIP/packages/python/anip-fastapi",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "httpx>=0.27.0"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["github_governed_fronting_showcase*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

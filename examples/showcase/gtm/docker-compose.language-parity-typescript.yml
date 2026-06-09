@@ -1,0 +1,173 @@
+name: anip-gtm-typescript-parity
+
+x-gtm-demo-api-keys-json: &gtm-demo-api-keys-json >-
+  {
+    "dev-admin-key":"human:local-developer",
+    "demo-sales-leader-key":"human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true|can_use_objection_variants=true",
+    "demo-account-manager-east-key":"human:maya.chen@example.com|actor_id=account_manager_east|display_name=Maya Chen|role=account_manager|pipeline_scope=East|financial_access=full|enrichment_access=bounded|outreach_access=full|can_prepare_followup=true|can_approve_followup=false|can_use_lookalikes=true|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=true",
+    "demo-sales-analyst-key":"human:jordan.lee@example.com|actor_id=sales_analyst|display_name=Jordan Lee|role=sales_analyst|pipeline_scope=company|financial_access=masked|enrichment_access=bounded|outreach_access=bounded|can_prepare_followup=false|can_approve_followup=false|can_use_lookalikes=false|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=false",
+    "demo-rev-ops-manager-key":"human:priya.shah@example.com|actor_id=rev_ops_manager|display_name=Priya Shah|role=rev_ops_manager|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=false|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=false|can_use_objection_variants=true"
+  }
+
+services:
+  gtm-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-anip_gtm}
+      POSTGRES_USER: ${POSTGRES_USER:-anip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anip}
+    ports:
+      - "${POSTGRES_PORT:-5462}:5432"
+    volumes:
+      - gtm-postgres-data:/var/lib/postgresql/data
+      - ./data:/seed:ro
+      - ./data/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anip} -d ${POSTGRES_DB:-anip_gtm}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  gtm-dbt:
+    build:
+      context: ./dbt
+    depends_on:
+      gtm-postgres:
+        condition: service_healthy
+    environment:
+      DBT_PROFILES_DIR: /app/profiles
+      PGHOST: gtm-postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-anip}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-anip}
+      PGDATABASE: ${POSTGRES_DB:-anip_gtm}
+      PGSCHEMA: analytics_gtm
+    volumes:
+      - ./dbt:/app
+    command: >
+      sh -c "dbt deps --project-dir /app &&
+             dbt build --project-dir /app --profiles-dir /app/profiles"
+
+  gtm-metabase:
+    image: metabase/metabase:latest
+    depends_on:
+      gtm-postgres:
+        condition: service_healthy
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+      JAVA_TIMEZONE: ${TZ:-America/Los_Angeles}
+      MB_SITE_URL: http://127.0.0.1:${GTM_METABASE_PORT:-3042}
+    ports:
+      - "${GTM_METABASE_PORT:-3042}:3000"
+    volumes:
+      - gtm-metabase-data:/metabase-data
+
+  gtm-metabase-setup:
+    image: python:3.12-slim
+    depends_on:
+      gtm-metabase:
+        condition: service_started
+      gtm-dbt:
+        condition: service_completed_successfully
+    environment:
+      GTM_METABASE_URL: http://gtm-metabase:3000
+      GTM_METABASE_DB_HOST: gtm-postgres
+      GTM_METABASE_DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-anip_gtm}
+      POSTGRES_USER: ${POSTGRES_USER:-anip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anip}
+    volumes:
+      - ./scripts:/scripts:ro
+    command: ["python", "/scripts/setup_metabase_verification.py"]
+
+  gtm-pipeline-service: &gtm-service
+    image: "anipprotocol/showcase-gtm-typescript:${ANIP_GTM_IMAGE_TAG:-0.4.3}"
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/generated/language-parity/typescript/Dockerfile
+    depends_on:
+      gtm-dbt:
+        condition: service_completed_successfully
+    environment:
+      PORT: 4100
+      ANIP_SERVICE_ID: gtm-pipeline-service
+      GTM_SERVICE_FILTER: gtm-pipeline-service
+      ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+    ports:
+      - "${GTM_PIPELINE_PORT:-4220}:4100"
+
+  gtm-enrichment-service:
+    <<: *gtm-service
+    environment:
+      PORT: 4100
+      ANIP_SERVICE_ID: gtm-enrichment-service
+      GTM_SERVICE_FILTER: gtm-enrichment-service
+      ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+    ports:
+      - "${GTM_ENRICHMENT_PORT:-4221}:4100"
+
+  gtm-prioritization-service:
+    <<: *gtm-service
+    environment:
+      PORT: 4100
+      ANIP_SERVICE_ID: gtm-prioritization-service
+      GTM_SERVICE_FILTER: gtm-prioritization-service
+      ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+    ports:
+      - "${GTM_PRIORITIZATION_PORT:-4222}:4100"
+
+  gtm-outreach-service:
+    <<: *gtm-service
+    environment:
+      PORT: 4100
+      ANIP_SERVICE_ID: gtm-outreach-service
+      GTM_SERVICE_FILTER: gtm-outreach-service
+      ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+    ports:
+      - "${GTM_OUTREACH_PORT:-4223}:4100"
+
+  gtm-agent-llm-ui:
+    image: "anipprotocol/showcase-gtm-agent-ui:${ANIP_GTM_IMAGE_TAG:-0.4.3}"
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/agents/llm_runtime/Dockerfile
+    depends_on:
+      - gtm-pipeline-service
+      - gtm-enrichment-service
+      - gtm-prioritization-service
+      - gtm-outreach-service
+    environment:
+      PORT: 9300
+      ANIP_AGENT_SERVICES_JSON: >-
+        [
+          {"name":"pipeline","url":"http://gtm-pipeline-service:4100","approval_list_path":"/gtm/approvals","approval_approve_path_template":"/gtm/approvals/{approval_request_id}/approve"},
+          {"name":"enrichment","url":"http://gtm-enrichment-service:4100"},
+          {"name":"prioritization","url":"http://gtm-prioritization-service:4100","approval_list_path":"/gtm/approvals","approval_approve_path_template":"/gtm/approvals/{approval_request_id}/approve"},
+          {"name":"outreach","url":"http://gtm-outreach-service:4100"}
+        ]
+      ANIP_AGENT_DEFAULT_ACTOR_ID: sales_leader
+      ANIP_AGENT_APP_MODULE: gtm_agent_app
+      ANIP_AGENT_CONSUMPTION_KIT_DIR: /workspace/examples/showcase/gtm/generated/language-parity/python/agent-consumption
+      ANIP_AGENT_LANGUAGE: typescript
+      ANIP_AGENT_METABASE_URL: http://127.0.0.1:${GTM_METABASE_PORT:-3042}
+      ANIP_AGENT_README_URL: https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm
+      ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-gpt-5.4-mini}
+      ANIP_AGENT_API_KEY: ${ANIP_AGENT_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANIP_AGENT_ACTORS_JSON: >-
+        [
+          {"actor_id":"sales_leader","display_name":"Alex King","label":"Alex King · Sales Leader","role":"sales_leader","bearer_token":"demo-sales-leader-key"},
+          {"actor_id":"account_manager_east","display_name":"Maya Chen","label":"Maya Chen · East Account Manager","role":"account_manager","pipeline_scope":"East","bearer_token":"demo-account-manager-east-key"},
+          {"actor_id":"sales_analyst","display_name":"Jordan Lee","label":"Jordan Lee · Sales Analyst","role":"sales_analyst","bearer_token":"demo-sales-analyst-key"},
+          {"actor_id":"rev_ops_manager","display_name":"Priya Shah","label":"Priya Shah · RevOps Manager","role":"rev_ops_manager","bearer_token":"demo-rev-ops-manager-key"}
+        ]
+    ports:
+      - "${GTM_AGENT_LLM_UI_PORT:-4320}:9300"
+
+volumes:
+  gtm-postgres-data:
+  gtm-metabase-data:

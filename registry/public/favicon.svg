@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ANIP Registry">
+  <rect width="64" height="64" fill="#f7f5ee"/>
+  <path fill="#222728" d="M24 8h16v8H24zM20 16h8v8h-8zM36 16h8v8h-8zM16 24h8v8h-8zM28 24h8v8h-8zM40 24h8v8h-8zM12 32h8v8h-8zM28 32h8v8h-8zM44 32h8v8h-8zM8 40h8v8H8zM20 40h24v8H20zM48 40h8v8h-8zM4 48h16v8H4zM44 48h16v8H44z"/>
+  <circle cx="47" cy="47" r="11" fill="#f59e0b" stroke="#f7f5ee" stroke-width="4"/>
+  <path d="M41 45.5 47 42l6 3.5v7L47 56l-6-3.5v-7Z" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

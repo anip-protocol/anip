@@ -1,0 +1,3 @@
+cube/.cubestore/
+dbt/logs/
+dbt/profiles/.user.yml

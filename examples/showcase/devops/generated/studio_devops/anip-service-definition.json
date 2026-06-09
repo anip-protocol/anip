@@ -1,0 +1,681 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "identity": {
+    "system_name": "DevOps Infrastructure Showcase",
+    "domain_name": "devops",
+    "delivery_model": "single_service",
+    "architecture_shape": "single_service"
+  },
+  "authority": {
+    "approval_expectation": "project_specific",
+    "blocked_failure_posture": "clarify_or_stop"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true
+  },
+  "generation": {
+    "protocols": [
+      "https",
+      "mcp"
+    ],
+    "layout_strategy": "service_oriented",
+    "selected_service_ids": [
+      "devops-infra-service"
+    ]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "devops-infra-service",
+      "service_id": "devops-infra-service",
+      "service_name": "DevOps Infrastructure Service",
+      "source_role": "example_service",
+      "source_capabilities": [
+        "devops.list_deployments",
+        "devops.get_service_health",
+        "devops.scale_replicas",
+        "devops.update_config",
+        "devops.rollback_deployment",
+        "devops.delete_resource",
+        "devops.destroy_environment"
+      ],
+      "formalized_capability_ids": [
+        "devops.list_deployments",
+        "devops.get_service_health",
+        "devops.scale_replicas",
+        "devops.update_config",
+        "devops.rollback_deployment",
+        "devops.delete_resource",
+        "devops.destroy_environment"
+      ]
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "devops:devops.list_deployments",
+      "kind": "atomic",
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.list_deployments",
+      "title": "List deployments",
+      "summary": "List current service deployments and status.",
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "deployment_list",
+      "intent_type": "inspect",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Read bounded data"
+        ],
+        "does_not_produce": [
+          "Change infrastructure"
+        ]
+      },
+      "minimum_scope": [
+        "infra.read"
+      ],
+      "backend_operation": "list_deployments",
+      "path_template": "/list_deployments",
+      "output_shape": "deployment_list",
+      "inputs": []
+    },
+    {
+      "id": "devops:devops.get_service_health",
+      "kind": "atomic",
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.get_service_health",
+      "title": "Get service health",
+      "summary": "Get health and performance metrics for a service.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "service_health",
+      "intent_type": "inspect",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Read bounded data"
+        ],
+        "does_not_produce": [
+          "Change infrastructure"
+        ]
+      },
+      "minimum_scope": [
+        "infra.read"
+      ],
+      "backend_operation": "get_service_health",
+      "path_template": "/get_service_health",
+      "output_shape": "service_health",
+      "inputs": [
+        {
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to inspect.",
+          "default_value": "",
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "entity_reference": true
+        }
+      ]
+    },
+    {
+      "id": "devops:devops.scale_replicas",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.scale_replicas",
+      "title": "Scale replicas",
+      "summary": "Scale the replica count for a deployment.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "scale_confirmation",
+      "intent_type": "business_action",
+      "operation_type": "write",
+      "side_effect_level": "write",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Change system state"
+        ],
+        "does_not_produce": [
+          "Delete infrastructure"
+        ]
+      },
+      "minimum_scope": [
+        "infra.write"
+      ],
+      "backend_operation": "scale_replicas",
+      "path_template": "/scale_replicas",
+      "output_shape": "scale_confirmation",
+      "inputs": [
+        {
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to scale.",
+          "default_value": "",
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "replicas",
+          "input_type": "integer",
+          "required": true,
+          "summary": "Target replica count.",
+          "default_value": "",
+          "clarification_hint": "Ask for replicas when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "devops:devops.update_config",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.update_config",
+      "title": "Update config",
+      "summary": "Update a configuration key-value pair for a service.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "config_change",
+      "intent_type": "business_action",
+      "operation_type": "write",
+      "side_effect_level": "write",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Change system state"
+        ],
+        "does_not_produce": [
+          "Delete infrastructure"
+        ]
+      },
+      "minimum_scope": [
+        "infra.write"
+      ],
+      "backend_operation": "update_config",
+      "path_template": "/update_config",
+      "output_shape": "config_change",
+      "inputs": [
+        {
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to configure.",
+          "default_value": "",
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "key",
+          "input_type": "string",
+          "required": true,
+          "summary": "Configuration key.",
+          "default_value": "",
+          "clarification_hint": "Ask for key when it is missing or ambiguous."
+        },
+        {
+          "input_name": "value",
+          "input_type": "string",
+          "required": true,
+          "summary": "New configuration value.",
+          "default_value": "",
+          "clarification_hint": "Ask for value when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "devops:devops.rollback_deployment",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.rollback_deployment",
+      "title": "Rollback deployment",
+      "summary": "Roll back a service deployment to a previous version.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "rollback_confirmation",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "transactional",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Change system state"
+        ],
+        "does_not_produce": [
+          "Delete infrastructure"
+        ]
+      },
+      "minimum_scope": [
+        "infra.deploy"
+      ],
+      "backend_operation": "rollback_deployment",
+      "path_template": "/rollback_deployment",
+      "output_shape": "rollback_confirmation",
+      "inputs": [
+        {
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to roll back.",
+          "default_value": "",
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "target_version",
+          "input_type": "string",
+          "required": true,
+          "summary": "Target version.",
+          "default_value": "",
+          "clarification_hint": "Ask for target_version when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "devops:devops.delete_resource",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.delete_resource",
+      "title": "Delete resource",
+      "summary": "Permanently delete an infrastructure resource.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "deletion_confirmation",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "irreversible",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Execute approved action"
+        ],
+        "does_not_produce": [
+          "Destroy environment"
+        ]
+      },
+      "minimum_scope": [
+        "infra.admin"
+      ],
+      "backend_operation": "delete_resource",
+      "path_template": "/delete_resource",
+      "output_shape": "deletion_confirmation",
+      "inputs": [
+        {
+          "input_name": "resource_type",
+          "input_type": "string",
+          "required": true,
+          "summary": "Resource type.",
+          "default_value": "",
+          "allowed_values": [
+            "deployment",
+            "config",
+            "service"
+          ],
+          "clarification_hint": "Ask for resource_type when it is missing or ambiguous."
+        },
+        {
+          "input_name": "resource_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Resource name.",
+          "default_value": "",
+          "clarification_hint": "Ask for resource_name when it is missing or ambiguous.",
+          "entity_reference": true
+        }
+      ]
+    },
+    {
+      "id": "devops:devops.destroy_environment",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "studio_source_doc",
+      "service_id": "devops-infra-service",
+      "capability_id": "devops.destroy_environment",
+      "title": "Destroy environment",
+      "summary": "Permanently destroy a non-production environment; direct principal action is required.",
+      "entity_targeted": true,
+      "subject_kind": "business object",
+      "context_type": "devops",
+      "output_intent": "destroy_confirmation",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "irreversible",
+      "implementation_fit": {
+        "category": "custom_service_logic",
+        "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+      },
+      "business_effects": {
+        "produces": [
+          "Execute approved action"
+        ],
+        "does_not_produce": [
+          "Delegate destructive environment removal"
+        ]
+      },
+      "minimum_scope": [
+        "infra.admin"
+      ],
+      "backend_operation": "destroy_environment",
+      "path_template": "/destroy_environment",
+      "output_shape": "destroy_confirmation",
+      "inputs": [
+        {
+          "input_name": "environment_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Environment name.",
+          "default_value": "",
+          "allowed_values": [
+            "staging",
+            "development",
+            "preview"
+          ],
+          "clarification_hint": "Ask for environment_name when it is missing or ambiguous.",
+          "entity_reference": true
+        }
+      ]
+    }
+  ],
+  "permission_intent_bindings": [
+    {
+      "id": "devops_example_user_access",
+      "actor_id": "example_user",
+      "business_area": "devops",
+      "business_area_label": "Devops Example Access",
+      "access_posture": "bounded",
+      "governed_outcome_type": "bounded_result",
+      "governed_outcome": "Allow tutorial users to invoke declared capabilities within the scopes shown by each capability.",
+      "target_service_ids": [
+        "devops-infra-service"
+      ],
+      "target_capability_ids": [
+        "devops.list_deployments",
+        "devops.get_service_health",
+        "devops.scale_replicas",
+        "devops.update_config",
+        "devops.rollback_deployment",
+        "devops.delete_resource",
+        "devops.destroy_environment"
+      ],
+      "formalization_strategy": "Generated examples keep policy simple and visible for onboarding."
+    }
+  ],
+  "runtime_policy_bindings": [
+    {
+      "id": "devops_example_user_policy",
+      "source_permission_id": "devops_example_user_access",
+      "actor_id": "example_user",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "example_user"
+      },
+      "business_area": "devops",
+      "business_area_label": "Devops Example Access",
+      "service_ids": [
+        "devops-infra-service"
+      ],
+      "capability_ids": [
+        "devops.list_deployments",
+        "devops.get_service_health",
+        "devops.scale_replicas",
+        "devops.update_config",
+        "devops.rollback_deployment",
+        "devops.delete_resource",
+        "devops.destroy_environment"
+      ],
+      "required_scopes": [
+        "infra.admin",
+        "infra.deploy",
+        "infra.read",
+        "infra.write"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Use the declared capability scope and required inputs as the tutorial boundary.",
+      "enforcement_notes": "Generated examples use simple policy so the contract remains readable."
+    }
+  ],
+  "integration_fronting": {
+    "project_type": "example_showcase",
+    "capability_mappings": [
+      {
+        "id": "devops.list_deployments_mapping",
+        "capability_id": "devops.list_deployments",
+        "title": "List deployments",
+        "intent": "List current service deployments and status.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "list_deployments"
+        ],
+        "execution_posture": "inspect",
+        "side_effect_level": "read",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "deployment_list",
+        "backend_input_mode": "explicit",
+        "audit_required": true
+      },
+      {
+        "id": "devops.get_service_health_mapping",
+        "capability_id": "devops.get_service_health",
+        "title": "Get service health",
+        "intent": "Get health and performance metrics for a service.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "get_service_health"
+        ],
+        "execution_posture": "inspect",
+        "side_effect_level": "read",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "service_health",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "service_name"
+        ],
+        "audit_required": true
+      },
+      {
+        "id": "devops.scale_replicas_mapping",
+        "capability_id": "devops.scale_replicas",
+        "title": "Scale replicas",
+        "intent": "Scale the replica count for a deployment.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "scale_replicas"
+        ],
+        "execution_posture": "business_action",
+        "side_effect_level": "write",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "scale_confirmation",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "service_name",
+          "replicas"
+        ],
+        "audit_required": true
+      },
+      {
+        "id": "devops.update_config_mapping",
+        "capability_id": "devops.update_config",
+        "title": "Update config",
+        "intent": "Update a configuration key-value pair for a service.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "update_config"
+        ],
+        "execution_posture": "business_action",
+        "side_effect_level": "write",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "config_change",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "service_name",
+          "key",
+          "value"
+        ],
+        "audit_required": true
+      },
+      {
+        "id": "devops.rollback_deployment_mapping",
+        "capability_id": "devops.rollback_deployment",
+        "title": "Rollback deployment",
+        "intent": "Roll back a service deployment to a previous version.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "rollback_deployment"
+        ],
+        "execution_posture": "business_action",
+        "side_effect_level": "transactional",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "rollback_confirmation",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "service_name",
+          "target_version"
+        ],
+        "audit_required": true
+      },
+      {
+        "id": "devops.delete_resource_mapping",
+        "capability_id": "devops.delete_resource",
+        "title": "Delete resource",
+        "intent": "Permanently delete an infrastructure resource.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "delete_resource"
+        ],
+        "execution_posture": "business_action",
+        "side_effect_level": "irreversible",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "deletion_confirmation",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "resource_type",
+          "resource_name"
+        ],
+        "audit_required": true
+      },
+      {
+        "id": "devops.destroy_environment_mapping",
+        "capability_id": "devops.destroy_environment",
+        "title": "Destroy environment",
+        "intent": "Permanently destroy a non-production environment; direct principal action is required.",
+        "service_id": "devops-infra-service",
+        "service_name": "DevOps Infrastructure Service",
+        "backend_kind": "python_reference_adapter",
+        "connection_ref": "examples/showcase/devops",
+        "raw_operation_refs": [
+          "destroy_environment"
+        ],
+        "execution_posture": "business_action",
+        "side_effect_level": "irreversible",
+        "subject_kind": "business object",
+        "context_type": "devops",
+        "output_intent": "destroy_confirmation",
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "environment_name"
+        ],
+        "audit_required": true
+      }
+    ]
+  }
+}

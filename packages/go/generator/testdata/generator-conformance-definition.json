@@ -1,0 +1,385 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "compiled_contract_identity": {
+    "signature": "sha256:generator-conformance-fixture",
+    "signature_algorithm": "sha256"
+  },
+  "identity": {
+    "system_name": "generator-conformance-service",
+    "domain_name": "conformance",
+    "delivery_model": "service_platform",
+    "architecture_shape": "single_service"
+  },
+  "authority": {
+    "approval_expectation": "approval_gated_for_write_like_actions",
+    "blocked_failure_posture": "clarify_or_stop"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true
+  },
+  "generation": {
+    "protocols": ["https"],
+    "layout_strategy": "single_package",
+    "selected_service_ids": ["generator-conformance-service"]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "svc-conformance",
+      "service_id": "generator-conformance-service",
+      "service_name": "Generator Conformance Service",
+      "source_role": "application_integration",
+      "source_capabilities": [
+        "conformance.lookup",
+        "conformance.prepare_change",
+        "conformance.lookup_and_prepare"
+      ],
+      "formalized_capability_ids": [
+        "conformance.lookup",
+        "conformance.prepare_change",
+        "conformance.lookup_and_prepare"
+      ],
+      "owned_concept_ids": ["conformance_record"]
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "cap-lookup",
+      "kind": "atomic",
+      "source_kind": "application_integration",
+      "service_id": "generator-conformance-service",
+      "capability_id": "conformance.lookup",
+      "title": "Lookup Conformance Records",
+      "summary": "Read bounded conformance records.",
+      "subject_kind": "conformance_record",
+      "context_type": "lookup_context",
+      "output_intent": "bounded_lookup_result",
+      "intent_type": "read_only",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "backend_operation": "lookupRecords",
+      "path_template": "/conformance/lookup",
+      "output_shape": "conformance_lookup_result",
+      "minimum_scope": ["conformance.read"],
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "summary": "Search query.",
+          "default_value": "",
+          "allowed_values": [],
+          "semantic_type": "query_text",
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "clarify",
+            "on_ambiguous": "clarify",
+            "on_unresolved": "clarify"
+          }
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum records to return.",
+          "default_value": "10",
+          "allowed_values": [],
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "use_default"
+          }
+        },
+        {
+          "input_name": "debug_trace",
+          "input_type": "boolean",
+          "required": false,
+          "summary": "Optional diagnostic trace flag omitted unless explicitly supplied.",
+          "default_value": "false",
+          "allowed_values": [],
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cap-prepare-change",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": ["one_time", "session_bound"],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "application_integration",
+      "service_id": "generator-conformance-service",
+      "capability_id": "conformance.prepare_change",
+      "title": "Prepare Conformance Change",
+      "summary": "Prepare a governed change without executing it.",
+      "subject_kind": "conformance_record",
+      "context_type": "change_request",
+      "output_intent": "governed_change_preview",
+      "intent_type": "prepare_only",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "backend_operation": "prepareChange",
+      "path_template": "/conformance/changes",
+      "output_shape": "conformance_change_preview",
+      "minimum_scope": ["conformance.prepare"],
+      "inputs": [
+        {
+          "input_name": "record_ref",
+          "input_type": "string",
+          "required": true,
+          "summary": "Record reference resolved by the backend.",
+          "default_value": "",
+          "allowed_values": [],
+          "semantic_type": "entity_reference",
+          "entity_reference": true,
+          "catalog_ref": "conformance.record_catalog",
+          "resolution": {
+            "mode": "backend_resolved",
+            "resolver_ref": "conformance.record_catalog",
+            "on_missing": "clarify",
+            "on_ambiguous": "clarify",
+            "on_unresolved": "clarify"
+          }
+        },
+        {
+          "input_name": "new_status",
+          "input_type": "string",
+          "required": true,
+          "summary": "Requested next status.",
+          "default_value": "",
+          "allowed_values": ["todo", "in_progress", "done"],
+          "semantic_type": "business_category",
+          "catalog_ref": "conformance.status_catalog",
+          "resolution": {
+            "mode": "closed_values",
+            "on_missing": "clarify",
+            "on_ambiguous": "clarify",
+            "on_unresolved": "deny"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cap-lookup-and-prepare",
+      "kind": "composed",
+      "source_kind": "application_integration",
+      "service_id": "generator-conformance-service",
+      "capability_id": "conformance.lookup_and_prepare",
+      "title": "Lookup and Prepare Conformance Change",
+      "summary": "Lookup records and prepare a governed change.",
+      "subject_kind": "conformance_record",
+      "context_type": "change_request",
+      "output_intent": "governed_change_preview",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "backend_operation": "lookupAndPrepareChange",
+      "path_template": "/conformance/lookup-and-prepare",
+      "output_shape": "conformance_lookup_and_prepare_result",
+      "minimum_scope": ["conformance.read", "conformance.prepare"],
+      "grant_policy": {
+        "allowed_grant_types": ["one_time", "session_bound"],
+        "default_grant_type": "session_bound",
+        "expires_in_seconds": 1800,
+        "max_uses": 5
+      },
+      "composition": {
+        "authority_boundary": "same_service",
+        "steps": [
+          {
+            "id": "lookup",
+            "capability": "conformance.lookup",
+            "empty_result_source": true
+          },
+          {
+            "id": "prepare_change",
+            "capability": "conformance.prepare_change"
+          }
+        ],
+        "input_mapping": {
+          "lookup": {
+            "query": "$.input.query"
+          },
+          "prepare_change": {
+            "record_ref": "$.input.query",
+            "new_status": "$.input.requested_status",
+            "change_reason": "$.input.change_reason"
+          }
+        },
+        "output_mapping": {
+          "prepared_status": "$.steps.prepare_change.output.execution_status"
+        },
+        "empty_result_policy": "return_success_no_results",
+        "empty_result_output": {
+          "result": null,
+          "empty": true
+        },
+        "failure_policy": {
+          "child_clarification": "propagate",
+          "child_denial": "propagate",
+          "child_approval_required": "propagate",
+          "child_error": "fail_parent"
+        },
+        "audit_policy": {
+          "record_child_invocations": true,
+          "parent_task_lineage": true
+        }
+      },
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "summary": "Lookup query.",
+          "default_value": "",
+          "allowed_values": []
+        },
+        {
+          "input_name": "requested_status",
+          "input_type": "string",
+          "required": true,
+          "summary": "Requested next status passed to the governed child step.",
+          "default_value": "",
+          "allowed_values": []
+        },
+        {
+          "input_name": "change_reason",
+          "input_type": "string",
+          "required": true,
+          "summary": "Reason for the prepared change.",
+          "default_value": "",
+          "allowed_values": []
+        }
+      ]
+    }
+  ],
+  "runtime_policy_bindings": [
+    {
+      "id": "analyst-read",
+      "actor_id": "analyst",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "analyst"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "allow_with_limits",
+      "business_rule": "Analysts can read bounded records."
+    },
+    {
+      "id": "analyst-no-change",
+      "actor_id": "analyst",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "analyst"
+      },
+      "business_area": "change",
+      "business_area_label": "Change",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.prepare_change", "conformance.lookup_and_prepare"],
+      "decision": "deny",
+      "business_rule": "Analysts cannot prepare changes."
+    },
+    {
+      "id": "manager-change-approval",
+      "actor_id": "manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "manager"
+      },
+      "business_area": "change",
+      "business_area_label": "Change",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.prepare_change", "conformance.lookup_and_prepare"],
+      "decision": "approval_required",
+      "business_rule": "Managers require approval before changes execute."
+    }
+  ],
+  "integration_fronting": {
+    "project_type": "governed_service_project",
+    "capability_mappings": [
+      {
+        "id": "mapping-lookup",
+        "capability_id": "conformance.lookup",
+        "title": "Lookup Conformance Records",
+        "intent": "lookup records",
+        "service_id": "generator-conformance-service",
+        "service_name": "Generator Conformance Service",
+        "backend_kind": "native_api",
+        "connection_ref": "conn-conformance",
+        "raw_operation_refs": ["native.lookupRecords"],
+        "execution_posture": "read_only",
+        "side_effect_level": "read",
+        "subject_kind": "conformance_record",
+        "context_type": "lookup_context",
+        "output_intent": "bounded_lookup_result",
+        "required_inputs": ["query"],
+        "optional_inputs": ["limit"],
+        "backend_input_mode": "implicit",
+        "derived_required_backend_inputs": ["query"],
+        "derived_optional_backend_inputs": ["limit"],
+        "audit_required": true,
+        "outbound_controls": {
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "mapping-prepare-change",
+        "capability_id": "conformance.prepare_change",
+        "title": "Prepare Conformance Change",
+        "intent": "prepare change",
+        "service_id": "generator-conformance-service",
+        "service_name": "Generator Conformance Service",
+        "backend_kind": "native_api",
+        "connection_ref": "conn-conformance",
+        "raw_operation_refs": ["native.prepareChange"],
+        "execution_posture": "approval_required",
+        "side_effect_level": "approval_required",
+        "subject_kind": "conformance_record",
+        "context_type": "change_request",
+        "output_intent": "governed_change_preview",
+        "required_inputs": ["record_ref", "new_status"],
+        "optional_inputs": [],
+        "backend_input_mode": "hybrid",
+        "derived_required_backend_inputs": ["record_ref", "new_status"],
+        "explicit_required_backend_inputs": ["change_reason"],
+        "approval_rule_refs": ["manager-change-approval"],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_unapproved_mutation": true
+        }
+      },
+      {
+        "id": "mapping-lookup-and-prepare",
+        "capability_id": "conformance.lookup_and_prepare",
+        "title": "Lookup and Prepare Conformance Change",
+        "intent": "lookup and prepare change",
+        "service_id": "generator-conformance-service",
+        "service_name": "Generator Conformance Service",
+        "backend_kind": "native_api",
+        "connection_ref": "conn-conformance",
+        "raw_operation_refs": ["native.lookupRecords", "native.prepareChange"],
+        "execution_posture": "approval_required",
+        "side_effect_level": "approval_required",
+        "subject_kind": "conformance_record",
+        "context_type": "change_request",
+        "output_intent": "governed_change_preview",
+        "required_inputs": ["query", "requested_status"],
+        "optional_inputs": [],
+        "backend_input_mode": "hybrid",
+        "derived_required_backend_inputs": ["query", "requested_status"],
+        "explicit_required_backend_inputs": ["change_reason"],
+        "approval_rule_refs": ["manager-change-approval"],
+        "audit_required": true
+      }
+    ]
+  }
+}

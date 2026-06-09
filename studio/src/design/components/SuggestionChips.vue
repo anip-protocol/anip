@@ -2,14 +2,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { VocabularyEntry } from '../project-types'
+import { requestConfirmation } from '../confirm'
+import { developerLabel } from '../developer-vocabulary'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: string[]
   suggestions: string[]
   readonly: boolean
   placeholder?: string
   vocabularyEntries?: VocabularyEntry[]
-}>()
+  allowCustom?: boolean
+}>(), {
+  allowCustom: true,
+})
 
 /** Lookup origin for a suggestion value. Returns 'canonical', 'project', or 'custom'. */
 function getOrigin(value: string): 'canonical' | 'project' | 'custom' {
@@ -61,8 +66,16 @@ function addCustomEntry() {
   newEntry.value = ''
 }
 
-function removeEntry(entry: string) {
+async function removeEntry(entry: string) {
   if (props.readonly) return
+  const confirmed = await requestConfirmation({
+    title: 'Remove this entry?',
+    message: `This will remove "${developerLabel(entry)}" from the current list.`,
+    confirmLabel: 'Remove Entry',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   emit('update:modelValue', props.modelValue.filter(s => s !== entry))
 }
 </script>
@@ -80,14 +93,14 @@ function removeEntry(entry: string) {
         type="button"
         @click="toggleSuggestion(suggestion)"
       >
-        {{ suggestion.replace(/_/g, ' ') }}
+        {{ developerLabel(suggestion) }}
         <span v-if="vocabularyEntries && getOrigin(suggestion) === 'project'" class="origin-badge project-badge">project</span>
         <span v-else-if="vocabularyEntries && isNotEvaluated(suggestion)" class="origin-badge not-evaluated-badge">not evaluated</span>
       </button>
     </div>
 
     <!-- Custom entry input -->
-    <div class="custom-entry" v-if="!readonly">
+    <div class="custom-entry" v-if="!readonly && allowCustom">
       <input
         class="form-input"
         type="text"
@@ -107,7 +120,7 @@ function removeEntry(entry: string) {
         :key="entry"
         class="selected-entry"
       >
-        <span class="entry-text">{{ entry.replace(/_/g, ' ') }}</span>
+        <span class="entry-text">{{ developerLabel(entry) }}</span>
         <span v-if="vocabularyEntries && isCustomEntry(entry)" class="origin-badge custom-badge">custom</span>
         <span v-else-if="vocabularyEntries && getOrigin(entry) === 'project'" class="origin-badge project-badge">project</span>
         <span v-else-if="vocabularyEntries && isNotEvaluated(entry)" class="origin-badge not-evaluated-badge">not evaluated</span>

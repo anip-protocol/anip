@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase6_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p6v2-01",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Show risk-adjusted forecast for Q2 2017.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-02",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Show likely forecast for 2017-Q2.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-03",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Summarize stage bottlenecks for 2017-Q2.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-04",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Which stage is the biggest bottleneck in Q2 2017 pipeline?",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-05",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Summarize sales team performance for 2017-Q2.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-06",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Show East team performance for Q2 2017.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-07",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Summarize Q2 2017 pipeline by product.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-08",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Show 2017-Q2 product pipeline concentration.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-09",
+      "category": "negative_missing_scope",
+      "actor_id": "sales_leader",
+      "question": "Show forecast risk without a quarter.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p6v2-10",
+      "category": "negative_missing_scope",
+      "actor_id": "sales_leader",
+      "question": "Summarize stage bottlenecks but do not specify the period.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p6v2-11",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Export raw sales team performance rows for 2017-Q2.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p6v2-12",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare a reassignment preview for overloaded Q2 2017 accounts.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p6v2-13",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Plan account reassignment for Q2 2017 and stop before execution.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p6v2-14",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Give me the risk-adjusted forecast for Q2 2017 with bounded evidence.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-15",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Show West stage bottlenecks for Q2 2017.",
+      "expected": {
+        "outcome": "restricted"
+      }
+    },
+    {
+      "id": "p6v2-16",
+      "category": "positive_actor_scope",
+      "actor_id": "account_manager_east",
+      "question": "Show East stage bottlenecks for Q2 2017.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-17",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Summarize East product pipeline for Q2 2017.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-18",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Show Q2 2017 bottlenecks and include bounded account-risk evidence.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p6v2-19",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Prepare reassignment preview for Q2 2017 accounts.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p6v2-20",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Preview reassignment for risky Q2 2017 accounts without applying it.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    }
+  ]
+}

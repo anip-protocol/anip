@@ -1,0 +1,1457 @@
+{
+  "bundle_schema_version": "anip-package-bundle/v1",
+  "authority": "local-studio",
+  "publication": {
+    "package_id": "travel-booking-showcase",
+    "package_version": "0.1.0",
+    "project_ref": "studio-source:travel",
+    "product_revision_ref": "travel:source-spec:v1",
+    "developer_revision_ref": "travel:developer-definition:v1",
+    "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "publisher_id": "local-studio-source",
+    "publisher_type": "local",
+    "lineage": {
+      "project_ref": "studio-source:travel",
+      "product_revision": {
+        "ref": "travel:source-spec:v1",
+        "artifact_id": "travel-source-spec",
+        "revision_number": 1,
+        "baseline_locked_at": "2026-05-08T00:00:00Z"
+      },
+      "developer_revision": {
+        "ref": "travel:developer-definition:v1",
+        "artifact_id": "travel-developer-definition",
+        "revision_number": 1,
+        "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+      }
+    },
+    "published_at": "2026-05-08T00:00:00Z"
+  },
+  "package": {
+    "package_id": "travel-booking-showcase",
+    "package_version": "0.1.0",
+    "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "publisher_id": "local-studio-source",
+    "publisher_type": "local",
+    "lineage": {
+      "project_ref": "studio-source:travel",
+      "product_revision": {
+        "ref": "travel:source-spec:v1",
+        "artifact_id": "travel-source-spec",
+        "revision_number": 1,
+        "baseline_locked_at": "2026-05-08T00:00:00Z"
+      },
+      "developer_revision": {
+        "ref": "travel:developer-definition:v1",
+        "artifact_id": "travel-developer-definition",
+        "revision_number": 1,
+        "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+      }
+    },
+    "schema_version": "anip-service-definition/v1",
+    "manifest_digest": "sha256:b7f8b951333605bb21758d4e1112fe1c880e30ce4c66ef23f8e6d93163b275db",
+    "definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "lock_digest": "sha256:047708cf4a5086a07215a9549f364428d3fa23af10d43b92d394be2991d93669",
+    "manifest": {
+      "package_kind": "anip_service_blueprint",
+      "artifact_type": "anip_package_manifest",
+      "blueprint_id": "travel-booking-showcase",
+      "package_id": "travel-booking-showcase",
+      "name": "Travel Booking Showcase Service Blueprint",
+      "version": "0.1.0",
+      "package_version": "0.1.0",
+      "schema_version": "anip-service-definition/v1",
+      "publisher": {
+        "id": "local-studio-source",
+        "display_name": "Local Studio Source Export"
+      },
+      "service_definition": "anip-service-definition.json",
+      "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+      "service_definition_digest_algorithm": "sha256",
+      "build_packs": {
+        "recommended": [
+          "anip-build-pack@local"
+        ]
+      },
+      "verifier_packs": {
+        "recommended": [
+          "anip-verifier@local"
+        ]
+      },
+      "readme": "# Travel Booking Showcase\n\nGenerated example ANIP package from Studio-style source docs.\n",
+      "source_links": [
+        {
+          "title": "Source documentation",
+          "url": "https://github.com/anip-protocol/anip/tree/main/docs/examples/travel-showcase"
+        },
+        {
+          "title": "Legacy implementation reference",
+          "url": "https://github.com/anip-protocol/anip/tree/main/examples/showcase/travel"
+        }
+      ],
+      "capability_count": 4,
+      "service_count": 1,
+      "service_ids": [
+        "travel-booking-service"
+      ],
+      "lineage": {
+        "project_ref": "studio-source:travel",
+        "product_revision": {
+          "ref": "travel:source-spec:v1",
+          "artifact_id": "travel-source-spec",
+          "revision_number": 1,
+          "baseline_locked_at": "2026-05-08T00:00:00Z"
+        },
+        "developer_revision": {
+          "ref": "travel:developer-definition:v1",
+          "artifact_id": "travel-developer-definition",
+          "revision_number": 1,
+          "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+        }
+      },
+      "source": {
+        "business_source_path": "docs/examples/travel-showcase/source-spec.md",
+        "product_revision_ref": "travel:source-spec:v1",
+        "developer_revision_ref": "travel:developer-definition:v1"
+      },
+      "agent_consumption_readiness": {
+        "status": "ready",
+        "score": 100,
+        "summary": {
+          "blockers": 0,
+          "warnings": 0,
+          "info": 0,
+          "probes": 0,
+          "required_app_glue": 0
+        }
+      },
+      "agent_consumability": {
+        "schema_version": "anip-agent-consumability/v0",
+        "capabilities": {
+          "travel.search_flights": {
+            "intent": {
+              "category": "travel.search.flights",
+              "summary": "Search available flights by origin and destination and return priced quote references."
+            },
+            "business_effects": {
+              "produces": [
+                "Summarize information",
+                "Return bounded options"
+              ],
+              "does_not_produce": [
+                "Book travel",
+                "Charge payment"
+              ]
+            },
+            "required_context": [
+              {
+                "input": "origin",
+                "behavior": "clarify",
+                "summary": "Departure airport IATA code."
+              },
+              {
+                "input": "destination",
+                "behavior": "clarify",
+                "summary": "Arrival airport IATA code."
+              }
+            ]
+          },
+          "travel.check_availability": {
+            "intent": {
+              "category": "travel.check.availability",
+              "summary": "Check seat availability and current price for a specific flight."
+            },
+            "business_effects": {
+              "produces": [
+                "Read bounded data"
+              ],
+              "does_not_produce": [
+                "Book travel",
+                "Charge payment"
+              ]
+            },
+            "required_context": [
+              {
+                "input": "flight_number",
+                "behavior": "clarify",
+                "summary": "Flight number to check."
+              }
+            ]
+          },
+          "travel.book_flight": {
+            "intent": {
+              "category": "travel.book.flight",
+              "summary": "Book a confirmed flight reservation from a current quote."
+            },
+            "business_effects": {
+              "produces": [
+                "Execute approved action"
+              ],
+              "does_not_produce": [
+                "Book without quote",
+                "Ignore budget authority"
+              ]
+            },
+            "required_context": [
+              {
+                "input": "flight_number",
+                "behavior": "clarify",
+                "summary": "Flight to book."
+              },
+              {
+                "input": "quote_id",
+                "behavior": "clarify",
+                "summary": "Priced quote returned by search_flights."
+              }
+            ]
+          },
+          "travel.cancel_booking": {
+            "intent": {
+              "category": "travel.cancel.booking",
+              "summary": "Cancel an existing booking within the transactional cancellation window."
+            },
+            "business_effects": {
+              "produces": [
+                "Change system state"
+              ],
+              "does_not_produce": [
+                "Delete booking history"
+              ]
+            },
+            "required_context": [
+              {
+                "input": "booking_id",
+                "behavior": "clarify",
+                "summary": "Booking identifier to cancel."
+              }
+            ]
+          }
+        }
+      },
+      "generated_at": "2026-05-08T00:00:00Z"
+    },
+    "service_definition": {
+      "artifact_type": "anip_service_definition",
+      "contract_schema_version": "anip-service-definition/v1",
+      "generated_at": "2026-05-08T00:00:00Z",
+      "identity": {
+        "system_name": "Travel Booking Showcase",
+        "domain_name": "travel",
+        "delivery_model": "single_service",
+        "architecture_shape": "single_service"
+      },
+      "authority": {
+        "approval_expectation": "project_specific",
+        "blocked_failure_posture": "clarify_or_stop"
+      },
+      "audit": {
+        "durable_records_required": true,
+        "searchable_history_required": true
+      },
+      "generation": {
+        "protocols": [
+          "https",
+          "mcp"
+        ],
+        "layout_strategy": "service_oriented",
+        "selected_service_ids": [
+          "travel-booking-service"
+        ]
+      },
+      "service_topology_bindings": [
+        {
+          "id": "travel-booking-service",
+          "service_id": "travel-booking-service",
+          "service_name": "Travel Booking Service",
+          "source_role": "example_service",
+          "source_capabilities": [
+            "travel.search_flights",
+            "travel.check_availability",
+            "travel.book_flight",
+            "travel.cancel_booking"
+          ],
+          "formalized_capability_ids": [
+            "travel.search_flights",
+            "travel.check_availability",
+            "travel.book_flight",
+            "travel.cancel_booking"
+          ],
+          "owned_concept_ids": []
+        }
+      ],
+      "capability_formalizations": [
+        {
+          "id": "travel:travel.search_flights",
+          "kind": "atomic",
+          "source_kind": "studio_source_doc",
+          "service_id": "travel-booking-service",
+          "capability_id": "travel.search_flights",
+          "title": "Search flights",
+          "summary": "Search available flights by origin and destination and return priced quote references.",
+          "entity_targeted": true,
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "flight_list",
+          "intent_type": "search",
+          "operation_type": "read",
+          "side_effect_level": "read",
+          "implementation_fit": {
+            "category": "custom_service_logic",
+            "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+          },
+          "business_effects": {
+            "produces": [
+              "Summarize information",
+              "Return bounded options"
+            ],
+            "does_not_produce": [
+              "Book travel",
+              "Charge payment"
+            ]
+          },
+          "minimum_scope": [
+            "travel.search"
+          ],
+          "backend_operation": "search_flights",
+          "path_template": "/search_flights",
+          "output_shape": "flight_list",
+          "inputs": [
+            {
+              "input_name": "origin",
+              "input_type": "airport_code",
+              "required": true,
+              "summary": "Departure airport IATA code.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for origin when it is missing or ambiguous."
+            },
+            {
+              "input_name": "destination",
+              "input_type": "airport_code",
+              "required": true,
+              "summary": "Arrival airport IATA code.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for destination when it is missing or ambiguous."
+            }
+          ]
+        },
+        {
+          "id": "travel:travel.check_availability",
+          "kind": "atomic",
+          "source_kind": "studio_source_doc",
+          "service_id": "travel-booking-service",
+          "capability_id": "travel.check_availability",
+          "title": "Check availability",
+          "summary": "Check seat availability and current price for a specific flight.",
+          "entity_targeted": true,
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "availability_info",
+          "intent_type": "inspect",
+          "operation_type": "read",
+          "side_effect_level": "read",
+          "implementation_fit": {
+            "category": "custom_service_logic",
+            "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+          },
+          "business_effects": {
+            "produces": [
+              "Read bounded data"
+            ],
+            "does_not_produce": [
+              "Book travel",
+              "Charge payment"
+            ]
+          },
+          "minimum_scope": [
+            "travel.search"
+          ],
+          "backend_operation": "check_availability",
+          "path_template": "/check_availability",
+          "output_shape": "availability_info",
+          "inputs": [
+            {
+              "input_name": "flight_number",
+              "input_type": "string",
+              "required": true,
+              "summary": "Flight number to check.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for flight_number when it is missing or ambiguous."
+            }
+          ]
+        },
+        {
+          "id": "travel:travel.book_flight",
+          "kind": "atomic",
+          "source_kind": "studio_source_doc",
+          "service_id": "travel-booking-service",
+          "capability_id": "travel.book_flight",
+          "title": "Book flight",
+          "summary": "Book a confirmed flight reservation from a current quote.",
+          "entity_targeted": true,
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "booking_confirmation",
+          "intent_type": "business_action",
+          "operation_type": "approval_gated",
+          "side_effect_level": "irreversible",
+          "implementation_fit": {
+            "category": "custom_service_logic",
+            "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+          },
+          "business_effects": {
+            "produces": [
+              "Execute approved action"
+            ],
+            "does_not_produce": [
+              "Book without quote",
+              "Ignore budget authority"
+            ]
+          },
+          "minimum_scope": [
+            "travel.book"
+          ],
+          "backend_operation": "book_flight",
+          "path_template": "/book_flight",
+          "output_shape": "booking_confirmation",
+          "inputs": [
+            {
+              "input_name": "flight_number",
+              "input_type": "string",
+              "required": true,
+              "summary": "Flight to book.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for flight_number when it is missing or ambiguous."
+            },
+            {
+              "input_name": "quote_id",
+              "input_type": "object",
+              "required": true,
+              "summary": "Priced quote returned by search_flights.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for quote_id when it is missing or ambiguous."
+            },
+            {
+              "input_name": "passengers",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Number of passengers.",
+              "default_value": "1",
+              "allowed_values": [],
+              "entity_reference": false,
+              "clarification_hint": "Ask for passengers when it is missing or ambiguous."
+            }
+          ],
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          }
+        },
+        {
+          "id": "travel:travel.cancel_booking",
+          "kind": "atomic",
+          "source_kind": "studio_source_doc",
+          "service_id": "travel-booking-service",
+          "capability_id": "travel.cancel_booking",
+          "title": "Cancel booking",
+          "summary": "Cancel an existing booking within the transactional cancellation window.",
+          "entity_targeted": true,
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "cancellation_confirmation",
+          "intent_type": "business_action",
+          "operation_type": "write",
+          "side_effect_level": "transactional",
+          "implementation_fit": {
+            "category": "custom_service_logic",
+            "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+          },
+          "business_effects": {
+            "produces": [
+              "Change system state"
+            ],
+            "does_not_produce": [
+              "Delete booking history"
+            ]
+          },
+          "minimum_scope": [
+            "travel.book"
+          ],
+          "backend_operation": "cancel_booking",
+          "path_template": "/cancel_booking",
+          "output_shape": "cancellation_confirmation",
+          "inputs": [
+            {
+              "input_name": "booking_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Booking identifier to cancel.",
+              "default_value": "",
+              "allowed_values": [],
+              "entity_reference": true,
+              "clarification_hint": "Ask for booking_id when it is missing or ambiguous."
+            }
+          ],
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          }
+        }
+      ],
+      "permission_intent_bindings": [
+        {
+          "id": "travel_example_user_access",
+          "actor_id": "example_user",
+          "business_area": "travel",
+          "business_area_label": "Travel Example Access",
+          "access_posture": "bounded",
+          "governed_outcome_type": "bounded_result",
+          "governed_outcome": "Allow tutorial users to invoke declared capabilities within the scopes shown by each capability.",
+          "target_service_ids": [
+            "travel-booking-service"
+          ],
+          "target_capability_ids": [
+            "travel.search_flights",
+            "travel.check_availability",
+            "travel.book_flight",
+            "travel.cancel_booking"
+          ],
+          "formalization_strategy": "Generated examples keep policy simple and visible for onboarding."
+        }
+      ],
+      "runtime_policy_bindings": [
+        {
+          "id": "travel_example_user_policy",
+          "source_permission_id": "travel_example_user_access",
+          "actor_id": "example_user",
+          "principal_selector": {
+            "claim": "actor_id",
+            "equals": "example_user"
+          },
+          "business_area": "travel",
+          "business_area_label": "Travel Example Access",
+          "service_ids": [
+            "travel-booking-service"
+          ],
+          "capability_ids": [
+            "travel.search_flights",
+            "travel.check_availability",
+            "travel.book_flight",
+            "travel.cancel_booking"
+          ],
+          "required_scopes": [
+            "travel.book",
+            "travel.search"
+          ],
+          "decision": "allow_with_limits",
+          "business_rule": "Use the declared capability scope and required inputs as the tutorial boundary.",
+          "enforcement_notes": "Generated examples use simple policy so the contract remains readable."
+        }
+      ],
+      "integration_fronting": {
+        "project_type": "example_showcase",
+        "capability_mappings": [
+          {
+            "id": "travel.search_flights_mapping",
+            "capability_id": "travel.search_flights",
+            "title": "Search flights",
+            "intent": "Search available flights by origin and destination and return priced quote references.",
+            "service_id": "travel-booking-service",
+            "service_name": "Travel Booking Service",
+            "backend_kind": "python_reference_adapter",
+            "connection_ref": "examples/showcase/travel",
+            "raw_operation_refs": [
+              "search_flights"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "origin",
+              "destination"
+            ],
+            "explicit_optional_backend_inputs": [],
+            "execution_posture": "search",
+            "side_effect_level": "read",
+            "subject_kind": "business object",
+            "context_type": "travel",
+            "output_intent": "flight_list",
+            "audit_required": true
+          },
+          {
+            "id": "travel.check_availability_mapping",
+            "capability_id": "travel.check_availability",
+            "title": "Check availability",
+            "intent": "Check seat availability and current price for a specific flight.",
+            "service_id": "travel-booking-service",
+            "service_name": "Travel Booking Service",
+            "backend_kind": "python_reference_adapter",
+            "connection_ref": "examples/showcase/travel",
+            "raw_operation_refs": [
+              "check_availability"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "flight_number"
+            ],
+            "explicit_optional_backend_inputs": [],
+            "execution_posture": "inspect",
+            "side_effect_level": "read",
+            "subject_kind": "business object",
+            "context_type": "travel",
+            "output_intent": "availability_info",
+            "audit_required": true
+          },
+          {
+            "id": "travel.book_flight_mapping",
+            "capability_id": "travel.book_flight",
+            "title": "Book flight",
+            "intent": "Book a confirmed flight reservation from a current quote.",
+            "service_id": "travel-booking-service",
+            "service_name": "Travel Booking Service",
+            "backend_kind": "python_reference_adapter",
+            "connection_ref": "examples/showcase/travel",
+            "raw_operation_refs": [
+              "book_flight"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "flight_number",
+              "quote_id"
+            ],
+            "explicit_optional_backend_inputs": [
+              "passengers"
+            ],
+            "execution_posture": "business_action",
+            "side_effect_level": "irreversible",
+            "subject_kind": "business object",
+            "context_type": "travel",
+            "output_intent": "booking_confirmation",
+            "audit_required": true
+          },
+          {
+            "id": "travel.cancel_booking_mapping",
+            "capability_id": "travel.cancel_booking",
+            "title": "Cancel booking",
+            "intent": "Cancel an existing booking within the transactional cancellation window.",
+            "service_id": "travel-booking-service",
+            "service_name": "Travel Booking Service",
+            "backend_kind": "python_reference_adapter",
+            "connection_ref": "examples/showcase/travel",
+            "raw_operation_refs": [
+              "cancel_booking"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "booking_id"
+            ],
+            "explicit_optional_backend_inputs": [],
+            "execution_posture": "business_action",
+            "side_effect_level": "transactional",
+            "subject_kind": "business object",
+            "context_type": "travel",
+            "output_intent": "cancellation_confirmation",
+            "audit_required": true
+          }
+        ]
+      },
+      "source": {
+        "source_docs": [
+          "docs/examples/travel-showcase/source-spec.md"
+        ],
+        "legacy_implementation": "examples/showcase/travel"
+      }
+    },
+    "recommended_lock": {
+      "lock_kind": "publisher_recommended_lock",
+      "artifact_type": "anip_package_lock",
+      "blueprint_id": "travel-booking-showcase",
+      "blueprint_version": "0.1.0",
+      "package_id": "travel-booking-showcase",
+      "package_version": "0.1.0",
+      "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+      "schema_version": "anip-service-definition/v1",
+      "build_packs": [
+        "anip-build-pack@local"
+      ],
+      "verifier_packs": [
+        "anip-verifier@local"
+      ],
+      "runtime_packages": [],
+      "extension_packs": [],
+      "regression_packs": [],
+      "selected_service_ids": [
+        "travel-booking-service"
+      ],
+      "capability_ids": [
+        "travel.search_flights",
+        "travel.check_availability",
+        "travel.book_flight",
+        "travel.cancel_booking"
+      ],
+      "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+      "lineage": {
+        "project_ref": "studio-source:travel",
+        "product_revision": {
+          "ref": "travel:source-spec:v1",
+          "artifact_id": "travel-source-spec",
+          "revision_number": 1,
+          "baseline_locked_at": "2026-05-08T00:00:00Z"
+        },
+        "developer_revision": {
+          "ref": "travel:developer-definition:v1",
+          "artifact_id": "travel-developer-definition",
+          "revision_number": 1,
+          "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+        }
+      },
+      "agent_consumption_readiness": {
+        "status": "ready",
+        "score": 100,
+        "summary": {
+          "blockers": 0,
+          "warnings": 0,
+          "info": 0,
+          "probes": 0,
+          "required_app_glue": 0
+        }
+      },
+      "agent_consumability": {
+        "schema_version": "anip-agent-consumability/v0",
+        "capability_count": 4
+      },
+      "generated_at": "2026-05-08T00:00:00Z"
+    }
+  },
+  "receipt": {
+    "registry_signature": "",
+    "issued_at": "2026-05-08T00:00:00Z",
+    "authority": "local-studio"
+  },
+  "lineage": {
+    "project_ref": "studio-source:travel",
+    "product_revision": {
+      "ref": "travel:source-spec:v1",
+      "artifact_id": "travel-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "travel:developer-definition:v1",
+      "artifact_id": "travel-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+    }
+  },
+  "manifest": {
+    "package_kind": "anip_service_blueprint",
+    "artifact_type": "anip_package_manifest",
+    "blueprint_id": "travel-booking-showcase",
+    "package_id": "travel-booking-showcase",
+    "name": "Travel Booking Showcase Service Blueprint",
+    "version": "0.1.0",
+    "package_version": "0.1.0",
+    "schema_version": "anip-service-definition/v1",
+    "publisher": {
+      "id": "local-studio-source",
+      "display_name": "Local Studio Source Export"
+    },
+    "service_definition": "anip-service-definition.json",
+    "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "service_definition_digest_algorithm": "sha256",
+    "build_packs": {
+      "recommended": [
+        "anip-build-pack@local"
+      ]
+    },
+    "verifier_packs": {
+      "recommended": [
+        "anip-verifier@local"
+      ]
+    },
+    "readme": "# Travel Booking Showcase\n\nGenerated example ANIP package from Studio-style source docs.\n",
+    "source_links": [
+      {
+        "title": "Source documentation",
+        "url": "https://github.com/anip-protocol/anip/tree/main/docs/examples/travel-showcase"
+      },
+      {
+        "title": "Legacy implementation reference",
+        "url": "https://github.com/anip-protocol/anip/tree/main/examples/showcase/travel"
+      }
+    ],
+    "capability_count": 4,
+    "service_count": 1,
+    "service_ids": [
+      "travel-booking-service"
+    ],
+    "lineage": {
+      "project_ref": "studio-source:travel",
+      "product_revision": {
+        "ref": "travel:source-spec:v1",
+        "artifact_id": "travel-source-spec",
+        "revision_number": 1,
+        "baseline_locked_at": "2026-05-08T00:00:00Z"
+      },
+      "developer_revision": {
+        "ref": "travel:developer-definition:v1",
+        "artifact_id": "travel-developer-definition",
+        "revision_number": 1,
+        "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+      }
+    },
+    "source": {
+      "business_source_path": "docs/examples/travel-showcase/source-spec.md",
+      "product_revision_ref": "travel:source-spec:v1",
+      "developer_revision_ref": "travel:developer-definition:v1"
+    },
+    "agent_consumption_readiness": {
+      "status": "ready",
+      "score": 100,
+      "summary": {
+        "blockers": 0,
+        "warnings": 0,
+        "info": 0,
+        "probes": 0,
+        "required_app_glue": 0
+      }
+    },
+    "agent_consumability": {
+      "schema_version": "anip-agent-consumability/v0",
+      "capabilities": {
+        "travel.search_flights": {
+          "intent": {
+            "category": "travel.search.flights",
+            "summary": "Search available flights by origin and destination and return priced quote references."
+          },
+          "business_effects": {
+            "produces": [
+              "Summarize information",
+              "Return bounded options"
+            ],
+            "does_not_produce": [
+              "Book travel",
+              "Charge payment"
+            ]
+          },
+          "required_context": [
+            {
+              "input": "origin",
+              "behavior": "clarify",
+              "summary": "Departure airport IATA code."
+            },
+            {
+              "input": "destination",
+              "behavior": "clarify",
+              "summary": "Arrival airport IATA code."
+            }
+          ]
+        },
+        "travel.check_availability": {
+          "intent": {
+            "category": "travel.check.availability",
+            "summary": "Check seat availability and current price for a specific flight."
+          },
+          "business_effects": {
+            "produces": [
+              "Read bounded data"
+            ],
+            "does_not_produce": [
+              "Book travel",
+              "Charge payment"
+            ]
+          },
+          "required_context": [
+            {
+              "input": "flight_number",
+              "behavior": "clarify",
+              "summary": "Flight number to check."
+            }
+          ]
+        },
+        "travel.book_flight": {
+          "intent": {
+            "category": "travel.book.flight",
+            "summary": "Book a confirmed flight reservation from a current quote."
+          },
+          "business_effects": {
+            "produces": [
+              "Execute approved action"
+            ],
+            "does_not_produce": [
+              "Book without quote",
+              "Ignore budget authority"
+            ]
+          },
+          "required_context": [
+            {
+              "input": "flight_number",
+              "behavior": "clarify",
+              "summary": "Flight to book."
+            },
+            {
+              "input": "quote_id",
+              "behavior": "clarify",
+              "summary": "Priced quote returned by search_flights."
+            }
+          ]
+        },
+        "travel.cancel_booking": {
+          "intent": {
+            "category": "travel.cancel.booking",
+            "summary": "Cancel an existing booking within the transactional cancellation window."
+          },
+          "business_effects": {
+            "produces": [
+              "Change system state"
+            ],
+            "does_not_produce": [
+              "Delete booking history"
+            ]
+          },
+          "required_context": [
+            {
+              "input": "booking_id",
+              "behavior": "clarify",
+              "summary": "Booking identifier to cancel."
+            }
+          ]
+        }
+      }
+    },
+    "generated_at": "2026-05-08T00:00:00Z"
+  },
+  "service_definition": {
+    "artifact_type": "anip_service_definition",
+    "contract_schema_version": "anip-service-definition/v1",
+    "generated_at": "2026-05-08T00:00:00Z",
+    "identity": {
+      "system_name": "Travel Booking Showcase",
+      "domain_name": "travel",
+      "delivery_model": "single_service",
+      "architecture_shape": "single_service"
+    },
+    "authority": {
+      "approval_expectation": "project_specific",
+      "blocked_failure_posture": "clarify_or_stop"
+    },
+    "audit": {
+      "durable_records_required": true,
+      "searchable_history_required": true
+    },
+    "generation": {
+      "protocols": [
+        "https",
+        "mcp"
+      ],
+      "layout_strategy": "service_oriented",
+      "selected_service_ids": [
+        "travel-booking-service"
+      ]
+    },
+    "service_topology_bindings": [
+      {
+        "id": "travel-booking-service",
+        "service_id": "travel-booking-service",
+        "service_name": "Travel Booking Service",
+        "source_role": "example_service",
+        "source_capabilities": [
+          "travel.search_flights",
+          "travel.check_availability",
+          "travel.book_flight",
+          "travel.cancel_booking"
+        ],
+        "formalized_capability_ids": [
+          "travel.search_flights",
+          "travel.check_availability",
+          "travel.book_flight",
+          "travel.cancel_booking"
+        ],
+        "owned_concept_ids": []
+      }
+    ],
+    "capability_formalizations": [
+      {
+        "id": "travel:travel.search_flights",
+        "kind": "atomic",
+        "source_kind": "studio_source_doc",
+        "service_id": "travel-booking-service",
+        "capability_id": "travel.search_flights",
+        "title": "Search flights",
+        "summary": "Search available flights by origin and destination and return priced quote references.",
+        "entity_targeted": true,
+        "subject_kind": "business object",
+        "context_type": "travel",
+        "output_intent": "flight_list",
+        "intent_type": "search",
+        "operation_type": "read",
+        "side_effect_level": "read",
+        "implementation_fit": {
+          "category": "custom_service_logic",
+          "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+        },
+        "business_effects": {
+          "produces": [
+            "Summarize information",
+            "Return bounded options"
+          ],
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ]
+        },
+        "minimum_scope": [
+          "travel.search"
+        ],
+        "backend_operation": "search_flights",
+        "path_template": "/search_flights",
+        "output_shape": "flight_list",
+        "inputs": [
+          {
+            "input_name": "origin",
+            "input_type": "airport_code",
+            "required": true,
+            "summary": "Departure airport IATA code.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for origin when it is missing or ambiguous."
+          },
+          {
+            "input_name": "destination",
+            "input_type": "airport_code",
+            "required": true,
+            "summary": "Arrival airport IATA code.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for destination when it is missing or ambiguous."
+          }
+        ]
+      },
+      {
+        "id": "travel:travel.check_availability",
+        "kind": "atomic",
+        "source_kind": "studio_source_doc",
+        "service_id": "travel-booking-service",
+        "capability_id": "travel.check_availability",
+        "title": "Check availability",
+        "summary": "Check seat availability and current price for a specific flight.",
+        "entity_targeted": true,
+        "subject_kind": "business object",
+        "context_type": "travel",
+        "output_intent": "availability_info",
+        "intent_type": "inspect",
+        "operation_type": "read",
+        "side_effect_level": "read",
+        "implementation_fit": {
+          "category": "custom_service_logic",
+          "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+        },
+        "business_effects": {
+          "produces": [
+            "Read bounded data"
+          ],
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ]
+        },
+        "minimum_scope": [
+          "travel.search"
+        ],
+        "backend_operation": "check_availability",
+        "path_template": "/check_availability",
+        "output_shape": "availability_info",
+        "inputs": [
+          {
+            "input_name": "flight_number",
+            "input_type": "string",
+            "required": true,
+            "summary": "Flight number to check.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for flight_number when it is missing or ambiguous."
+          }
+        ]
+      },
+      {
+        "id": "travel:travel.book_flight",
+        "kind": "atomic",
+        "source_kind": "studio_source_doc",
+        "service_id": "travel-booking-service",
+        "capability_id": "travel.book_flight",
+        "title": "Book flight",
+        "summary": "Book a confirmed flight reservation from a current quote.",
+        "entity_targeted": true,
+        "subject_kind": "business object",
+        "context_type": "travel",
+        "output_intent": "booking_confirmation",
+        "intent_type": "business_action",
+        "operation_type": "approval_gated",
+        "side_effect_level": "irreversible",
+        "implementation_fit": {
+          "category": "custom_service_logic",
+          "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+        },
+        "business_effects": {
+          "produces": [
+            "Execute approved action"
+          ],
+          "does_not_produce": [
+            "Book without quote",
+            "Ignore budget authority"
+          ]
+        },
+        "minimum_scope": [
+          "travel.book"
+        ],
+        "backend_operation": "book_flight",
+        "path_template": "/book_flight",
+        "output_shape": "booking_confirmation",
+        "inputs": [
+          {
+            "input_name": "flight_number",
+            "input_type": "string",
+            "required": true,
+            "summary": "Flight to book.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for flight_number when it is missing or ambiguous."
+          },
+          {
+            "input_name": "quote_id",
+            "input_type": "object",
+            "required": true,
+            "summary": "Priced quote returned by search_flights.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for quote_id when it is missing or ambiguous."
+          },
+          {
+            "input_name": "passengers",
+            "input_type": "integer",
+            "required": false,
+            "summary": "Number of passengers.",
+            "default_value": "1",
+            "allowed_values": [],
+            "entity_reference": false,
+            "clarification_hint": "Ask for passengers when it is missing or ambiguous."
+          }
+        ],
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        }
+      },
+      {
+        "id": "travel:travel.cancel_booking",
+        "kind": "atomic",
+        "source_kind": "studio_source_doc",
+        "service_id": "travel-booking-service",
+        "capability_id": "travel.cancel_booking",
+        "title": "Cancel booking",
+        "summary": "Cancel an existing booking within the transactional cancellation window.",
+        "entity_targeted": true,
+        "subject_kind": "business object",
+        "context_type": "travel",
+        "output_intent": "cancellation_confirmation",
+        "intent_type": "business_action",
+        "operation_type": "write",
+        "side_effect_level": "transactional",
+        "implementation_fit": {
+          "category": "custom_service_logic",
+          "rationale": "The generated ANIP substrate exposes the contract; the legacy showcase app remains useful implementation material."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Delete booking history"
+          ]
+        },
+        "minimum_scope": [
+          "travel.book"
+        ],
+        "backend_operation": "cancel_booking",
+        "path_template": "/cancel_booking",
+        "output_shape": "cancellation_confirmation",
+        "inputs": [
+          {
+            "input_name": "booking_id",
+            "input_type": "string",
+            "required": true,
+            "summary": "Booking identifier to cancel.",
+            "default_value": "",
+            "allowed_values": [],
+            "entity_reference": true,
+            "clarification_hint": "Ask for booking_id when it is missing or ambiguous."
+          }
+        ],
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        }
+      }
+    ],
+    "permission_intent_bindings": [
+      {
+        "id": "travel_example_user_access",
+        "actor_id": "example_user",
+        "business_area": "travel",
+        "business_area_label": "Travel Example Access",
+        "access_posture": "bounded",
+        "governed_outcome_type": "bounded_result",
+        "governed_outcome": "Allow tutorial users to invoke declared capabilities within the scopes shown by each capability.",
+        "target_service_ids": [
+          "travel-booking-service"
+        ],
+        "target_capability_ids": [
+          "travel.search_flights",
+          "travel.check_availability",
+          "travel.book_flight",
+          "travel.cancel_booking"
+        ],
+        "formalization_strategy": "Generated examples keep policy simple and visible for onboarding."
+      }
+    ],
+    "runtime_policy_bindings": [
+      {
+        "id": "travel_example_user_policy",
+        "source_permission_id": "travel_example_user_access",
+        "actor_id": "example_user",
+        "principal_selector": {
+          "claim": "actor_id",
+          "equals": "example_user"
+        },
+        "business_area": "travel",
+        "business_area_label": "Travel Example Access",
+        "service_ids": [
+          "travel-booking-service"
+        ],
+        "capability_ids": [
+          "travel.search_flights",
+          "travel.check_availability",
+          "travel.book_flight",
+          "travel.cancel_booking"
+        ],
+        "required_scopes": [
+          "travel.book",
+          "travel.search"
+        ],
+        "decision": "allow_with_limits",
+        "business_rule": "Use the declared capability scope and required inputs as the tutorial boundary.",
+        "enforcement_notes": "Generated examples use simple policy so the contract remains readable."
+      }
+    ],
+    "integration_fronting": {
+      "project_type": "example_showcase",
+      "capability_mappings": [
+        {
+          "id": "travel.search_flights_mapping",
+          "capability_id": "travel.search_flights",
+          "title": "Search flights",
+          "intent": "Search available flights by origin and destination and return priced quote references.",
+          "service_id": "travel-booking-service",
+          "service_name": "Travel Booking Service",
+          "backend_kind": "python_reference_adapter",
+          "connection_ref": "examples/showcase/travel",
+          "raw_operation_refs": [
+            "search_flights"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "origin",
+            "destination"
+          ],
+          "explicit_optional_backend_inputs": [],
+          "execution_posture": "search",
+          "side_effect_level": "read",
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "flight_list",
+          "audit_required": true
+        },
+        {
+          "id": "travel.check_availability_mapping",
+          "capability_id": "travel.check_availability",
+          "title": "Check availability",
+          "intent": "Check seat availability and current price for a specific flight.",
+          "service_id": "travel-booking-service",
+          "service_name": "Travel Booking Service",
+          "backend_kind": "python_reference_adapter",
+          "connection_ref": "examples/showcase/travel",
+          "raw_operation_refs": [
+            "check_availability"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "flight_number"
+          ],
+          "explicit_optional_backend_inputs": [],
+          "execution_posture": "inspect",
+          "side_effect_level": "read",
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "availability_info",
+          "audit_required": true
+        },
+        {
+          "id": "travel.book_flight_mapping",
+          "capability_id": "travel.book_flight",
+          "title": "Book flight",
+          "intent": "Book a confirmed flight reservation from a current quote.",
+          "service_id": "travel-booking-service",
+          "service_name": "Travel Booking Service",
+          "backend_kind": "python_reference_adapter",
+          "connection_ref": "examples/showcase/travel",
+          "raw_operation_refs": [
+            "book_flight"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "flight_number",
+            "quote_id"
+          ],
+          "explicit_optional_backend_inputs": [
+            "passengers"
+          ],
+          "execution_posture": "business_action",
+          "side_effect_level": "irreversible",
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "booking_confirmation",
+          "audit_required": true
+        },
+        {
+          "id": "travel.cancel_booking_mapping",
+          "capability_id": "travel.cancel_booking",
+          "title": "Cancel booking",
+          "intent": "Cancel an existing booking within the transactional cancellation window.",
+          "service_id": "travel-booking-service",
+          "service_name": "Travel Booking Service",
+          "backend_kind": "python_reference_adapter",
+          "connection_ref": "examples/showcase/travel",
+          "raw_operation_refs": [
+            "cancel_booking"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "booking_id"
+          ],
+          "explicit_optional_backend_inputs": [],
+          "execution_posture": "business_action",
+          "side_effect_level": "transactional",
+          "subject_kind": "business object",
+          "context_type": "travel",
+          "output_intent": "cancellation_confirmation",
+          "audit_required": true
+        }
+      ]
+    },
+    "source": {
+      "source_docs": [
+        "docs/examples/travel-showcase/source-spec.md"
+      ],
+      "legacy_implementation": "examples/showcase/travel"
+    }
+  },
+  "lock": {
+    "lock_kind": "publisher_recommended_lock",
+    "artifact_type": "anip_package_lock",
+    "blueprint_id": "travel-booking-showcase",
+    "blueprint_version": "0.1.0",
+    "package_id": "travel-booking-showcase",
+    "package_version": "0.1.0",
+    "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "schema_version": "anip-service-definition/v1",
+    "build_packs": [
+      "anip-build-pack@local"
+    ],
+    "verifier_packs": [
+      "anip-verifier@local"
+    ],
+    "runtime_packages": [],
+    "extension_packs": [],
+    "regression_packs": [],
+    "selected_service_ids": [
+      "travel-booking-service"
+    ],
+    "capability_ids": [
+      "travel.search_flights",
+      "travel.check_availability",
+      "travel.book_flight",
+      "travel.cancel_booking"
+    ],
+    "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "lineage": {
+      "project_ref": "studio-source:travel",
+      "product_revision": {
+        "ref": "travel:source-spec:v1",
+        "artifact_id": "travel-source-spec",
+        "revision_number": 1,
+        "baseline_locked_at": "2026-05-08T00:00:00Z"
+      },
+      "developer_revision": {
+        "ref": "travel:developer-definition:v1",
+        "artifact_id": "travel-developer-definition",
+        "revision_number": 1,
+        "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+      }
+    },
+    "agent_consumption_readiness": {
+      "status": "ready",
+      "score": 100,
+      "summary": {
+        "blockers": 0,
+        "warnings": 0,
+        "info": 0,
+        "probes": 0,
+        "required_app_glue": 0
+      }
+    },
+    "agent_consumability": {
+      "schema_version": "anip-agent-consumability/v0",
+      "capability_count": 4
+    },
+    "generated_at": "2026-05-08T00:00:00Z"
+  },
+  "registry_keys": [],
+  "digests": {
+    "manifest": "sha256:b7f8b951333605bb21758d4e1112fe1c880e30ce4c66ef23f8e6d93163b275db",
+    "service_definition": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+    "lock": "sha256:047708cf4a5086a07215a9549f364428d3fa23af10d43b92d394be2991d93669",
+    "receipt": ""
+  }
+}

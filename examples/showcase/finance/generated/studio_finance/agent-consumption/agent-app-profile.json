@@ -1,0 +1,168 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "finance.execute_trade": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Ignore price context",
+          "Trade without authority",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Ignore price context",
+          "Trade without authority",
+          "approval.execute"
+        ],
+        "produces": [
+          "Execute approved action",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Execute a buy or sell trade after current market data is available.",
+      "required_context": [
+        {
+          "input": "symbol",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "quantity",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "finance.generate_report": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Trade",
+          "Transfer funds",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade",
+          "Transfer funds",
+          "approval.execute"
+        ],
+        "produces": [
+          "Draft content",
+          "Summarize information",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Generate a daily, holdings, or transaction report.",
+      "required_context": [
+        {
+          "input": "report_type",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "finance.get_market_data": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Trade"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_framing": "Get current market data for a ticker symbol.",
+      "required_context": [
+        {
+          "input": "symbol",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "finance.query_portfolio": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Trade",
+          "Transfer funds"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Trade",
+          "Transfer funds"
+        ],
+        "produces": [
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Query current holdings and valuations."
+    },
+    "finance.transfer_funds": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Transfer without authority",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Transfer without authority",
+          "approval.execute"
+        ],
+        "produces": [
+          "Change system state",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Transfer funds between accounts with transactional recovery posture.",
+      "required_context": [
+        {
+          "input": "from_account",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "to_account",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "amount",
+          "missing_behavior": "clarify"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

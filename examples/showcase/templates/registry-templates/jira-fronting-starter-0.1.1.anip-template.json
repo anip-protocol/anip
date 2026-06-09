@@ -1,0 +1,3920 @@
+{
+  "schema": "anip-starter-template-package/v0",
+  "package_kind": "anip_starter_template",
+  "package_version": "0.1.1",
+  "exported_at": "2026-06-04T20:21:42.768Z",
+  "exported_by": {
+    "studio_version": "0.8.0",
+    "anip_spec_version": "anip/0.24"
+  },
+  "source_project": {
+    "id": "a7c941cf-b552-4d5b-a361-e649591ff5f8",
+    "name": "Jira Fronting",
+    "project_type": "governed_service_project",
+    "domain": "jira"
+  },
+  "manifest": {
+    "schema": "anip-starter-template-manifest/v0",
+    "template_id": "jira-fronting-starter",
+    "template_title": "Jira Fronting Starter",
+    "template_kind": "fronting_starter",
+    "package_version": "0.1.1",
+    "anip_spec_version": "anip/0.24",
+    "studio_version": "0.8.0",
+    "template_digest": "sha256:6559a825343062b59c25e8ea374180303bad532f4c03b8d590c6baa1eb2ad587",
+    "counts": {
+      "documents": 2,
+      "connections": 2,
+      "discovery_records": 23,
+      "capability_mappings": 11
+    },
+    "industry": "software_delivery",
+    "systems": [
+      "jira",
+      "atlassian"
+    ]
+  },
+  "selection": {
+    "documents": 2,
+    "connections": 2,
+    "discovery_records": 23,
+    "capability_mappings": 11
+  },
+  "warnings": [
+    "Source documents are included only when explicitly selected.",
+    "Secret values are not exported; only secret references are included.",
+    "Template data is starter evidence, not locked contract truth.",
+    "Large developer evidence markdown is intentionally omitted; reusable developer evidence is carried by structured backend operations and capability mappings."
+  ],
+  "template": {
+    "schema": "anip-starter-template/v0",
+    "anipSpecVersion": "anip/0.24",
+    "id": "jira-fronting-starter",
+    "kind": "fronting_starter",
+    "projectType": "governed_service_project",
+    "title": "Jira Fronting Starter",
+    "summary": "Starter template for a governed Jira fronting ANIP service.",
+    "description": "Imports Jira fronting intent, integration evidence, connection refs, backend operations, and capability mappings as starter evidence for a governed Jira ANIP service. The heavy developer evidence remains represented as structured mappings and backend operations rather than a large markdown blob.",
+    "domain": "jira",
+    "recommendedBrief": "Canonical Jira fronting showcase package for governed Jira reads, preview-only preparation, approval-gated changes, audit evidence, and safe denial of raw tool access.",
+    "documents": [
+      {
+        "idSuffix": "jira-integration-evidence-template",
+        "title": "Jira integration evidence",
+        "kind": "api_docs",
+        "filename": "jira-integration-evidence.template.md",
+        "content": "# Jira Integration Evidence Template\n\n> Imported from starter template `jira-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: JIRA_BASE_URL\nMCP connection: ATLASSIAN_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- jira.rest.search_issues: GET /jira/backlog/context/search\n- jira.rest.get_issue: GET /jira/issues/{issue_key}/context\n- jira.rest.get_comments: GET /jira/issues/{issue_key}/context\n- jira.rest.get_changelog: GET /jira/issues/{issue_key}/context\n- jira.rest.get_create_metadata: POST /jira/incidents/bugs/preview\n- jira.rest.create_issue: POST /jira/incidents/bugs/preview\n- jira.rest.get_create_metadata: POST /jira/stories/preview\n- jira.rest.create_issue: POST /jira/stories/preview\n- jira.rest.get_issue: POST /jira/issues/{parent_issue_key}/subtasks/preview\n- jira.rest.create_issue: POST /jira/issues/{parent_issue_key}/subtasks/preview\n- jira.rest.get_issue: POST /jira/issues/{issue_key}/customer-escalation-comment/preview\n- jira.rest.add_comment: POST /jira/issues/{issue_key}/customer-escalation-comment/preview\n- jira.rest.get_transitions: POST /jira/issues/{issue_key}/workflow-transition/request\n- jira.rest.transition_issue: POST /jira/issues/{issue_key}/workflow-transition/request\n- jira.rest.get_boards: POST /jira/sprints/move-request\n- jira.rest.get_sprints: POST /jira/sprints/move-request\n- jira.rest.move_issues_to_sprint: POST /jira/sprints/move-request\n- jira.rest.assign_issue: POST /jira/issues/{issue_key}/assignee-change/request\n- jira.rest.user_search: POST /jira/issues/{issue_key}/assignee-change/request\n- jira.rest.get_issue_link_types: POST /jira/issues/link-request\n- jira.rest.link_issues: POST /jira/issues/link-request\n- jira.rest.search_issues: GET /jira/releases/{release_ref}/notes/preview\n- jira.rest.get_versions: GET /jira/releases/{release_ref}/notes/preview\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+      },
+      {
+        "idSuffix": "jira-fronting-intent",
+        "title": "Jira governed fronting intent",
+        "kind": "business_intent",
+        "filename": "jira-fronting-intent.md",
+        "content": "# Jira Governed Fronting Intent\n\n> Imported from starter template `jira-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Jira capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- jira.backlog.search_context: Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export.\n- jira.issue.get_context: Inspect one Jira issue with bounded actor-visible fields, comments, and history.\n- jira.incident_bug.prepare: Prepare a Jira bug ticket from incident or defect context without creating it.\n- jira.story.prepare: Prepare a Jira story preview with acceptance criteria before any issue is created.\n- jira.subtask.prepare: Prepare a subtask under an existing parent issue without creating it.\n- jira.customer_escalation.comment.prepare: Prepare a customer-safe Jira comment from incident or triage context without posting it.\n- jira.workflow_transition.request: Request a governed Jira issue transition and stop for approval when policy requires it.\n- jira.sprint_move.request: Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope.\n- jira.assignee_change.request: Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit.\n- jira.issue_link.request: Request linking two Jira issues with a declared relationship and cross-project policy checks.\n- jira.release_notes.prepare: Prepare release notes from bounded Jira issues without publishing or mutating Jira.\n\n## Governance posture\n- Raw Jira tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing.\n\n## User-provided project brief\nCreate the canonical Jira governed fronting showcase. The ANIP service must expose business capabilities for bounded Jira context, issue preparation, workflow and sprint-change previews, assignee-change requests, issue-link requests, release-note preparation, approval-required write-adjacent actions, explicit denials for raw Jira/JQL/tool access, and audit evidence. The agent must see governed capabilities, not raw Jira REST or MCP operations."
+      }
+    ],
+    "connections": [
+      {
+        "idSuffix": "atlassian-mcp",
+        "display_name": "Atlassian MCP",
+        "backend_kind": "mcp",
+        "system_kind": "atlassian",
+        "endpoint_ref": "ATLASSIAN_MCP_ENDPOINT",
+        "auth_mode": "external",
+        "identity_provider_ref": "jira-oauth",
+        "secret_ref": "ATLASSIAN_MCP_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_connection_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-atlassian-mcp"
+        }
+      },
+      {
+        "idSuffix": "jira-api",
+        "display_name": "Jira API",
+        "backend_kind": "native_api",
+        "system_kind": "jira",
+        "endpoint_ref": "JIRA_BASE_URL",
+        "auth_mode": "service_delegated",
+        "identity_provider_ref": "workspace-identity",
+        "secret_ref": "JIRA_API_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_connection_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api"
+        }
+      }
+    ],
+    "discoveryRecords": [
+      {
+        "idSuffix": "jira-rest-get_versions",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_versions",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/releases/{release_ref}/notes/preview",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "audience",
+            "limit",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "release_ref",
+            "issue_query"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.release_notes.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-release-notes-prepare-jira-rest-get-versions"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-search_issues",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.search_issues",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/releases/{release_ref}/notes/preview",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "audience",
+            "limit",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "release_ref",
+            "issue_query"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.release_notes.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-release-notes-prepare-jira-rest-search-issues"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-link_issues",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.link_issues",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/link-request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "source_issue_key",
+            "target_issue_key",
+            "link_type",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.issue_link.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-issue-link-request-jira-rest-link-issues"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_issue_link_types",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_issue_link_types",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/link-request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "source_issue_key",
+            "target_issue_key",
+            "link_type",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.issue_link.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-issue-link-request-jira-rest-get-issue-link-types"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-user_search",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.user_search",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/assignee-change/request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "assignee_ref",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.assignee_change.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-assignee-change-request-jira-rest-user-search"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-assign_issue",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.assign_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/assignee-change/request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "assignee_ref",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.assignee_change.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-assignee-change-request-jira-rest-assign-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-move_issues_to_sprint",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.move_issues_to_sprint",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/sprints/move-request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.sprint_move.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-sprint-move-request-jira-rest-move-issues-to-sprint"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_sprints",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_sprints",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/sprints/move-request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.sprint_move.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-sprint-move-request-jira-rest-get-sprints"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_boards",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_boards",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/sprints/move-request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "backend_options"
+          ],
+          "required": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.sprint_move.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-sprint-move-request-jira-rest-get-boards"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-transition_issue",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.transition_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/workflow-transition/request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "comment",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.workflow_transition.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-workflow-transition-request-jira-rest-transition-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_transitions",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_transitions",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/workflow-transition/request",
+        "side_effect_level": "approval_required",
+        "input_schema_summary": {
+          "optional": [
+            "comment",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.workflow_transition.request",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-workflow-transition-request-jira-rest-get-transitions"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-add_comment",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.add_comment",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/customer-escalation-comment/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "visibility",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.customer_escalation.comment.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-customer-escalation-comment-prepare-jira-rest-add-comment"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_issue",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{issue_key}/customer-escalation-comment/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "visibility",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.customer_escalation.comment.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-customer-escalation-comment-prepare-jira-rest-get-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-create_issue",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.create_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{parent_issue_key}/subtasks/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "assignee",
+            "backend_options"
+          ],
+          "required": [
+            "parent_issue_key",
+            "summary",
+            "description"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.subtask.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-subtask-prepare-jira-rest-create-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_issue-2",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/issues/{parent_issue_key}/subtasks/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "assignee",
+            "backend_options"
+          ],
+          "required": [
+            "parent_issue_key",
+            "summary",
+            "description"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.subtask.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-subtask-prepare-jira-rest-get-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-create_issue-2",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.create_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/stories/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "priority",
+            "labels",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.story.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-story-prepare-jira-rest-create-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_create_metadata",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_create_metadata",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/stories/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "priority",
+            "labels",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.story.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-story-prepare-jira-rest-get-create-metadata"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-create_issue-3",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.create_issue",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/incidents/bugs/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "labels",
+            "components",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.incident_bug.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-incident-bug-prepare-jira-rest-create-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_create_metadata-2",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_create_metadata",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/jira/incidents/bugs/preview",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "optional": [
+            "labels",
+            "components",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.incident_bug.prepare",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-incident-bug-prepare-jira-rest-get-create-metadata"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_changelog",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_changelog",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/issues/{issue_key}/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.issue.get_context",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-issue-get-context-jira-rest-get-changelog"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_comments",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_comments",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/issues/{issue_key}/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.issue.get_context",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-issue-get-context-jira-rest-get-comments"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-get_issue-3",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.get_issue",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/issues/{issue_key}/context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "required": [
+            "issue_key"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.issue.get_context",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-issue-get-context-jira-rest-get-issue"
+        }
+      },
+      {
+        "idSuffix": "jira-rest-search_issues-2",
+        "connectionIdSuffix": "jira-api",
+        "operation_id": "jira.rest.search_issues",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/jira/backlog/context/search",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "optional": [
+            "issue_type",
+            "status",
+            "limit",
+            "backend_options"
+          ],
+          "required": [
+            "project_key",
+            "query"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "capability_id": "jira.backlog.search_context",
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "exported_from_discovery_record_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-backlog-search-context-jira-rest-search-issues"
+        }
+      }
+    ],
+    "capabilityMappings": [
+      {
+        "idSuffix": "jira-release_notes-prepare",
+        "title": "Prepare Release Notes",
+        "data": {
+          "title": "Prepare Release Notes",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for project_key.",
+              "required": true,
+              "input_name": "project_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.project_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.project_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "project_scope",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for release_ref.",
+              "required": true,
+              "input_name": "release_ref",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.release_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.release_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "release_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for issue_query.",
+              "required": true,
+              "input_name": "issue_query",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "search_query",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for audience.",
+              "required": false,
+              "input_name": "audience",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "internal",
+              "semantic_type": "",
+              "allowed_values": [
+                "internal",
+                "customer",
+                "executive"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for limit.",
+              "required": false,
+              "input_name": "limit",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "use_default"
+              },
+              "input_format": "",
+              "default_value": "50",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Prepare release notes from bounded Jira issues without publishing or mutating Jira.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "release_notes_preparation",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_release",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.release_notes.prepare",
+          "output_intent": "release_notes_draft",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "audience",
+            "limit",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "project_key",
+            "release_ref",
+            "issue_query"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.search_issues",
+                "jira.rest.get_versions"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-search_issues",
+                "jira-rest-get_versions"
+              ],
+              "derived_optional_backend_inputs": [
+                "audience",
+                "limit",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "release_ref",
+                "issue_query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "audience",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "release_ref",
+                "issue_query"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "audience",
+                "limit",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "release_ref",
+                "issue_query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "audience",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "release_ref",
+                "issue_query"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "read_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "read",
+          "approval_rule_refs": [],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.search_issues",
+            "jira.rest.get_versions"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.project_key",
+            "clarify.release_ref",
+            "clarify.issue_query"
+          ],
+          "derived_optional_backend_inputs": [
+            "audience",
+            "limit",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "project_key",
+            "release_ref",
+            "issue_query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "audience",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "release_ref",
+            "issue_query"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-release-notes-prepare",
+          "operation_type": "read",
+          "intent_type": "read_only",
+          "business_effects": {
+            "produces": [
+              "content.draft",
+              "data.aggregate"
+            ],
+            "does_not_produce": [
+              "external_dispatch",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-issue_link-request",
+        "title": "Request Issue Link",
+        "data": {
+          "title": "Request Issue Link",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for source_issue_key.",
+              "required": true,
+              "input_name": "source_issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for target_issue_key.",
+              "required": true,
+              "input_name": "target_issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for link_type.",
+              "required": true,
+              "input_name": "link_type",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.link_type_catalog",
+                "on_unresolved": "deny"
+              },
+              "catalog_ref": "jira.link_type_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "relationship_type",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for reason.",
+              "required": true,
+              "input_name": "reason",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "business_reason",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Request linking two Jira issues with a declared relationship and cross-project policy checks.",
+          "service_id": "jira-governance",
+          "backend_kind": "native_api",
+          "context_type": "issue_link_request",
+          "service_name": "Jira Governance",
+          "subject_kind": "jira_issue_link",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.issue_link.request",
+          "output_intent": "issue_link_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "required_inputs": [
+            "source_issue_key",
+            "target_issue_key",
+            "link_type",
+            "reason"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_issue_link_types",
+                "jira.rest.link_issues"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_issue_link_types",
+                "jira-rest-link_issues"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "source_issue_key",
+                "target_issue_key",
+                "link_type",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "source_issue_key",
+                "target_issue_key",
+                "link_type",
+                "reason"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "source_issue_key",
+                "target_issue_key",
+                "link_type",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "source_issue_key",
+                "target_issue_key",
+                "link_type",
+                "reason"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "approval_required",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue_link_types",
+            "jira.rest.link_issues"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.source_issue_key",
+            "clarify.target_issue_key",
+            "clarify.link_type",
+            "clarify.reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "source_issue_key",
+            "target_issue_key",
+            "link_type",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "source_issue_key",
+            "target_issue_key",
+            "link_type",
+            "reason"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-issue-link-request",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-assignee_change-request",
+        "title": "Request Assignee Change",
+        "data": {
+          "title": "Request Assignee Change",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for issue_key.",
+              "required": true,
+              "input_name": "issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for assignee_ref.",
+              "required": true,
+              "input_name": "assignee_ref",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.user_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.user_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "user_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for reason.",
+              "required": true,
+              "input_name": "reason",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "business_reason",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit.",
+          "service_id": "jira-governance",
+          "backend_kind": "native_api",
+          "context_type": "assignee_change_request",
+          "service_name": "Jira Governance",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.assignee_change.request",
+          "output_intent": "assignee_change_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "required_inputs": [
+            "issue_key",
+            "assignee_ref",
+            "reason"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.assign_issue",
+                "jira.rest.user_search"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-assign_issue",
+                "jira-rest-user_search"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "assignee_ref",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "assignee_ref",
+                "reason"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "assignee_ref",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "assignee_ref",
+                "reason"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "approval_required",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.assign_issue",
+            "jira.rest.user_search"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.issue_key",
+            "clarify.assignee_ref",
+            "clarify.reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "issue_key",
+            "assignee_ref",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "assignee_ref",
+            "reason"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-assignee-change-request",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-sprint_move-request",
+        "title": "Request Sprint Move",
+        "data": {
+          "title": "Request Sprint Move",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for issue_keys.",
+              "required": true,
+              "input_name": "issue_keys",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for target_sprint.",
+              "required": true,
+              "input_name": "target_sprint",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.sprint_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.sprint_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "sprint_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for reason.",
+              "required": true,
+              "input_name": "reason",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "business_reason",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope.",
+          "service_id": "jira-governance",
+          "backend_kind": "native_api",
+          "context_type": "sprint_move_request",
+          "service_name": "Jira Governance",
+          "subject_kind": "jira_sprint",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.sprint_move.request",
+          "output_intent": "sprint_move_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "required_inputs": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_boards",
+                "jira.rest.get_sprints",
+                "jira.rest.move_issues_to_sprint"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_boards",
+                "jira-rest-get_sprints",
+                "jira-rest-move_issues_to_sprint"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_keys",
+                "target_sprint",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_keys",
+                "target_sprint",
+                "reason"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_keys",
+                "target_sprint",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_keys",
+                "target_sprint",
+                "reason"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "approval_required",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_boards",
+            "jira.rest.get_sprints",
+            "jira.rest.move_issues_to_sprint"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.issue_keys",
+            "clarify.target_sprint",
+            "clarify.reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_keys",
+            "target_sprint",
+            "reason"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-sprint-move-request",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-workflow_transition-request",
+        "title": "Request Workflow Transition",
+        "data": {
+          "title": "Request Workflow Transition",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for issue_key.",
+              "required": true,
+              "input_name": "issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for target_status.",
+              "required": true,
+              "input_name": "target_status",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.workflow_status_catalog",
+                "on_unresolved": "deny"
+              },
+              "catalog_ref": "jira.workflow_status_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "workflow_status",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for reason.",
+              "required": true,
+              "input_name": "reason",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "business_reason",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for comment.",
+              "required": false,
+              "input_name": "comment",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Request a governed Jira issue transition and stop for approval when policy requires it.",
+          "service_id": "jira-governance",
+          "backend_kind": "native_api",
+          "context_type": "workflow_transition_request",
+          "service_name": "Jira Governance",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.workflow_transition.request",
+          "output_intent": "transition_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "comment",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_transitions",
+                "jira.rest.transition_issue"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_transitions",
+                "jira-rest-transition_issue"
+              ],
+              "derived_optional_backend_inputs": [
+                "comment",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "target_status",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "comment",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "target_status",
+                "reason"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "comment",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "target_status",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "comment",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "target_status",
+                "reason"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "approval_required",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_transitions",
+            "jira.rest.transition_issue"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.issue_key",
+            "clarify.target_status",
+            "clarify.reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "comment",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "comment",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-workflow-transition-request",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-customer_escalation-comment-prepare",
+        "title": "Prepare Customer Escalation Comment",
+        "data": {
+          "title": "Prepare Customer Escalation Comment",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for issue_key.",
+              "required": true,
+              "input_name": "issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for comment_purpose.",
+              "required": true,
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "clarify",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [
+                "triage_update",
+                "customer_impact",
+                "release_note",
+                "incident_followup"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for context.",
+              "required": true,
+              "input_name": "context",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "comment_context",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for visibility.",
+              "required": false,
+              "input_name": "visibility",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "use_default",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "internal",
+              "semantic_type": "",
+              "allowed_values": [
+                "internal",
+                "customer_visible"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Prepare a customer-safe Jira comment from incident or triage context without posting it.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "customer_escalation_comment",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_comment",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.customer_escalation.comment.prepare",
+          "output_intent": "comment_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_issue",
+                "jira.rest.add_comment"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_issue",
+                "jira-rest-add_comment"
+              ],
+              "derived_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "comment_purpose",
+                "context"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "visibility",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key",
+                "comment_purpose",
+                "context"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.add_comment"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.issue_key",
+            "clarify.comment_purpose",
+            "clarify.context"
+          ],
+          "derived_optional_backend_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ],
+          "explicit_optional_backend_inputs": [
+            "visibility",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-customer-escalation-comment-prepare",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-subtask-prepare",
+        "title": "Prepare Subtask",
+        "data": {
+          "title": "Prepare Subtask",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for parent_issue_key.",
+              "required": true,
+              "input_name": "parent_issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for summary.",
+              "required": true,
+              "input_name": "summary",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "work_item_summary",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for description.",
+              "required": true,
+              "input_name": "description",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "work_item_description",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for assignee.",
+              "required": false,
+              "input_name": "assignee",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.user_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.user_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "user_ref",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Prepare a subtask under an existing parent issue without creating it.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "subtask_preparation",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.subtask.prepare",
+          "output_intent": "subtask_creation_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "assignee",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "parent_issue_key",
+            "summary",
+            "description"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_issue",
+                "jira.rest.create_issue"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_issue-2",
+                "jira-rest-create_issue"
+              ],
+              "derived_optional_backend_inputs": [
+                "assignee",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "parent_issue_key",
+                "summary",
+                "description"
+              ],
+              "explicit_optional_backend_inputs": [
+                "assignee",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "parent_issue_key",
+                "summary",
+                "description"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "assignee",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "parent_issue_key",
+                "summary",
+                "description"
+              ],
+              "explicit_optional_backend_inputs": [
+                "assignee",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "parent_issue_key",
+                "summary",
+                "description"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.create_issue"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.parent_issue_key",
+            "clarify.summary",
+            "clarify.description"
+          ],
+          "derived_optional_backend_inputs": [
+            "assignee",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "parent_issue_key",
+            "summary",
+            "description"
+          ],
+          "explicit_optional_backend_inputs": [
+            "assignee",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "parent_issue_key",
+            "summary",
+            "description"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-subtask-prepare",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-story-prepare",
+        "title": "Prepare Story",
+        "data": {
+          "title": "Prepare Story",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for project_key.",
+              "required": true,
+              "input_name": "project_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.project_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.project_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "project_scope",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for summary.",
+              "required": true,
+              "input_name": "summary",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "work_item_summary",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for acceptance_criteria.",
+              "required": true,
+              "input_name": "acceptance_criteria",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "acceptance_criteria",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for priority.",
+              "required": false,
+              "input_name": "priority",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "omit",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for labels.",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Prepare a Jira story preview with acceptance criteria before any issue is created.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "story_preparation",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.story.prepare",
+          "output_intent": "issue_creation_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "priority",
+            "labels",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_create_metadata",
+                "jira.rest.create_issue"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_create_metadata",
+                "jira-rest-create_issue-2"
+              ],
+              "derived_optional_backend_inputs": [
+                "priority",
+                "labels",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "acceptance_criteria"
+              ],
+              "explicit_optional_backend_inputs": [
+                "priority",
+                "labels",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "acceptance_criteria"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "priority",
+                "labels",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "acceptance_criteria"
+              ],
+              "explicit_optional_backend_inputs": [
+                "priority",
+                "labels",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "acceptance_criteria"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_create_metadata",
+            "jira.rest.create_issue"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.project_key",
+            "clarify.summary",
+            "clarify.acceptance_criteria"
+          ],
+          "derived_optional_backend_inputs": [
+            "priority",
+            "labels",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ],
+          "explicit_optional_backend_inputs": [
+            "priority",
+            "labels",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-story-prepare",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-incident_bug-prepare",
+        "title": "Prepare Incident Bug",
+        "data": {
+          "title": "Prepare Incident Bug",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for project_key.",
+              "required": true,
+              "input_name": "project_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.project_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.project_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "project_scope",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for summary.",
+              "required": true,
+              "input_name": "summary",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "work_item_summary",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for description.",
+              "required": true,
+              "input_name": "description",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "work_item_description",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for severity.",
+              "required": true,
+              "input_name": "severity",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "clarify",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "risk_level",
+              "allowed_values": [
+                "sev1",
+                "sev2",
+                "sev3",
+                "sev4"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for labels.",
+              "required": false,
+              "input_name": "labels",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for components.",
+              "required": false,
+              "input_name": "components",
+              "input_type": "array<string>",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.component_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.component_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Prepare a Jira bug ticket from incident or defect context without creating it.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "incident_bug_preparation",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.incident_bug.prepare",
+          "output_intent": "issue_creation_preview",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "labels",
+            "components",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_create_metadata",
+                "jira.rest.create_issue"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_create_metadata-2",
+                "jira-rest-create_issue-3"
+              ],
+              "derived_optional_backend_inputs": [
+                "labels",
+                "components",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "description",
+                "severity"
+              ],
+              "explicit_optional_backend_inputs": [
+                "labels",
+                "components",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "description",
+                "severity"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "labels",
+                "components",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "description",
+                "severity"
+              ],
+              "explicit_optional_backend_inputs": [
+                "labels",
+                "components",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "summary",
+                "description",
+                "severity"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "prepare_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "write_adjacent",
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_create_metadata",
+            "jira.rest.create_issue"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.project_key",
+            "clarify.summary",
+            "clarify.description",
+            "clarify.severity"
+          ],
+          "derived_optional_backend_inputs": [
+            "labels",
+            "components",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ],
+          "explicit_optional_backend_inputs": [
+            "labels",
+            "components",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-incident-bug-prepare",
+          "operation_type": "write",
+          "intent_type": "prepare_only",
+          "grant_policy": {
+            "max_uses": 1,
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ]
+          },
+          "business_effects": {
+            "produces": [
+              "approval.request",
+              "system.preview_mutation",
+              "content.draft"
+            ],
+            "does_not_produce": [
+              "approval.execute",
+              "system.mutation",
+              "raw_data_export"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-issue-get_context",
+        "title": "Get Issue Context",
+        "data": {
+          "title": "Get Issue Context",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for issue_key.",
+              "required": true,
+              "input_name": "issue_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.issue_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.issue_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "issue_ref",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for include_comments.",
+              "required": false,
+              "input_name": "include_comments",
+              "input_type": "boolean",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "use_default"
+              },
+              "input_format": "",
+              "default_value": "true",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for include_changelog.",
+              "required": false,
+              "input_name": "include_changelog",
+              "input_type": "boolean",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "use_default"
+              },
+              "input_format": "",
+              "default_value": "false",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Inspect one Jira issue with bounded actor-visible fields, comments, and history.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "issue_context",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_issue",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.issue.get_context",
+          "output_intent": "bounded_issue_detail",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "issue_key"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.get_issue",
+                "jira.rest.get_comments",
+                "jira.rest.get_changelog"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-get_issue-3",
+                "jira-rest-get_comments",
+                "jira-rest-get_changelog"
+              ],
+              "derived_optional_backend_inputs": [
+                "include_comments",
+                "include_changelog",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key"
+              ],
+              "explicit_optional_backend_inputs": [
+                "include_comments",
+                "include_changelog",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "include_comments",
+                "include_changelog",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "issue_key"
+              ],
+              "explicit_optional_backend_inputs": [
+                "include_comments",
+                "include_changelog",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_key"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "read_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "read",
+          "approval_rule_refs": [],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.get_comments",
+            "jira.rest.get_changelog"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.issue_key"
+          ],
+          "derived_optional_backend_inputs": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "issue_key"
+          ],
+          "explicit_optional_backend_inputs": [
+            "include_comments",
+            "include_changelog",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_key"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-issue-get-context",
+          "operation_type": "read",
+          "intent_type": "read_only",
+          "business_effects": {
+            "produces": [
+              "content.summary",
+              "data.read"
+            ],
+            "does_not_produce": [
+              "raw_data_export",
+              "system.mutation"
+            ]
+          }
+        }
+      },
+      {
+        "idSuffix": "jira-backlog-search_context",
+        "title": "Search Backlog Context",
+        "data": {
+          "title": "Search Backlog Context",
+          "inputs": [
+            {
+              "summary": "Reviewed input contract for project_key.",
+              "required": true,
+              "input_name": "project_key",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.project_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.project_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "project_scope",
+              "allowed_values": [],
+              "entity_reference": true,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for query.",
+              "required": true,
+              "input_name": "query",
+              "input_type": "string",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "clarify",
+                "on_ambiguous": "clarify",
+                "on_unresolved": "clarify"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "search_query",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for issue_type.",
+              "required": false,
+              "input_name": "issue_type",
+              "input_type": "string",
+              "resolution": {
+                "mode": "closed_values",
+                "on_missing": "omit",
+                "on_unresolved": "deny"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "",
+              "allowed_values": [
+                "bug",
+                "story",
+                "task",
+                "epic"
+              ],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for status.",
+              "required": false,
+              "input_name": "status",
+              "input_type": "string",
+              "resolution": {
+                "mode": "backend_resolved",
+                "on_missing": "omit",
+                "on_ambiguous": "clarify",
+                "resolver_ref": "jira.workflow_status_catalog",
+                "on_unresolved": "clarify"
+              },
+              "catalog_ref": "jira.workflow_status_catalog",
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "workflow_status",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for limit.",
+              "required": false,
+              "input_name": "limit",
+              "input_type": "integer",
+              "resolution": {
+                "mode": "clarify",
+                "on_missing": "use_default"
+              },
+              "input_format": "",
+              "default_value": "25",
+              "semantic_type": "",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            },
+            {
+              "summary": "Reviewed input contract for backend_options.",
+              "required": false,
+              "input_name": "backend_options",
+              "input_type": "object",
+              "resolution": {
+                "mode": "explicit_only",
+                "on_missing": "omit"
+              },
+              "input_format": "",
+              "default_value": "",
+              "semantic_type": "backend_options",
+              "allowed_values": [],
+              "entity_reference": false,
+              "semantic_aliases": [],
+              "reference_catalog": [],
+              "clarification_hint": "",
+              "normalization_hint": "",
+              "validation_pattern": "",
+              "normalization_context": "",
+              "allowed_value_semantics": []
+            }
+          ],
+          "intent": "Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export.",
+          "service_id": "jira-fronting",
+          "backend_kind": "native_api",
+          "context_type": "backlog_context_search",
+          "service_name": "Jira Fronting",
+          "subject_kind": "jira_project",
+          "artifact_type": "integration_fronting_capability_mapping",
+          "capability_id": "jira.backlog.search_context",
+          "output_intent": "bounded_issue_context",
+          "review_status": "template_suggested",
+          "audit_required": true,
+          "connection_ref": "jira-api",
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ],
+          "optional_inputs": [
+            "issue_type",
+            "status",
+            "limit",
+            "backend_options"
+          ],
+          "required_inputs": [
+            "project_key",
+            "query"
+          ],
+          "backend_bindings": [
+            {
+              "status": "ready",
+              "backend_kind": "native_api",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking.",
+              "connection_ref": "jira-api",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [
+                "jira.rest.search_issues"
+              ],
+              "matched_discovery_record_ids": [
+                "jira-rest-search_issues-2"
+              ],
+              "derived_optional_backend_inputs": [
+                "issue_type",
+                "status",
+                "limit",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "issue_type",
+                "status",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "query"
+              ]
+            },
+            {
+              "status": "missing",
+              "backend_kind": "mcp",
+              "status_detail": "No MCP operation was declared for this capability.",
+              "connection_ref": "atlassian-mcp",
+              "backend_input_mode": "explicit",
+              "raw_operation_refs": [],
+              "matched_discovery_record_ids": [],
+              "derived_optional_backend_inputs": [
+                "issue_type",
+                "status",
+                "limit",
+                "backend_options"
+              ],
+              "derived_required_backend_inputs": [
+                "project_key",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "issue_type",
+                "status",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "project_key",
+                "query"
+              ]
+            }
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "execution_posture": "read_only",
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "side_effect_level": "read",
+          "approval_rule_refs": [],
+          "backend_input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.search_issues"
+          ],
+          "template_suggested": true,
+          "starter_template_id": "jira-fronting-starter",
+          "starter_template_title": "Jira Fronting Starter",
+          "clarification_rule_refs": [
+            "clarify.project_key",
+            "clarify.query"
+          ],
+          "derived_optional_backend_inputs": [
+            "issue_type",
+            "status",
+            "limit",
+            "backend_options"
+          ],
+          "derived_required_backend_inputs": [
+            "project_key",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "issue_type",
+            "status",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "query"
+          ],
+          "exported_from_artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-mapping-jira-backlog-search-context",
+          "operation_type": "read",
+          "intent_type": "read_only",
+          "business_effects": {
+            "produces": [
+              "content.summary",
+              "data.read"
+            ],
+            "does_not_produce": [
+              "raw_data_export",
+              "system.mutation"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

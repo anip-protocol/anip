@@ -1,0 +1,210 @@
+{
+  "capabilities": {
+    "github.issue.prepare": {
+      "app_owned_behavior": [
+        "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+        "Never route agents directly to raw GitHub API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "github.issue.prepare",
+        "summary": "Prepare a GitHub issue preview with labels and assignees before any issue is created."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "behavior": "clarify",
+          "input": "repo",
+          "summary": "GitHub repository name."
+        },
+        {
+          "behavior": "clarify",
+          "input": "title",
+          "summary": "Issue title."
+        },
+        {
+          "behavior": "clarify",
+          "input": "body",
+          "summary": "Issue body."
+        }
+      ]
+    },
+    "github.pr.comment.prepare": {
+      "app_owned_behavior": [
+        "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+        "Never route agents directly to raw GitHub API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change repository state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change"
+        ]
+      },
+      "intent": {
+        "category": "github.pr.comment.prepare",
+        "summary": "Prepare a pull request comment from review or release context without posting it."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "behavior": "clarify",
+          "input": "repo",
+          "summary": "GitHub repository name."
+        },
+        {
+          "behavior": "clarify",
+          "input": "pull_number",
+          "summary": "Pull request number."
+        },
+        {
+          "behavior": "clarify",
+          "input": "comment_purpose",
+          "summary": "Purpose of the comment."
+        },
+        {
+          "behavior": "clarify",
+          "input": "context",
+          "summary": "Context to include in the comment."
+        }
+      ]
+    },
+    "github.release_notes.prepare": {
+      "app_owned_behavior": [
+        "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+        "Never route agents directly to raw GitHub API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Create release",
+          "Change repository state"
+        ],
+        "produces": [
+          "Draft content",
+          "Summarize information"
+        ]
+      },
+      "intent": {
+        "category": "github.release_notes.prepare",
+        "summary": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "behavior": "clarify",
+          "input": "repo",
+          "summary": "GitHub repository name."
+        },
+        {
+          "behavior": "clarify",
+          "input": "range",
+          "summary": "Release range, milestone, or comparison reference."
+        }
+      ]
+    },
+    "github.repo.search_context": {
+      "app_owned_behavior": [
+        "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+        "Never route agents directly to raw GitHub API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "intent": {
+        "category": "github.repo.search_context",
+        "summary": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "behavior": "clarify",
+          "input": "repo",
+          "summary": "GitHub repository name."
+        },
+        {
+          "behavior": "clarify",
+          "input": "query",
+          "summary": "Bounded repository search query."
+        }
+      ]
+    },
+    "github.workflow.dispatch.request": {
+      "app_owned_behavior": [
+        "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+        "Never route agents directly to raw GitHub API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Execute approved action",
+          "Bypass workflow policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "github.workflow.dispatch.request",
+        "summary": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "behavior": "clarify",
+          "input": "repo",
+          "summary": "GitHub repository name."
+        },
+        {
+          "behavior": "clarify",
+          "input": "workflow_id",
+          "summary": "Workflow file name or workflow ID."
+        },
+        {
+          "behavior": "clarify",
+          "input": "ref",
+          "summary": "Git ref for dispatch."
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-consumability/v0"
+}

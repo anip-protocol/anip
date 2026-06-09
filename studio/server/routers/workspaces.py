@@ -7,7 +7,7 @@ from psycopg.errors import UniqueViolation
 
 from .. import repository
 from ..db import get_pool
-from ..models import CreateWorkspace, UpdateWorkspace, WorkspaceDetail, WorkspaceOut
+from ..models import CloneWorkspace, CreateWorkspace, UpdateWorkspace, WorkspaceDetail, WorkspaceOut
 from ..repository import NotFoundError
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
@@ -49,6 +49,23 @@ def update_workspace(workspace_id: str, body: UpdateWorkspace):
             return repository.update_workspace(
                 conn, workspace_id, **body.model_dump(exclude_unset=True)
             )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{workspace_id}/clone", response_model=WorkspaceDetail, status_code=201)
+def clone_workspace(workspace_id: str, body: CloneWorkspace):
+    try:
+        with get_pool().connection() as conn:
+            return repository.clone_workspace(
+                conn,
+                source_workspace_id=workspace_id,
+                target_workspace_id=body.id,
+                name=body.name,
+                summary=body.summary,
+            )
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail=f"Workspace {body.id!r} already exists")
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

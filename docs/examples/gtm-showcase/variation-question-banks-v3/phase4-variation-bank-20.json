@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase4_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p4v2-01",
+      "category": "positive_supported_cohort",
+      "actor_id": "sales_leader",
+      "question": "Score inbound leads from last week and show the top five priority leads.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-02",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the Q2 webinar leads for account executive follow-up.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p4v2-03",
+      "category": "positive_supported_cohort",
+      "actor_id": "rev_ops_manager",
+      "question": "Give me explainable priority bands for inbound_last_week.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-04",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Route last week inbound leads to sales and stop at approval preview.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p4v2-05",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare routing recommendations for webinar_q2 leads to SDR.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p4v2-06",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Prioritize those leads.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p4v2-07",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Route leads to sales without naming the cohort.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p4v2-08",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Route inbound leads from last week to sales.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p4v2-09",
+      "category": "positive_supported_cohort",
+      "actor_id": "sales_leader",
+      "question": "Rank expansion_candidates_q2 accounts for the best sales motion.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-10",
+      "category": "positive_supported_cohort",
+      "actor_id": "sales_leader",
+      "question": "Prioritize at_risk_q2 accounts by deal likelihood.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-11",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Score the SuperBowl leads cohort.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p4v2-12",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Route the unknown booth-scan leads to SDR.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p4v2-13",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Export all lead scores for inbound_last_week as raw CSV.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p4v2-14",
+      "category": "positive_supported_cohort",
+      "actor_id": "sales_leader",
+      "question": "Show the top three inbound leads from last week with explainable scoring.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-15",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Prepare a sales routing preview for hot inbound leads from last week.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p4v2-16",
+      "category": "positive_supported_cohort",
+      "actor_id": "rev_ops_manager",
+      "question": "Score webinar_q2 leads and keep it bounded to five.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-17",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Tell me which leads are best without a cohort.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p4v2-18",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Route last week inbound leads to account executives.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p4v2-19",
+      "category": "positive_supported_cohort",
+      "actor_id": "sales_leader",
+      "question": "Which expansion_candidates_q2 accounts should we work first?",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p4v2-20",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Route inbound_last_week to AE and do not actually execute the routing.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    }
+  ]
+}

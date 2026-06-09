@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw_gtm
+    schema: raw_gtm
+    tables:
+      - name: accounts
+      - name: products
+      - name: sales_teams
+      - name: sales_pipeline

@@ -1,19 +1,28 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
 import { useAnipAudit, useAnipDiscovery } from '@anip-dev/vue'
+import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store'
+import { recordRuntimeObservation } from '../design/store'
+import { projectStore } from '../design/project-store'
+import { normalizeAuditEntryToObservation } from '../design/runtime-observations'
+import { formatStudioTimestamp } from '../design/time'
 import StatusBadge from '../components/StatusBadge.vue'
 import BearerInput from '../components/BearerInput.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 
+const route = useRoute()
+const router = useRouter()
 const { data, loading, error, query } = useAnipAudit()
 const { data: discoveryData, load: loadDiscovery } = useAnipDiscovery()
 const expandedEntry = ref<number | null>(null)
+const importedObservationId = ref<string | null>(null)
 
 // Filters
 const capabilityFilter = ref('')
 const sinceFilter = ref('')
 const limitFilter = ref(50)
+const invocationIdFilter = ref('')
 const taskIdFilter = ref('')
 const parentInvocationIdFilter = ref('')
 
@@ -21,6 +30,17 @@ const auditData = computed<any | null>(() => data.value as any)
 const auditLoading = computed(() => loading.value)
 const auditError = computed(() => error.value)
 const capabilityNames = computed(() => discoveryData.value?.capabilityNames || Object.keys(discoveryData.value?.capabilities || {}))
+const canOpenInEvaluation = computed(() =>
+  !!projectStore.activeProject?.id && !!projectStore.activeScenarioId,
+)
+
+function syncFiltersFromRouteQuery() {
+  capabilityFilter.value = typeof route.query.capability === 'string' ? route.query.capability : ''
+  invocationIdFilter.value = typeof route.query.invocationId === 'string' ? route.query.invocationId : ''
+  taskIdFilter.value = typeof route.query.taskId === 'string' ? route.query.taskId : ''
+  parentInvocationIdFilter.value =
+    typeof route.query.parentInvocationId === 'string' ? route.query.parentInvocationId : ''
+}
 
 async function refreshDiscovery() {
   if (!store.connected) return
@@ -32,9 +52,24 @@ async function refreshDiscovery() {
 }
 
 onMounted(refreshDiscovery)
+onMounted(syncFiltersFromRouteQuery)
 watch(() => store.connected, (connected) => {
   if (connected) refreshDiscovery()
   else expandedEntry.value = null
+})
+watch(() => route.query, () => {
+  syncFiltersFromRouteQuery()
+  if (store.connected && store.bearer) fetchEntries()
+}, { immediate: false })
+
+onMounted(() => {
+  if (
+    store.connected &&
+    store.bearer &&
+    (capabilityFilter.value || invocationIdFilter.value || taskIdFilter.value || parentInvocationIdFilter.value)
+  ) {
+    fetchEntries()
+  }
 })
 
 async function fetchEntries() {
@@ -44,6 +79,7 @@ async function fetchEntries() {
       capability: capabilityFilter.value || undefined,
       since: sinceFilter.value || undefined,
       limit: limitFilter.value || undefined,
+      invocationId: invocationIdFilter.value || undefined,
       taskId: taskIdFilter.value || undefined,
       parentInvocationId: parentInvocationIdFilter.value || undefined,
     })
@@ -88,12 +124,27 @@ function eventClassType(ec: string): 'success' | 'danger' | 'neutral' | 'warning
 
 function formatTimestamp(ts: string): string {
   if (!ts) return '\u2014'
-  try {
-    const d = new Date(ts)
-    return d.toLocaleString()
-  } catch {
-    return ts
-  }
+  return formatStudioTimestamp(ts)
+}
+
+function saveEntryAsRuntimeObservation(entry: Record<string, any>) {
+  const observation = normalizeAuditEntryToObservation(entry)
+  recordRuntimeObservation(observation)
+  importedObservationId.value = observation.observation_id
+}
+
+function openEntryInEvaluation(entry: Record<string, any>) {
+  if (!canOpenInEvaluation.value || !projectStore.activeProject?.id || !projectStore.activeScenarioId) return
+  router.push({
+    name: 'evaluation',
+    params: {
+      projectId: projectStore.activeProject.id,
+      id: projectStore.activeScenarioId,
+    },
+    query: {
+      auditInvocationId: entry.invocation_id || undefined,
+    },
+  })
 }
 </script>
 
@@ -106,7 +157,7 @@ function formatTimestamp(ts: string): string {
 
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x1F4CA;</div>
-      <p>Connect to an ANIP service to browse its audit trail.</p>
+      <p>Connect to an ANIP capability service to browse its audit traces.</p>
     </div>
 
     <div v-else class="content-area">
@@ -134,6 +185,10 @@ function formatTimestamp(ts: string): string {
           <div class="filter-group">
             <label class="filter-label">Limit</label>
             <input v-model.number="limitFilter" type="number" class="filter-input num-input" min="1" max="1000" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Invocation ID</label>
+            <input v-model="invocationIdFilter" type="text" class="filter-input" placeholder="Filter by invocation_id" />
           </div>
           <div class="filter-group">
             <label class="filter-label">Task ID</label>
@@ -172,6 +227,7 @@ function formatTimestamp(ts: string): string {
                 <th></th>
                 <th>#</th>
                 <th>Timestamp</th>
+                <th>Invocation ID</th>
                 <th>Capability</th>
                 <th>Status</th>
                 <th>Event Class</th>
@@ -188,6 +244,10 @@ function formatTimestamp(ts: string): string {
                   </td>
                   <td class="mono-cell">{{ entry.sequence_number || idx + 1 }}</td>
                   <td class="ts-cell">{{ formatTimestamp(entry.timestamp) }}</td>
+                  <td>
+                    <span v-if="entry.invocation_id" class="mono-cell">{{ entry.invocation_id }}</span>
+                    <span v-else class="dash">&mdash;</span>
+                  </td>
                   <td class="mono-cell">{{ entry.capability }}</td>
                   <td>
                     <StatusBadge
@@ -217,8 +277,31 @@ function formatTimestamp(ts: string): string {
                   </td>
                 </tr>
                 <tr v-if="expandedEntry === idx" class="detail-row">
-                  <td :colspan="9">
+                  <td :colspan="10">
                     <div class="entry-detail">
+                      <div class="detail-actions">
+                        <button
+                          class="fetch-btn detail-action-btn"
+                          type="button"
+                          @click.stop="saveEntryAsRuntimeObservation(entry)"
+                        >
+                          Use as Runtime Evidence
+                        </button>
+                        <button
+                          v-if="canOpenInEvaluation && entry.invocation_id"
+                          class="fetch-btn detail-action-btn detail-nav-btn"
+                          type="button"
+                          @click.stop="openEntryInEvaluation(entry)"
+                        >
+                          Open in Evaluation
+                        </button>
+                        <span
+                          v-if="importedObservationId === (entry.invocation_id || `audit:${entry.capability || 'unknown'}:${entry.sequence_number || idx + 1}`)"
+                          class="detail-action-success"
+                        >
+                          Added to Studio runtime observations
+                        </span>
+                      </div>
                       <div v-if="entry.upstream_service" class="audit-context-row">
                         <span class="context-label">Upstream Service:</span>
                         <span class="context-value">{{ entry.upstream_service }}</span>
@@ -527,6 +610,29 @@ function formatTimestamp(ts: string): string {
 
 .entry-detail {
   padding: 8px 12px 12px;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-action-btn {
+  height: 30px;
+  padding: 0 14px;
+}
+
+.detail-nav-btn {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+}
+
+.detail-action-success {
+  font-size: 12px;
+  color: var(--success);
 }
 
 /* Audit context rows */

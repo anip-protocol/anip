@@ -1,0 +1,452 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "gtm.account_enrichment_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.account_risk_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.at_risk_account_enrichment_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.at_risk_followup_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "content.summary",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.at_risk_reassignment_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "content.summary",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.bottleneck_account_outreach_draft": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.draft_outreach_message": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft"
+        ]
+      }
+    },
+    "gtm.lookalike_accounts": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.objection_response_variants": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      }
+    },
+    "gtm.pipeline_forecast_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.pipeline_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.prepare_followup_tasks": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.prepare_reassignment_plan": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.prioritize_accounts": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.recommendation",
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.prioritized_outreach_draft": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      }
+    },
+    "gtm.prioritized_routing_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "content.recommendation",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.product_pipeline_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.route_leads": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "content.recommendation",
+          "system.preview_mutation"
+        ]
+      }
+    },
+    "gtm.sales_team_performance_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.score_leads": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.recommendation",
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.stage_bottleneck_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.stalled_opportunity_review": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      }
+    },
+    "gtm.suggest_followup_content": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      }
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

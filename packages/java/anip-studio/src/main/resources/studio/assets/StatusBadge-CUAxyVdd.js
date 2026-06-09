@@ -1,0 +1,1 @@
+import{F as e,I as t,S as n,_ as r,p as i,t as a}from"./_plugin-vue_export-helper-BWMjdCUf.js";var o=a(r({__name:`StatusBadge`,props:{label:{},type:{}},setup(r){return(a,o)=>(n(),i(`span`,{class:e([`status-badge`,r.type])},t(r.label),3))}}),[[`__scopeId`,`data-v-3c865407`]]);export{o as t};

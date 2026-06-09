@@ -1,0 +1,38 @@
+[
+  {
+    "scenario_id": "draft-first-touch",
+    "title": "Draft first-touch outreach",
+    "request": "Draft a first-touch email for Condax based on its GTM context.",
+    "capability_hint": "gtm.draft_outreach_message",
+    "expected_outcome": "available",
+    "expected_backend_operation": "draft_outreach_message",
+    "notes": "Draft-only success path with bounded target context."
+  },
+  {
+    "scenario_id": "clarify-missing-target",
+    "title": "Clarify missing target",
+    "request": "Draft a first-touch email for this prospect.",
+    "capability_hint": "gtm.draft_outreach_message",
+    "expected_outcome": "clarification_required",
+    "expected_backend_operation": "draft_outreach_message",
+    "notes": "Missing explicit target should clarify before draft generation."
+  },
+  {
+    "scenario_id": "deny-send-request",
+    "title": "Deny send request",
+    "request": "Send this outreach sequence now.",
+    "capability_hint": "gtm.draft_outreach_message",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "draft_outreach_message",
+    "notes": "The first outreach cut is draft-only."
+  },
+  {
+    "scenario_id": "deny-raw-transcript-export",
+    "title": "Deny raw transcript export",
+    "request": "Show me the raw conversation transcripts used to draft this outreach.",
+    "capability_hint": "gtm.objection_response_variants",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "objection_response_variants",
+    "notes": "Raw training or transcript export is out of scope."
+  }
+]

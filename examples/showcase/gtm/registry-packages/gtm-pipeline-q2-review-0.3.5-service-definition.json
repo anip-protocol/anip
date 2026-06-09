@@ -1,0 +1,2888 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "generated_at": "2026-04-27T22:34:57.945Z",
+  "project": {
+    "id": "gtm-pipeline-q2-review",
+    "name": "GTM Pipeline Q2 Review",
+    "summary": "PM brief: Revenue operations needs a governed GTM agent system that can answer pipeline health, enrichment, prioritization, and outreach-support questions across four bounded ANIP services while preserving actor-aware visibility, explicit service handoffs, approval stops, and auditable behavior.",
+    "domain": "revenue_operations",
+    "labels": []
+  },
+  "identity": {
+    "system_name": "GTM Pipeline Q2 Review",
+    "domain_name": "revenue_operations",
+    "delivery_model": "multiple_coordinated_services",
+    "architecture_shape": "multi_service_estate",
+    "high_availability_required": false
+  },
+  "authority": {
+    "trust_mode": "signed",
+    "trust_checkpoints_required": true,
+    "spending_actions_present": true,
+    "irreversible_actions_present": false,
+    "cost_visibility_required": true,
+    "preflight_authority_discovery": true,
+    "grantable_restrictions": true,
+    "restricted_vs_denied": true,
+    "delegation_tokens": true,
+    "scoped_authority": true,
+    "purpose_binding": true,
+    "approval_expectation": "approval_required_for_high_risk",
+    "recovery_sensitive": true,
+    "blocked_failure_posture": "human_review_for_unresolved_or_approval_gated_work"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true,
+    "invocation_tracking": true,
+    "task_tracking": true,
+    "parent_invocation_tracking": true,
+    "client_reference_ids": true,
+    "service_handoffs_required": true,
+    "cross_service_reconstruction_required": true,
+    "cross_service_continuity_required": true
+  },
+  "generation": {
+    "protocols": [
+      "anip_http"
+    ],
+    "layout_strategy": "monorepo",
+    "selected_service_ids": [
+      "gtm-pipeline-service",
+      "gtm-enrichment-service",
+      "gtm-prioritization-service",
+      "gtm-outreach-service"
+    ]
+  },
+  "naming": {
+    "namespace": "revenue_operations",
+    "package_prefix": "gtm_pipeline_q2_review",
+    "service_name_prefix": "gtm_pipeline_q2_review"
+  },
+  "backend_bindings": {
+    "data_access_backend_type": "internal_metrics_api",
+    "data_access_target_label": "Postgres Raw Tables, Dbt Modeled Pipeline Views, Cube Semantic Queries, Rest Prioritization Backend, Mcp Outreach Backend",
+    "application_integration_backend_type": "rest_api",
+    "application_integration_system_name": "mixed_anip_service_estate",
+    "application_integration_environment": "production",
+    "application_integration_auth_type": "none",
+    "application_integration_adapter_target": "examples/showcase/gtm/docker-compose.yml"
+  },
+  "application_integration_governance": {
+    "safe_defaults": {
+      "default_result_limit": 25,
+      "require_approval_for_writes": false,
+      "require_clarification_on_ambiguous_record": false,
+      "dry_run_before_write": false
+    },
+    "permission_rules": [],
+    "clarification_rules": [],
+    "restriction_rules": [],
+    "denial_rules": [],
+    "approval_rules": []
+  },
+  "data_access_governance": {
+    "governed_outcomes": [],
+    "metric_rules": [],
+    "dimension_rules": [],
+    "limit_rules": [],
+    "use_rules": [],
+    "clarification_rules": []
+  },
+  "data_domain": {
+    "domain_name": "revenue_operations",
+    "metrics": [],
+    "dimensions": [],
+    "filters": [],
+    "grains": [],
+    "result_modes": []
+  },
+  "domain_concept_bindings": [
+    {
+      "id": "domain_concept_pipeline-review",
+      "concept_id": "pipeline-review",
+      "concept_name": "Pipeline Review",
+      "concept_detail": "A bounded summary of pipeline health for a quarter and scope.",
+      "technical_representation": "Represent Pipeline Review as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_account-risk",
+      "concept_id": "account-risk",
+      "concept_name": "Account Risk",
+      "concept_detail": "An explainable ranking of open accounts that need attention.",
+      "technical_representation": "Represent Account Risk as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_followup-plan",
+      "concept_id": "followup-plan",
+      "concept_name": "Follow-up Plan",
+      "concept_detail": "A prepared set of recommended tasks that still requires approval before downstream execution.",
+      "technical_representation": "Represent Follow-up Plan as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_reassignment-plan",
+      "concept_id": "reassignment-plan",
+      "concept_name": "Reassignment Plan",
+      "concept_detail": "A prepared set of reassignment recommendations that still requires approval before downstream execution.",
+      "technical_representation": "Represent Reassignment Plan as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_account-enrichment",
+      "concept_id": "account-enrichment",
+      "concept_name": "Account Enrichment",
+      "concept_detail": "Bounded firmographic and account context for approved accounts.",
+      "technical_representation": "Represent Account Enrichment as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_lookalike-account",
+      "concept_id": "lookalike-account",
+      "concept_name": "Lookalike Account",
+      "concept_detail": "An account similar to an approved reference account with explainable similarity signals.",
+      "technical_representation": "Represent Lookalike Account as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_lead-score",
+      "concept_id": "lead-score",
+      "concept_name": "Lead Score",
+      "concept_detail": "A bounded score band and reason-code summary for a lead or account.",
+      "technical_representation": "Represent Lead Score as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_account-priority",
+      "concept_id": "account-priority",
+      "concept_name": "Account Priority",
+      "concept_detail": "An explainable ordering of accounts for GTM action.",
+      "technical_representation": "Represent Account Priority as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_routing-plan",
+      "concept_id": "routing-plan",
+      "concept_name": "Routing Plan",
+      "concept_detail": "A prepared routing recommendation that requires approval before mutation.",
+      "technical_representation": "Represent Routing Plan as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_outreach-draft",
+      "concept_id": "outreach-draft",
+      "concept_name": "Outreach Draft",
+      "concept_detail": "Draft-only outreach content generated from approved context.",
+      "technical_representation": "Represent Outreach Draft as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_followup-content",
+      "concept_id": "followup-content",
+      "concept_name": "Follow-up Content",
+      "concept_detail": "Suggested follow-up messaging content that remains review-only.",
+      "technical_representation": "Represent Follow-up Content as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    },
+    {
+      "id": "domain_concept_objection-response",
+      "concept_id": "objection-response",
+      "concept_name": "Objection Response",
+      "concept_detail": "Bounded response variants using approved claims and account context.",
+      "technical_representation": "Represent Objection Response as an explicit domain concept in the generated contract and bind it to the owning service where the service design declares ownership."
+    }
+  ],
+  "application_object_model": [],
+  "service_topology_bindings": [
+    {
+      "id": "service_topology_gtm-pipeline-service",
+      "service_id": "gtm-pipeline-service",
+      "service_name": "GTM Pipeline Service",
+      "source_role": "answers bounded pipeline review questions and prepares follow-up and reassignment previews",
+      "source_capabilities": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.prepare_reassignment_plan",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks"
+      ],
+      "source_concepts": [
+        "pipeline-review",
+        "account-risk",
+        "followup-plan",
+        "reassignment-plan"
+      ],
+      "formalized_capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.prepare_reassignment_plan",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks"
+      ],
+      "owned_concept_ids": [
+        "pipeline-review",
+        "account-risk",
+        "followup-plan",
+        "reassignment-plan"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "id": "service_topology_gtm-enrichment-service",
+      "service_id": "gtm-enrichment-service",
+      "service_name": "GTM Enrichment Service",
+      "source_role": "answers bounded account enrichment and lookalike questions over approved account scope",
+      "source_capabilities": [
+        "gtm.account_enrichment_summary",
+        "gtm.lookalike_accounts"
+      ],
+      "source_concepts": [
+        "account-enrichment",
+        "lookalike-account"
+      ],
+      "formalized_capability_ids": [
+        "gtm.account_enrichment_summary",
+        "gtm.lookalike_accounts"
+      ],
+      "owned_concept_ids": [
+        "account-enrichment",
+        "lookalike-account"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "id": "service_topology_gtm-prioritization-service",
+      "service_id": "gtm-prioritization-service",
+      "service_name": "GTM Prioritization Service",
+      "source_role": "scores and prioritizes bounded GTM work with explainable routing recommendations",
+      "source_capabilities": [
+        "gtm.score_leads",
+        "gtm.prioritize_accounts",
+        "gtm.route_leads"
+      ],
+      "source_concepts": [
+        "lead-score",
+        "account-priority",
+        "routing-plan"
+      ],
+      "formalized_capability_ids": [
+        "gtm.score_leads",
+        "gtm.prioritize_accounts",
+        "gtm.route_leads"
+      ],
+      "owned_concept_ids": [
+        "lead-score",
+        "account-priority",
+        "routing-plan"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "id": "service_topology_gtm-outreach-service",
+      "service_id": "gtm-outreach-service",
+      "service_name": "GTM Outreach Service",
+      "source_role": "provides bounded draft-only outreach support through an MCP-fronted backend",
+      "source_capabilities": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants"
+      ],
+      "source_concepts": [
+        "outreach-draft",
+        "followup-content",
+        "objection-response"
+      ],
+      "formalized_capability_ids": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants"
+      ],
+      "owned_concept_ids": [
+        "outreach-draft",
+        "followup-content",
+        "objection-response"
+      ],
+      "implementation_notes": ""
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "application_integration:gtm.pipeline_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.pipeline_summary",
+      "title": "Gtm.Pipeline Summary",
+      "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.pipeline_summary",
+      "path_template": "/gtm/pipeline-summary",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.pipeline_forecast_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "title": "Gtm.Pipeline Forecast Summary",
+      "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.pipeline_forecast_summary",
+      "path_template": "/gtm/pipeline-forecast-summary",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.stage_bottleneck_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "title": "Gtm.Stage Bottleneck Summary",
+      "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.stage_bottleneck_summary",
+      "path_template": "/gtm/stage-bottleneck-summary",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.sales_team_performance_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.sales_team_performance_summary",
+      "title": "Gtm.Sales Team Performance Summary",
+      "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.sales_team_performance_summary",
+      "path_template": "/gtm/sales-team-performance-summary",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.product_pipeline_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.product_pipeline_summary",
+      "title": "Gtm.Product Pipeline Summary",
+      "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.product_pipeline_summary",
+      "path_template": "/gtm/product-pipeline-summary",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.prepare_reassignment_plan",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.prepare_reassignment_plan",
+      "title": "Gtm.Prepare Reassignment Plan",
+      "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "minimum_scope": [
+        "gtm.pipeline.reassign"
+      ],
+      "backend_operation": "gtm.prepare_reassignment_plan",
+      "path_template": "/gtm/prepare-reassignment-plan",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.stalled_opportunity_review",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.stalled_opportunity_review",
+      "title": "Gtm.Stalled Opportunity Review",
+      "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.stalled_opportunity_review",
+      "path_template": "/gtm/stalled-opportunity-review",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.account_risk_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.account_risk_summary",
+      "title": "Gtm.Account Risk Summary",
+      "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.pipeline.read"
+      ],
+      "backend_operation": "gtm.account_risk_summary",
+      "path_template": "/gtm/account-risk-summary",
+      "output_shape": "governed_result",
+      "inputs": [
+        {
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "summary": "Risk ranking basis.",
+          "default_value": "risk_score",
+          "allowed_values": [
+            "risk_score"
+          ],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional region or company-wide scope.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [
+            "region",
+            "regional office",
+            "territory"
+          ],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum number of accounts to include.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        }
+      ]
+    },
+    {
+      "id": "application_integration:gtm.prepare_followup_tasks",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.prepare_followup_tasks",
+      "title": "Gtm.Prepare Followup Tasks",
+      "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "minimum_scope": [
+        "gtm.pipeline.followup"
+      ],
+      "backend_operation": "gtm.prepare_followup_tasks",
+      "path_template": "/gtm/prepare-followup-tasks",
+      "output_shape": "governed_result",
+      "inputs": [
+        {
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "summary": "Risk ranking basis.",
+          "default_value": "risk_score",
+          "allowed_values": [
+            "risk_score"
+          ],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional region or company-wide scope.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [
+            "region",
+            "regional office",
+            "territory"
+          ],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum number of follow-up task previews to include.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        }
+      ]
+    },
+    {
+      "id": "application_integration:gtm.account_enrichment_summary",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-enrichment-service",
+      "capability_id": "gtm.account_enrichment_summary",
+      "title": "Gtm.Account Enrichment Summary",
+      "summary": "Return bounded firmographic and account context for selected accounts.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.enrichment.read"
+      ],
+      "backend_operation": "gtm.account_enrichment_summary",
+      "path_template": "/gtm/account-enrichment-summary",
+      "output_shape": "governed_result",
+      "inputs": [
+        {
+          "input_name": "account_names",
+          "input_type": "string",
+          "required": true,
+          "summary": "Comma-separated account names to enrich.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [
+            "accounts",
+            "account scope",
+            "selected accounts"
+          ],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum number of accounts to summarize.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        }
+      ]
+    },
+    {
+      "id": "application_integration:gtm.lookalike_accounts",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-enrichment-service",
+      "capability_id": "gtm.lookalike_accounts",
+      "title": "Gtm.Lookalike Accounts",
+      "summary": "Return explainable lookalike accounts for an approved reference account or cohort.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.enrichment.read"
+      ],
+      "backend_operation": "gtm.lookalike_accounts",
+      "path_template": "/gtm/lookalike-accounts",
+      "output_shape": "governed_result",
+      "inputs": [
+        {
+          "input_name": "reference_account",
+          "input_type": "string",
+          "required": true,
+          "summary": "Reference account name for lookalike matching.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [
+            "similar to",
+            "look like",
+            "reference"
+          ],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum number of lookalike accounts to return.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        }
+      ]
+    },
+    {
+      "id": "application_integration:gtm.score_leads",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-prioritization-service",
+      "capability_id": "gtm.score_leads",
+      "title": "Gtm.Score Leads",
+      "summary": "Score bounded leads or accounts with explainable reasons.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.prioritization.read"
+      ],
+      "backend_operation": "gtm.score_leads",
+      "path_template": "/gtm/score-leads",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.prioritize_accounts",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-prioritization-service",
+      "capability_id": "gtm.prioritize_accounts",
+      "title": "Gtm.Prioritize Accounts",
+      "summary": "Prioritize bounded accounts for GTM action with explainable ranking.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.prioritization.read"
+      ],
+      "backend_operation": "gtm.prioritize_accounts",
+      "path_template": "/gtm/prioritize-accounts",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.route_leads",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "application_integration",
+      "service_id": "gtm-prioritization-service",
+      "capability_id": "gtm.route_leads",
+      "title": "Gtm.Route Leads",
+      "summary": "Prepare bounded routing recommendations without executing downstream assignment mutations.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "minimum_scope": [
+        "gtm.prioritization.route"
+      ],
+      "backend_operation": "gtm.route_leads",
+      "path_template": "/gtm/route-leads",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.draft_outreach_message",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-outreach-service",
+      "capability_id": "gtm.draft_outreach_message",
+      "title": "Gtm.Draft Outreach Message",
+      "summary": "Draft bounded outreach content for approved account or contact context.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.outreach.draft"
+      ],
+      "backend_operation": "gtm.draft_outreach_message",
+      "path_template": "/gtm/draft-outreach-message",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.suggest_followup_content",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-outreach-service",
+      "capability_id": "gtm.suggest_followup_content",
+      "title": "Gtm.Suggest Followup Content",
+      "summary": "Suggest bounded follow-up content for an approved outreach or account context.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.outreach.draft"
+      ],
+      "backend_operation": "gtm.suggest_followup_content",
+      "path_template": "/gtm/suggest-followup-content",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.objection_response_variants",
+      "kind": "atomic",
+      "composition": null,
+      "grant_policy": null,
+      "source_kind": "application_integration",
+      "service_id": "gtm-outreach-service",
+      "capability_id": "gtm.objection_response_variants",
+      "title": "Gtm.Objection Response Variants",
+      "summary": "Generate bounded objection-response variants for a known account or outreach scenario.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "minimum_scope": [
+        "gtm.outreach.draft"
+      ],
+      "backend_operation": "gtm.objection_response_variants",
+      "path_template": "/gtm/objection-response-variants",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "composition:scenario:scn-gtm-pipeline-q2-review",
+      "kind": "composed",
+      "composition": {
+        "authority_boundary": "same_service",
+        "steps": [
+          {
+            "id": "account_risk_summary",
+            "capability": "gtm.account_risk_summary",
+            "empty_result_source": true
+          },
+          {
+            "id": "prepare_followup_tasks",
+            "capability": "gtm.prepare_followup_tasks",
+            "empty_result_source": false
+          }
+        ],
+        "input_mapping": {
+          "account_risk_summary": {},
+          "prepare_followup_tasks": {
+            "context": "$.steps.account_risk_summary.output.result"
+          }
+        },
+        "output_mapping": {
+          "result": "$.steps.prepare_followup_tasks.output.result"
+        },
+        "empty_result_policy": "return_success_no_results",
+        "empty_result_output": {
+          "result": null,
+          "empty": true
+        },
+        "failure_policy": {
+          "child_clarification": "propagate",
+          "child_denial": "propagate",
+          "child_approval_required": "propagate",
+          "child_error": "fail_parent"
+        },
+        "audit_policy": {
+          "record_child_invocations": true,
+          "parent_task_lineage": true
+        }
+      },
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.at_risk_followup_preparation",
+      "title": "Gtm.At Risk Followup Preparation",
+      "summary": "Compose gtm.account_risk_summary -> gtm.prepare_followup_tasks for Hero path: at-risk Q2 deals to approval stop.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "governed_result",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "minimum_scope": [
+        "gtm.pipeline.read",
+        "gtm.pipeline.followup"
+      ],
+      "backend_operation": "gtm.at_risk_followup_preparation",
+      "path_template": "/gtm/at-risk-followup-preparation",
+      "output_shape": "gtm_at_risk_followup_preparation_result",
+      "inputs": [
+        {
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "summary": "Risk ranking basis.",
+          "default_value": "risk_score",
+          "allowed_values": [
+            "risk_score"
+          ],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional region or company-wide scope.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [
+            "region",
+            "regional office",
+            "territory"
+          ],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum number of accounts to include.",
+          "default_value": "",
+          "allowed_values": [],
+          "entity_reference": false,
+          "semantic_aliases": [],
+          "normalization_hint": "",
+          "normalization_context": "",
+          "allowed_value_semantics": []
+        }
+      ]
+    }
+  ],
+  "actor_expectations": [
+    {
+      "id": "actor_gtm_operator",
+      "actor_id": "gtm_operator",
+      "actor_title": "GTM Operator",
+      "summary_formalization": "Asks pipeline health, account risk, and follow-up preparation questions.",
+      "visibility_formalization": "Can see bounded pipeline summaries and evidence for authorized pipeline scope.",
+      "action_formalization": "Can request preparation of follow-up or reassignment previews.",
+      "approval_formalization": "Must obtain approval before any downstream mutation is executed."
+    },
+    {
+      "id": "actor_sales_manager",
+      "actor_id": "sales_manager",
+      "actor_title": "Sales Manager",
+      "summary_formalization": "Reviews overloaded ownership, reassignment suggestions, and follow-up plans.",
+      "visibility_formalization": "Can review bounded team and opportunity evidence relevant to their pipeline scope.",
+      "action_formalization": "Can review and approve or reject prepared operational plans.",
+      "approval_formalization": "Acts as approval authority for high-impact follow-up and reassignment execution."
+    }
+  ],
+  "permission_intent_bindings": [
+    {
+      "id": "permission_rule_0",
+      "actor_id": "gtm_operator",
+      "business_area": "pipeline_review",
+      "business_area_label": "Pipeline Review",
+      "access_posture": "bounded",
+      "governed_outcome_type": "bounded_result",
+      "governed_outcome": "Return scoped summaries with evidence and no raw row-level export.",
+      "target_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "formalization_strategy": "gtm_operator bounded access to Pipeline Review should return bounded_result. Return scoped summaries with evidence and no raw row-level export. Quarter and ranking basis must be explicit or clarified."
+    },
+    {
+      "id": "permission_rule_1",
+      "actor_id": "gtm_operator",
+      "business_area": "operational_preparation",
+      "business_area_label": "Operational Preparation",
+      "access_posture": "approval_required",
+      "governed_outcome_type": "approval_stop",
+      "governed_outcome": "Prepare a preview and stop before any downstream mutation.",
+      "target_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "formalization_strategy": "gtm_operator approval_required access to Operational Preparation should return approval_stop. Prepare a preview and stop before any downstream mutation. Covers follow-up tasks and reassignment planning."
+    },
+    {
+      "id": "permission_rule_2",
+      "actor_id": "sales_manager",
+      "business_area": "operational_preparation",
+      "business_area_label": "Operational Preparation",
+      "access_posture": "bounded",
+      "governed_outcome_type": "direct_result",
+      "governed_outcome": "Review prepared plans and approve or reject execution outside the draft step.",
+      "target_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "formalization_strategy": "sales_manager bounded access to Operational Preparation should return direct_result. Review prepared plans and approve or reject execution outside the draft step. Approval authority should be auditable."
+    }
+  ],
+  "scenario_formalizations": [
+    {
+      "scenario_id": "scn-gtm-pipeline-q2-review",
+      "scenario_title": "Hero path: at-risk Q2 deals to approval stop",
+      "scenario_key": "at_risk_q2_deals_followup_preparation",
+      "primary_capability": "",
+      "actor_context": "",
+      "business_scope": "",
+      "time_scope": "",
+      "side_effect_formalization": "",
+      "expected_cost_formalization": "",
+      "budget_guard_formalization": "",
+      "permission_formalization": "",
+      "task_tracking_formalization": "",
+      "participating_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "orchestration_steps": [
+        {
+          "id": "step_1_gtm_account_risk_summary",
+          "service_id": "gtm-pipeline-service",
+          "step_kind": "capability_execution",
+          "capability_id": "gtm.account_risk_summary",
+          "outcome_type": "intermediate_result",
+          "outcome_notes": "Rank at-risk accounts with explicit evidence for why they need attention.",
+          "stop_condition": "continue"
+        },
+        {
+          "id": "step_2_gtm_prepare_followup_tasks",
+          "service_id": "gtm-pipeline-service",
+          "step_kind": "capability_execution",
+          "capability_id": "gtm.prepare_followup_tasks",
+          "outcome_type": "completed",
+          "outcome_notes": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+          "stop_condition": "continue"
+        }
+      ],
+      "required_behaviors": [
+        "quarter_and_ranking_basis_are_not_guessed_when_missing",
+        "risk_evidence_is_bounded_and_explainable",
+        "row_level_exports_are_denied",
+        "followup_plan_stops_at_approval_required"
+      ],
+      "required_anip_support": [
+        "signed_manifest_and_discovery",
+        "purpose_bound_tokens",
+        "bounded_capability_contracts",
+        "service_metadata_validation",
+        "runtime_evidence_and_drift_analysis"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "scenario_id": "scn-gtm-pipeline-clarification",
+      "scenario_title": "Clarification path: missing quarter or ranking basis",
+      "scenario_key": "clarification_for_missing_pipeline_scope",
+      "primary_capability": "",
+      "actor_context": "",
+      "business_scope": "",
+      "time_scope": "",
+      "side_effect_formalization": "",
+      "expected_cost_formalization": "",
+      "budget_guard_formalization": "",
+      "permission_formalization": "",
+      "task_tracking_formalization": "",
+      "participating_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "orchestration_steps": [],
+      "required_behaviors": [
+        "clarification_required_for_missing_quarter",
+        "clarification_required_for_missing_ranking_basis",
+        "no_implicit_scope_guessing"
+      ],
+      "required_anip_support": [
+        "clarification_required_outcome",
+        "missing_input_visibility",
+        "bounded_capability_contracts"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "scenario_id": "scn-gtm-pipeline-stalled-opportunities",
+      "scenario_title": "Clear read: stalled opportunities over 30 days",
+      "scenario_key": "stalled_opportunity_review_over_30_days",
+      "primary_capability": "",
+      "actor_context": "",
+      "business_scope": "",
+      "time_scope": "",
+      "side_effect_formalization": "",
+      "expected_cost_formalization": "",
+      "budget_guard_formalization": "",
+      "permission_formalization": "",
+      "task_tracking_formalization": "",
+      "participating_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "orchestration_steps": [
+        {
+          "id": "step_1_gtm_stalled_opportunity_review",
+          "service_id": "gtm-pipeline-service",
+          "step_kind": "capability_execution",
+          "capability_id": "gtm.stalled_opportunity_review",
+          "outcome_type": "completed",
+          "outcome_notes": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+          "stop_condition": "continue"
+        }
+      ],
+      "required_behaviors": [
+        "available_for_bounded_stalled_opportunity_review",
+        "bounded_evidence_for_stall_reasoning"
+      ],
+      "required_anip_support": [
+        "bounded_capability_contracts",
+        "auditable_read_path",
+        "service_metadata_validation"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "scenario_id": "scn-gtm-pipeline-raw-export-denial",
+      "scenario_title": "Phase 1 denial: raw row-level export request",
+      "scenario_key": "phase_1_raw_row_level_export_denial",
+      "primary_capability": "",
+      "actor_context": "",
+      "business_scope": "",
+      "time_scope": "",
+      "side_effect_formalization": "",
+      "expected_cost_formalization": "",
+      "budget_guard_formalization": "",
+      "permission_formalization": "",
+      "task_tracking_formalization": "",
+      "participating_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "orchestration_steps": [],
+      "required_behaviors": [
+        "denied_for_raw_row_level_export",
+        "no_silent_restriction_without_policy"
+      ],
+      "required_anip_support": [
+        "denied_outcome_visibility",
+        "policy_reason_visibility",
+        "auditable_denial_path"
+      ],
+      "implementation_notes": ""
+    },
+    {
+      "scenario_id": "scn-gtm-pipeline-out-of-scope",
+      "scenario_title": "Out-of-scope denial: outreach drafting request",
+      "scenario_key": "phase_1_out_of_scope_outreach_drafting",
+      "primary_capability": "",
+      "actor_context": "",
+      "business_scope": "",
+      "time_scope": "",
+      "side_effect_formalization": "",
+      "expected_cost_formalization": "",
+      "budget_guard_formalization": "",
+      "permission_formalization": "",
+      "task_tracking_formalization": "",
+      "participating_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ],
+      "orchestration_steps": [],
+      "required_behaviors": [
+        "denied_for_phase_1_out_of_scope_request",
+        "no_improvised_cross_capability_behavior"
+      ],
+      "required_anip_support": [
+        "denied_outcome_visibility",
+        "bounded_capability_contracts",
+        "service_metadata_validation"
+      ],
+      "implementation_notes": ""
+    }
+  ],
+  "composition_rules": [
+    {
+      "id": "composition_rule_0",
+      "rule": "Compose pipeline review, enrichment, prioritization, and outreach only through explicit service boundaries.",
+      "affected_scenario_ids": [
+        "scn-gtm-pipeline-q2-review",
+        "scn-gtm-pipeline-clarification",
+        "scn-gtm-pipeline-stalled-opportunities",
+        "scn-gtm-pipeline-raw-export-denial",
+        "scn-gtm-pipeline-out-of-scope"
+      ],
+      "formalization_strategy": "Preserve this product-wide composition rule by keeping each participating service boundary, intermediate result, and stop condition explicit in scenario orchestration: Compose pipeline review, enrichment, prioritization, and outreach only through explicit service boundaries."
+    },
+    {
+      "id": "composition_rule_1",
+      "rule": "Carry actor, task, and scope lineage across service handoffs.",
+      "affected_scenario_ids": [
+        "scn-gtm-pipeline-q2-review",
+        "scn-gtm-pipeline-clarification",
+        "scn-gtm-pipeline-stalled-opportunities",
+        "scn-gtm-pipeline-raw-export-denial",
+        "scn-gtm-pipeline-out-of-scope"
+      ],
+      "formalization_strategy": "Preserve this product-wide composition rule by keeping each participating service boundary, intermediate result, and stop condition explicit in scenario orchestration: Carry actor, task, and scope lineage across service handoffs."
+    },
+    {
+      "id": "composition_rule_2",
+      "rule": "Do not turn a preview into an execution step without a recorded approval decision.",
+      "affected_scenario_ids": [
+        "scn-gtm-pipeline-q2-review",
+        "scn-gtm-pipeline-clarification",
+        "scn-gtm-pipeline-stalled-opportunities",
+        "scn-gtm-pipeline-raw-export-denial",
+        "scn-gtm-pipeline-out-of-scope"
+      ],
+      "formalization_strategy": "Preserve this product-wide composition rule by keeping each participating service boundary, intermediate result, and stop condition explicit in scenario orchestration: Do not turn a preview into an execution step without a recorded approval decision."
+    }
+  ],
+  "verification": {
+    "supported_question_family_bindings": [
+      {
+        "id": "supported_question_family_0",
+        "question_family": "Pipeline health and forecast summaries",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Pipeline health and forecast summaries\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Pipeline health and forecast summaries\"."
+      },
+      {
+        "id": "supported_question_family_1",
+        "question_family": "Stage bottleneck and sales team performance summaries",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Stage bottleneck and sales team performance summaries\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Stage bottleneck and sales team performance summaries\"."
+      },
+      {
+        "id": "supported_question_family_2",
+        "question_family": "At-risk account and stalled opportunity review",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"At-risk account and stalled opportunity review\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"At-risk account and stalled opportunity review\"."
+      },
+      {
+        "id": "supported_question_family_3",
+        "question_family": "Account enrichment and lookalike analysis",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Account enrichment and lookalike analysis\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Account enrichment and lookalike analysis\"."
+      },
+      {
+        "id": "supported_question_family_4",
+        "question_family": "Lead and account prioritization",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Lead and account prioritization\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Lead and account prioritization\"."
+      },
+      {
+        "id": "supported_question_family_5",
+        "question_family": "Outreach drafting and objection-response support",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Outreach drafting and objection-response support\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Outreach drafting and objection-response support\"."
+      },
+      {
+        "id": "supported_question_family_6",
+        "question_family": "Approval-gated follow-up and reassignment preparation",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify \"Approval-gated follow-up and reassignment preparation\" through generated service scenarios, runtime evidence, and observed service metadata for the selected service boundary.",
+        "evidence_signal": "Passing regression evidence and service metadata alignment for \"Approval-gated follow-up and reassignment preparation\"."
+      }
+    ],
+    "business_goal_bindings": [
+      {
+        "id": "business_goal_0",
+        "business_goal": "Answer bounded pipeline health and forecast questions with evidence.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Answer bounded pipeline health and forecast questions with evidence.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Answer bounded pipeline health and forecast questions with evidence."
+      },
+      {
+        "id": "business_goal_1",
+        "business_goal": "Enrich selected accounts and identify lookalikes with bounded context.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Enrich selected accounts and identify lookalikes with bounded context.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Enrich selected accounts and identify lookalikes with bounded context."
+      },
+      {
+        "id": "business_goal_2",
+        "business_goal": "Prioritize accounts and leads through explainable scoring and routing recommendations.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Prioritize accounts and leads through explainable scoring and routing recommendations.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Prioritize accounts and leads through explainable scoring and routing recommendations."
+      },
+      {
+        "id": "business_goal_3",
+        "business_goal": "Draft outreach support while keeping content generation bounded and reviewable.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Draft outreach support while keeping content generation bounded and reviewable.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Draft outreach support while keeping content generation bounded and reviewable."
+      },
+      {
+        "id": "business_goal_4",
+        "business_goal": "Identify at-risk accounts and stalled opportunities with explainable reasons.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Identify at-risk accounts and stalled opportunities with explainable reasons.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Identify at-risk accounts and stalled opportunities with explainable reasons."
+      },
+      {
+        "id": "business_goal_5",
+        "business_goal": "Prepare follow-up and reassignment plans while stopping before mutation until approval is granted.",
+        "target_service_ids": [
+          "gtm-pipeline-service",
+          "gtm-enrichment-service",
+          "gtm-prioritization-service",
+          "gtm-outreach-service"
+        ],
+        "verification_strategy": "Verify that the selected services preserve the business goal: Prepare follow-up and reassignment plans while stopping before mutation until approval is granted.",
+        "evidence_signal": "Scenario and runtime evidence demonstrate: Prepare follow-up and reassignment plans while stopping before mutation until approval is granted."
+      }
+    ],
+    "non_goal_guards": [
+      {
+        "id": "non_goal_0",
+        "non_goal": "Do not expose broad raw row-level CRM exports.",
+        "guard_strategy": "Preserve this non-goal as an explicit denial, restriction, clarification, or safe-stop rule where requests would otherwise cross the declared boundary.",
+        "evidence_signal": "The first release is a bounded summary and preparation workflow, not a data extraction tool."
+      },
+      {
+        "id": "non_goal_1",
+        "non_goal": "Do not execute follow-up tasks or reassignment changes without explicit approval.",
+        "guard_strategy": "Preserve this non-goal as an explicit denial, restriction, clarification, or safe-stop rule where requests would otherwise cross the declared boundary.",
+        "evidence_signal": "Write-adjacent GTM actions must remain preview-and-approve in the governed contract."
+      },
+      {
+        "id": "non_goal_2",
+        "non_goal": "Do not guess missing quarter, pipeline scope, or ranking basis.",
+        "guard_strategy": "Preserve this non-goal as an explicit denial, restriction, clarification, or safe-stop rule where requests would otherwise cross the declared boundary.",
+        "evidence_signal": "Ambiguous operational requests should clarify instead of silently choosing defaults."
+      }
+    ],
+    "success_criteria_checks": [
+      {
+        "id": "success_criteria_0",
+        "success_criterion": "Bounded pipeline and account-risk questions return useful answers with evidence.",
+        "evidence_expectation": "Regression questions for pipeline summary, forecast, bottlenecks, performance, products, and risk pass.",
+        "review_method": "Run the Studio verification harness and inspect answer evidence.",
+        "verification_strategy": "Run the Studio verification harness and inspect answer evidence."
+      },
+      {
+        "id": "success_criteria_1",
+        "success_criterion": "Ambiguous requests ask targeted clarifying questions instead of guessing.",
+        "evidence_expectation": "Missing quarter and missing ranking-basis scenarios return clarification outcomes.",
+        "review_method": "Run clarification-path regression scenarios.",
+        "verification_strategy": "Run clarification-path regression scenarios."
+      },
+      {
+        "id": "success_criteria_2",
+        "success_criterion": "Unsafe exports are denied and write-adjacent work stops for approval.",
+        "evidence_expectation": "Raw export requests deny; follow-up and reassignment flows produce approval-stop previews.",
+        "review_method": "Run denial and approval-gated regression scenarios.",
+        "verification_strategy": "Run denial and approval-gated regression scenarios."
+      }
+    ],
+    "data_access_scenario_pack": {
+      "categories": [
+        "allowed",
+        "restricted",
+        "clarification_required"
+      ],
+      "target_count": 4
+    }
+  },
+  "integration_fronting": {
+    "project_type": "standard",
+    "integration_profile": {
+      "kind": "none",
+      "systems": []
+    },
+    "capability_mappings": []
+  },
+  "rationale": "",
+  "source": {
+    "product_design_baseline": {
+      "locked_at": "2026-04-27T00:00:00Z",
+      "product_revision_artifact_id": "req-gtm-revenue-operations-business-spec",
+      "product_revision_number": 2,
+      "product_design_hash": "cd32931ce3217c9fd84e7a9ceed976e11a43012e6a8370f043d50b2fdcfe76e0",
+      "requirements": {
+        "id": "req-gtm-pipeline-q2-review",
+        "title": "GTM pipeline review requirements",
+        "content_hash": "887a237099c09d104901f48c517f19ec4fec4f36100e34d9430f6aa5904dd13a"
+      },
+      "scenario_pack": [
+        {
+          "id": "scn-gtm-pipeline-q2-review",
+          "title": "Hero path: at-risk Q2 deals to approval stop",
+          "scenario_key": "at_risk_q2_deals_followup_preparation",
+          "content_hash": "a6fab86f4f714839807b8fae06647c136b5e3fb4be10b6daa816c35af790bbdc"
+        },
+        {
+          "id": "scn-gtm-pipeline-clarification",
+          "title": "Clarification path: missing quarter or ranking basis",
+          "scenario_key": "clarification_for_missing_pipeline_scope",
+          "content_hash": "3117fe287ccf57ae0548ac23eeef18dd2b440de59b00d4cfbfc89c2fa5398d3a"
+        },
+        {
+          "id": "scn-gtm-pipeline-stalled-opportunities",
+          "title": "Clear read: stalled opportunities over 30 days",
+          "scenario_key": "stalled_opportunity_review_over_30_days",
+          "content_hash": "a70b4e0d965aaa5ed2199b06765dd53ea5a511ff332377591507822e495a1a50"
+        },
+        {
+          "id": "scn-gtm-pipeline-raw-export-denial",
+          "title": "Phase 1 denial: raw row-level export request",
+          "scenario_key": "phase_1_raw_row_level_export_denial",
+          "content_hash": "28cc9b935a2bf31f2813e4578be7108891a34aa0aeb4135fffe17a42f21708ab"
+        },
+        {
+          "id": "scn-gtm-pipeline-out-of-scope",
+          "title": "Out-of-scope denial: outreach drafting request",
+          "scenario_key": "phase_1_out_of_scope_outreach_drafting",
+          "content_hash": "34e706173ba1948be52bf21c4606e646870f249887da7e7c5399999f46bb96d5"
+        }
+      ],
+      "service_design": {
+        "id": "shape-gtm-pipeline-q2-review",
+        "title": "GTM revenue operations service estate design",
+        "hash": "f25facb91a410a7ad09cf77502df922bc725201c3fbc93c0beee4baa8d20f524",
+        "services": [
+          {
+            "id": "gtm-pipeline-service",
+            "name": "GTM Pipeline Service",
+            "role": "answers bounded pipeline review questions and prepares follow-up and reassignment previews",
+            "capabilities": [
+              "gtm.pipeline_summary",
+              "gtm.pipeline_forecast_summary",
+              "gtm.stage_bottleneck_summary",
+              "gtm.sales_team_performance_summary",
+              "gtm.product_pipeline_summary",
+              "gtm.prepare_reassignment_plan",
+              "gtm.stalled_opportunity_review",
+              "gtm.account_risk_summary",
+              "gtm.prepare_followup_tasks"
+            ]
+          },
+          {
+            "id": "gtm-enrichment-service",
+            "name": "GTM Enrichment Service",
+            "role": "answers bounded account enrichment and lookalike questions over approved account scope",
+            "capabilities": [
+              "gtm.account_enrichment_summary",
+              "gtm.lookalike_accounts"
+            ]
+          },
+          {
+            "id": "gtm-prioritization-service",
+            "name": "GTM Prioritization Service",
+            "role": "scores and prioritizes bounded GTM work with explainable routing recommendations",
+            "capabilities": [
+              "gtm.score_leads",
+              "gtm.prioritize_accounts",
+              "gtm.route_leads"
+            ]
+          },
+          {
+            "id": "gtm-outreach-service",
+            "name": "GTM Outreach Service",
+            "role": "provides bounded draft-only outreach support through an MCP-fronted backend",
+            "capabilities": [
+              "gtm.draft_outreach_message",
+              "gtm.suggest_followup_content",
+              "gtm.objection_response_variants"
+            ]
+          }
+        ],
+        "coordination": [
+          {
+            "from": "gtm-pipeline-service",
+            "to": "gtm-enrichment-service",
+            "relationship": "account_scope_handoff",
+            "description": "Pipeline risk outputs may pass bounded account identifiers into enrichment while preserving actor and task lineage."
+          },
+          {
+            "from": "gtm-enrichment-service",
+            "to": "gtm-prioritization-service",
+            "relationship": "enriched_context_handoff",
+            "description": "Approved enrichment summaries may inform prioritization without exposing raw enrichment features."
+          },
+          {
+            "from": "gtm-prioritization-service",
+            "to": "gtm-outreach-service",
+            "relationship": "prioritized_outreach_context_handoff",
+            "description": "Approved prioritized accounts may inform draft-only outreach generation without sending messages."
+          }
+        ]
+      }
+    },
+    "developer_definition_revision": {
+      "revision_number": 2,
+      "revision_artifact_id": "developer-definition:gtm-pipeline-q2-review:r2",
+      "previous_revision_artifact_id": "developer-definition:gtm-pipeline-q2-review:r1",
+      "saved_at": "2026-04-27T22:34:57.938Z"
+    },
+    "product_alignment": {
+      "governed_behavior_formalization": "Return bounded service-specific outputs, ask for missing quarter, account scope, ranking basis, or audience context, deny broad raw exports, preserve service handoff boundaries, and preserve approval stops for write-adjacent work.",
+      "approval_posture_formalization": "Direct reads are allowed when scoped; high-risk follow-up task and reassignment preparation must produce a preview and stop for approval before downstream execution."
+    },
+    "traceability": {
+      "developer_status": "not_started",
+      "pm_review_status": "pending",
+      "developer_marked_at": null,
+      "pm_reviewed_at": null
+    }
+  },
+  "studio_traceability": {
+    "sections": [
+      {
+        "id": "service_identity_topology",
+        "label": "Service Identity & Topology",
+        "description": "How the system is decomposed into services and how those services are named and bounded.",
+        "owners": [
+          "Service Design",
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 15,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 15,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "actor_model:actor:gtm_operator:summary",
+            "source": "actor_model",
+            "section": "GTM Operator · Actor Summary",
+            "label": "GTM Operator",
+            "detail": "Asks pipeline health, account risk, and follow-up preparation questions.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:gtm_operator:visibility_expectations",
+            "source": "actor_model",
+            "section": "GTM Operator · Visibility Expectations",
+            "label": "GTM Operator visibility",
+            "detail": "Can see bounded pipeline summaries and evidence for authorized pipeline scope.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:sales_manager:summary",
+            "source": "actor_model",
+            "section": "Sales Manager · Actor Summary",
+            "label": "Sales Manager",
+            "detail": "Reviews overloaded ownership, reassignment suggestions, and follow-up plans.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:sales_manager:visibility_expectations",
+            "source": "actor_model",
+            "section": "Sales Manager · Visibility Expectations",
+            "label": "Sales Manager visibility",
+            "detail": "Can review bounded team and opportunity evidence relevant to their pipeline scope.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:system-name",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "What is the name of your system?",
+            "detail": "gtm-pipeline-q2-review",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:system-domain",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "What domain does this system operate in?",
+            "detail": "revenue_operations",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:deployment-intent",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "How will this system be deployed?",
+            "detail": "multi_service_estate",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:scale-shape",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "How should this system be delivered?",
+            "detail": "multi_service_estate",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:service:gtm-pipeline-service",
+            "source": "shape",
+            "section": "Services",
+            "label": "GTM Pipeline Service",
+            "detail": "Owns capabilities: Gtm.Pipeline Summary, Gtm.Pipeline Forecast Summary, Gtm.Stage Bottleneck Summary, Gtm.Sales Team Performance Summary, Gtm.Product Pipeline Summary, Gtm.Prepare Reassignment Plan, Gtm.Stalled Opportunity Review, Gtm.Account Risk Summary, Gtm.Prepare Followup Tasks",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:service:gtm-enrichment-service",
+            "source": "shape",
+            "section": "Services",
+            "label": "GTM Enrichment Service",
+            "detail": "Owns capabilities: Gtm.Account Enrichment Summary, Gtm.Lookalike Accounts",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:service:gtm-prioritization-service",
+            "source": "shape",
+            "section": "Services",
+            "label": "GTM Prioritization Service",
+            "detail": "Owns capabilities: Gtm.Score Leads, Gtm.Prioritize Accounts, Gtm.Route Leads",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:service:gtm-outreach-service",
+            "source": "shape",
+            "section": "Services",
+            "label": "GTM Outreach Service",
+            "detail": "Owns capabilities: Gtm.Draft Outreach Message, Gtm.Suggest Followup Content, Gtm.Objection Response Variants",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:coordination:gtm-pipeline-service:gtm-enrichment-service:account_scope_handoff",
+            "source": "shape",
+            "section": "Coordination",
+            "label": "Gtm Pipeline Service -> Gtm Enrichment Service",
+            "detail": "Pipeline risk outputs may pass bounded account identifiers into enrichment while preserving actor and task lineage.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:coordination:gtm-enrichment-service:gtm-prioritization-service:enriched_context_handoff",
+            "source": "shape",
+            "section": "Coordination",
+            "label": "Gtm Enrichment Service -> Gtm Prioritization Service",
+            "detail": "Approved enrichment summaries may inform prioritization without exposing raw enrichment features.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:coordination:gtm-prioritization-service:gtm-outreach-service:prioritized_outreach_context_handoff",
+            "source": "shape",
+            "section": "Coordination",
+            "label": "Gtm Prioritization Service -> Gtm Outreach Service",
+            "detail": "Approved prioritized accounts may inform draft-only outreach generation without sending messages.",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "capability_contracts",
+        "label": "Capability Contracts",
+        "description": "The ANIP-facing capabilities, inputs, outputs, and bounded actions the implementation must expose.",
+        "owners": [
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 9,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 9,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "product_summary:supported_question_family:0",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Pipeline Health And Forecast Summaries",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:1",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Stage Bottleneck And Sales Team Performance Summaries",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:2",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "At Risk Account And Stalled Opportunity Review",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:3",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Account Enrichment And Lookalike Analysis",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:4",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Lead And Account Prioritization",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:5",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Outreach Drafting And Objection Response Support",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:supported_question_family:6",
+            "source": "product_summary",
+            "section": "Business Summary · Supported Question Families",
+            "label": "Approval Gated Follow Up And Reassignment Preparation",
+            "detail": "Question family the product must support in a governed way.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:gtm_operator:action_expectations",
+            "source": "actor_model",
+            "section": "GTM Operator · Action Expectations",
+            "label": "GTM Operator actions",
+            "detail": "Can request preparation of follow-up or reassignment previews.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:sales_manager:action_expectations",
+            "source": "actor_model",
+            "section": "Sales Manager · Action Expectations",
+            "label": "Sales Manager actions",
+            "detail": "Can review and approve or reject prepared operational plans.",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "authority_and_approval",
+        "label": "Authority & Approval",
+        "description": "How restrictions, denials, approvals, and clarification posture become formal service behavior.",
+        "owners": [
+          "Governed Data Access",
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 18,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 18,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "product_summary:approval_posture_summary",
+            "source": "product_summary",
+            "section": "Business Summary · Approval Posture",
+            "label": "Approval Posture Summary",
+            "detail": "Direct reads are allowed when scoped; high-risk follow-up task and reassignment preparation must produce a preview and stop for approval before downstream execution.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:gtm_operator:approval_expectations",
+            "source": "actor_model",
+            "section": "GTM Operator · Approval Expectations",
+            "label": "GTM Operator approval expectations",
+            "detail": "Must obtain approval before any downstream mutation is executed.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "actor_model:actor:sales_manager:approval_expectations",
+            "source": "actor_model",
+            "section": "Sales Manager · Approval Expectations",
+            "label": "Sales Manager approval expectations",
+            "detail": "Acts as approval authority for high-impact follow-up and reassignment execution.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "permission_intent:rule:0",
+            "source": "permission_intent",
+            "section": "Permission Intent",
+            "label": "Gtm Operator · Pipeline Review",
+            "detail": "Bounded · Bounded Result · Return scoped summaries with evidence and no raw row-level export.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "permission_intent:rule:1",
+            "source": "permission_intent",
+            "section": "Permission Intent",
+            "label": "Gtm Operator · Operational Preparation",
+            "detail": "Approval Required · Approval Stop · Prepare a preview and stop before any downstream mutation.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "permission_intent:rule:2",
+            "source": "permission_intent",
+            "section": "Permission Intent",
+            "label": "Sales Manager · Operational Preparation",
+            "detail": "Bounded · Direct Result · Review prepared plans and approve or reject execution outside the draft step.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:trust-mode",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "What caller-verification posture should the business require?",
+            "detail": "signed",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:trust-checkpoints",
+            "source": "requirements",
+            "section": "System Basics",
+            "label": "Should the system re-check trust and authority at important execution steps?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:cost-visibility",
+            "source": "requirements",
+            "section": "Risk and Side Effects",
+            "label": "Should costs be visible to callers before actions execute?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:preflight-discovery",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Should agents be able to discover what they are allowed to do before acting?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:grantable-restrictions",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Can restricted actions be unlocked by granting additional authority?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:restricted-vs-denied",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Should the system distinguish between restricted and denied actions?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:delegation-tokens",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Will this system use delegation tokens to carry scoped authority?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:scoped-authority",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Should authority be scoped to limit what agents can do?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:purpose-binding",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Should delegated authority be bound to a specific purpose?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:approval-expectation",
+            "source": "requirements",
+            "section": "Authority and Approval Expectations",
+            "label": "Should high-risk actions require explicit approval before execution?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:recovery-sensitive",
+            "source": "requirements",
+            "section": "Recovery Expectations",
+            "label": "Does this system need explicit recovery guidance for failures?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:blocked-failure-expectation",
+            "source": "requirements",
+            "section": "Recovery Expectations",
+            "label": "What should happen when an action is blocked or fails?",
+            "detail": "human_review_for_unresolved_or_approval_gated_work",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "data_contracts",
+        "label": "Data Contracts",
+        "description": "The governed data surface, metrics, dimensions, filters, outcomes, and result-shaping rules.",
+        "owners": [
+          "Governed Data Access"
+        ],
+        "coverage": {
+          "total": 12,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 12,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "shape:concept:pipeline-review",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Pipeline Review",
+            "detail": "A bounded summary of pipeline health for a quarter and scope.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:account-risk",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Account Risk",
+            "detail": "An explainable ranking of open accounts that need attention.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:followup-plan",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Follow-up Plan",
+            "detail": "A prepared set of recommended tasks that still requires approval before downstream execution.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:reassignment-plan",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Reassignment Plan",
+            "detail": "A prepared set of reassignment recommendations that still requires approval before downstream execution.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:account-enrichment",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Account Enrichment",
+            "detail": "Bounded firmographic and account context for approved accounts.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:lookalike-account",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Lookalike Account",
+            "detail": "An account similar to an approved reference account with explainable similarity signals.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:lead-score",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Lead Score",
+            "detail": "A bounded score band and reason-code summary for a lead or account.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:account-priority",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Account Priority",
+            "detail": "An explainable ordering of accounts for GTM action.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:routing-plan",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Routing Plan",
+            "detail": "A prepared routing recommendation that requires approval before mutation.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:outreach-draft",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Outreach Draft",
+            "detail": "Draft-only outreach content generated from approved context.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:followup-content",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Follow-up Content",
+            "detail": "Suggested follow-up messaging content that remains review-only.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "shape:concept:objection-response",
+            "source": "shape",
+            "section": "Domain Concepts",
+            "label": "Objection Response",
+            "detail": "Bounded response variants using approved claims and account context.",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "scenario_context",
+        "label": "Scenario Contract Basics",
+        "description": "Per-scenario actor context, business/time scope, service participation, and operational posture that shape generated behavior.",
+        "owners": [
+          "Application Integration",
+          "Governed Data Access"
+        ],
+        "coverage": {
+          "total": 3,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 3,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "product_summary:multi_step_composition_rule:0",
+            "source": "product_summary",
+            "section": "Business Summary · Multi-Step Composition Rules",
+            "label": "Compose Pipeline Review, Enrichment, Prioritization, And Outreach Only Through Explicit Service Boundaries.",
+            "detail": "Business rule describing how compound workflows should remain governed.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:multi_step_composition_rule:1",
+            "source": "product_summary",
+            "section": "Business Summary · Multi-Step Composition Rules",
+            "label": "Carry Actor, Task, And Scope Lineage Across Service Handoffs.",
+            "detail": "Business rule describing how compound workflows should remain governed.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:multi_step_composition_rule:2",
+            "source": "product_summary",
+            "section": "Business Summary · Multi-Step Composition Rules",
+            "label": "Do Not Turn A Preview Into An Execution Step Without A Recorded Approval Decision.",
+            "detail": "Business rule describing how compound workflows should remain governed.",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "execution_semantics",
+        "label": "Execution Semantics",
+        "description": "Per-scenario required behaviors, protocol-visible ANIP support, and implementation notes that generation and verification should preserve.",
+        "owners": [
+          "Application Integration",
+          "Governed Data Access"
+        ],
+        "coverage": {
+          "total": 40,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 40,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "product_summary:business_goal:0",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Answer Bounded Pipeline Health And Forecast Questions With Evidence.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:business_goal:1",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Enrich Selected Accounts And Identify Lookalikes With Bounded Context.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:business_goal:2",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Prioritize Accounts And Leads Through Explainable Scoring And Routing Recommendations.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:business_goal:3",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Draft Outreach Support While Keeping Content Generation Bounded And Reviewable.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:business_goal:4",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Identify At Risk Accounts And Stalled Opportunities With Explainable Reasons.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:business_goal:5",
+            "source": "product_summary",
+            "section": "Business Summary · Business Goals",
+            "label": "Prepare Follow Up And Reassignment Plans While Stopping Before Mutation Until Approval Is Granted.",
+            "detail": "Business goal the implementation should help achieve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "product_summary:governed_behavior_summary",
+            "source": "product_summary",
+            "section": "Business Summary · Governed Behavior",
+            "label": "Governed Behavior Summary",
+            "detail": "Return bounded service-specific outputs, ask for missing quarter, account scope, ranking basis, or audience context, deny broad raw exports, preserve service handoff boundaries, and preserve approval stops for write-adjacent work.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "non_goals:entry:0",
+            "source": "non_goals",
+            "section": "Non-Goals",
+            "label": "Do not expose broad raw row-level CRM exports.",
+            "detail": "The first release is a bounded summary and preparation workflow, not a data extraction tool.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "non_goals:entry:1",
+            "source": "non_goals",
+            "section": "Non-Goals",
+            "label": "Do not execute follow-up tasks or reassignment changes without explicit approval.",
+            "detail": "Write-adjacent GTM actions must remain preview-and-approve in the governed contract.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "non_goals:entry:2",
+            "source": "non_goals",
+            "section": "Non-Goals",
+            "label": "Do not guess missing quarter, pipeline scope, or ranking basis.",
+            "detail": "Ambiguous operational requests should clarify instead of silently choosing defaults.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_behavior:quarter_and_ranking_basis_are_not_guessed_when_missing",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected Behavior",
+            "label": "Quarter And Ranking Basis Are Not Guessed When Missing",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_behavior:risk_evidence_is_bounded_and_explainable",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected Behavior",
+            "label": "Risk Evidence Is Bounded And Explainable",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_behavior:row_level_exports_are_denied",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected Behavior",
+            "label": "Row Level Exports Are Denied",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_behavior:followup_plan_stops_at_approval_required",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected Behavior",
+            "label": "Followup Plan Stops At Approval Required",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_anip_support:signed_manifest_and_discovery",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected ANIP Support",
+            "label": "Signed Manifest And Discovery",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_anip_support:purpose_bound_tokens",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected ANIP Support",
+            "label": "Purpose Bound Tokens",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_anip_support:bounded_capability_contracts",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected ANIP Support",
+            "label": "Bounded Capability Contracts",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_anip_support:service_metadata_validation",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected ANIP Support",
+            "label": "Service Metadata Validation",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-q2-review:expected_anip_support:runtime_evidence_and_drift_analysis",
+            "source": "scenario",
+            "section": "Hero path: at-risk Q2 deals to approval stop · Expected ANIP Support",
+            "label": "Runtime Evidence And Drift Analysis",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_behavior:clarification_required_for_missing_quarter",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected Behavior",
+            "label": "Clarification Required For Missing Quarter",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_behavior:clarification_required_for_missing_ranking_basis",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected Behavior",
+            "label": "Clarification Required For Missing Ranking Basis",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_behavior:no_implicit_scope_guessing",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected Behavior",
+            "label": "No Implicit Scope Guessing",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_anip_support:clarification_required_outcome",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected ANIP Support",
+            "label": "Clarification Required Outcome",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_anip_support:missing_input_visibility",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected ANIP Support",
+            "label": "Missing Input Visibility",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-clarification:expected_anip_support:bounded_capability_contracts",
+            "source": "scenario",
+            "section": "Clarification path: missing quarter or ranking basis · Expected ANIP Support",
+            "label": "Bounded Capability Contracts",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-stalled-opportunities:expected_behavior:available_for_bounded_stalled_opportunity_review",
+            "source": "scenario",
+            "section": "Clear read: stalled opportunities over 30 days · Expected Behavior",
+            "label": "Available For Bounded Stalled Opportunity Review",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-stalled-opportunities:expected_behavior:bounded_evidence_for_stall_reasoning",
+            "source": "scenario",
+            "section": "Clear read: stalled opportunities over 30 days · Expected Behavior",
+            "label": "Bounded Evidence For Stall Reasoning",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-stalled-opportunities:expected_anip_support:bounded_capability_contracts",
+            "source": "scenario",
+            "section": "Clear read: stalled opportunities over 30 days · Expected ANIP Support",
+            "label": "Bounded Capability Contracts",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-stalled-opportunities:expected_anip_support:auditable_read_path",
+            "source": "scenario",
+            "section": "Clear read: stalled opportunities over 30 days · Expected ANIP Support",
+            "label": "Auditable Read Path",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-stalled-opportunities:expected_anip_support:service_metadata_validation",
+            "source": "scenario",
+            "section": "Clear read: stalled opportunities over 30 days · Expected ANIP Support",
+            "label": "Service Metadata Validation",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-raw-export-denial:expected_behavior:denied_for_raw_row_level_export",
+            "source": "scenario",
+            "section": "Phase 1 denial: raw row-level export request · Expected Behavior",
+            "label": "Denied For Raw Row Level Export",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-raw-export-denial:expected_behavior:no_silent_restriction_without_policy",
+            "source": "scenario",
+            "section": "Phase 1 denial: raw row-level export request · Expected Behavior",
+            "label": "No Silent Restriction Without Policy",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-raw-export-denial:expected_anip_support:denied_outcome_visibility",
+            "source": "scenario",
+            "section": "Phase 1 denial: raw row-level export request · Expected ANIP Support",
+            "label": "Denied Outcome Visibility",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-raw-export-denial:expected_anip_support:policy_reason_visibility",
+            "source": "scenario",
+            "section": "Phase 1 denial: raw row-level export request · Expected ANIP Support",
+            "label": "Policy Reason Visibility",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-raw-export-denial:expected_anip_support:auditable_denial_path",
+            "source": "scenario",
+            "section": "Phase 1 denial: raw row-level export request · Expected ANIP Support",
+            "label": "Auditable Denial Path",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-out-of-scope:expected_behavior:denied_for_phase_1_out_of_scope_request",
+            "source": "scenario",
+            "section": "Out-of-scope denial: outreach drafting request · Expected Behavior",
+            "label": "Denied For Phase 1 Out Of Scope Request",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-out-of-scope:expected_behavior:no_improvised_cross_capability_behavior",
+            "source": "scenario",
+            "section": "Out-of-scope denial: outreach drafting request · Expected Behavior",
+            "label": "No Improvised Cross Capability Behavior",
+            "detail": "Scenario outcome that the implementation must preserve.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-out-of-scope:expected_anip_support:denied_outcome_visibility",
+            "source": "scenario",
+            "section": "Out-of-scope denial: outreach drafting request · Expected ANIP Support",
+            "label": "Denied Outcome Visibility",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-out-of-scope:expected_anip_support:bounded_capability_contracts",
+            "source": "scenario",
+            "section": "Out-of-scope denial: outreach drafting request · Expected ANIP Support",
+            "label": "Bounded Capability Contracts",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "scenario:scn-gtm-pipeline-out-of-scope:expected_anip_support:service_metadata_validation",
+            "source": "scenario",
+            "section": "Out-of-scope denial: outreach drafting request · Expected ANIP Support",
+            "label": "Service Metadata Validation",
+            "detail": "Protocol-visible support the implementation is expected to expose.",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "backend_bindings",
+        "label": "Backend Bindings",
+        "description": "How the ANIP surface maps to real backend systems, adapters, operations, and implementation targets.",
+        "owners": [
+          "Governed Data Access",
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 0,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 0,
+          "deferred": 0
+        },
+        "linked_product_design_items": []
+      },
+      {
+        "id": "audit_and_lineage",
+        "label": "Audit & Lineage",
+        "description": "What evidence, lineage, and traceability the generated implementation must preserve.",
+        "owners": [
+          "Governed Data Access",
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 12,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 12,
+          "deferred": 0
+        },
+        "linked_product_design_items": [
+          {
+            "id": "success_criteria:entry:0",
+            "source": "success_criteria",
+            "section": "Success Criteria",
+            "label": "Bounded pipeline and account-risk questions return useful answers with evidence.",
+            "detail": "Regression questions for pipeline summary, forecast, bottlenecks, performance, products, and risk pass.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "success_criteria:entry:1",
+            "source": "success_criteria",
+            "section": "Success Criteria",
+            "label": "Ambiguous requests ask targeted clarifying questions instead of guessing.",
+            "detail": "Missing quarter and missing ranking-basis scenarios return clarification outcomes.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "success_criteria:entry:2",
+            "source": "success_criteria",
+            "section": "Success Criteria",
+            "label": "Unsafe exports are denied and write-adjacent work stops for approval.",
+            "detail": "Raw export requests deny; follow-up and reassignment flows produce approval-stop previews.",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:needs-audit",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should this system keep a durable record of important actions?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:needs-searchable",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should those records be searchable later?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:invocation-tracking",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should each execution be traceable as its own identifiable event?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:task-tracking",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should related executions be grouped into one traceable unit of work?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:parent-tracking",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should the system preserve parent-child execution chains for later reconstruction?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:client-reference",
+            "source": "requirements",
+            "section": "Evidence and Traceability",
+            "label": "Should external systems be able to attach their own reference IDs?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:service-handoffs",
+            "source": "requirements",
+            "section": "Cross-Service Expectations",
+            "label": "Will work need to carry authority across service boundaries?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:cross-service-reconstruction",
+            "source": "requirements",
+            "section": "Cross-Service Expectations",
+            "label": "Should teams be able to reconstruct work across service boundaries later?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          },
+          {
+            "id": "requirements:cross-service-continuity",
+            "source": "requirements",
+            "section": "Cross-Service Expectations",
+            "label": "Should execution chains stay intact as work moves across services?",
+            "detail": "Yes",
+            "status": "not_addressed",
+            "rationale": ""
+          }
+        ]
+      },
+      {
+        "id": "generation_and_extensions",
+        "label": "Generation & Extension Points",
+        "description": "Which technical choices directly affect generated scaffolds and where manual extension points remain.",
+        "owners": [
+          "Governed Data Access",
+          "Application Integration"
+        ],
+        "coverage": {
+          "total": 0,
+          "addressed": 0,
+          "partial": 0,
+          "missing": 0,
+          "deferred": 0
+        },
+        "linked_product_design_items": []
+      }
+    ]
+  },
+  "generator_launch": {
+    "source_of_truth": "compiled_contract",
+    "primary_output_mode": "runtime_target",
+    "transitional_pages_required": false,
+    "runtime_target_only": true
+  },
+  "compiled_contract_identity": {
+    "artifact_name": "gtm-pipeline-q2-review-developer-definition.json",
+    "canonical_format": "stable-json-v1",
+    "signature_algorithm": "sha256",
+    "signature": "sha256:d16b9cb314e8caeaa536b50566d0efc838974b5491680228f61f48ea970406d7",
+    "generated_at": "2026-04-27T22:34:57.938Z",
+    "revision_number": 2,
+    "revision_artifact_id": "developer-definition:gtm-pipeline-q2-review:r2",
+    "previous_revision_artifact_id": "developer-definition:gtm-pipeline-q2-review:r1",
+    "requirements_hash": "887a237099c09d104901f48c517f19ec4fec4f36100e34d9430f6aa5904dd13a",
+    "scenario_set_hash": "scn-gtm-pipeline-clarification:3117fe287ccf57ae0548ac23eeef18dd2b440de59b00d4cfbfc89c2fa5398d3a|scn-gtm-pipeline-out-of-scope:34e706173ba1948be52bf21c4606e646870f249887da7e7c5399999f46bb96d5|scn-gtm-pipeline-q2-review:a6fab86f4f714839807b8fae06647c136b5e3fb4be10b6daa816c35af790bbdc|scn-gtm-pipeline-raw-export-denial:28cc9b935a2bf31f2813e4578be7108891a34aa0aeb4135fffe17a42f21708ab|scn-gtm-pipeline-stalled-opportunities:a70b4e0d965aaa5ed2199b06765dd53ea5a511ff332377591507822e495a1a50",
+    "service_design_hash": "f25facb91a410a7ad09cf77502df922bc725201c3fbc93c0beee4baa8d20f524",
+    "baseline_locked_at": "2026-04-27T00:00:00Z",
+    "developer_definition_saved_at": "2026-04-27T22:34:57.938Z"
+  }
+}

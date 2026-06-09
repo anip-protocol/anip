@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <None Include="tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Core/Anip.Core.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Crypto/Anip.Crypto.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Server/Anip.Server.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Service/Anip.Service.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.AspNetCore/Anip.AspNetCore.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Rest.AspNetCore/Anip.Rest.AspNetCore.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.GraphQL.AspNetCore/Anip.GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Mcp.AspNetCore/Anip.Mcp.AspNetCore.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Stdio/Anip.Stdio.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -213,9 +213,9 @@ async function handleSave() {
       </ul>
     </div>
 
-    <!-- Expected Glue Reduction -->
+    <!-- Expected Implementation Simplification -->
     <div class="section" v-if="glueCategories.length">
-      <h2>Expected Glue Reduction</h2>
+      <h2>Expected Implementation Simplification</h2>
       <div class="glue-groups">
         <div class="glue-group" v-for="[category, items] in glueCategories" :key="category">
           <h3 class="glue-category-name">{{ category }}</h3>

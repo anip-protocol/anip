@@ -1758,6 +1758,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         taskId: effectiveTaskId,
         parentInvocationId,
         upstreamService,
+        approvalGrant,
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },

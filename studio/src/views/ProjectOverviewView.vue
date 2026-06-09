@@ -19,13 +19,21 @@ import {
   createScenario,
   createShape,
   exportProject,
+  generateDriftAnalysis,
   generateBusinessBriefDocument,
   generateEngineeringContractDocument,
   interpretProjectIntentWithAssistant,
   importArtifacts,
   setRequirementsRole,
 } from '../design/project-api'
-import type { IntentInterpretation } from '../design/project-types'
+import type { DriftAnalysis, IntentInterpretation, RequirementsRecord } from '../design/project-types'
+import { designStore, setSelectedObservedServiceMetadataId } from '../design/store'
+import { store } from '../store'
+import {
+  compareIntendedToObservedMetadata,
+  findObservedServiceMetadataArtifact,
+  selectObservedServiceMetadata,
+} from '../design/service-metadata'
 import StudioIntentPanel from '../design/components/StudioIntentPanel.vue'
 import {
   slugify,
@@ -40,9 +48,13 @@ import {
 import { consumerModeFromLabels } from '../design/consumer-mode'
 import {
   buildBusinessBrief,
+  buildDeveloperSpec,
   buildEngineeringContract,
+  buildPmSpec,
   downloadTextDocument,
 } from '../design/shared-artifacts'
+import { approvalReviewRoute } from '../design/approval-surface'
+import { developerLabel } from '../design/developer-vocabulary'
 
 const route = useRoute()
 const router = useRouter()
@@ -78,11 +90,13 @@ const showAlternatives = ref(false)
 const intentLoading = ref(false)
 const intentError = ref<string | null>(null)
 const intentInterpretation = computed(() => projectStore.pendingIntentDraft?.interpretation ?? null)
-const lastInterpretedIntent = computed(() => projectStore.pendingIntentDraft?.source_intent ?? '')
 const draftStatus = ref<string | null>(null)
+const seedDeveloperLoading = ref<'data_access' | 'application_integration' | null>(null)
 const loopView = ref<LoopView>('current')
 const businessBriefCopied = ref(false)
 const engineeringContractCopied = ref(false)
+const pmSpecCopied = ref(false)
+const developerSpecCopied = ref(false)
 const businessBriefMode = ref<'structured' | 'readable'>('structured')
 const engineeringContractMode = ref<'structured' | 'readable'>('structured')
 const businessReadableContent = ref('')
@@ -93,6 +107,13 @@ const businessReadableLoading = ref(false)
 const engineeringReadableLoading = ref(false)
 const businessReadableError = ref<string | null>(null)
 const engineeringReadableError = ref<string | null>(null)
+const driftAnalysisLoading = ref(false)
+const driftAnalysisError = ref<string | null>(null)
+const driftAnalysis = ref<DriftAnalysis | null>(null)
+const selectedObservedMetadataArtifactId = computed({
+  get: () => designStore.selectedObservedServiceMetadataId,
+  set: (value: string | null) => setSelectedObservedServiceMetadataId(value),
+})
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -100,6 +121,45 @@ const primaryRequirements = computed(() =>
 
 const alternativeRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'alternative'),
+)
+
+function buildIntentFromBusinessSpecArtifact(record: RequirementsRecord | null): string {
+  if (!record) return ''
+  const sourceData = record.data || {}
+  const sourceDocument = sourceData.source_document || {}
+  const businessSpec = sourceData.business_spec || {}
+  const sections = [
+    String(businessSpec.summary || '').trim(),
+    Array.isArray(businessSpec.business_goal) && businessSpec.business_goal.length
+      ? `Business goals: ${businessSpec.business_goal.join('; ')}`
+      : '',
+    Array.isArray(businessSpec.behavior_classes) && businessSpec.behavior_classes.length
+      ? `Behavior classes: ${businessSpec.behavior_classes.join('; ')}`
+      : '',
+    Array.isArray(businessSpec.non_goals) && businessSpec.non_goals.length
+      ? `Non-goals: ${businessSpec.non_goals.join('; ')}`
+      : '',
+  ]
+  const content = sections.filter(Boolean).join(' ')
+  if (sourceDocument.path) {
+    return `${content} Source document: ${sourceDocument.path}`.trim()
+  }
+  return content
+}
+
+const canonicalBusinessSpecRequirement = computed<RequirementsRecord | null>(() =>
+  alternativeRequirements.value.find((record) => {
+    const sourceDocument = record.data?.source_document || {}
+    return sourceDocument.kind === 'business_spec' || !!record.data?.business_spec
+  }) ?? null,
+)
+
+const canonicalBusinessSpecIntent = computed(() =>
+  buildIntentFromBusinessSpecArtifact(canonicalBusinessSpecRequirement.value),
+)
+
+const lastInterpretedIntent = computed(() =>
+  projectStore.pendingIntentDraft?.source_intent ?? canonicalBusinessSpecIntent.value ?? '',
 )
 
 const hasRequirements = computed(() => requirements.value.length > 0)
@@ -146,6 +206,145 @@ const latestEvaluationSummary = computed(() => {
   return 'The current design still needs meaningful changes before it can support this scenario cleanly.'
 })
 
+const driftAnalysisCategoryLabel = computed(() => developerLabel(driftAnalysis.value?.gap_category, ''))
+
+const driftAnalysisOwnerLabel = computed(() => developerLabel(driftAnalysis.value?.likely_owner, ''))
+
+const driftAnalysisPriorityLabel = computed(() =>
+  driftAnalysis.value?.fix_priority ? `${driftAnalysis.value.fix_priority} priority` : '',
+)
+const driftDecisionSummary = computed(() => {
+  const gap = driftAnalysis.value?.gap_category
+  if (!gap) return ''
+  if (gap === 'service_metadata_insufficient') {
+    return 'Decision: the current implementation is not yet exposing the full intended capability surface.'
+  }
+  if (gap === 'developer_binding_incomplete') {
+    return 'Decision: tighten the implementation boundary or update the design before broader rollout.'
+  }
+  if (gap === 'agent_planning_misaligned') {
+    return 'Decision: keep the service shape, but improve capability guidance for consuming agents.'
+  }
+  if (gap === 'clarification_loop_detected') {
+    return 'Decision: stop rollout until the clarification path reaches a stable next step.'
+  }
+  if (gap === 'approval_control_missing') {
+    return 'Decision: keep write paths gated until approval controls are explicit.'
+  }
+  if (gap === 'backend_semantics_mismatch') {
+    return 'Decision: review backend semantics before treating the observed implementation as aligned.'
+  }
+  return 'Decision: resolve the identified drift before treating the current implementation as aligned.'
+})
+
+const availableObservedMetadataArtifacts = computed(() => projectStore.artifacts.serviceMetadata)
+
+watch(
+  () => availableObservedMetadataArtifacts.value.map((item) => item.id).join(','),
+  () => {
+    if (!availableObservedMetadataArtifacts.value.length) {
+      setSelectedObservedServiceMetadataId(null)
+      return
+    }
+    if (
+      designStore.selectedObservedServiceMetadataId &&
+      availableObservedMetadataArtifacts.value.some(
+        (item) => item.id === designStore.selectedObservedServiceMetadataId,
+      )
+    ) {
+      return
+    }
+    setSelectedObservedServiceMetadataId(null)
+  },
+  { immediate: true },
+)
+
+const observedServiceMetadata = computed(() => {
+  if (designStore.selectedObservedServiceMetadataId) {
+    const selectedArtifact = projectStore.artifacts.serviceMetadata.find(
+      (item) => item.id === designStore.selectedObservedServiceMetadataId,
+    )
+    if (selectedArtifact?.data) return selectedArtifact.data
+  }
+  const projectObserved = selectObservedServiceMetadata(projectStore.artifacts.serviceMetadata, {
+    serviceId: store.serviceId,
+    baseUrl: store.baseUrl,
+  })
+  if (projectObserved) return projectObserved
+  return latestEvaluationRecord.value?.input_snapshot?.service_metadata ?? designStore.observedServiceMetadata ?? null
+})
+
+const observedServiceMetadataSource = computed(() => {
+  if (designStore.selectedObservedServiceMetadataId) {
+    return {
+      label: 'selected project artifact',
+      detail: designStore.selectedObservedServiceMetadataId,
+    }
+  }
+  const projectArtifact = findObservedServiceMetadataArtifact(projectStore.artifacts.serviceMetadata, {
+    serviceId: store.serviceId,
+    baseUrl: store.baseUrl,
+  })
+  if (projectArtifact) {
+    return {
+      label: 'project artifact',
+      detail: projectArtifact.id,
+    }
+  }
+  if (latestEvaluationRecord.value?.input_snapshot?.service_metadata) {
+    return {
+      label: 'saved evaluation snapshot',
+      detail: latestEvaluationRecord.value.id,
+    }
+  }
+  if (designStore.observedServiceMetadata) {
+    return {
+      label: 'live inspect session',
+      detail: designStore.observedServiceMetadata.service_id || designStore.observedServiceMetadata.base_url || null,
+    }
+  }
+  return null
+})
+
+const serviceMetadataComparison = computed(() => {
+  if (!observedServiceMetadata.value) return null
+  const activeProposalRecord = activeProposalId.value
+    ? proposals.value.find((item) => item.id === activeProposalId.value) ?? null
+    : proposals.value[0] ?? null
+  return compareIntendedToObservedMetadata({
+    scenario: activeScenarioRecord.value?.data ?? null,
+    proposal: isLegacyProposalProject.value ? activeProposalRecord?.data ?? null : null,
+    shape: activeShapeRecord.value?.data ?? null,
+    observed: observedServiceMetadata.value,
+  })
+})
+const conformanceFailures = computed(() =>
+  serviceMetadataComparison.value?.conformance_checks.filter((item) => item.status === 'non_conformant') ?? [],
+)
+const conformanceGaps = computed(() =>
+  serviceMetadataComparison.value?.conformance_checks.filter((item) => item.status === 'insufficient_metadata') ?? [],
+)
+const serviceMetadataDecisionSummary = computed(() => {
+  const comparison = serviceMetadataComparison.value
+  if (!comparison) return ''
+  if (conformanceFailures.value.length) {
+    return `Decision: do not treat this implementation as ANIP-conformant yet; fix ${conformanceFailures.value.map((item) => item.label.toLowerCase()).join(', ')} first.`
+  }
+  if (conformanceGaps.value.length) {
+    return `Decision: service metadata is still incomplete for conformance review; inspect ${conformanceGaps.value.map((item) => item.label.toLowerCase()).join(', ')} before relying on this validation.`
+  }
+  if (!comparison.missing_capabilities.length && !comparison.extra_capabilities.length) {
+    return 'Decision: the observed implementation is aligned closely enough to validate behavior directly.'
+  }
+  if (comparison.missing_capabilities.length && !comparison.extra_capabilities.length) {
+    return 'Decision: the implementation is still missing intended capabilities.'
+  }
+  if (!comparison.missing_capabilities.length && comparison.extra_capabilities.length) {
+    return 'Decision: the implementation is broader than intended; confirm whether to narrow it or update the design.'
+  }
+  return 'Decision: the implementation is both incomplete and broader than intended; tighten the capability boundary first.'
+})
+
 const businessBriefContent = computed(() => buildBusinessBrief({
   project: project.value,
   sourceIntent: lastInterpretedIntent.value,
@@ -162,6 +361,38 @@ const engineeringContractContent = computed(() => buildEngineeringContract({
   shape: activeShapeRecord.value,
   evaluation: latestEvaluationRecord.value,
 }))
+
+const activeProposalRecord = computed(() =>
+  proposals.value.find(item => item.id === activeProposalId.value) ??
+  proposals.value[0] ??
+  null,
+)
+
+const pmSpecContent = computed(() => buildPmSpec({
+  project: project.value,
+  sourceIntent: lastInterpretedIntent.value,
+  sourceRequirements: canonicalBusinessSpecRequirement.value,
+  requirements: activeRequirementsRecord.value,
+  scenarios: scenarios.value,
+  scenario: activeScenarioRecord.value,
+  shape: activeShapeRecord.value,
+  evaluation: latestEvaluationRecord.value,
+}))
+
+const developerSpecContent = computed(() => buildDeveloperSpec({
+  project: project.value,
+  sourceRequirements: canonicalBusinessSpecRequirement.value,
+  requirements: activeRequirementsRecord.value,
+  scenarios: scenarios.value,
+  scenario: activeScenarioRecord.value,
+  proposal: activeProposalRecord.value,
+  shape: activeShapeRecord.value,
+  evaluation: latestEvaluationRecord.value,
+}))
+
+const approvalReviewLink = computed(() =>
+  approvalReviewRoute(activeProposalRecord.value, activeShapeRecord.value, { status: 'pending' }),
+)
 
 const businessBriefDisplayContent = computed(() => {
   if (businessBriefMode.value === 'structured') return businessBriefContent.value
@@ -196,6 +427,48 @@ const activeShapeRecord = computed(() =>
   shapes.value.find(item => item.id === activeShapeId.value) ??
   shapes.value[0] ??
   null,
+)
+
+async function refreshDriftAnalysis() {
+  if (!projectId.value || !latestEvaluationRecord.value) {
+    driftAnalysis.value = null
+    driftAnalysisError.value = null
+    return
+  }
+  driftAnalysisLoading.value = true
+  driftAnalysisError.value = null
+  try {
+    driftAnalysis.value = await generateDriftAnalysis({
+      project_id: projectId.value,
+      requirements_id: activeRequirementsRecord.value?.id,
+      scenario_id: activeScenarioRecord.value?.id,
+      shape_id: activeShapeRecord.value?.id,
+      evaluation_id: latestEvaluationRecord.value?.id,
+      service_metadata_artifact_id: designStore.selectedObservedServiceMetadataId || undefined,
+      metadata_comparison: serviceMetadataComparison.value || undefined,
+    })
+  } catch (err) {
+    driftAnalysis.value = null
+    driftAnalysisError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    driftAnalysisLoading.value = false
+  }
+}
+
+watch(
+  () => [
+    projectId.value,
+    activeRequirementsRecord.value?.id ?? '',
+    activeScenarioRecord.value?.id ?? '',
+    activeShapeRecord.value?.id ?? '',
+    latestEvaluationRecord.value?.id ?? '',
+    designStore.selectedObservedServiceMetadataId ?? '',
+    observedServiceMetadata.value?.observed_at ?? '',
+  ],
+  () => {
+    void refreshDriftAnalysis()
+  },
+  { immediate: true },
 )
 
 const activeServiceDesignTitle = computed(() => {
@@ -379,7 +652,7 @@ function makeScenarioFixTemplate(change: string) {
       expected_behavior: [
         cleanSentence(change),
         category === 'cross_service'
-          ? 'The cross-service responsibility should stay explicit instead of hiding inside glue.'
+          ? 'The cross-service responsibility should stay explicit instead of disappearing into hidden integration work.'
           : 'The system should make the intended decision and next step explicit.',
       ],
       expected_anip_support: [
@@ -807,27 +1080,48 @@ function discardPendingIntent() {
   draftStatus.value = 'Discarded the pending suggested first design.'
 }
 
-async function copyShareableDocument(kind: 'business' | 'engineering') {
-  const content = kind === 'business' ? businessBriefDisplayContent.value : engineeringContractDisplayContent.value
+async function copyShareableDocument(kind: 'business' | 'engineering' | 'pm' | 'developer') {
+  const content =
+    kind === 'business'
+      ? businessBriefDisplayContent.value
+      : kind === 'engineering'
+        ? engineeringContractDisplayContent.value
+        : kind === 'developer'
+          ? developerSpecContent.value
+          : pmSpecContent.value
   try {
     await navigator.clipboard.writeText(content)
     if (kind === 'business') {
       businessBriefCopied.value = true
       setTimeout(() => { businessBriefCopied.value = false }, 1500)
-    } else {
+    } else if (kind === 'engineering') {
       engineeringContractCopied.value = true
       setTimeout(() => { engineeringContractCopied.value = false }, 1500)
+    } else if (kind === 'developer') {
+      developerSpecCopied.value = true
+      setTimeout(() => { developerSpecCopied.value = false }, 1500)
+    } else {
+      pmSpecCopied.value = true
+      setTimeout(() => { pmSpecCopied.value = false }, 1500)
     }
   } catch {
     // clipboard may be unavailable in some environments
   }
 }
 
-function downloadShareableDocument(kind: 'business' | 'engineering') {
+function downloadShareableDocument(kind: 'business' | 'engineering' | 'pm' | 'developer') {
   const slug = slugify(project.value?.name || 'project')
   if (kind === 'business') {
     const suffix = businessBriefMode.value === 'readable' ? '-business-narrative.md' : '-business-brief.md'
     downloadTextDocument(`${slug}${suffix}`, businessBriefDisplayContent.value)
+    return
+  }
+  if (kind === 'pm') {
+    downloadTextDocument(`${slug}-pm-spec.md`, pmSpecContent.value)
+    return
+  }
+  if (kind === 'developer') {
+    downloadTextDocument(`${slug}-developer-spec.md`, developerSpecContent.value)
     return
   }
   const suffix = engineeringContractMode.value === 'readable' ? '-engineering-narrative.md' : '-engineering-contract.md'
@@ -1127,14 +1421,21 @@ async function handleCreateShape(intentResult?: IntentInterpretation) {
 }
 
 async function handleInterpretIntent(intent: string) {
-  if (!projectId.value || !intent) return
+  if (!projectId.value) return
+  const sourceRequirementsId = canonicalBusinessSpecRequirement.value?.id ?? null
+  const sourceIntent = sourceRequirementsId ? canonicalBusinessSpecIntent.value : intent
+  if (!sourceIntent) return
   intentLoading.value = true
   intentError.value = null
   draftStatus.value = null
   try {
-    const interpretation = await interpretProjectIntentWithAssistant(projectId.value, intent)
+    const interpretation = await interpretProjectIntentWithAssistant(
+      projectId.value,
+      sourceIntent,
+      sourceRequirementsId,
+    )
     setPendingIntentDraft({
-      source_intent: intent,
+      source_intent: sourceIntent,
       interpretation,
     })
     router.push(`/design/projects/${projectId.value}/first-draft`)
@@ -1167,6 +1468,21 @@ async function handleApplyIntentDraft() {
     intentError.value = err instanceof Error ? err.message : String(err)
   } finally {
     intentLoading.value = false
+  }
+}
+
+async function handleSeedDeveloperDesign(target: 'data_access' | 'application_integration') {
+  if (!projectId.value) return
+  seedDeveloperLoading.value = target
+  intentError.value = null
+  try {
+    if (target === 'data_access') {
+      await router.push({ name: 'project-data-access-design', params: { projectId: projectId.value } })
+      return
+    }
+    await router.push({ name: 'project-application-integration-design', params: { projectId: projectId.value } })
+  } finally {
+    seedDeveloperLoading.value = null
   }
 }
 
@@ -1348,6 +1664,9 @@ async function handleDraftChange(item: string) {
           description="Describe what you want to build in normal language. Studio will suggest the first requirements pressure, scenario starters, domain concepts, and service-shape direction."
           :result="intentInterpretation"
           :pending-intent="lastInterpretedIntent"
+          :source-artifact-title="canonicalBusinessSpecRequirement?.title ?? null"
+          :source-artifact-path="canonicalBusinessSpecRequirement?.data?.source_document?.path ?? null"
+          :source-locked="!!canonicalBusinessSpecRequirement"
           :loading="intentLoading"
           :error="intentError"
           @run="handleInterpretIntent"
@@ -1569,6 +1888,121 @@ async function handleDraftChange(item: string) {
                 <p v-else class="changes-empty-note">No concrete design changes are suggested from the latest evaluation.</p>
               </div>
             </div>
+
+            <div class="changes-grid">
+              <div class="changes-card changes-card-diagnostic">
+                <div class="changes-card-title">Validation Decision Summary</div>
+                <p v-if="driftAnalysisLoading" class="changes-empty-note">Comparing intended behavior against the latest observed implementation evidence...</p>
+                <p v-else-if="driftAnalysisError" class="changes-empty-note">{{ driftAnalysisError }}</p>
+                <template v-else-if="driftAnalysis">
+                  <div class="glue-badges">
+                    <span class="glue-badge">{{ driftAnalysisCategoryLabel }}</span>
+                    <span class="glue-badge">{{ driftAnalysisOwnerLabel }}</span>
+                    <span class="glue-badge">{{ driftAnalysisPriorityLabel }}</span>
+                  </div>
+                  <p class="readout-why">{{ driftDecisionSummary }}</p>
+                  <p class="readout-summary">
+                    Intended <strong>{{ driftAnalysis.expected_outcome || 'unspecified' }}</strong>,
+                    observed <strong>{{ driftAnalysis.observed_outcome || 'unspecified' }}</strong>.
+                  </p>
+                  <p class="readout-why">{{ driftAnalysis.recommended_fix }}</p>
+                  <ul class="changes-list">
+                    <li>Scenario: {{ driftAnalysis.scenario_id }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.capability_id">Capability: {{ driftAnalysis.diagnostic_evidence.capability_id }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.reason_code">Reason code: {{ driftAnalysis.diagnostic_evidence.reason_code }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.agent_behavior">Agent behavior: {{ driftAnalysis.diagnostic_evidence.agent_behavior }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.backend_context">Backend context: {{ driftAnalysis.diagnostic_evidence.backend_context }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.observation_source">Evidence source: {{ driftAnalysis.diagnostic_evidence.observation_source }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.observed_at">Observed at: {{ driftAnalysis.diagnostic_evidence.observed_at }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.service_metadata_artifact_id">Metadata artifact: {{ driftAnalysis.diagnostic_evidence.service_metadata_artifact_id }}</li>
+                    <li v-if="driftAnalysis.diagnostic_evidence.service_metadata_mismatch">Metadata mismatch: {{ driftAnalysis.diagnostic_evidence.service_metadata_mismatch }}</li>
+                  </ul>
+                </template>
+                <p v-else class="changes-empty-note">No validation decision summary is available yet.</p>
+              </div>
+
+              <div class="changes-card changes-card-diagnostic" v-if="serviceMetadataComparison">
+                <div class="changes-card-title">Intended Design vs Observed Implementation</div>
+                <p class="readout-why">{{ serviceMetadataDecisionSummary }}</p>
+                <label
+                  v-if="availableObservedMetadataArtifacts.length > 1"
+                  class="runtime-attach-toggle"
+                >
+                  <span>Observed metadata snapshot</span>
+                  <select v-model="selectedObservedMetadataArtifactId" class="runtime-select">
+                    <option :value="null">Best current match</option>
+                    <option
+                      v-for="item in availableObservedMetadataArtifacts"
+                      :key="item.id"
+                      :value="item.id"
+                    >
+                      {{ item.title }}
+                    </option>
+                  </select>
+                </label>
+                <div class="metadata-snapshot-grid">
+                  <div class="metadata-snapshot-card">
+                    <div class="changes-card-title">Intended Design</div>
+                    <ul class="changes-list">
+                      <li>Shape: {{ serviceMetadataComparison.intended.shape_type || 'unspecified' }}</li>
+                      <li>
+                        Services:
+                        {{ serviceMetadataComparison.intended.services.length ? serviceMetadataComparison.intended.services.join(', ') : 'none listed' }}
+                      </li>
+                      <li>
+                        Capabilities:
+                        {{ serviceMetadataComparison.intended.capabilities.length ? serviceMetadataComparison.intended.capabilities.join(', ') : 'none listed' }}
+                      </li>
+                      <li>
+                        Declared surfaces:
+                        {{ serviceMetadataComparison.intended.declared_surfaces.length ? serviceMetadataComparison.intended.declared_surfaces.join(', ') : 'none declared' }}
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="metadata-snapshot-card">
+                    <div class="changes-card-title">Observed Implementation</div>
+                    <ul class="changes-list">
+                      <li>Service: {{ serviceMetadataComparison.observed.service_id || serviceMetadataComparison.observed.base_url || 'unknown' }}</li>
+                      <li>Protocol: {{ serviceMetadataComparison.observed.protocol || 'unknown' }}</li>
+                      <li>Profile: {{ serviceMetadataComparison.observed.profile || 'unknown' }}</li>
+                      <li>Trust: {{ serviceMetadataComparison.observed.trust_level || 'unknown' }}</li>
+                      <li>Manifest version: {{ serviceMetadataComparison.observed.manifest_version || 'unknown' }}</li>
+                      <li>Signature: {{ serviceMetadataComparison.observed.signature_present === null ? 'not inspected' : serviceMetadataComparison.observed.signature_present ? 'present' : 'missing' }}</li>
+                      <li>JWKS URI: {{ serviceMetadataComparison.observed.jwks_uri_present === null ? 'not inspected' : serviceMetadataComparison.observed.jwks_uri_present ? 'present' : 'missing' }}</li>
+                      <li v-if="observedServiceMetadataSource">
+                        Source: {{ observedServiceMetadataSource.label }}<template v-if="observedServiceMetadataSource.detail"> ({{ observedServiceMetadataSource.detail }})</template>
+                      </li>
+                      <li>
+                        Capabilities:
+                        {{ serviceMetadataComparison.observed.capabilities.length ? serviceMetadataComparison.observed.capabilities.map((item) => item.id).join(', ') : 'none observed' }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <ul class="changes-list">
+                  <li>
+                    Aligned capabilities:
+                    {{ serviceMetadataComparison.aligned_capabilities.length ? serviceMetadataComparison.aligned_capabilities.join(', ') : 'none yet' }}
+                  </li>
+                  <li>
+                    Missing from implementation:
+                    {{ serviceMetadataComparison.missing_capabilities.length ? serviceMetadataComparison.missing_capabilities.join(', ') : 'none' }}
+                  </li>
+                  <li>
+                    Broader than intended:
+                    {{ serviceMetadataComparison.extra_capabilities.length ? serviceMetadataComparison.extra_capabilities.join(', ') : 'none' }}
+                  </li>
+                  <li v-if="serviceMetadataComparison.conformance_checks.length">
+                    ANIP conformance:
+                    {{ serviceMetadataComparison.conformance_checks.map((item) => `${item.label} (${item.status})`).join(', ') }}
+                  </li>
+                  <li v-if="serviceMetadataComparison.surface_evidence.length">
+                    Surface evidence:
+                    {{ serviceMetadataComparison.surface_evidence.map((item) => `${item.surface} (${item.status})`).join(', ') }}
+                  </li>
+                </ul>
+              </div>
+            </div>
           </template>
         </div>
       </section>
@@ -1577,7 +2011,15 @@ async function handleDraftChange(item: string) {
         <div class="share-head">
           <div>
             <h2 class="section-title">Design Packet</h2>
-            <p class="section-desc">Studio keeps deterministic artifacts as the canonical source of truth and can optionally generate narrative overlays when an assistant provider is enabled.</p>
+            <p class="section-desc">Studio keeps deterministic artifacts as the canonical source of truth for governed capability design and validation. Use the current business packet to seed the right Developer Design template explicitly, then validate the implemented behavior against it.</p>
+          </div>
+          <div class="share-actions">
+            <button class="btn btn-secondary" :disabled="seedDeveloperLoading !== null" @click="handleSeedDeveloperDesign('data_access')">
+              {{ seedDeveloperLoading === 'data_access' ? 'Opening Data Access...' : 'Open Data Access' }}
+            </button>
+            <button class="btn btn-secondary" :disabled="seedDeveloperLoading !== null" @click="handleSeedDeveloperDesign('application_integration')">
+              {{ seedDeveloperLoading === 'application_integration' ? 'Opening Application Integration...' : 'Open App Integration' }}
+            </button>
           </div>
         </div>
 
@@ -1585,14 +2027,57 @@ async function handleDraftChange(item: string) {
           <section class="share-card">
             <div class="share-card-head">
               <div>
+                <h3 class="loop-panel-title">PM Spec</h3>
+                <p class="section-desc">Canonical PM-facing specification export that preserves the business-spec structure while showing traceable linkage into Studio requirements, scenarios, and validation.</p>
+              </div>
+              <div class="share-actions">
+                <button class="btn btn-secondary" @click="copyShareableDocument('pm')">
+                  {{ pmSpecCopied ? 'Copied!' : 'Copy' }}
+                </button>
+                <button class="btn btn-secondary" @click="downloadShareableDocument('pm')">
+                  Download
+                </button>
+              </div>
+            </div>
+            <textarea class="share-preview" readonly :value="pmSpecContent"></textarea>
+          </section>
+
+          <section class="share-card">
+            <div class="share-card-head">
+              <div>
+                <h3 class="loop-panel-title">Developer Spec</h3>
+                <p class="section-desc">Canonical developer-facing specification export that shows how the PM-owned behavior model was enriched into a service contract, implementation trace, and runtime validation target.</p>
+              </div>
+              <div class="share-actions">
+                <button class="btn btn-secondary" @click="copyShareableDocument('developer')">
+                  {{ developerSpecCopied ? 'Copied!' : 'Copy' }}
+                </button>
+                <button class="btn btn-secondary" @click="downloadShareableDocument('developer')">
+                  Download
+                </button>
+                <button
+                  v-if="approvalReviewLink"
+                  class="btn btn-secondary"
+                  @click="router.push(approvalReviewLink)"
+                >
+                  Review Approvals
+                </button>
+              </div>
+            </div>
+            <textarea class="share-preview" readonly :value="developerSpecContent"></textarea>
+          </section>
+
+          <section class="share-card">
+            <div class="share-card-head">
+              <div>
                 <h3 class="loop-panel-title">Business Brief</h3>
-                <p class="section-desc">Canonical PM-facing summary of the current design, the key situation under review, and what should change next.</p>
+                <p class="section-desc">Canonical PM-facing brief for the current capability decision: what behavior is intended, what implementation evidence says now, and what should change next.</p>
                 <div class="share-mode-toggle">
                   <button class="btn btn-secondary" :class="{ 'btn-active': businessBriefMode === 'structured' }" @click="selectBusinessBriefMode('structured')">Canonical</button>
                   <button class="btn btn-secondary" :class="{ 'btn-active': businessBriefMode === 'readable' }" @click="selectBusinessBriefMode('readable')">Narrative</button>
                 </div>
                 <p v-if="businessBriefMode === 'readable'" class="share-mode-note">
-                  {{ businessReadableAssisted ? 'Business Narrative overlay generated from the canonical Business Brief.' : 'Narrative mode fell back to the canonical Business Brief because no assistant rewrite was available.' }}
+                  {{ businessReadableAssisted ? 'Business Narrative overlay generated from the canonical Business Brief for easier stakeholder review.' : 'Narrative mode fell back to the canonical Business Brief because no assistant rewrite was available.' }}
                 </p>
               </div>
               <div class="share-actions">
@@ -1611,13 +2096,13 @@ async function handleDraftChange(item: string) {
             <div class="share-card-head">
               <div>
                 <h3 class="loop-panel-title">Engineering Contract</h3>
-                <p class="section-desc">Canonical engineering-facing summary of the active context, design structure, expected behavior, and current gaps.</p>
+                <p class="section-desc">Canonical engineering-facing contract for the active implementation decision: intended behavior, design structure, observed evidence, and the next implementation work.</p>
                 <div class="share-mode-toggle">
                   <button class="btn btn-secondary" :class="{ 'btn-active': engineeringContractMode === 'structured' }" @click="selectEngineeringContractMode('structured')">Canonical</button>
                   <button class="btn btn-secondary" :class="{ 'btn-active': engineeringContractMode === 'readable' }" @click="selectEngineeringContractMode('readable')">Narrative</button>
                 </div>
                 <p v-if="engineeringContractMode === 'readable'" class="share-mode-note">
-                  {{ engineeringReadableAssisted ? 'Engineering Narrative overlay generated from the canonical Engineering Contract.' : 'Narrative mode fell back to the canonical Engineering Contract because no assistant rewrite was available.' }}
+                  {{ engineeringReadableAssisted ? 'Engineering Narrative overlay generated from the canonical Engineering Contract for easier implementation review.' : 'Narrative mode fell back to the canonical Engineering Contract because no assistant rewrite was available.' }}
                 </p>
               </div>
               <div class="share-actions">
@@ -2582,19 +3067,24 @@ async function handleDraftChange(item: string) {
 
 .changes-card {
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-content);
 }
 
 .changes-card-positive {
-  border-color: rgba(34, 197, 94, 0.18);
-  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(52, 211, 153, 0.24);
+  background: rgba(52, 211, 153, 0.08);
 }
 
 .changes-card-primary {
-  border-color: rgba(59, 130, 246, 0.18);
-  background: rgba(59, 130, 246, 0.05);
+  border-color: rgba(108, 99, 255, 0.28);
+  background: rgba(108, 99, 255, 0.08);
+}
+
+.changes-card-diagnostic {
+  border-color: rgba(251, 191, 36, 0.24);
+  background: rgba(251, 191, 36, 0.08);
 }
 
 .changes-card-title {
@@ -2633,14 +3123,45 @@ async function handleDraftChange(item: string) {
   gap: 0.45rem;
 }
 
+.glue-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.glue-badge {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.metadata-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.metadata-snapshot-card {
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+}
+
 .change-action-btn {
   flex-shrink: 0;
   height: 30px;
   padding: 0 10px;
-  border: 1px solid rgba(59, 130, 246, 0.35);
+  border: 1px solid rgba(108, 99, 255, 0.35);
   border-radius: var(--radius-sm);
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
+  background: var(--accent-glow);
+  color: var(--accent-hover);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -2648,16 +3169,16 @@ async function handleDraftChange(item: string) {
 }
 
 .change-action-btn:hover {
-  background: rgba(59, 130, 246, 0.14);
+  background: rgba(108, 99, 255, 0.2);
 }
 
 .change-action-btn-primary {
-  border-color: rgba(15, 23, 42, 0.12);
-  background: rgba(15, 23, 42, 0.06);
+  border-color: var(--border);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .change-action-btn-primary:hover {
-  background: rgba(15, 23, 42, 0.1);
+  background: var(--bg-active);
 }
 </style>

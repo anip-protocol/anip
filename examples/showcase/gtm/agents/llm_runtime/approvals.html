@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM Agent Approvals</title>
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Inter", sans-serif; background: #0d1117; color: #e6edf3; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 40px 24px 56px; }
+    .eyebrow { color: #7ee787; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 800; }
+    .eyebrow a { color: inherit; text-decoration: none; }
+    h1 { margin: 8px 0 12px; font-size: 38px; line-height: 1.05; }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 0 0 10px; }
+    .subtitle, .muted { color: #9fb0c3; line-height: 1.55; }
+    .panel, .approval-card { background: #161b22; border: 1px solid #2d333b; border-radius: 18px; padding: 20px; margin-top: 20px; }
+    .approval-card { display: grid; gap: 14px; background: radial-gradient(circle at top right, rgba(255, 171, 0, .12), transparent 30%), #0d1117; border-color: #8b6f2f; }
+    .controls, .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    select { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 12px; padding: 10px 12px; font: inherit; min-width: 260px; }
+    button, .button-link { background: #238636; color: #fff; border: 0; border-radius: 999px; padding: 11px 15px; font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-block; }
+    .secondary { background: #1f6feb; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .metric-card { background: #0d1117; border: 1px solid #30363d; border-radius: 14px; padding: 14px; min-width: 0; }
+    .metric-card-wide { grid-column: span 2; }
+    .metric-label { color: #9fb0c3; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .metric-value { color: #f0f6fc; font-size: clamp(17px, 2vw, 22px); font-weight: 800; line-height: 1.18; margin-top: 6px; overflow-wrap: anywhere; word-break: break-word; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 12px; border: 1px solid #30363d; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #30363d; text-align: left; vertical-align: top; }
+    th { background: #0d1117; color: #9fb0c3; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    tr:last-child td { border-bottom: 0; }
+    pre { white-space: pre-wrap; word-break: break-word; overflow-x: auto; background: #0d1117; border: 1px solid #30363d; border-radius: 12px; padding: 16px; color: #c9d1d9; }
+    details { background: #0d1117; border: 1px solid #30363d; border-radius: 12px; padding: 12px; }
+    summary { cursor: pointer; color: #9fb0c3; font-weight: 800; }
+    @media (max-width: 640px) { .metric-card-wide { grid-column: span 1; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow"><a href="/">ANIP GTM Showcase</a></div>
+    <h1>Approval Queue</h1>
+    <p class="subtitle">
+      Approval-gated requests stop before downstream action. Select an actor,
+      approve a pending request, then retry the original business question.
+    </p>
+
+    <section class="panel">
+      <div class="controls">
+        <label for="actorSelect">Actor</label>
+        <select id="actorSelect"></select>
+        <button id="refreshButton" type="button">Refresh Queue</button>
+        <a class="button-link secondary" href="/questions">Example Questions</a>
+        <a class="button-link secondary" href="/agent">Back To Agent</a>
+      </div>
+      <p id="status" class="muted">Loading approvals...</p>
+    </section>
+
+    <section id="queue" class="panel"></section>
+  </main>
+
+  <script>
+    const actorSelect = document.getElementById('actorSelect');
+    const refreshButton = document.getElementById('refreshButton');
+    const statusEl = document.getElementById('status');
+    const queueEl = document.getElementById('queue');
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatLabel(value) {
+      return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    function formatValue(value) {
+      if (typeof value === 'number') return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+      if (value === null || value === undefined) return 'Not available';
+      if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+      return String(value);
+    }
+
+    function renderMetricCards(items) {
+      return `
+        <div class="summary-grid">
+          ${items.map(([label, value]) => {
+            const labelText = String(label || '').toLowerCase();
+            const valueText = String(value ?? '');
+            const isWide = valueText.length > 18 || /\b(capability|approval|cohort|target|account|opportunity|reference|ref|id)\b/.test(labelText);
+            return `
+              <div class="metric-card${isWide ? ' metric-card-wide' : ''}">
+                <div class="metric-label">${escapeHtml(formatLabel(label))}</div>
+                <div class="metric-value">${escapeHtml(formatValue(value))}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderTable(rows) {
+      if (!Array.isArray(rows) || !rows.length) return '';
+      const keys = Object.keys(rows[0]);
+      return `
+        <table>
+          <thead><tr>${keys.map((key) => `<th>${escapeHtml(formatLabel(key))}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows.map((row) => `<tr>${keys.map((key) => `<td>${escapeHtml(formatValue(row[key]))}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPreview(preview) {
+      if (!preview || typeof preview !== 'object') return '';
+      const blocks = [];
+      const summaryEntries = Object.entries(preview).filter(([, value]) => !Array.isArray(value) && typeof value !== 'object');
+      if (summaryEntries.length) blocks.push(renderMetricCards(summaryEntries));
+      for (const key of ['tasks', 'reassignments', 'preview', 'lead_scores', 'accounts']) {
+        if (Array.isArray(preview[key])) blocks.push(`<div><h3>${escapeHtml(formatLabel(key))}</h3>${renderTable(preview[key])}</div>`);
+      }
+      return blocks.join('') || `<pre>${escapeHtml(JSON.stringify(preview, null, 2))}</pre>`;
+    }
+
+    function retryQuestion(entry) {
+      const preview = entry.preview || {};
+      if (entry.capability === 'gtm.prepare_followup_tasks') {
+        const quarter = preview.quarter || '2017-Q2';
+        const owner = preview.owner_scope ? ` for the ${preview.owner_scope} region` : '';
+        return `Prepare follow-up tasks for the top at-risk accounts in ${quarter}${owner}.`;
+      }
+      if (entry.capability === 'gtm.route_leads') {
+        if (preview.cohort_ref === 'inbound_last_week') {
+          return `Route the inbound leads from last week to ${preview.target_queue || 'sales'}.`;
+        }
+        return `Route ${preview.cohort_ref || 'the inbound leads'} to ${preview.target_queue || 'sales'}.`;
+      }
+      return `Retry ${entry.capability || 'the approval-gated request'}.`;
+    }
+
+    async function approve(approvalRequestId, service) {
+      statusEl.textContent = `Approving ${approvalRequestId} as ${actorSelect.value}...`;
+      const response = await fetch('/api/approvals/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor_id: actorSelect.value, service, approval_request_id: approvalRequestId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Approval failed.');
+      statusEl.textContent = `Approval ${approvalRequestId} recorded. Retry the original request.`;
+      await loadApprovals();
+    }
+
+    async function loadRuntime() {
+      const response = await fetch('/api/runtime');
+      const data = await response.json();
+      actorSelect.innerHTML = '';
+      for (const actor of data.actors || []) {
+        const option = document.createElement('option');
+        option.value = actor.actor_id;
+        option.textContent = actor.label || actor.display_name || actor.actor_id;
+        actorSelect.appendChild(option);
+      }
+      const params = new URLSearchParams(window.location.search);
+      const actorId = params.get('actor_id');
+      if (actorId) actorSelect.value = actorId;
+    }
+
+    async function loadApprovals() {
+      statusEl.textContent = `Loading approvals for ${actorSelect.value}...`;
+      const response = await fetch(`/api/approvals?actor_id=${encodeURIComponent(actorSelect.value)}&status=pending`);
+      const data = await response.json();
+      const entries = data.approvals?.entries || [];
+      statusEl.textContent = entries.length ? `${entries.length} pending approval request(s).` : 'No pending approvals for this actor.';
+      queueEl.innerHTML = entries.length ? entries.map((entry) => {
+        const question = retryQuestion(entry);
+        return `
+          <article class="approval-card">
+            <h2>${escapeHtml(formatLabel(entry.capability || 'Approval'))}</h2>
+            ${renderMetricCards([
+              ['approval id', entry.approval_request_id],
+              ['service', entry.service],
+              ['required role', entry.required_role],
+              ['requested by', entry.requested_by?.actor_id || entry.requested_by?.role],
+              ['created at', entry.created_at],
+            ].filter(([, value]) => value))}
+            ${entry.preview ? `<div><h3>Preview</h3>${renderPreview(entry.preview)}</div>` : ''}
+            <div class="actions">
+              <button type="button" onclick="approve('${escapeHtml(entry.approval_request_id)}', '${escapeHtml(entry.service || '')}')">Approve As Selected Actor</button>
+              <a class="button-link secondary" href="/agent?question=${encodeURIComponent(question)}">Retry Question</a>
+            </div>
+          </article>
+        `;
+      }).join('') : '<p class="muted">Run an approval-gated question first, then refresh this queue.</p>';
+    }
+
+    refreshButton.addEventListener('click', () => loadApprovals().catch((error) => { statusEl.textContent = String(error); }));
+    actorSelect.addEventListener('change', () => loadApprovals().catch((error) => { statusEl.textContent = String(error); }));
+    window.approve = approve;
+
+    loadRuntime()
+      .then(loadApprovals)
+      .catch((error) => {
+        statusEl.textContent = String(error);
+        queueEl.innerHTML = '<p class="muted">Failed to load approval queue.</p>';
+      });
+  </script>
+</body>
+</html>

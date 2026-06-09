@@ -1,0 +1,3306 @@
+{
+  "authority": "local-dev-registry",
+  "bundle_schema_version": "anip-package-bundle/v1",
+  "digests": {
+    "lock": "sha256:1958b497b5374e9cd5c7b802bac6659f2c64e71f74376ce0f9e706f80c366757",
+    "manifest": "sha256:99915402c591d89d3a1def379e0344c3d19c7f92ae856bb79dcbd6b099219a2e",
+    "receipt": "sha256:14df4e8bbba3e58b02954d3af82203871b959e9e37cb65aea71b959c363be77d",
+    "service_definition": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267"
+  },
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+      "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+      "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+  },
+  "lock": {
+    "agent_consumability": {
+      "artifact_type": "agent_consumability_metadata",
+      "capabilities": {
+        "gitlab.issue.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.issue.prepare",
+            "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "body",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "assignees",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.mr.comment.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.mr.comment.prepare",
+            "summary": "Prepare a merge request comment from review or release context without posting it."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "merge_request_iid",
+              "posture": "required:clarify",
+              "semantic_type": "merge_request_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.pipeline.trigger.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.pipeline.trigger.request",
+            "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "pipeline_ref",
+              "posture": "required:clarify",
+              "semantic_type": "pipeline_ref"
+            },
+            {
+              "input": "ref",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "inputs",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.project.search_context": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.project.search_context",
+            "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.release_notes.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.release_notes.prepare",
+            "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "range",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "audience",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        }
+      },
+      "capability_hints": [
+        {
+          "capability_id": "gitlab.project.search_context",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+          "title": "Search Project Context"
+        },
+        {
+          "capability_id": "gitlab.issue.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "body",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "assignees",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+          "title": "Prepare Issue"
+        },
+        {
+          "capability_id": "gitlab.mr.comment.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "merge_request_iid",
+              "posture": "required:clarify",
+              "semantic_type": "merge_request_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a merge request comment from review or release context without posting it.",
+          "title": "Prepare Merge Request Comment"
+        },
+        {
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "pipeline_ref",
+              "posture": "required:clarify",
+              "semantic_type": "pipeline_ref"
+            },
+            {
+              "input": "ref",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "inputs",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+          "title": "Request Pipeline Trigger"
+        },
+        {
+          "capability_id": "gitlab.release_notes.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "range",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "audience",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+          "title": "Prepare Release Notes"
+        }
+      ],
+      "schema_version": "anip-agent-consumability/v0"
+    },
+    "agent_consumption_readiness": {
+      "artifact_type": "agent_consumption_readiness",
+      "findings": [],
+      "probes": [
+        {
+          "capability_id": "gitlab.project.search_context",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.issue.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.mr.comment.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.release_notes.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        }
+      ],
+      "required_app_glue": [],
+      "schema_version": "anip-agent-consumption-readiness/v0",
+      "score": 100,
+      "status": "ready",
+      "summary": {
+        "blockers": 0,
+        "capability_surface": 5,
+        "info": 0,
+        "probes": 5,
+        "required_app_glue": 0,
+        "warnings": 0
+      }
+    },
+    "anip_spec_version": "anip/0.24",
+    "artifact_type": "anip_package_lock",
+    "blueprint_id": "gitlab-fronting-showcase",
+    "blueprint_version": "0.2.0",
+    "build_packs": [
+      "anip-build-pack@local"
+    ],
+    "capability_ids": [
+      "gitlab.project.search_context",
+      "gitlab.issue.prepare",
+      "gitlab.mr.comment.prepare",
+      "gitlab.pipeline.trigger.request",
+      "gitlab.release_notes.prepare"
+    ],
+    "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "extension_packs": [],
+    "generated_at": "2026-05-15T00:00:00Z",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+        "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+    },
+    "lock_kind": "publisher_recommended_lock",
+    "package_id": "gitlab-fronting-showcase",
+    "package_version": "0.2.0",
+    "regression_packs": [],
+    "runtime_packages": [],
+    "schema_version": "anip-service-definition/v1",
+    "selected_service_ids": [
+      "gitlab-governance-service"
+    ],
+    "service_definition_digest": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "verifier_packs": [
+      "anip-verifier@local"
+    ]
+  },
+  "manifest": {
+    "agent_consumability": {
+      "artifact_type": "agent_consumability_metadata",
+      "capabilities": {
+        "gitlab.issue.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.issue.prepare",
+            "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "body",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "assignees",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.mr.comment.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.mr.comment.prepare",
+            "summary": "Prepare a merge request comment from review or release context without posting it."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "merge_request_iid",
+              "posture": "required:clarify",
+              "semantic_type": "merge_request_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.pipeline.trigger.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.pipeline.trigger.request",
+            "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "pipeline_ref",
+              "posture": "required:clarify",
+              "semantic_type": "pipeline_ref"
+            },
+            {
+              "input": "ref",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "inputs",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.project.search_context": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.project.search_context",
+            "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "gitlab.release_notes.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "gitlab.release_notes.prepare",
+            "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release."
+          },
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "range",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "audience",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        }
+      },
+      "capability_hints": [
+        {
+          "capability_id": "gitlab.project.search_context",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+          "title": "Search Project Context"
+        },
+        {
+          "capability_id": "gitlab.issue.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "body",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "assignees",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+          "title": "Prepare Issue"
+        },
+        {
+          "capability_id": "gitlab.mr.comment.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "merge_request_iid",
+              "posture": "required:clarify",
+              "semantic_type": "merge_request_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a merge request comment from review or release context without posting it.",
+          "title": "Prepare Merge Request Comment"
+        },
+        {
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "pipeline_ref",
+              "posture": "required:clarify",
+              "semantic_type": "pipeline_ref"
+            },
+            {
+              "input": "ref",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "inputs",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+          "title": "Request Pipeline Trigger"
+        },
+        {
+          "capability_id": "gitlab.release_notes.prepare",
+          "required_context": [
+            {
+              "input": "namespace",
+              "posture": "required:clarify",
+              "semantic_type": "project_namespace"
+            },
+            {
+              "input": "project",
+              "posture": "required:clarify",
+              "semantic_type": "project_name"
+            },
+            {
+              "input": "range",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "audience",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+          "title": "Prepare Release Notes"
+        }
+      ],
+      "schema_version": "anip-agent-consumability/v0"
+    },
+    "agent_consumption_readiness": {
+      "artifact_type": "agent_consumption_readiness",
+      "findings": [],
+      "probes": [
+        {
+          "capability_id": "gitlab.project.search_context",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.issue.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.mr.comment.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "gitlab.release_notes.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        }
+      ],
+      "required_app_glue": [],
+      "schema_version": "anip-agent-consumption-readiness/v0",
+      "score": 100,
+      "status": "ready",
+      "summary": {
+        "blockers": 0,
+        "capability_surface": 5,
+        "info": 0,
+        "probes": 5,
+        "required_app_glue": 0,
+        "warnings": 0
+      }
+    },
+    "anip_spec_version": "anip/0.24",
+    "artifact_type": "anip_package_manifest",
+    "blueprint_id": "gitlab-fronting-showcase",
+    "build_packs": {
+      "recommended": [
+        "anip-build-pack@local"
+      ]
+    },
+    "capability_count": 5,
+    "generated_at": "2026-05-15T00:00:00Z",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+        "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+    },
+    "name": "gitlab_governed_fronting_showcase Service Blueprint",
+    "package_id": "gitlab-fronting-showcase",
+    "package_kind": "anip_service_blueprint",
+    "package_version": "0.2.0",
+    "publisher": {
+      "display_name": "Local development registry",
+      "id": "local-dev-registry"
+    },
+    "readme": "# gitlab_governed_fronting_showcase\n\nANIP package `gitlab-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `gitlab.project.search_context`\n- `gitlab.issue.prepare`\n- `gitlab.mr.comment.prepare`\n- `gitlab.pipeline.trigger.request`\n- `gitlab.release_notes.prepare`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/gitlab-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id gitlab-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/gitlab-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9155` unless overridden by the generated runtime configuration.",
+    "schema_version": "anip-service-definition/v1",
+    "service_count": 1,
+    "service_definition": "anip-service-definition.json",
+    "service_definition_digest": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "service_definition_digest_algorithm": "sha256",
+    "service_ids": [
+      "gitlab-governance-service"
+    ],
+    "source_links": [],
+    "usage": {
+      "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/gitlab-fronting-showcase --force",
+      "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id gitlab-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/gitlab-fronting-showcase --force",
+      "local_port": 9155,
+      "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+      "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+    },
+    "verifier_packs": {
+      "recommended": [
+        "anip-verifier@local"
+      ]
+    },
+    "version": "0.2.0"
+  },
+  "package": {
+    "package_id": "gitlab-fronting-showcase",
+    "package_version": "0.2.0",
+    "project_ref": "studio:gitlab-fronting-studio-20260516220707",
+    "product_revision_ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+    "developer_revision_ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+    "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+        "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+    },
+    "schema_version": "anip-service-definition/v1",
+    "manifest_digest": "sha256:99915402c591d89d3a1def379e0344c3d19c7f92ae856bb79dcbd6b099219a2e",
+    "definition_digest": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "lock_digest": "sha256:1958b497b5374e9cd5c7b802bac6659f2c64e71f74376ce0f9e706f80c366757",
+    "published_at": "2026-05-15T00:00:00Z",
+    "download_count": 0,
+    "manifest": {
+      "agent_consumability": {
+        "artifact_type": "agent_consumability_metadata",
+        "capabilities": {
+          "gitlab.issue.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.issue.prepare",
+              "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "body",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "assignees",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.mr.comment.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.mr.comment.prepare",
+              "summary": "Prepare a merge request comment from review or release context without posting it."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "merge_request_iid",
+                "posture": "required:clarify",
+                "semantic_type": "merge_request_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.pipeline.trigger.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.pipeline.trigger.request",
+              "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "pipeline_ref",
+                "posture": "required:clarify",
+                "semantic_type": "pipeline_ref"
+              },
+              {
+                "input": "ref",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "inputs",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.project.search_context": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.project.search_context",
+              "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.release_notes.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.release_notes.prepare",
+              "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "range",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "audience",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          }
+        },
+        "capability_hints": [
+          {
+            "capability_id": "gitlab.project.search_context",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+            "title": "Search Project Context"
+          },
+          {
+            "capability_id": "gitlab.issue.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "body",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "assignees",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+            "title": "Prepare Issue"
+          },
+          {
+            "capability_id": "gitlab.mr.comment.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "merge_request_iid",
+                "posture": "required:clarify",
+                "semantic_type": "merge_request_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a merge request comment from review or release context without posting it.",
+            "title": "Prepare Merge Request Comment"
+          },
+          {
+            "capability_id": "gitlab.pipeline.trigger.request",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "pipeline_ref",
+                "posture": "required:clarify",
+                "semantic_type": "pipeline_ref"
+              },
+              {
+                "input": "ref",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "inputs",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+            "title": "Request Pipeline Trigger"
+          },
+          {
+            "capability_id": "gitlab.release_notes.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "range",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "audience",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+            "title": "Prepare Release Notes"
+          }
+        ],
+        "schema_version": "anip-agent-consumability/v0"
+      },
+      "agent_consumption_readiness": {
+        "artifact_type": "agent_consumption_readiness",
+        "findings": [],
+        "probes": [
+          {
+            "capability_id": "gitlab.project.search_context",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.issue.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.mr.comment.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.pipeline.trigger.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.release_notes.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          }
+        ],
+        "required_app_glue": [],
+        "schema_version": "anip-agent-consumption-readiness/v0",
+        "score": 100,
+        "status": "ready",
+        "summary": {
+          "blockers": 0,
+          "capability_surface": 5,
+          "info": 0,
+          "probes": 5,
+          "required_app_glue": 0,
+          "warnings": 0
+        }
+      },
+      "anip_spec_version": "anip/0.24",
+      "artifact_type": "anip_package_manifest",
+      "blueprint_id": "gitlab-fronting-showcase",
+      "build_packs": {
+        "recommended": [
+          "anip-build-pack@local"
+        ]
+      },
+      "capability_count": 5,
+      "generated_at": "2026-05-15T00:00:00Z",
+      "lineage": {
+        "developer_revision": {
+          "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+          "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+          "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+          "revision_number": 1
+        },
+        "product_revision": {
+          "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+          "baseline_locked_at": "2026-05-15T00:00:00Z",
+          "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+          "revision_number": 1
+        },
+        "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+      },
+      "name": "gitlab_governed_fronting_showcase Service Blueprint",
+      "package_id": "gitlab-fronting-showcase",
+      "package_kind": "anip_service_blueprint",
+      "package_version": "0.2.0",
+      "publisher": {
+        "display_name": "Local development registry",
+        "id": "local-dev-registry"
+      },
+      "readme": "# gitlab_governed_fronting_showcase\n\nANIP package `gitlab-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `gitlab.project.search_context`\n- `gitlab.issue.prepare`\n- `gitlab.mr.comment.prepare`\n- `gitlab.pipeline.trigger.request`\n- `gitlab.release_notes.prepare`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/gitlab-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id gitlab-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/gitlab-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9155` unless overridden by the generated runtime configuration.",
+      "schema_version": "anip-service-definition/v1",
+      "service_count": 1,
+      "service_definition": "anip-service-definition.json",
+      "service_definition_digest": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+      "service_definition_digest_algorithm": "sha256",
+      "service_ids": [
+        "gitlab-governance-service"
+      ],
+      "source_links": [],
+      "usage": {
+        "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/gitlab-fronting-showcase --force",
+        "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id gitlab-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/gitlab-fronting-showcase --force",
+        "local_port": 9155,
+        "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+        "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+      },
+      "verifier_packs": {
+        "recommended": [
+          "anip-verifier@local"
+        ]
+      },
+      "version": "0.2.0"
+    },
+    "service_definition": {
+      "artifact_type": "anip_service_definition",
+      "audit": {
+        "durable_records_required": true,
+        "searchable_history_required": true
+      },
+      "authority": {
+        "approval_expectation": "approval_gated_for_write_like_actions",
+        "blocked_failure_posture": "clarify_or_stop"
+      },
+      "capability_formalizations": [
+        {
+          "backend_operation": "gitlab_project_search_context",
+          "capability_id": "gitlab.project.search_context",
+          "context_type": "project_context_search",
+          "id": "cap-gitlab-project-search_context",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "namespace",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_namespace",
+              "summary": "GitLab project namespace."
+            },
+            {
+              "clarification_hint": "Ask for project when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_name",
+              "summary": "GitLab project name."
+            },
+            {
+              "clarification_hint": "Ask for query when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "query",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded project search query."
+            },
+            {
+              "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+              "default_value": "20",
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum results to return."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+            }
+          ],
+          "intent_type": "read_only",
+          "kind": "atomic",
+          "operation_type": "read",
+          "output_intent": "bounded_project_results",
+          "output_shape": "gitlab_project_search_context_result",
+          "path_template": "/gitlab/projects/{namespace}/{project}/context/search",
+          "service_id": "gitlab-governance-service",
+          "side_effect_level": "read",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "gitlab_project",
+          "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+          "title": "Search Project Context"
+        },
+        {
+          "backend_operation": "gitlab_issue_prepare",
+          "capability_id": "gitlab.issue.prepare",
+          "context_type": "issue_preparation",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-gitlab-issue-prepare",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "namespace",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_namespace",
+              "summary": "GitLab project namespace."
+            },
+            {
+              "clarification_hint": "Ask for project when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_name",
+              "summary": "GitLab project name."
+            },
+            {
+              "clarification_hint": "Ask for title when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "title",
+              "input_type": "string",
+              "required": true,
+              "summary": "Issue title."
+            },
+            {
+              "clarification_hint": "Ask for body when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "body",
+              "input_type": "string",
+              "required": true,
+              "summary": "Issue body."
+            },
+            {
+              "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "labels",
+              "input_type": "array\u003cstring\u003e",
+              "required": false,
+              "summary": "Labels to propose."
+            },
+            {
+              "clarification_hint": "Ask for assignees when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "assignees",
+              "input_type": "array\u003cstring\u003e",
+              "required": false,
+              "summary": "Assignees to propose."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "issue_creation_preview",
+          "output_shape": "gitlab_issue_prepare_result",
+          "path_template": "/gitlab/projects/{namespace}/{project}/issues/preview",
+          "service_id": "gitlab-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "gitlab_issue",
+          "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+          "title": "Prepare Issue"
+        },
+        {
+          "backend_operation": "gitlab_mr_comment_prepare",
+          "capability_id": "gitlab.mr.comment.prepare",
+          "context_type": "merge_request_comment_preparation",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-gitlab-mr-comment-prepare",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "namespace",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_namespace",
+              "summary": "GitLab project namespace."
+            },
+            {
+              "clarification_hint": "Ask for project when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_name",
+              "summary": "GitLab project name."
+            },
+            {
+              "clarification_hint": "Ask for merge_request_iid when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "merge_request_iid",
+              "input_type": "integer",
+              "required": true,
+              "semantic_type": "merge_request_ref",
+              "summary": "Merge request number."
+            },
+            {
+              "allowed_values": [
+                "review_note",
+                "release_note",
+                "triage_update"
+              ],
+              "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "required": true,
+              "summary": "Purpose of the comment."
+            },
+            {
+              "clarification_hint": "Ask for context when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "context",
+              "input_type": "string",
+              "required": true,
+              "summary": "Context to include in the comment."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "comment_preview",
+          "output_shape": "gitlab_mr_comment_prepare_result",
+          "path_template": "/gitlab/projects/{namespace}/{project}/merge_requests/{merge_request_iid}/comments/preview",
+          "service_id": "gitlab-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "gitlab_merge_request",
+          "summary": "Prepare a merge request comment from review or release context without posting it.",
+          "title": "Prepare Merge Request Comment"
+        },
+        {
+          "backend_operation": "gitlab_pipeline_trigger_request",
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "context_type": "pipeline_trigger",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-gitlab-pipeline-trigger-request",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "namespace",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_namespace",
+              "summary": "GitLab project namespace."
+            },
+            {
+              "clarification_hint": "Ask for project when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_name",
+              "summary": "GitLab project name."
+            },
+            {
+              "clarification_hint": "Ask for pipeline_ref when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "pipeline_ref",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "pipeline_ref",
+              "summary": "Pipeline ref, branch, or tag."
+            },
+            {
+              "clarification_hint": "Ask for ref when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "ref",
+              "input_type": "string",
+              "required": true,
+              "summary": "Git ref for the pipeline trigger."
+            },
+            {
+              "clarification_hint": "Ask for inputs when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "inputs",
+              "input_type": "object",
+              "required": false,
+              "summary": "Pipeline variables."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "pipeline_trigger_preview",
+          "output_shape": "gitlab_pipeline_trigger_request_result",
+          "path_template": "/gitlab/projects/{namespace}/{project}/pipelines/{pipeline_ref}/trigger/preview",
+          "service_id": "gitlab-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "gitlab_pipeline",
+          "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+          "title": "Request Pipeline Trigger"
+        },
+        {
+          "backend_operation": "gitlab_release_notes_prepare",
+          "capability_id": "gitlab.release_notes.prepare",
+          "context_type": "release_notes_preparation",
+          "id": "cap-gitlab-release_notes-prepare",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "namespace",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_namespace",
+              "summary": "GitLab project namespace."
+            },
+            {
+              "clarification_hint": "Ask for project when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "project_name",
+              "summary": "GitLab project name."
+            },
+            {
+              "clarification_hint": "Ask for range when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "range",
+              "input_type": "string",
+              "required": true,
+              "summary": "Release range, milestone, or comparison reference."
+            },
+            {
+              "allowed_values": [
+                "engineering",
+                "customer",
+                "internal"
+              ],
+              "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "audience",
+              "input_type": "string",
+              "required": false,
+              "summary": "Release-note audience."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+            }
+          ],
+          "intent_type": "read_only",
+          "kind": "atomic",
+          "operation_type": "read",
+          "output_intent": "release_notes_draft",
+          "output_shape": "gitlab_release_notes_prepare_result",
+          "path_template": "/gitlab/projects/{namespace}/{project}/release-notes/preview",
+          "service_id": "gitlab-governance-service",
+          "side_effect_level": "read",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "gitlab_release",
+          "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+          "title": "Prepare Release Notes"
+        }
+      ],
+      "compiled_contract_identity": {
+        "signature": "sha256:2b76bdef6b0443ee39b32c88ea7a2cf85372e294251470323a4aead9c173ec1b",
+        "signature_algorithm": "sha256"
+      },
+      "contract_schema_version": "anip-service-definition/v1",
+      "generation": {
+        "layout_strategy": "single_package",
+        "protocols": [
+          "https"
+        ],
+        "selected_service_ids": [
+          "gitlab-governance-service"
+        ]
+      },
+      "identity": {
+        "architecture_shape": "single_service",
+        "delivery_model": "governed_integration_fronting",
+        "domain_name": "gitlab",
+        "system_name": "gitlab_governed_fronting_showcase"
+      },
+      "integration_fronting": {
+        "capability_mappings": [
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "gitlab.project.search_context",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "gitlab_fronting",
+            "context_type": "project_context_search",
+            "execution_posture": "read_only",
+            "id": "map-gitlab-project-search_context",
+            "intent": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+            "optional_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "bounded_project_results",
+            "raw_operation_refs": [
+              "gitlab.api.search_project_context"
+            ],
+            "required_inputs": [
+              "namespace",
+              "project",
+              "query"
+            ],
+            "service_id": "gitlab-governance-service",
+            "service_name": "GitLab Governance Service",
+            "side_effect_level": "read",
+            "subject_kind": "gitlab_project",
+            "title": "Search Project Context"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "gitlab.issue.prepare",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "gitlab_fronting",
+            "context_type": "issue_preparation",
+            "execution_posture": "prepare_only",
+            "id": "map-gitlab-issue-prepare",
+            "intent": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+            "optional_inputs": [
+              "labels",
+              "assignees",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "issue_creation_preview",
+            "raw_operation_refs": [
+              "gitlab.api.prepare_issue"
+            ],
+            "required_inputs": [
+              "namespace",
+              "project",
+              "title",
+              "body"
+            ],
+            "service_id": "gitlab-governance-service",
+            "service_name": "GitLab Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "gitlab_issue",
+            "title": "Prepare Issue"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "gitlab.mr.comment.prepare",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "gitlab_fronting",
+            "context_type": "merge_request_comment_preparation",
+            "execution_posture": "prepare_only",
+            "id": "map-gitlab-mr-comment-prepare",
+            "intent": "Prepare a merge request comment from review or release context without posting it.",
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "comment_preview",
+            "raw_operation_refs": [
+              "gitlab.api.prepare_merge_request_comment"
+            ],
+            "required_inputs": [
+              "namespace",
+              "project",
+              "merge_request_iid",
+              "comment_purpose",
+              "context"
+            ],
+            "service_id": "gitlab-governance-service",
+            "service_name": "GitLab Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "gitlab_merge_request",
+            "title": "Prepare Merge Request Comment"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "gitlab.pipeline.trigger.request",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "gitlab_fronting",
+            "context_type": "pipeline_trigger",
+            "execution_posture": "prepare_only",
+            "id": "map-gitlab-pipeline-trigger-request",
+            "intent": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+            "optional_inputs": [
+              "inputs",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "pipeline_trigger_preview",
+            "raw_operation_refs": [
+              "gitlab.api.request_pipeline_trigger"
+            ],
+            "required_inputs": [
+              "namespace",
+              "project",
+              "pipeline_ref",
+              "ref"
+            ],
+            "service_id": "gitlab-governance-service",
+            "service_name": "GitLab Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "gitlab_pipeline",
+            "title": "Request Pipeline Trigger"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "gitlab.release_notes.prepare",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "gitlab_fronting",
+            "context_type": "release_notes_preparation",
+            "execution_posture": "read_only",
+            "id": "map-gitlab-release_notes-prepare",
+            "intent": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+            "optional_inputs": [
+              "audience",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "release_notes_draft",
+            "raw_operation_refs": [
+              "gitlab.api.prepare_release_notes"
+            ],
+            "required_inputs": [
+              "namespace",
+              "project",
+              "range"
+            ],
+            "service_id": "gitlab-governance-service",
+            "service_name": "GitLab Governance Service",
+            "side_effect_level": "read",
+            "subject_kind": "gitlab_release",
+            "title": "Prepare Release Notes"
+          }
+        ],
+        "project_type": "governed_api_fronting"
+      },
+      "service_topology_bindings": [
+        {
+          "formalized_capability_ids": [
+            "gitlab.project.search_context",
+            "gitlab.issue.prepare",
+            "gitlab.mr.comment.prepare",
+            "gitlab.pipeline.trigger.request",
+            "gitlab.release_notes.prepare"
+          ],
+          "id": "svc-gitlab-governance-service",
+          "owned_concept_ids": [
+            "fronted_resource"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "source_capabilities": [
+            "gitlab.project.search_context",
+            "gitlab.issue.prepare",
+            "gitlab.mr.comment.prepare",
+            "gitlab.pipeline.trigger.request",
+            "gitlab.release_notes.prepare"
+          ],
+          "source_role": "integration_fronting"
+        }
+      ]
+    },
+    "recommended_lock": {
+      "agent_consumability": {
+        "artifact_type": "agent_consumability_metadata",
+        "capabilities": {
+          "gitlab.issue.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.issue.prepare",
+              "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "body",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "assignees",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.mr.comment.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.mr.comment.prepare",
+              "summary": "Prepare a merge request comment from review or release context without posting it."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "merge_request_iid",
+                "posture": "required:clarify",
+                "semantic_type": "merge_request_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.pipeline.trigger.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.pipeline.trigger.request",
+              "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "pipeline_ref",
+                "posture": "required:clarify",
+                "semantic_type": "pipeline_ref"
+              },
+              {
+                "input": "ref",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "inputs",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.project.search_context": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.project.search_context",
+              "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "gitlab.release_notes.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "gitlab.release_notes.prepare",
+              "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release."
+            },
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "range",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "audience",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          }
+        },
+        "capability_hints": [
+          {
+            "capability_id": "gitlab.project.search_context",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+            "title": "Search Project Context"
+          },
+          {
+            "capability_id": "gitlab.issue.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "body",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "assignees",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+            "title": "Prepare Issue"
+          },
+          {
+            "capability_id": "gitlab.mr.comment.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "merge_request_iid",
+                "posture": "required:clarify",
+                "semantic_type": "merge_request_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a merge request comment from review or release context without posting it.",
+            "title": "Prepare Merge Request Comment"
+          },
+          {
+            "capability_id": "gitlab.pipeline.trigger.request",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "pipeline_ref",
+                "posture": "required:clarify",
+                "semantic_type": "pipeline_ref"
+              },
+              {
+                "input": "ref",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "inputs",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+            "title": "Request Pipeline Trigger"
+          },
+          {
+            "capability_id": "gitlab.release_notes.prepare",
+            "required_context": [
+              {
+                "input": "namespace",
+                "posture": "required:clarify",
+                "semantic_type": "project_namespace"
+              },
+              {
+                "input": "project",
+                "posture": "required:clarify",
+                "semantic_type": "project_name"
+              },
+              {
+                "input": "range",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "audience",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+            "title": "Prepare Release Notes"
+          }
+        ],
+        "schema_version": "anip-agent-consumability/v0"
+      },
+      "agent_consumption_readiness": {
+        "artifact_type": "agent_consumption_readiness",
+        "findings": [],
+        "probes": [
+          {
+            "capability_id": "gitlab.project.search_context",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.issue.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.mr.comment.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.pipeline.trigger.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "gitlab.release_notes.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          }
+        ],
+        "required_app_glue": [],
+        "schema_version": "anip-agent-consumption-readiness/v0",
+        "score": 100,
+        "status": "ready",
+        "summary": {
+          "blockers": 0,
+          "capability_surface": 5,
+          "info": 0,
+          "probes": 5,
+          "required_app_glue": 0,
+          "warnings": 0
+        }
+      },
+      "anip_spec_version": "anip/0.24",
+      "artifact_type": "anip_package_lock",
+      "blueprint_id": "gitlab-fronting-showcase",
+      "blueprint_version": "0.2.0",
+      "build_packs": [
+        "anip-build-pack@local"
+      ],
+      "capability_ids": [
+        "gitlab.project.search_context",
+        "gitlab.issue.prepare",
+        "gitlab.mr.comment.prepare",
+        "gitlab.pipeline.trigger.request",
+        "gitlab.release_notes.prepare"
+      ],
+      "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+      "extension_packs": [],
+      "generated_at": "2026-05-15T00:00:00Z",
+      "lineage": {
+        "developer_revision": {
+          "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+          "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+          "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+          "revision_number": 1
+        },
+        "product_revision": {
+          "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+          "baseline_locked_at": "2026-05-15T00:00:00Z",
+          "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+          "revision_number": 1
+        },
+        "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+      },
+      "lock_kind": "publisher_recommended_lock",
+      "package_id": "gitlab-fronting-showcase",
+      "package_version": "0.2.0",
+      "regression_packs": [],
+      "runtime_packages": [],
+      "schema_version": "anip-service-definition/v1",
+      "selected_service_ids": [
+        "gitlab-governance-service"
+      ],
+      "service_definition_digest": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+      "verifier_packs": [
+        "anip-verifier@local"
+      ]
+    },
+    "readme": "# gitlab_governed_fronting_showcase\n\nANIP package `gitlab-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `gitlab.project.search_context`\n- `gitlab.issue.prepare`\n- `gitlab.mr.comment.prepare`\n- `gitlab.pipeline.trigger.request`\n- `gitlab.release_notes.prepare`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/gitlab-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id gitlab-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/gitlab-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9155` unless overridden by the generated runtime configuration."
+  },
+  "publication": {
+    "package_id": "gitlab-fronting-showcase",
+    "package_version": "0.2.0",
+    "project_ref": "studio:gitlab-fronting-studio-20260516220707",
+    "product_revision_ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+    "developer_revision_ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+    "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "contract_signature": "sha256:9da0970ab01e6ddbd020a158def4735657bf35c8389c82c85c97351de3502267",
+        "ref": "gitlab-fronting-studio-20260516220707-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "gitlab-fronting-studio-20260516220707-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:gitlab-fronting-studio-20260516220707"
+    },
+    "published_at": "2026-05-15T00:00:00Z",
+    "download_count": 0
+  },
+  "receipt": {
+    "receipt_id": "sha256:14df4e8bbba3e58b02954d3af82203871b959e9e37cb65aea71b959c363be77d",
+    "package_id": "gitlab-fronting-showcase",
+    "package_version": "0.2.0",
+    "registry_signature": "ed25519:anip-registry-dev-ed25519-v1:WH1PvBqJLXhKg0AOqNaqWAc885VdI2gKawx+TIReiH2oy20N8grFEfd6tVak+ud2pBcCR4AabrSQJPEjSh+5BQ==",
+    "signature_algorithm": "ed25519",
+    "key_id": "anip-registry-dev-ed25519-v1",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "issued_at": "2026-05-15T00:00:00Z"
+  },
+  "registry_keys": [
+    {
+      "algorithm": "ed25519",
+      "key_id": "anip-registry-dev-ed25519-v1",
+      "public_key": "NZ8bIweTW/SJ14NTpSOCV/ITzTL7TIJP/Sl0CPAQV14="
+    }
+  ],
+  "service_definition": {
+    "artifact_type": "anip_service_definition",
+    "audit": {
+      "durable_records_required": true,
+      "searchable_history_required": true
+    },
+    "authority": {
+      "approval_expectation": "approval_gated_for_write_like_actions",
+      "blocked_failure_posture": "clarify_or_stop"
+    },
+    "capability_formalizations": [
+      {
+        "backend_operation": "gitlab_project_search_context",
+        "capability_id": "gitlab.project.search_context",
+        "context_type": "project_context_search",
+        "id": "cap-gitlab-project-search_context",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "namespace",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_namespace",
+            "summary": "GitLab project namespace."
+          },
+          {
+            "clarification_hint": "Ask for project when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_name",
+            "summary": "GitLab project name."
+          },
+          {
+            "clarification_hint": "Ask for query when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "query",
+            "input_type": "string",
+            "required": true,
+            "summary": "Bounded project search query."
+          },
+          {
+            "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+            "default_value": "20",
+            "input_name": "limit",
+            "input_type": "integer",
+            "required": false,
+            "summary": "Maximum results to return."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+          }
+        ],
+        "intent_type": "read_only",
+        "kind": "atomic",
+        "operation_type": "read",
+        "output_intent": "bounded_project_results",
+        "output_shape": "gitlab_project_search_context_result",
+        "path_template": "/gitlab/projects/{namespace}/{project}/context/search",
+        "service_id": "gitlab-governance-service",
+        "side_effect_level": "read",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "gitlab_project",
+        "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+        "title": "Search Project Context"
+      },
+      {
+        "backend_operation": "gitlab_issue_prepare",
+        "capability_id": "gitlab.issue.prepare",
+        "context_type": "issue_preparation",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-gitlab-issue-prepare",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "namespace",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_namespace",
+            "summary": "GitLab project namespace."
+          },
+          {
+            "clarification_hint": "Ask for project when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_name",
+            "summary": "GitLab project name."
+          },
+          {
+            "clarification_hint": "Ask for title when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "title",
+            "input_type": "string",
+            "required": true,
+            "summary": "Issue title."
+          },
+          {
+            "clarification_hint": "Ask for body when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "body",
+            "input_type": "string",
+            "required": true,
+            "summary": "Issue body."
+          },
+          {
+            "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "labels",
+            "input_type": "array\u003cstring\u003e",
+            "required": false,
+            "summary": "Labels to propose."
+          },
+          {
+            "clarification_hint": "Ask for assignees when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "assignees",
+            "input_type": "array\u003cstring\u003e",
+            "required": false,
+            "summary": "Assignees to propose."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "issue_creation_preview",
+        "output_shape": "gitlab_issue_prepare_result",
+        "path_template": "/gitlab/projects/{namespace}/{project}/issues/preview",
+        "service_id": "gitlab-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "gitlab_issue",
+        "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+        "title": "Prepare Issue"
+      },
+      {
+        "backend_operation": "gitlab_mr_comment_prepare",
+        "capability_id": "gitlab.mr.comment.prepare",
+        "context_type": "merge_request_comment_preparation",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-gitlab-mr-comment-prepare",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "namespace",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_namespace",
+            "summary": "GitLab project namespace."
+          },
+          {
+            "clarification_hint": "Ask for project when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_name",
+            "summary": "GitLab project name."
+          },
+          {
+            "clarification_hint": "Ask for merge_request_iid when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "merge_request_iid",
+            "input_type": "integer",
+            "required": true,
+            "semantic_type": "merge_request_ref",
+            "summary": "Merge request number."
+          },
+          {
+            "allowed_values": [
+              "review_note",
+              "release_note",
+              "triage_update"
+            ],
+            "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "comment_purpose",
+            "input_type": "string",
+            "required": true,
+            "summary": "Purpose of the comment."
+          },
+          {
+            "clarification_hint": "Ask for context when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "context",
+            "input_type": "string",
+            "required": true,
+            "summary": "Context to include in the comment."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "comment_preview",
+        "output_shape": "gitlab_mr_comment_prepare_result",
+        "path_template": "/gitlab/projects/{namespace}/{project}/merge_requests/{merge_request_iid}/comments/preview",
+        "service_id": "gitlab-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "gitlab_merge_request",
+        "summary": "Prepare a merge request comment from review or release context without posting it.",
+        "title": "Prepare Merge Request Comment"
+      },
+      {
+        "backend_operation": "gitlab_pipeline_trigger_request",
+        "capability_id": "gitlab.pipeline.trigger.request",
+        "context_type": "pipeline_trigger",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-gitlab-pipeline-trigger-request",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "namespace",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_namespace",
+            "summary": "GitLab project namespace."
+          },
+          {
+            "clarification_hint": "Ask for project when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_name",
+            "summary": "GitLab project name."
+          },
+          {
+            "clarification_hint": "Ask for pipeline_ref when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "pipeline_ref",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "pipeline_ref",
+            "summary": "Pipeline ref, branch, or tag."
+          },
+          {
+            "clarification_hint": "Ask for ref when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "ref",
+            "input_type": "string",
+            "required": true,
+            "summary": "Git ref for the pipeline trigger."
+          },
+          {
+            "clarification_hint": "Ask for inputs when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "inputs",
+            "input_type": "object",
+            "required": false,
+            "summary": "Pipeline variables."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "pipeline_trigger_preview",
+        "output_shape": "gitlab_pipeline_trigger_request_result",
+        "path_template": "/gitlab/projects/{namespace}/{project}/pipelines/{pipeline_ref}/trigger/preview",
+        "service_id": "gitlab-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "gitlab_pipeline",
+        "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+        "title": "Request Pipeline Trigger"
+      },
+      {
+        "backend_operation": "gitlab_release_notes_prepare",
+        "capability_id": "gitlab.release_notes.prepare",
+        "context_type": "release_notes_preparation",
+        "id": "cap-gitlab-release_notes-prepare",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "namespace",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_namespace",
+            "summary": "GitLab project namespace."
+          },
+          {
+            "clarification_hint": "Ask for project when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "project_name",
+            "summary": "GitLab project name."
+          },
+          {
+            "clarification_hint": "Ask for range when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "range",
+            "input_type": "string",
+            "required": true,
+            "summary": "Release range, milestone, or comparison reference."
+          },
+          {
+            "allowed_values": [
+              "engineering",
+              "customer",
+              "internal"
+            ],
+            "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "audience",
+            "input_type": "string",
+            "required": false,
+            "summary": "Release-note audience."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy."
+          }
+        ],
+        "intent_type": "read_only",
+        "kind": "atomic",
+        "operation_type": "read",
+        "output_intent": "release_notes_draft",
+        "output_shape": "gitlab_release_notes_prepare_result",
+        "path_template": "/gitlab/projects/{namespace}/{project}/release-notes/preview",
+        "service_id": "gitlab-governance-service",
+        "side_effect_level": "read",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "gitlab_release",
+        "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+        "title": "Prepare Release Notes"
+      }
+    ],
+    "compiled_contract_identity": {
+      "signature": "sha256:2b76bdef6b0443ee39b32c88ea7a2cf85372e294251470323a4aead9c173ec1b",
+      "signature_algorithm": "sha256"
+    },
+    "contract_schema_version": "anip-service-definition/v1",
+    "generation": {
+      "layout_strategy": "single_package",
+      "protocols": [
+        "https"
+      ],
+      "selected_service_ids": [
+        "gitlab-governance-service"
+      ]
+    },
+    "identity": {
+      "architecture_shape": "single_service",
+      "delivery_model": "governed_integration_fronting",
+      "domain_name": "gitlab",
+      "system_name": "gitlab_governed_fronting_showcase"
+    },
+    "integration_fronting": {
+      "capability_mappings": [
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "gitlab.project.search_context",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "gitlab_fronting",
+          "context_type": "project_context_search",
+          "execution_posture": "read_only",
+          "id": "map-gitlab-project-search_context",
+          "intent": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+          "optional_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "bounded_project_results",
+          "raw_operation_refs": [
+            "gitlab.api.search_project_context"
+          ],
+          "required_inputs": [
+            "namespace",
+            "project",
+            "query"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "side_effect_level": "read",
+          "subject_kind": "gitlab_project",
+          "title": "Search Project Context"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "gitlab.issue.prepare",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "gitlab_fronting",
+          "context_type": "issue_preparation",
+          "execution_posture": "prepare_only",
+          "id": "map-gitlab-issue-prepare",
+          "intent": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+          "optional_inputs": [
+            "labels",
+            "assignees",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "issue_creation_preview",
+          "raw_operation_refs": [
+            "gitlab.api.prepare_issue"
+          ],
+          "required_inputs": [
+            "namespace",
+            "project",
+            "title",
+            "body"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "gitlab_issue",
+          "title": "Prepare Issue"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "gitlab.mr.comment.prepare",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "gitlab_fronting",
+          "context_type": "merge_request_comment_preparation",
+          "execution_posture": "prepare_only",
+          "id": "map-gitlab-mr-comment-prepare",
+          "intent": "Prepare a merge request comment from review or release context without posting it.",
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "comment_preview",
+          "raw_operation_refs": [
+            "gitlab.api.prepare_merge_request_comment"
+          ],
+          "required_inputs": [
+            "namespace",
+            "project",
+            "merge_request_iid",
+            "comment_purpose",
+            "context"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "gitlab_merge_request",
+          "title": "Prepare Merge Request Comment"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "gitlab.pipeline.trigger.request",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "gitlab_fronting",
+          "context_type": "pipeline_trigger",
+          "execution_posture": "prepare_only",
+          "id": "map-gitlab-pipeline-trigger-request",
+          "intent": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+          "optional_inputs": [
+            "inputs",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "pipeline_trigger_preview",
+          "raw_operation_refs": [
+            "gitlab.api.request_pipeline_trigger"
+          ],
+          "required_inputs": [
+            "namespace",
+            "project",
+            "pipeline_ref",
+            "ref"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "gitlab_pipeline",
+          "title": "Request Pipeline Trigger"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "gitlab.release_notes.prepare",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "gitlab_fronting",
+          "context_type": "release_notes_preparation",
+          "execution_posture": "read_only",
+          "id": "map-gitlab-release_notes-prepare",
+          "intent": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+          "optional_inputs": [
+            "audience",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "release_notes_draft",
+          "raw_operation_refs": [
+            "gitlab.api.prepare_release_notes"
+          ],
+          "required_inputs": [
+            "namespace",
+            "project",
+            "range"
+          ],
+          "service_id": "gitlab-governance-service",
+          "service_name": "GitLab Governance Service",
+          "side_effect_level": "read",
+          "subject_kind": "gitlab_release",
+          "title": "Prepare Release Notes"
+        }
+      ],
+      "project_type": "governed_api_fronting"
+    },
+    "service_topology_bindings": [
+      {
+        "formalized_capability_ids": [
+          "gitlab.project.search_context",
+          "gitlab.issue.prepare",
+          "gitlab.mr.comment.prepare",
+          "gitlab.pipeline.trigger.request",
+          "gitlab.release_notes.prepare"
+        ],
+        "id": "svc-gitlab-governance-service",
+        "owned_concept_ids": [
+          "fronted_resource"
+        ],
+        "service_id": "gitlab-governance-service",
+        "service_name": "GitLab Governance Service",
+        "source_capabilities": [
+          "gitlab.project.search_context",
+          "gitlab.issue.prepare",
+          "gitlab.mr.comment.prepare",
+          "gitlab.pipeline.trigger.request",
+          "gitlab.release_notes.prepare"
+        ],
+        "source_role": "integration_fronting"
+      }
+    ]
+  }
+}

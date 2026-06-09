@@ -1,0 +1,465 @@
+{
+  "mappings": [
+    {
+      "backend_bindings": [
+        {
+          "backend_kind": "native_api",
+          "connection_ref": "jira_rest_api",
+          "raw_operation_refs": [
+            "jira.rest.search_team_backlog"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "limit"
+          ],
+          "matched_discovery_record_ids": [
+            "jira-rest-search_team_backlog"
+          ],
+          "status": "ready",
+          "status_detail": "Native Jira REST implementation seam."
+        },
+        {
+          "backend_kind": "mcp",
+          "connection_ref": "atlassian_mcp",
+          "raw_operation_refs": [
+            "atlassian.mcp.search_team_backlog"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "limit"
+          ],
+          "matched_discovery_record_ids": [
+            "atlassian-mcp-search_team_backlog"
+          ],
+          "status": "candidate",
+          "status_detail": "Alternative MCP-backed adapter realization."
+        }
+      ],
+      "backend_input_contract": {
+        "derived_optional": null,
+        "derived_required": null,
+        "explicit_optional": [
+          "limit"
+        ],
+        "explicit_required": [
+          "project_key",
+          "query"
+        ],
+        "mode": "explicit"
+      },
+      "capability_id": "jira.backlog.search",
+      "execution_posture": "read_only",
+      "governance": {
+        "approval_rule_refs": [],
+        "audit_required": true,
+        "clarification_rule_refs": [
+          "clarify.project_key",
+          "clarify.query"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation"
+        ]
+      },
+      "intent": "Search Jira issues in an allowed project with bounded query and result limits.",
+      "mapping_id": "jira_backlog_search_fronting",
+      "outbound_controls": {
+        "block_unbounded_payloads": true,
+        "redact_sensitive_values": true
+      },
+      "semantic_inputs": {
+        "optional": [
+          "limit"
+        ],
+        "required": [
+          "project_key",
+          "query"
+        ]
+      },
+      "service_id": "jira-governance-service",
+      "service_name": "Jira Governance Service",
+      "side_effect_level": "read",
+      "title": "Search Team Backlog"
+    },
+    {
+      "backend_bindings": [
+        {
+          "backend_kind": "native_api",
+          "connection_ref": "jira_rest_api",
+          "raw_operation_refs": [
+            "jira.rest.prepare_bug_ticket"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ],
+          "explicit_optional_backend_inputs": [
+            "labels"
+          ],
+          "matched_discovery_record_ids": [
+            "jira-rest-prepare_bug_ticket"
+          ],
+          "status": "ready",
+          "status_detail": "Native Jira REST implementation seam."
+        },
+        {
+          "backend_kind": "mcp",
+          "connection_ref": "atlassian_mcp",
+          "raw_operation_refs": [
+            "atlassian.mcp.prepare_bug_ticket"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "description",
+            "severity"
+          ],
+          "explicit_optional_backend_inputs": [
+            "labels"
+          ],
+          "matched_discovery_record_ids": [
+            "atlassian-mcp-prepare_bug_ticket"
+          ],
+          "status": "candidate",
+          "status_detail": "Alternative MCP-backed adapter realization."
+        }
+      ],
+      "backend_input_contract": {
+        "derived_optional": null,
+        "derived_required": null,
+        "explicit_optional": [
+          "labels"
+        ],
+        "explicit_required": [
+          "project_key",
+          "summary",
+          "description",
+          "severity"
+        ],
+        "mode": "explicit"
+      },
+      "capability_id": "jira.bug.prepare",
+      "execution_posture": "prepare_only",
+      "governance": {
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "audit_required": true,
+        "clarification_rule_refs": [
+          "clarify.project_key",
+          "clarify.summary",
+          "clarify.description",
+          "clarify.severity"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation"
+        ]
+      },
+      "intent": "Prepare a Jira bug ticket preview from a bounded incident or defect summary without creating it.",
+      "mapping_id": "jira_bug_prepare_fronting",
+      "outbound_controls": {
+        "block_unbounded_payloads": true,
+        "redact_sensitive_values": true
+      },
+      "semantic_inputs": {
+        "optional": [
+          "labels"
+        ],
+        "required": [
+          "project_key",
+          "summary",
+          "description",
+          "severity"
+        ]
+      },
+      "service_id": "jira-governance-service",
+      "service_name": "Jira Governance Service",
+      "side_effect_level": "write_adjacent",
+      "title": "Prepare Bug Ticket"
+    },
+    {
+      "backend_bindings": [
+        {
+          "backend_kind": "native_api",
+          "connection_ref": "jira_rest_api",
+          "raw_operation_refs": [
+            "jira.rest.prepare_story_ticket"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ],
+          "explicit_optional_backend_inputs": [
+            "priority"
+          ],
+          "matched_discovery_record_ids": [
+            "jira-rest-prepare_story_ticket"
+          ],
+          "status": "ready",
+          "status_detail": "Native Jira REST implementation seam."
+        },
+        {
+          "backend_kind": "mcp",
+          "connection_ref": "atlassian_mcp",
+          "raw_operation_refs": [
+            "atlassian.mcp.prepare_story_ticket"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "project_key",
+            "summary",
+            "acceptance_criteria"
+          ],
+          "explicit_optional_backend_inputs": [
+            "priority"
+          ],
+          "matched_discovery_record_ids": [
+            "atlassian-mcp-prepare_story_ticket"
+          ],
+          "status": "candidate",
+          "status_detail": "Alternative MCP-backed adapter realization."
+        }
+      ],
+      "backend_input_contract": {
+        "derived_optional": null,
+        "derived_required": null,
+        "explicit_optional": [
+          "priority"
+        ],
+        "explicit_required": [
+          "project_key",
+          "summary",
+          "acceptance_criteria"
+        ],
+        "mode": "explicit"
+      },
+      "capability_id": "jira.story.prepare",
+      "execution_posture": "prepare_only",
+      "governance": {
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "audit_required": true,
+        "clarification_rule_refs": [
+          "clarify.project_key",
+          "clarify.summary",
+          "clarify.acceptance_criteria"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation"
+        ]
+      },
+      "intent": "Prepare a Jira story preview with acceptance criteria before any issue is created.",
+      "mapping_id": "jira_story_prepare_fronting",
+      "outbound_controls": {
+        "block_unbounded_payloads": true,
+        "redact_sensitive_values": true
+      },
+      "semantic_inputs": {
+        "optional": [
+          "priority"
+        ],
+        "required": [
+          "project_key",
+          "summary",
+          "acceptance_criteria"
+        ]
+      },
+      "service_id": "jira-governance-service",
+      "service_name": "Jira Governance Service",
+      "side_effect_level": "write_adjacent",
+      "title": "Prepare Story Ticket"
+    },
+    {
+      "backend_bindings": [
+        {
+          "backend_kind": "native_api",
+          "connection_ref": "jira_rest_api",
+          "raw_operation_refs": [
+            "jira.rest.request_status_transition"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ],
+          "matched_discovery_record_ids": [
+            "jira-rest-request_status_transition"
+          ],
+          "status": "ready",
+          "status_detail": "Native Jira REST implementation seam."
+        },
+        {
+          "backend_kind": "mcp",
+          "connection_ref": "atlassian_mcp",
+          "raw_operation_refs": [
+            "atlassian.mcp.request_status_transition"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "target_status",
+            "reason"
+          ],
+          "matched_discovery_record_ids": [
+            "atlassian-mcp-request_status_transition"
+          ],
+          "status": "candidate",
+          "status_detail": "Alternative MCP-backed adapter realization."
+        }
+      ],
+      "backend_input_contract": {
+        "derived_optional": null,
+        "derived_required": null,
+        "explicit_optional": [],
+        "explicit_required": [
+          "issue_key",
+          "target_status",
+          "reason"
+        ],
+        "mode": "explicit"
+      },
+      "capability_id": "jira.transition.request",
+      "execution_posture": "approval_gated_action",
+      "governance": {
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "audit_required": true,
+        "clarification_rule_refs": [
+          "clarify.issue_key",
+          "clarify.target_status",
+          "clarify.reason"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation"
+        ]
+      },
+      "intent": "Request a governed Jira issue transition and stop for approval when policy requires it.",
+      "mapping_id": "jira_transition_request_fronting",
+      "outbound_controls": {
+        "block_unbounded_payloads": true,
+        "redact_sensitive_values": true
+      },
+      "semantic_inputs": {
+        "optional": [],
+        "required": [
+          "issue_key",
+          "target_status",
+          "reason"
+        ]
+      },
+      "service_id": "jira-governance-service",
+      "service_name": "Jira Governance Service",
+      "side_effect_level": "write_adjacent",
+      "title": "Request Status Transition"
+    },
+    {
+      "backend_bindings": [
+        {
+          "backend_kind": "native_api",
+          "connection_ref": "jira_rest_api",
+          "raw_operation_refs": [
+            "jira.rest.prepare_triage_comment"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ],
+          "matched_discovery_record_ids": [
+            "jira-rest-prepare_triage_comment"
+          ],
+          "status": "ready",
+          "status_detail": "Native Jira REST implementation seam."
+        },
+        {
+          "backend_kind": "mcp",
+          "connection_ref": "atlassian_mcp",
+          "raw_operation_refs": [
+            "atlassian.mcp.prepare_triage_comment"
+          ],
+          "backend_input_mode": "explicit",
+          "explicit_required_backend_inputs": [
+            "issue_key",
+            "comment_purpose",
+            "context"
+          ],
+          "matched_discovery_record_ids": [
+            "atlassian-mcp-prepare_triage_comment"
+          ],
+          "status": "candidate",
+          "status_detail": "Alternative MCP-backed adapter realization."
+        }
+      ],
+      "backend_input_contract": {
+        "derived_optional": null,
+        "derived_required": null,
+        "explicit_optional": [],
+        "explicit_required": [
+          "issue_key",
+          "comment_purpose",
+          "context"
+        ],
+        "mode": "explicit"
+      },
+      "capability_id": "jira.comment.prepare",
+      "execution_posture": "prepare_only",
+      "governance": {
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "audit_required": true,
+        "clarification_rule_refs": [
+          "clarify.issue_key",
+          "clarify.comment_purpose",
+          "clarify.context"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation"
+        ]
+      },
+      "intent": "Prepare a Jira issue comment from incident or triage context without posting it.",
+      "mapping_id": "jira_comment_prepare_fronting",
+      "outbound_controls": {
+        "block_unbounded_payloads": true,
+        "redact_sensitive_values": true
+      },
+      "semantic_inputs": {
+        "optional": [],
+        "required": [
+          "issue_key",
+          "comment_purpose",
+          "context"
+        ]
+      },
+      "service_id": "jira-governance-service",
+      "service_name": "Jira Governance Service",
+      "side_effect_level": "write_adjacent",
+      "title": "Prepare Triage Comment"
+    }
+  ],
+  "project_type": "governed_service_project",
+  "schema_version": "anip-integration-fronting/v0",
+  "system_name": "Jira Governed Fronting Showcase"
+}

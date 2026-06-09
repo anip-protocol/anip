@@ -1,0 +1,3269 @@
+{
+  "generated_at": "2026-04-14T13-22-06Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase2_question_bank",
+  "summary": {
+    "passed": 6,
+    "total": 50,
+    "by_category": {
+      "enrichment_happy_path": {
+        "passed": 0,
+        "total": 19
+      },
+      "cross_service": {
+        "passed": 0,
+        "total": 11
+      },
+      "clarification": {
+        "passed": 0,
+        "total": 11
+      },
+      "clarification_followup": {
+        "passed": 0,
+        "total": 3
+      },
+      "denied": {
+        "passed": 6,
+        "total": 6
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "enrichment-named-1",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "enrichment-named-2",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Condax and Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Condax and Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "enrichment-named-3",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Codehow and Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Codehow and Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "enrichment-named-4",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Acme Corporation, Codehow, and Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Acme Corporation, Codehow, and Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "cross-service-risk-enrichment-East",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "cross-service-risk-enrichment-West",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "cross-service-risk-enrichment-Central",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "cross-service-risk-enrichment-company",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 .",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 .",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-condax",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-acme-corporation",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-codehow",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-betasoloin",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Betasoloin.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Betasoloin.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-groovestreet",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Groovestreet.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-enrichment-important-accounts",
+      "category": "clarification",
+      "question": "Summarize firmographic context for our most important accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for our most important accounts.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-lookalike-best-customer",
+      "category": "clarification",
+      "question": "Find lookalike accounts for our best customer.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts for our best customer.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-lookalike-top-account",
+      "category": "clarification",
+      "question": "Find lookalike accounts for our top account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts for our top account.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-enrichment-core-accounts",
+      "category": "clarification",
+      "question": "Summarize enrichment for our core accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize enrichment for our core accounts.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-buying-committee",
+      "category": "clarification",
+      "question": "Show firmographic context for the companies we care about most.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show firmographic context for the companies we care about most.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "followup-lookalike-condax",
+      "category": "clarification_followup",
+      "question": "Find for lookalike accounts for our best customer?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find for lookalike accounts for our best customer?",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown",
+        "turn 2: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "followup-enrichment-acme-codehow",
+      "category": "clarification_followup",
+      "question": "Summarize for firmographic context for our most important accounts?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize for firmographic context for our most important accounts?",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Acme Corporation and Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown",
+        "turn 2: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "followup-enrichment-acme-codehow-condax",
+      "category": "clarification_followup",
+      "question": "Summarize for firmographic context for our most important accounts?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize for firmographic context for our most important accounts?",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Acme Corporation, Codehow, and Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown",
+        "turn 2: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "deny-outreach-plus-rows",
+      "category": "denied",
+      "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-raw-enrichment-table",
+      "category": "denied",
+      "question": "Return the raw enrichment table for our highest-risk accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Return the raw enrichment table for our highest-risk accounts.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Return the raw enrichment table for our highest-risk accounts.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Return the raw enrichment table for our highest-risk accounts.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-buying-committee-export",
+      "category": "denied",
+      "question": "Export every enrichment field and underlying notes for Acme Corporation and Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Export every enrichment field and underlying notes for Acme Corporation and Codehow.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Export every enrichment field and underlying notes for Acme Corporation and Codehow.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Export every enrichment field and underlying notes for Acme Corporation and Codehow.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-enrichment-underlying-dump",
+      "category": "denied",
+      "question": "Dump the full underlying enrichment payload for Condax and Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Dump the full underlying enrichment payload for Condax and Acme Corporation.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Dump the full underlying enrichment payload for Condax and Acme Corporation.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Dump the full underlying enrichment payload for Condax and Acme Corporation.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-enrichment-debug-dump",
+      "category": "denied",
+      "question": "Return all raw enrichment records for internal debugging.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Return all raw enrichment records for internal debugging.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Return all raw enrichment records for internal debugging.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Return all raw enrichment records for internal debugging.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-raw-lookalike-payload",
+      "category": "denied",
+      "question": "Give me the raw payload behind the Condax lookalike report.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me the raw payload behind the Condax lookalike report.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Give me the raw payload behind the Condax lookalike report.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Give me the raw payload behind the Condax lookalike report.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "lookalike-top3-condax",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find the top 3 lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-top3-acme-corporation",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find the top 3 lookalike accounts similar to Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "lookalike-top3-codehow",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find the top 3 lookalike accounts similar to Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-31",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-32",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-33",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-34",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-35",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-36",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-37",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-38",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Codehow in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Codehow in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-39",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-40",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-41",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Condax in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-42",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-43",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-44",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Betasoloin in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Betasoloin in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-45",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-46",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-47",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-48",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the accounts we should review next.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-49",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase2-matrix-50",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    }
+  ]
+}

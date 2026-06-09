@@ -2,6 +2,15 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { useAnipManifest } from '@anip-dev/vue'
 import { store } from '../store'
+import { designStore, recordObservedServiceMetadata } from '../design/store'
+import { projectStore } from '../design/project-store'
+import { createServiceMetadata, updateServiceMetadata } from '../design/project-api'
+import {
+  buildObservedServiceMetadataArtifactId,
+  buildObservedServiceMetadataTitle,
+  mergeObservedServiceMetadata,
+  normalizeManifestToObservedServiceMetadata,
+} from '../design/service-metadata'
 import StatusBadge from '../components/StatusBadge.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 import CapabilityCard from '../components/CapabilityCard.vue'
@@ -9,6 +18,12 @@ import CapabilityCard from '../components/CapabilityCard.vue'
 const { data, loading, error, load: loadManifestData } = useAnipManifest()
 const sigCopied = ref(false)
 const manifestDoc = computed<any | null>(() => data.value as any)
+const observedServiceMetadata = computed(() =>
+  normalizeManifestToObservedServiceMetadata(manifestDoc.value, {
+    serviceId: store.serviceId,
+    baseUrl: store.baseUrl,
+  }),
+)
 
 async function load() {
   if (!store.connected) return
@@ -24,6 +39,44 @@ watch(() => store.connected, (connected) => {
   if (connected) load()
   else { sigCopied.value = false }
 })
+
+watch(observedServiceMetadata, (metadata) => {
+  if (metadata) {
+    recordObservedServiceMetadata(mergeObservedServiceMetadata(designStore.observedServiceMetadata, metadata))
+  }
+}, { immediate: true })
+
+async function persistObservedMetadata(metadata: NonNullable<typeof observedServiceMetadata.value>) {
+  const project = projectStore.activeProject
+  if (!project) return
+  const artifactId = buildObservedServiceMetadataArtifactId(metadata)
+  const title = buildObservedServiceMetadataTitle(metadata)
+  const existing = projectStore.artifacts.serviceMetadata.find((item) => item.id === artifactId) ?? null
+  const merged = mergeObservedServiceMetadata((existing?.data as any) ?? null, metadata)
+  if (!merged) return
+  if (
+    existing &&
+    existing.title === title &&
+    JSON.stringify(existing.data) === JSON.stringify(merged)
+  ) {
+    return
+  }
+  const saved = existing
+    ? await updateServiceMetadata(project.id, artifactId, { title, data: merged, status: 'active' })
+    : await createServiceMetadata(project.id, { id: artifactId, title, data: merged })
+  const rest = projectStore.artifacts.serviceMetadata.filter((item) => item.id !== saved.id)
+  projectStore.artifacts.serviceMetadata = [saved, ...rest]
+}
+
+watch(
+  () => [observedServiceMetadata.value, projectStore.activeProject?.id] as const,
+  ([metadata, projectId]) => {
+    if (metadata && projectId) {
+      void persistObservedMetadata(metadata)
+    }
+  },
+  { immediate: true },
+)
 
 const capabilities = computed(() => manifestDoc.value?.capabilities || {})
 const signature = computed(() => manifestDoc.value?.signature || '')
@@ -51,7 +104,7 @@ async function copySig() {
 
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x1F4CB;</div>
-      <p>Connect to an ANIP service to inspect its manifest and signature.</p>
+      <p>Connect to an ANIP capability service to inspect its manifest and signature.</p>
     </div>
 
     <div v-else-if="loading" class="placeholder">
@@ -152,7 +205,7 @@ async function copySig() {
 
       <!-- Raw JSON -->
       <section class="section">
-        <JsonPanel :data="manifestDoc?.raw || data" title="Raw Manifest" :collapsed="true" />
+        <JsonPanel :data="manifestDoc?.raw || data" title="Technical Manifest JSON" :collapsed="true" />
       </section>
     </div>
   </div>

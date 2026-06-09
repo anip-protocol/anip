@@ -1,0 +1,66 @@
+{
+  "checks": [
+    {
+      "capability_id": "slack.channel.read_context",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "slack.channel.read_context.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.channel.read_context",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "slack.channel.read_context.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.thread.summarize",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "slack.thread.summarize.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.thread.summarize",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "slack.thread.summarize.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.message.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "slack.message.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.message.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "slack.message.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.incident_update.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "slack.incident_update.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.incident_update.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "slack.incident_update.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.announcement.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "slack.announcement.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "slack.announcement.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "slack.announcement.request.raw_backend_bound",
+      "status": "pass"
+    }
+  ],
+  "schema_version": "anip-integration-fronting-conformance/v0",
+  "status": "passed"
+}

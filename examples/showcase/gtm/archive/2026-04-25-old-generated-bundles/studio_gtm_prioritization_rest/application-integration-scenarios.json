@@ -1,0 +1,38 @@
+[
+  {
+    "scenario_id": "score-bounded-cohort",
+    "title": "Score bounded cohort",
+    "request": "Score inbound leads from last week and rank the hottest 10.",
+    "capability_hint": "gtm.score_leads",
+    "expected_outcome": "available",
+    "expected_backend_operation": "score_leads",
+    "notes": "Bounded cohort scoring with explainable rationale."
+  },
+  {
+    "scenario_id": "clarify-missing-cohort",
+    "title": "Clarify missing cohort",
+    "request": "Score our latest leads.",
+    "capability_hint": "gtm.score_leads",
+    "expected_outcome": "clarification_required",
+    "expected_backend_operation": "score_leads",
+    "notes": "Missing cohort should clarify before scoring."
+  },
+  {
+    "scenario_id": "deny-raw-model-export",
+    "title": "Deny raw model export",
+    "request": "Show me every raw model feature and weight behind the lead scores.",
+    "capability_hint": "gtm.score_leads",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "score_leads",
+    "notes": "Raw scoring internals remain out of scope."
+  },
+  {
+    "scenario_id": "approval-gated-routing",
+    "title": "Approval-gated routing",
+    "request": "Route the highest-priority leads to sales right now.",
+    "capability_hint": "gtm.route_leads",
+    "expected_outcome": "approval_required",
+    "expected_backend_operation": "route_leads",
+    "notes": "Routing should stop at approval before mutation."
+  }
+]

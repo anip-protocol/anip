@@ -3,6 +3,7 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { store } from '../store'
 import { fetchCheckpoints } from '../api'
 import JsonPanel from '../components/JsonPanel.vue'
+import { formatStudioTimestamp } from '../design/time'
 
 const data = ref<any>(null)
 const loading = ref(false)
@@ -41,11 +42,7 @@ function truncateHash(hash: string): string {
 
 function formatTimestamp(ts: string): string {
   if (!ts) return '\u2014'
-  try {
-    return new Date(ts).toLocaleString()
-  } catch {
-    return ts
-  }
+  return formatStudioTimestamp(ts)
 }
 
 const rootCopied = ref('')
@@ -67,7 +64,7 @@ async function copyRoot(root: string) {
 
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x2713;</div>
-      <p>Connect to an ANIP service to view its checkpoint history.</p>
+      <p>Connect to an ANIP capability service to view its checkpoint history.</p>
     </div>
 
     <div v-else-if="loading" class="placeholder">

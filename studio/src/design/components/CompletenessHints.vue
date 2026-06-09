@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { CompletenessHint } from '../guided/types'
-import FieldChip from './FieldChip.vue'
+import { GUIDED_SECTIONS } from '../guided/questions'
 
 defineProps<{
   hints: CompletenessHint[]
@@ -15,6 +15,43 @@ function toggleExpanded(id: string) {
   } else {
     expandedIds.value.add(id)
   }
+}
+
+function buildQuestionLookup() {
+  const lookup: Record<string, { sectionTitle: string; questionPrompt: string }> = {}
+  for (const section of GUIDED_SECTIONS) {
+    for (const question of section.questions) {
+      for (const mapping of question.fieldMappings) {
+        lookup[mapping.path] = {
+          sectionTitle: section.title,
+          questionPrompt: question.prompt,
+        }
+      }
+    }
+  }
+  return lookup
+}
+
+const questionLookup = buildQuestionLookup()
+
+function relatedReferences(fields: string[]) {
+  const seen = new Set<string>()
+  const refs: Array<{ key: string; label: string; title: string }> = []
+
+  for (const field of fields) {
+    const match = questionLookup[field]
+    if (!match) continue
+    const key = `${match.sectionTitle}::${match.questionPrompt}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    refs.push({
+      key,
+      label: match.questionPrompt,
+      title: match.sectionTitle,
+    })
+  }
+
+  return refs
 }
 </script>
 
@@ -37,12 +74,15 @@ function toggleExpanded(id: string) {
       </div>
       <div v-if="expandedIds.has(hint.id)" class="hint-detail">
         <p class="hint-explanation">{{ hint.explanation }}</p>
-        <div class="hint-fields">
-          <FieldChip
-            v-for="field in hint.relatedFields"
-            :key="field"
-            :path="field"
-          />
+        <div v-if="relatedReferences(hint.relatedFields).length" class="hint-fields">
+          <div
+            v-for="reference in relatedReferences(hint.relatedFields)"
+            :key="reference.key"
+            class="hint-reference"
+          >
+            <span class="hint-reference-section">{{ reference.title }}</span>
+            <span class="hint-reference-question">{{ reference.label }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -135,6 +175,30 @@ function toggleExpanded(id: string) {
 .hint-fields {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
+}
+
+.hint-reference {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hint-reference-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hint-reference-question {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.35;
 }
 </style>

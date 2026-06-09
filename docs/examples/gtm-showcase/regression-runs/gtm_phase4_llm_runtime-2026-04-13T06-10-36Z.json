@@ -1,0 +1,2367 @@
+{
+  "generated_at": "2026-04-13T06-10-36Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase4_llm_runtime",
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "by_category": {
+      "prioritization-read": {
+        "passed": 2,
+        "total": 2
+      },
+      "prioritization-clarification": {
+        "passed": 1,
+        "total": 1
+      },
+      "prioritization-denied": {
+        "passed": 1,
+        "total": 1
+      },
+      "prioritization-approval": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "phase4-score-inbound-last-week",
+      "category": "prioritization-read",
+      "question": "Score inbound leads from last week and rank the hottest 10.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and rank the hottest 10.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "max_total_loops": 2,
+            "data_check": "score_leads_inbound_last_week"
+          },
+          "actual": {
+            "planned_capability": "gtm.score_leads",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "outcome": "success",
+            "parameters": {
+              "cohort_ref": "inbound_last_week",
+              "limit": 10
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded lead scoring request asking for the hottest leads in a cohort, which matches lead scoring best. The cohort is described but not formally identified, so I pass the partial cohort reference without guessing additional scope.",
+              "user_message": "Scoring the inbound leads cohort from last week and ranking the top 10 hottest leads."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "score_leads_inbound_last_week",
+            "details": {
+              "expected_rows": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ],
+              "actual_rows": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Score inbound leads from last week and rank the hottest 10.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded lead scoring request asking for the hottest leads in a cohort, which matches lead scoring best. The cohort is described but not formally identified, so I pass the partial cohort reference without guessing additional scope.",
+              "user_message": "Scoring the inbound leads cohort from last week and ranking the top 10 hottest leads."
+            },
+            "planned_capability": "gtm.score_leads",
+            "selected_capability": "gtm.score_leads",
+            "selected_service": "prioritization",
+            "parameters": {
+              "cohort_ref": "inbound_last_week",
+              "limit": 10
+            },
+            "capability_metadata": {
+              "description": "Return bounded lead scores and explainable priority bands for a named cohort.",
+              "minimum_scope": [
+                "gtm.prioritization.read"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "limit",
+                "owner_scope"
+              ],
+              "side_effect": "read",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "cohort_ref": "inbound_last_week",
+                  "owner_scope": "company",
+                  "lead_scores": [
+                    {
+                      "lead_id": "lead_1001",
+                      "account_name": "Acme Corporation",
+                      "source": "website_inbound",
+                      "segment": "enterprise",
+                      "owner_scope": "East",
+                      "priority_score": 94,
+                      "priority_band": "hot",
+                      "confidence": 0.94,
+                      "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1002",
+                      "account_name": "Codehow",
+                      "source": "website_inbound",
+                      "segment": "commercial",
+                      "owner_scope": "East",
+                      "priority_score": 91,
+                      "priority_band": "hot",
+                      "confidence": 0.91,
+                      "rationale": "Repeat product-page engagement and strong ICP fit.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1003",
+                      "account_name": "Condax",
+                      "source": "website_inbound",
+                      "segment": "enterprise",
+                      "owner_scope": "West",
+                      "priority_score": 88,
+                      "priority_band": "hot",
+                      "confidence": 0.89,
+                      "rationale": "High-value account with strong buying signals.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1004",
+                      "account_name": "Dalttechnology",
+                      "source": "website_inbound",
+                      "segment": "mid_market",
+                      "owner_scope": "Central",
+                      "priority_score": 84,
+                      "priority_band": "warm",
+                      "confidence": 0.86,
+                      "rationale": "Good engagement and healthy ICP alignment.",
+                      "recommended_queue": "sdr"
+                    }
+                  ]
+                }
+              },
+              "invocation_id": "inv-1a805ad5c978",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.score_leads",
+        "service": "prioritization",
+        "max_total_loops": 2,
+        "data_check": "score_leads_inbound_last_week"
+      },
+      "actual": {
+        "planned_capability": "gtm.score_leads",
+        "capability": "gtm.score_leads",
+        "service": "prioritization",
+        "outcome": "success",
+        "parameters": {
+          "cohort_ref": "inbound_last_week",
+          "limit": 10
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded lead scoring request asking for the hottest leads in a cohort, which matches lead scoring best. The cohort is described but not formally identified, so I pass the partial cohort reference without guessing additional scope.",
+          "user_message": "Scoring the inbound leads cohort from last week and ranking the top 10 hottest leads."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "score_leads_inbound_last_week",
+        "details": {
+          "expected_rows": [
+            {
+              "lead_id": "lead_1001",
+              "account_name": "Acme Corporation",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 94,
+              "priority_band": "hot",
+              "confidence": 0.94,
+              "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1002",
+              "account_name": "Codehow",
+              "source": "website_inbound",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 91,
+              "priority_band": "hot",
+              "confidence": 0.91,
+              "rationale": "Repeat product-page engagement and strong ICP fit.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1003",
+              "account_name": "Condax",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 88,
+              "priority_band": "hot",
+              "confidence": 0.89,
+              "rationale": "High-value account with strong buying signals.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1004",
+              "account_name": "Dalttechnology",
+              "source": "website_inbound",
+              "segment": "mid_market",
+              "owner_scope": "Central",
+              "priority_score": 84,
+              "priority_band": "warm",
+              "confidence": 0.86,
+              "rationale": "Good engagement and healthy ICP alignment.",
+              "recommended_queue": "sdr"
+            }
+          ],
+          "actual_rows": [
+            {
+              "lead_id": "lead_1001",
+              "account_name": "Acme Corporation",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 94,
+              "priority_band": "hot",
+              "confidence": 0.94,
+              "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1002",
+              "account_name": "Codehow",
+              "source": "website_inbound",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 91,
+              "priority_band": "hot",
+              "confidence": 0.91,
+              "rationale": "Repeat product-page engagement and strong ICP fit.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1003",
+              "account_name": "Condax",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 88,
+              "priority_band": "hot",
+              "confidence": 0.89,
+              "rationale": "High-value account with strong buying signals.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1004",
+              "account_name": "Dalttechnology",
+              "source": "website_inbound",
+              "segment": "mid_market",
+              "owner_scope": "Central",
+              "priority_score": 84,
+              "priority_band": "warm",
+              "confidence": 0.86,
+              "rationale": "Good engagement and healthy ICP alignment.",
+              "recommended_queue": "sdr"
+            }
+          ]
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "prioritization",
+          "capability": "gtm.score_leads",
+          "min_entries": 1,
+          "actual_entries": 10,
+          "latest_entry": {
+            "capability": "gtm.score_leads",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Score inbound leads from last week and rank the hottest 10.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded lead scoring request asking for the hottest leads in a cohort, which matches lead scoring best. The cohort is described but not formally identified, so I pass the partial cohort reference without guessing additional scope.",
+          "user_message": "Scoring the inbound leads cohort from last week and ranking the top 10 hottest leads."
+        },
+        "planned_capability": "gtm.score_leads",
+        "selected_capability": "gtm.score_leads",
+        "selected_service": "prioritization",
+        "parameters": {
+          "cohort_ref": "inbound_last_week",
+          "limit": 10
+        },
+        "capability_metadata": {
+          "description": "Return bounded lead scores and explainable priority bands for a named cohort.",
+          "minimum_scope": [
+            "gtm.prioritization.read"
+          ],
+          "inputs": [
+            "cohort_ref",
+            "limit",
+            "owner_scope"
+          ],
+          "side_effect": "read",
+          "service_name": "prioritization",
+          "service_url": "http://gtm-prioritization-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "cohort_ref": "inbound_last_week",
+              "owner_scope": "company",
+              "lead_scores": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ]
+            }
+          },
+          "invocation_id": "inv-1a805ad5c978",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase4-clarify-latest-leads-followup",
+      "category": "prioritization-clarification",
+      "question": "Score our latest leads.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score our latest leads.",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.score_leads",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "outcome": "clarification_required",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request to score leads, and the narrowest matching capability is the lead scoring read-only capability. The request does not specify a cohort reference, so I pass only the known partial scope and let the governed service clarify.",
+              "user_message": "I selected lead scoring. Please provide the lead cohort reference so I can score your latest leads."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Score our latest leads.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request to score leads, and the narrowest matching capability is the lead scoring read-only capability. The request does not specify a cohort reference, so I pass only the known partial scope and let the governed service clarify.",
+              "user_message": "I selected lead scoring. Please provide the lead cohort reference so I can score your latest leads."
+            },
+            "planned_capability": "gtm.score_leads",
+            "selected_capability": "gtm.score_leads",
+            "selected_service": "prioritization",
+            "parameters": {},
+            "capability_metadata": {
+              "description": "Return bounded lead scores and explainable priority bands for a named cohort.",
+              "minimum_scope": [
+                "gtm.prioritization.read"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "limit",
+                "owner_scope"
+              ],
+              "side_effect": "read",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "Which lead cohort should I score?",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "cohort_ref",
+                  "hint": "Use a supported cohort like inbound_last_week or webinar_q2."
+                }
+              },
+              "invocation_id": "inv-4621988236f7",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use inbound_last_week.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "planned_capability": "gtm.score_leads",
+            "max_total_loops": 2,
+            "data_check": "score_leads_inbound_last_week"
+          },
+          "actual": {
+            "planned_capability": "gtm.score_leads",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "outcome": "success",
+            "parameters": {
+              "cohort_ref": "inbound_last_week"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing the prior lead-scoring request and provided the missing cohort reference, so the narrowest fit remains lead scoring.",
+              "user_message": "Scoring the inbound_last_week lead cohort."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "score_leads_inbound_last_week",
+            "details": {
+              "expected_rows": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ],
+              "actual_rows": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use inbound_last_week.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "Score our latest leads."
+              },
+              {
+                "role": "assistant",
+                "content": "I selected lead scoring. Please provide the lead cohort reference so I can score your latest leads. | clarification_required | Which lead cohort should I score? | provide_missing_parameter | cohort_ref"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing the prior lead-scoring request and provided the missing cohort reference, so the narrowest fit remains lead scoring.",
+              "user_message": "Scoring the inbound_last_week lead cohort."
+            },
+            "planned_capability": "gtm.score_leads",
+            "selected_capability": "gtm.score_leads",
+            "selected_service": "prioritization",
+            "parameters": {
+              "cohort_ref": "inbound_last_week"
+            },
+            "capability_metadata": {
+              "description": "Return bounded lead scores and explainable priority bands for a named cohort.",
+              "minimum_scope": [
+                "gtm.prioritization.read"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "limit",
+                "owner_scope"
+              ],
+              "side_effect": "read",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "cohort_ref": "inbound_last_week",
+                  "owner_scope": "company",
+                  "lead_scores": [
+                    {
+                      "lead_id": "lead_1001",
+                      "account_name": "Acme Corporation",
+                      "source": "website_inbound",
+                      "segment": "enterprise",
+                      "owner_scope": "East",
+                      "priority_score": 94,
+                      "priority_band": "hot",
+                      "confidence": 0.94,
+                      "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1002",
+                      "account_name": "Codehow",
+                      "source": "website_inbound",
+                      "segment": "commercial",
+                      "owner_scope": "East",
+                      "priority_score": 91,
+                      "priority_band": "hot",
+                      "confidence": 0.91,
+                      "rationale": "Repeat product-page engagement and strong ICP fit.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1003",
+                      "account_name": "Condax",
+                      "source": "website_inbound",
+                      "segment": "enterprise",
+                      "owner_scope": "West",
+                      "priority_score": 88,
+                      "priority_band": "hot",
+                      "confidence": 0.89,
+                      "rationale": "High-value account with strong buying signals.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "lead_id": "lead_1004",
+                      "account_name": "Dalttechnology",
+                      "source": "website_inbound",
+                      "segment": "mid_market",
+                      "owner_scope": "Central",
+                      "priority_score": 84,
+                      "priority_band": "warm",
+                      "confidence": 0.86,
+                      "rationale": "Good engagement and healthy ICP alignment.",
+                      "recommended_queue": "sdr"
+                    }
+                  ]
+                }
+              },
+              "invocation_id": "inv-5b3fa4470f5f",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.score_leads",
+        "service": "prioritization",
+        "planned_capability": "gtm.score_leads",
+        "max_total_loops": 2,
+        "data_check": "score_leads_inbound_last_week"
+      },
+      "actual": {
+        "planned_capability": "gtm.score_leads",
+        "capability": "gtm.score_leads",
+        "service": "prioritization",
+        "outcome": "success",
+        "parameters": {
+          "cohort_ref": "inbound_last_week"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing the prior lead-scoring request and provided the missing cohort reference, so the narrowest fit remains lead scoring.",
+          "user_message": "Scoring the inbound_last_week lead cohort."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "score_leads_inbound_last_week",
+        "details": {
+          "expected_rows": [
+            {
+              "lead_id": "lead_1001",
+              "account_name": "Acme Corporation",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 94,
+              "priority_band": "hot",
+              "confidence": 0.94,
+              "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1002",
+              "account_name": "Codehow",
+              "source": "website_inbound",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 91,
+              "priority_band": "hot",
+              "confidence": 0.91,
+              "rationale": "Repeat product-page engagement and strong ICP fit.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1003",
+              "account_name": "Condax",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 88,
+              "priority_band": "hot",
+              "confidence": 0.89,
+              "rationale": "High-value account with strong buying signals.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1004",
+              "account_name": "Dalttechnology",
+              "source": "website_inbound",
+              "segment": "mid_market",
+              "owner_scope": "Central",
+              "priority_score": 84,
+              "priority_band": "warm",
+              "confidence": 0.86,
+              "rationale": "Good engagement and healthy ICP alignment.",
+              "recommended_queue": "sdr"
+            }
+          ],
+          "actual_rows": [
+            {
+              "lead_id": "lead_1001",
+              "account_name": "Acme Corporation",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 94,
+              "priority_band": "hot",
+              "confidence": 0.94,
+              "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1002",
+              "account_name": "Codehow",
+              "source": "website_inbound",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 91,
+              "priority_band": "hot",
+              "confidence": 0.91,
+              "rationale": "Repeat product-page engagement and strong ICP fit.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1003",
+              "account_name": "Condax",
+              "source": "website_inbound",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 88,
+              "priority_band": "hot",
+              "confidence": 0.89,
+              "rationale": "High-value account with strong buying signals.",
+              "recommended_queue": "sales"
+            },
+            {
+              "lead_id": "lead_1004",
+              "account_name": "Dalttechnology",
+              "source": "website_inbound",
+              "segment": "mid_market",
+              "owner_scope": "Central",
+              "priority_score": 84,
+              "priority_band": "warm",
+              "confidence": 0.86,
+              "rationale": "Good engagement and healthy ICP alignment.",
+              "recommended_queue": "sdr"
+            }
+          ]
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use inbound_last_week.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "Score our latest leads."
+          },
+          {
+            "role": "assistant",
+            "content": "I selected lead scoring. Please provide the lead cohort reference so I can score your latest leads. | clarification_required | Which lead cohort should I score? | provide_missing_parameter | cohort_ref"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing the prior lead-scoring request and provided the missing cohort reference, so the narrowest fit remains lead scoring.",
+          "user_message": "Scoring the inbound_last_week lead cohort."
+        },
+        "planned_capability": "gtm.score_leads",
+        "selected_capability": "gtm.score_leads",
+        "selected_service": "prioritization",
+        "parameters": {
+          "cohort_ref": "inbound_last_week"
+        },
+        "capability_metadata": {
+          "description": "Return bounded lead scores and explainable priority bands for a named cohort.",
+          "minimum_scope": [
+            "gtm.prioritization.read"
+          ],
+          "inputs": [
+            "cohort_ref",
+            "limit",
+            "owner_scope"
+          ],
+          "side_effect": "read",
+          "service_name": "prioritization",
+          "service_url": "http://gtm-prioritization-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "cohort_ref": "inbound_last_week",
+              "owner_scope": "company",
+              "lead_scores": [
+                {
+                  "lead_id": "lead_1001",
+                  "account_name": "Acme Corporation",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 94,
+                  "priority_band": "hot",
+                  "confidence": 0.94,
+                  "rationale": "High intent, enterprise ICP fit, and recent demo request.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1002",
+                  "account_name": "Codehow",
+                  "source": "website_inbound",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 91,
+                  "priority_band": "hot",
+                  "confidence": 0.91,
+                  "rationale": "Repeat product-page engagement and strong ICP fit.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1003",
+                  "account_name": "Condax",
+                  "source": "website_inbound",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 88,
+                  "priority_band": "hot",
+                  "confidence": 0.89,
+                  "rationale": "High-value account with strong buying signals.",
+                  "recommended_queue": "sales"
+                },
+                {
+                  "lead_id": "lead_1004",
+                  "account_name": "Dalttechnology",
+                  "source": "website_inbound",
+                  "segment": "mid_market",
+                  "owner_scope": "Central",
+                  "priority_score": 84,
+                  "priority_band": "warm",
+                  "confidence": 0.86,
+                  "rationale": "Good engagement and healthy ICP alignment.",
+                  "recommended_queue": "sdr"
+                }
+              ]
+            }
+          },
+          "invocation_id": "inv-5b3fa4470f5f",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase4-prioritize-expansion-candidates",
+      "category": "prioritization-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.prioritize_accounts",
+            "service": "prioritization",
+            "max_total_loops": 2,
+            "data_check": "prioritize_accounts_expansion_candidates_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.prioritize_accounts",
+            "capability": "gtm.prioritize_accounts",
+            "service": "prioritization",
+            "outcome": "success",
+            "parameters": {
+              "cohort_ref": "expansion_candidates_q2",
+              "ranking_basis": "deal_likelihood"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded prioritization request for an account cohort, so gtm.prioritize_accounts is the narrowest fit. Quarter is embedded in the cohort reference, and no ranking basis or owner scope was provided, so I pass only the known partial cohort reference for governed clarification if needed.",
+              "user_message": "Prioritizing the expansion candidates cohort for 2017-Q2 with the available context."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "prioritize_accounts_expansion_candidates_q2",
+            "details": {
+              "expected_rows": [
+                {
+                  "account_name": "Acme Corporation",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 96,
+                  "priority_band": "hot",
+                  "confidence": 0.95,
+                  "rationale": "Expansion candidate with strong usage and open pipeline.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Codehow",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 90,
+                  "priority_band": "hot",
+                  "confidence": 0.9,
+                  "rationale": "Strong engagement and expansion-ready signals.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Condax",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 86,
+                  "priority_band": "warm",
+                  "confidence": 0.87,
+                  "rationale": "Good propensity but longer procurement cycle.",
+                  "ranking_basis": "deal_likelihood"
+                }
+              ],
+              "actual_rows": [
+                {
+                  "account_name": "Acme Corporation",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 96,
+                  "priority_band": "hot",
+                  "confidence": 0.95,
+                  "rationale": "Expansion candidate with strong usage and open pipeline.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Codehow",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 90,
+                  "priority_band": "hot",
+                  "confidence": 0.9,
+                  "rationale": "Strong engagement and expansion-ready signals.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Condax",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 86,
+                  "priority_band": "warm",
+                  "confidence": 0.87,
+                  "rationale": "Good propensity but longer procurement cycle.",
+                  "ranking_basis": "deal_likelihood"
+                }
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Prioritize the expansion candidates in 2017-Q2.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded prioritization request for an account cohort, so gtm.prioritize_accounts is the narrowest fit. Quarter is embedded in the cohort reference, and no ranking basis or owner scope was provided, so I pass only the known partial cohort reference for governed clarification if needed.",
+              "user_message": "Prioritizing the expansion candidates cohort for 2017-Q2 with the available context."
+            },
+            "planned_capability": "gtm.prioritize_accounts",
+            "selected_capability": "gtm.prioritize_accounts",
+            "selected_service": "prioritization",
+            "parameters": {
+              "cohort_ref": "expansion_candidates_q2",
+              "ranking_basis": "deal_likelihood"
+            },
+            "capability_metadata": {
+              "description": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+              "minimum_scope": [
+                "gtm.prioritization.read"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "ranking_basis",
+                "limit",
+                "owner_scope"
+              ],
+              "side_effect": "read",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "cohort_ref": "expansion_candidates_q2",
+                  "owner_scope": "company",
+                  "ranking_basis": "deal_likelihood",
+                  "accounts": [
+                    {
+                      "account_name": "Acme Corporation",
+                      "segment": "enterprise",
+                      "owner_scope": "East",
+                      "priority_score": 96,
+                      "priority_band": "hot",
+                      "confidence": 0.95,
+                      "rationale": "Expansion candidate with strong usage and open pipeline.",
+                      "ranking_basis": "deal_likelihood"
+                    },
+                    {
+                      "account_name": "Codehow",
+                      "segment": "commercial",
+                      "owner_scope": "East",
+                      "priority_score": 90,
+                      "priority_band": "hot",
+                      "confidence": 0.9,
+                      "rationale": "Strong engagement and expansion-ready signals.",
+                      "ranking_basis": "deal_likelihood"
+                    },
+                    {
+                      "account_name": "Condax",
+                      "segment": "enterprise",
+                      "owner_scope": "West",
+                      "priority_score": 86,
+                      "priority_band": "warm",
+                      "confidence": 0.87,
+                      "rationale": "Good propensity but longer procurement cycle.",
+                      "ranking_basis": "deal_likelihood"
+                    }
+                  ]
+                }
+              },
+              "invocation_id": "inv-097bab0e8de8",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.prioritize_accounts",
+        "service": "prioritization",
+        "max_total_loops": 2,
+        "data_check": "prioritize_accounts_expansion_candidates_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.prioritize_accounts",
+        "capability": "gtm.prioritize_accounts",
+        "service": "prioritization",
+        "outcome": "success",
+        "parameters": {
+          "cohort_ref": "expansion_candidates_q2",
+          "ranking_basis": "deal_likelihood"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded prioritization request for an account cohort, so gtm.prioritize_accounts is the narrowest fit. Quarter is embedded in the cohort reference, and no ranking basis or owner scope was provided, so I pass only the known partial cohort reference for governed clarification if needed.",
+          "user_message": "Prioritizing the expansion candidates cohort for 2017-Q2 with the available context."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "prioritize_accounts_expansion_candidates_q2",
+        "details": {
+          "expected_rows": [
+            {
+              "account_name": "Acme Corporation",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 96,
+              "priority_band": "hot",
+              "confidence": 0.95,
+              "rationale": "Expansion candidate with strong usage and open pipeline.",
+              "ranking_basis": "deal_likelihood"
+            },
+            {
+              "account_name": "Codehow",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 90,
+              "priority_band": "hot",
+              "confidence": 0.9,
+              "rationale": "Strong engagement and expansion-ready signals.",
+              "ranking_basis": "deal_likelihood"
+            },
+            {
+              "account_name": "Condax",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 86,
+              "priority_band": "warm",
+              "confidence": 0.87,
+              "rationale": "Good propensity but longer procurement cycle.",
+              "ranking_basis": "deal_likelihood"
+            }
+          ],
+          "actual_rows": [
+            {
+              "account_name": "Acme Corporation",
+              "segment": "enterprise",
+              "owner_scope": "East",
+              "priority_score": 96,
+              "priority_band": "hot",
+              "confidence": 0.95,
+              "rationale": "Expansion candidate with strong usage and open pipeline.",
+              "ranking_basis": "deal_likelihood"
+            },
+            {
+              "account_name": "Codehow",
+              "segment": "commercial",
+              "owner_scope": "East",
+              "priority_score": 90,
+              "priority_band": "hot",
+              "confidence": 0.9,
+              "rationale": "Strong engagement and expansion-ready signals.",
+              "ranking_basis": "deal_likelihood"
+            },
+            {
+              "account_name": "Condax",
+              "segment": "enterprise",
+              "owner_scope": "West",
+              "priority_score": 86,
+              "priority_band": "warm",
+              "confidence": 0.87,
+              "rationale": "Good propensity but longer procurement cycle.",
+              "ranking_basis": "deal_likelihood"
+            }
+          ]
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "prioritization",
+          "capability": "gtm.prioritize_accounts",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.prioritize_accounts",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Prioritize the expansion candidates in 2017-Q2.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded prioritization request for an account cohort, so gtm.prioritize_accounts is the narrowest fit. Quarter is embedded in the cohort reference, and no ranking basis or owner scope was provided, so I pass only the known partial cohort reference for governed clarification if needed.",
+          "user_message": "Prioritizing the expansion candidates cohort for 2017-Q2 with the available context."
+        },
+        "planned_capability": "gtm.prioritize_accounts",
+        "selected_capability": "gtm.prioritize_accounts",
+        "selected_service": "prioritization",
+        "parameters": {
+          "cohort_ref": "expansion_candidates_q2",
+          "ranking_basis": "deal_likelihood"
+        },
+        "capability_metadata": {
+          "description": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+          "minimum_scope": [
+            "gtm.prioritization.read"
+          ],
+          "inputs": [
+            "cohort_ref",
+            "ranking_basis",
+            "limit",
+            "owner_scope"
+          ],
+          "side_effect": "read",
+          "service_name": "prioritization",
+          "service_url": "http://gtm-prioritization-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "cohort_ref": "expansion_candidates_q2",
+              "owner_scope": "company",
+              "ranking_basis": "deal_likelihood",
+              "accounts": [
+                {
+                  "account_name": "Acme Corporation",
+                  "segment": "enterprise",
+                  "owner_scope": "East",
+                  "priority_score": 96,
+                  "priority_band": "hot",
+                  "confidence": 0.95,
+                  "rationale": "Expansion candidate with strong usage and open pipeline.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Codehow",
+                  "segment": "commercial",
+                  "owner_scope": "East",
+                  "priority_score": 90,
+                  "priority_band": "hot",
+                  "confidence": 0.9,
+                  "rationale": "Strong engagement and expansion-ready signals.",
+                  "ranking_basis": "deal_likelihood"
+                },
+                {
+                  "account_name": "Condax",
+                  "segment": "enterprise",
+                  "owner_scope": "West",
+                  "priority_score": 86,
+                  "priority_band": "warm",
+                  "confidence": 0.87,
+                  "rationale": "Good propensity but longer procurement cycle.",
+                  "ranking_basis": "deal_likelihood"
+                }
+              ]
+            }
+          },
+          "invocation_id": "inv-097bab0e8de8",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase4-deny-raw-model-export",
+      "category": "prioritization-denied",
+      "question": "Show me every raw model feature and weight behind the lead scores.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show me every raw model feature and weight behind the lead scores.",
+          "expected": {
+            "outcome": "denied",
+            "max_total_loops": 0
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show me every raw model feature and weight behind the lead scores.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "max_total_loops": 0
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show me every raw model feature and weight behind the lead scores.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "phase4-route-webinar-leads-approval",
+      "category": "prioritization-approval",
+      "question": "Route the webinar leads to sales right now.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the webinar leads to sales right now.",
+          "expected": {
+            "outcome": "approval_required",
+            "capability": "gtm.route_leads",
+            "service": "prioritization",
+            "max_total_loops": 2,
+            "data_check": "route_preview_webinar_q2_sales"
+          },
+          "actual": {
+            "planned_capability": "gtm.route_leads",
+            "capability": "gtm.route_leads",
+            "service": "prioritization",
+            "outcome": "approval_required",
+            "parameters": {
+              "cohort_ref": "webinar_q2",
+              "target_queue": "sales"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about lead routing, so the narrowest matching capability is route_leads. However, the request lacks the required bounded cohort and target queue details, so only the capability can be selected and the service should clarify.",
+              "user_message": "I can preview or approve lead routing, but I need a bounded lead cohort and target queue to proceed."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "route_preview_webinar_q2_sales",
+            "details": {
+              "expected_rows": {
+                "cohort_ref": "webinar_q2",
+                "owner_scope": "company",
+                "target_queue": "sales",
+                "dry_run": true,
+                "preview": [
+                  {
+                    "lead_id": "lead_2001",
+                    "account_name": "Finjob",
+                    "owner_scope": "East",
+                    "priority_band": "hot",
+                    "priority_score": 89,
+                    "recommended_queue": "sales",
+                    "rationale": "Executive webinar attendance and requested follow-up."
+                  },
+                  {
+                    "lead_id": "lead_2002",
+                    "account_name": "J-Texon",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 81,
+                    "recommended_queue": "sales",
+                    "rationale": "Good engagement but smaller likely deal size."
+                  },
+                  {
+                    "lead_id": "lead_2003",
+                    "account_name": "Konex",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 78,
+                    "recommended_queue": "sales",
+                    "rationale": "Moderate engagement and reasonable ICP fit."
+                  }
+                ]
+              },
+              "actual_rows": {
+                "cohort_ref": "webinar_q2",
+                "owner_scope": "company",
+                "target_queue": "sales",
+                "dry_run": true,
+                "preview": [
+                  {
+                    "lead_id": "lead_2001",
+                    "account_name": "Finjob",
+                    "owner_scope": "East",
+                    "priority_band": "hot",
+                    "priority_score": 89,
+                    "recommended_queue": "sales",
+                    "rationale": "Executive webinar attendance and requested follow-up."
+                  },
+                  {
+                    "lead_id": "lead_2002",
+                    "account_name": "J-Texon",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 81,
+                    "recommended_queue": "sales",
+                    "rationale": "Good engagement but smaller likely deal size."
+                  },
+                  {
+                    "lead_id": "lead_2003",
+                    "account_name": "Konex",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 78,
+                    "recommended_queue": "sales",
+                    "rationale": "Moderate engagement and reasonable ICP fit."
+                  }
+                ]
+              }
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Route the webinar leads to sales right now.",
+            "actor_id": "rev_ops_manager",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about lead routing, so the narrowest matching capability is route_leads. However, the request lacks the required bounded cohort and target queue details, so only the capability can be selected and the service should clarify.",
+              "user_message": "I can preview or approve lead routing, but I need a bounded lead cohort and target queue to proceed."
+            },
+            "planned_capability": "gtm.route_leads",
+            "selected_capability": "gtm.route_leads",
+            "selected_service": "prioritization",
+            "parameters": {
+              "cohort_ref": "webinar_q2",
+              "target_queue": "sales"
+            },
+            "capability_metadata": {
+              "description": "Preview or approve routing recommendations for a bounded lead cohort.",
+              "minimum_scope": [
+                "gtm.prioritization.route"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "target_queue",
+                "owner_scope"
+              ],
+              "side_effect": "write",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "approval_required",
+                "detail": "Lead routing stays at preview until an authorized approver confirms it.",
+                "resolution": {
+                  "action": "request_approval",
+                  "requires": "approval before downstream routing mutation",
+                  "preview": {
+                    "cohort_ref": "webinar_q2",
+                    "owner_scope": "company",
+                    "target_queue": "sales",
+                    "dry_run": true,
+                    "preview": [
+                      {
+                        "lead_id": "lead_2001",
+                        "account_name": "Finjob",
+                        "owner_scope": "East",
+                        "priority_band": "hot",
+                        "priority_score": 89,
+                        "recommended_queue": "sales",
+                        "rationale": "Executive webinar attendance and requested follow-up."
+                      },
+                      {
+                        "lead_id": "lead_2002",
+                        "account_name": "J-Texon",
+                        "owner_scope": "West",
+                        "priority_band": "warm",
+                        "priority_score": 81,
+                        "recommended_queue": "sales",
+                        "rationale": "Good engagement but smaller likely deal size."
+                      },
+                      {
+                        "lead_id": "lead_2003",
+                        "account_name": "Konex",
+                        "owner_scope": "West",
+                        "priority_band": "warm",
+                        "priority_score": 78,
+                        "recommended_queue": "sales",
+                        "rationale": "Moderate engagement and reasonable ICP fit."
+                      }
+                    ]
+                  },
+                  "approval_request_id": "apr_8070f2a8d52e",
+                  "approval_role_required": "sales_leader"
+                }
+              },
+              "invocation_id": "inv-61b362e85c2b",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2,
+        "data_check": "route_preview_webinar_q2_sales"
+      },
+      "actual": {
+        "planned_capability": "gtm.route_leads",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "outcome": "approval_required",
+        "parameters": {
+          "cohort_ref": "webinar_q2",
+          "target_queue": "sales"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about lead routing, so the narrowest matching capability is route_leads. However, the request lacks the required bounded cohort and target queue details, so only the capability can be selected and the service should clarify.",
+          "user_message": "I can preview or approve lead routing, but I need a bounded lead cohort and target queue to proceed."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "route_preview_webinar_q2_sales",
+        "details": {
+          "expected_rows": {
+            "cohort_ref": "webinar_q2",
+            "owner_scope": "company",
+            "target_queue": "sales",
+            "dry_run": true,
+            "preview": [
+              {
+                "lead_id": "lead_2001",
+                "account_name": "Finjob",
+                "owner_scope": "East",
+                "priority_band": "hot",
+                "priority_score": 89,
+                "recommended_queue": "sales",
+                "rationale": "Executive webinar attendance and requested follow-up."
+              },
+              {
+                "lead_id": "lead_2002",
+                "account_name": "J-Texon",
+                "owner_scope": "West",
+                "priority_band": "warm",
+                "priority_score": 81,
+                "recommended_queue": "sales",
+                "rationale": "Good engagement but smaller likely deal size."
+              },
+              {
+                "lead_id": "lead_2003",
+                "account_name": "Konex",
+                "owner_scope": "West",
+                "priority_band": "warm",
+                "priority_score": 78,
+                "recommended_queue": "sales",
+                "rationale": "Moderate engagement and reasonable ICP fit."
+              }
+            ]
+          },
+          "actual_rows": {
+            "cohort_ref": "webinar_q2",
+            "owner_scope": "company",
+            "target_queue": "sales",
+            "dry_run": true,
+            "preview": [
+              {
+                "lead_id": "lead_2001",
+                "account_name": "Finjob",
+                "owner_scope": "East",
+                "priority_band": "hot",
+                "priority_score": 89,
+                "recommended_queue": "sales",
+                "rationale": "Executive webinar attendance and requested follow-up."
+              },
+              {
+                "lead_id": "lead_2002",
+                "account_name": "J-Texon",
+                "owner_scope": "West",
+                "priority_band": "warm",
+                "priority_score": 81,
+                "recommended_queue": "sales",
+                "rationale": "Good engagement but smaller likely deal size."
+              },
+              {
+                "lead_id": "lead_2003",
+                "account_name": "Konex",
+                "owner_scope": "West",
+                "priority_band": "warm",
+                "priority_score": 78,
+                "recommended_queue": "sales",
+                "rationale": "Moderate engagement and reasonable ICP fit."
+              }
+            ]
+          }
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "rev_ops_manager",
+          "service": "prioritization",
+          "capability": "gtm.route_leads",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.route_leads",
+            "success": false,
+            "failure_type": "approval_required",
+            "root_principal": "human:priya.shah@example.com|actor_id=rev_ops_manager|display_name=Priya Shah|role=rev_ops_manager|pipeline_scope=company|financial_access=full|enrichment_access=full|can_prepare_followup=true|can_approve_followup=false|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=false",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": {
+        "passed": true,
+        "details": {
+          "approval_request_id": "apr_8070f2a8d52e",
+          "approver_actor_id": "sales_leader",
+          "pending_visible": true,
+          "approved_visible": true,
+          "approval_payload": {
+            "actor_id": "sales_leader",
+            "approval_request_id": "apr_8070f2a8d52e",
+            "service": "prioritization",
+            "result": {
+              "approval": {
+                "approval_request_id": "apr_8070f2a8d52e",
+                "approved_at": "2026-04-13T06:10:34.787795+00:00",
+                "approved_by": {
+                  "actor_id": "sales_leader",
+                  "role": "sales_leader",
+                  "email": "human:alex.king@example.com"
+                },
+                "capability": "gtm.route_leads",
+                "preview": {
+                  "cohort_ref": "webinar_q2",
+                  "dry_run": true,
+                  "owner_scope": "company",
+                  "preview": [
+                    {
+                      "account_name": "Finjob",
+                      "lead_id": "lead_2001",
+                      "owner_scope": "East",
+                      "priority_band": "hot",
+                      "priority_score": 89,
+                      "rationale": "Executive webinar attendance and requested follow-up.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "account_name": "J-Texon",
+                      "lead_id": "lead_2002",
+                      "owner_scope": "West",
+                      "priority_band": "warm",
+                      "priority_score": 81,
+                      "rationale": "Good engagement but smaller likely deal size.",
+                      "recommended_queue": "sales"
+                    },
+                    {
+                      "account_name": "Konex",
+                      "lead_id": "lead_2003",
+                      "owner_scope": "West",
+                      "priority_band": "warm",
+                      "priority_score": 78,
+                      "rationale": "Moderate engagement and reasonable ICP fit.",
+                      "recommended_queue": "sales"
+                    }
+                  ],
+                  "target_queue": "sales"
+                },
+                "requested_at": "2026-04-13T06:10:34.750003+00:00",
+                "requested_by": {
+                  "actor_id": "rev_ops_manager",
+                  "email": "human:priya.shah@example.com",
+                  "role": "rev_ops_manager"
+                },
+                "required_role": "sales_leader",
+                "status": "approved"
+              }
+            }
+          },
+          "assertion_errors": []
+        }
+      },
+      "response": {
+        "runtime": "llm",
+        "question": "Route the webinar leads to sales right now.",
+        "actor_id": "rev_ops_manager",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about lead routing, so the narrowest matching capability is route_leads. However, the request lacks the required bounded cohort and target queue details, so only the capability can be selected and the service should clarify.",
+          "user_message": "I can preview or approve lead routing, but I need a bounded lead cohort and target queue to proceed."
+        },
+        "planned_capability": "gtm.route_leads",
+        "selected_capability": "gtm.route_leads",
+        "selected_service": "prioritization",
+        "parameters": {
+          "cohort_ref": "webinar_q2",
+          "target_queue": "sales"
+        },
+        "capability_metadata": {
+          "description": "Preview or approve routing recommendations for a bounded lead cohort.",
+          "minimum_scope": [
+            "gtm.prioritization.route"
+          ],
+          "inputs": [
+            "cohort_ref",
+            "target_queue",
+            "owner_scope"
+          ],
+          "side_effect": "write",
+          "service_name": "prioritization",
+          "service_url": "http://gtm-prioritization-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "approval_required",
+            "detail": "Lead routing stays at preview until an authorized approver confirms it.",
+            "resolution": {
+              "action": "request_approval",
+              "requires": "approval before downstream routing mutation",
+              "preview": {
+                "cohort_ref": "webinar_q2",
+                "owner_scope": "company",
+                "target_queue": "sales",
+                "dry_run": true,
+                "preview": [
+                  {
+                    "lead_id": "lead_2001",
+                    "account_name": "Finjob",
+                    "owner_scope": "East",
+                    "priority_band": "hot",
+                    "priority_score": 89,
+                    "recommended_queue": "sales",
+                    "rationale": "Executive webinar attendance and requested follow-up."
+                  },
+                  {
+                    "lead_id": "lead_2002",
+                    "account_name": "J-Texon",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 81,
+                    "recommended_queue": "sales",
+                    "rationale": "Good engagement but smaller likely deal size."
+                  },
+                  {
+                    "lead_id": "lead_2003",
+                    "account_name": "Konex",
+                    "owner_scope": "West",
+                    "priority_band": "warm",
+                    "priority_score": 78,
+                    "recommended_queue": "sales",
+                    "rationale": "Moderate engagement and reasonable ICP fit."
+                  }
+                ]
+              },
+              "approval_request_id": "apr_8070f2a8d52e",
+              "approval_role_required": "sales_leader"
+            }
+          },
+          "invocation_id": "inv-61b362e85c2b",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase4-sales-analyst-routing-denied",
+      "category": "prioritization-approval",
+      "question": "Route the webinar leads to sales right now.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the webinar leads to sales right now.",
+          "expected": {
+            "outcome": "denied",
+            "capability": "gtm.route_leads",
+            "service": "prioritization",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.route_leads",
+            "capability": "gtm.route_leads",
+            "service": "prioritization",
+            "outcome": "denied",
+            "parameters": {
+              "cohort_ref": "webinar_q2",
+              "target_queue": "sales"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about lead routing, and this is the narrowest matching capability. However, it is underspecified because no cohort_ref, target_queue, or owner_scope is provided, so only a minimal bounded invocation can be constructed and the service should clarify.",
+              "user_message": "I selected the lead routing capability, but I need the lead cohort and routing target to proceed."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Route the webinar leads to sales right now.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about lead routing, and this is the narrowest matching capability. However, it is underspecified because no cohort_ref, target_queue, or owner_scope is provided, so only a minimal bounded invocation can be constructed and the service should clarify.",
+              "user_message": "I selected the lead routing capability, but I need the lead cohort and routing target to proceed."
+            },
+            "planned_capability": "gtm.route_leads",
+            "selected_capability": "gtm.route_leads",
+            "selected_service": "prioritization",
+            "parameters": {
+              "cohort_ref": "webinar_q2",
+              "target_queue": "sales"
+            },
+            "capability_metadata": {
+              "description": "Preview or approve routing recommendations for a bounded lead cohort.",
+              "minimum_scope": [
+                "gtm.prioritization.route"
+              ],
+              "inputs": [
+                "cohort_ref",
+                "target_queue",
+                "owner_scope"
+              ],
+              "side_effect": "write",
+              "service_name": "prioritization",
+              "service_url": "http://gtm-prioritization-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "This actor role cannot route leads.",
+                "resolution": {
+                  "action": "request_authorized_actor",
+                  "requires": "role with routing authority"
+                }
+              },
+              "invocation_id": "inv-5010bedff96c",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.route_leads",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "outcome": "denied",
+        "parameters": {
+          "cohort_ref": "webinar_q2",
+          "target_queue": "sales"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about lead routing, and this is the narrowest matching capability. However, it is underspecified because no cohort_ref, target_queue, or owner_scope is provided, so only a minimal bounded invocation can be constructed and the service should clarify.",
+          "user_message": "I selected the lead routing capability, but I need the lead cohort and routing target to proceed."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_analyst",
+          "service": "prioritization",
+          "capability": "gtm.route_leads",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.route_leads",
+            "success": false,
+            "failure_type": "denied",
+            "root_principal": "human:jordan.lee@example.com|actor_id=sales_analyst|display_name=Jordan Lee|role=sales_analyst|pipeline_scope=company|financial_access=masked|enrichment_access=bounded|can_prepare_followup=false|can_approve_followup=false|can_use_lookalikes=false|can_route_leads=false|can_approve_routing=false",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Route the webinar leads to sales right now.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about lead routing, and this is the narrowest matching capability. However, it is underspecified because no cohort_ref, target_queue, or owner_scope is provided, so only a minimal bounded invocation can be constructed and the service should clarify.",
+          "user_message": "I selected the lead routing capability, but I need the lead cohort and routing target to proceed."
+        },
+        "planned_capability": "gtm.route_leads",
+        "selected_capability": "gtm.route_leads",
+        "selected_service": "prioritization",
+        "parameters": {
+          "cohort_ref": "webinar_q2",
+          "target_queue": "sales"
+        },
+        "capability_metadata": {
+          "description": "Preview or approve routing recommendations for a bounded lead cohort.",
+          "minimum_scope": [
+            "gtm.prioritization.route"
+          ],
+          "inputs": [
+            "cohort_ref",
+            "target_queue",
+            "owner_scope"
+          ],
+          "side_effect": "write",
+          "service_name": "prioritization",
+          "service_url": "http://gtm-prioritization-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "This actor role cannot route leads.",
+            "resolution": {
+              "action": "request_authorized_actor",
+              "requires": "role with routing authority"
+            }
+          },
+          "invocation_id": "inv-5010bedff96c",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    }
+  ]
+}

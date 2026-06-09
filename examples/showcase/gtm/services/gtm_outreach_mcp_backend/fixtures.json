@@ -1,0 +1,78 @@
+{
+  "targets": {
+    "Condax": {
+      "industry": "industrial manufacturing",
+      "persona": "VP of Operations",
+      "region": "East",
+      "priority_context": "high-priority expansion candidate",
+      "pain_point": "fragmented forecasting and slow handoff between revenue teams",
+      "proof_point": "governed pipeline review with approval-aware follow-up planning",
+      "next_step": "a short operations-focused discovery call"
+    },
+    "Acme Corporation": {
+      "industry": "industrial equipment",
+      "persona": "Revenue Operations Director",
+      "region": "Central",
+      "priority_context": "at-risk account needing tighter GTM coordination",
+      "pain_point": "stalled opportunities and uneven rep follow-through",
+      "proof_point": "bounded risk reviews and explainable next-best actions",
+      "next_step": "a practical walkthrough of its stalled-opportunity posture"
+    },
+    "Codehow": {
+      "industry": "software and digital services",
+      "persona": "Head of GTM Systems",
+      "region": "East",
+      "priority_context": "high-fit target for follow-up acceleration",
+      "pain_point": "manual scoring and inconsistent routing decisions",
+      "proof_point": "governed scoring and approval-gated routing previews",
+      "next_step": "a systems-focused follow-up conversation"
+    }
+  },
+  "objection_themes": {
+    "pricing": {
+      "label": "pricing",
+      "variants": [
+        {
+          "variant_id": "pricing_v1",
+          "message": "Frame the conversation around pipeline waste reduction before discussing pricing.",
+          "rationale": "Keeps the conversation on measurable operating value."
+        },
+        {
+          "variant_id": "pricing_v2",
+          "message": "Offer a bounded pilot focused on one GTM workflow instead of a broad rollout.",
+          "rationale": "Reduces perceived risk and keeps scope concrete."
+        }
+      ]
+    },
+    "competitor": {
+      "label": "competitor comparison",
+      "variants": [
+        {
+          "variant_id": "competitor_v1",
+          "message": "Position governed service boundaries and auditability as the differentiator.",
+          "rationale": "Shifts the comparison away from feature checklists toward control and trust."
+        },
+        {
+          "variant_id": "competitor_v2",
+          "message": "Use the multi-service proof to show predictable composition rather than one opaque agent.",
+          "rationale": "Shows operational realism instead of generic autonomy claims."
+        }
+      ]
+    },
+    "implementation_risk": {
+      "label": "implementation risk",
+      "variants": [
+        {
+          "variant_id": "implementation_v1",
+          "message": "Anchor on ANIP in front of existing systems so the buyer does not need a full rebuild.",
+          "rationale": "Directly reduces perceived migration cost."
+        },
+        {
+          "variant_id": "implementation_v2",
+          "message": "Use Phase 1 through Phase 4 proof points to show incremental rollout instead of a big-bang launch.",
+          "rationale": "Demonstrates controlled adoption."
+        }
+      ]
+    }
+  }
+}

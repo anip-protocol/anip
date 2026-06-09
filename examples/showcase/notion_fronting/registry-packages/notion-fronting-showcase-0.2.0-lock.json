@@ -1,0 +1,434 @@
+{
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "capabilities": {
+      "notion.comment.prepare": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.comment.prepare",
+          "summary": "Prepare a Notion page comment from supplied context without posting it."
+        },
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "comment_purpose",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "context",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "notion.database.query_context": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "intent": {
+          "category": "notion.database.query_context",
+          "summary": "Query a bounded Notion database view with declared filters and return summarized context."
+        },
+        "required_context": [
+          {
+            "input": "database_id",
+            "posture": "required:clarify",
+            "semantic_type": "database_ref"
+          },
+          {
+            "input": "filter",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "notion.page.create.prepare": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.page.create.prepare",
+          "summary": "Prepare a Notion page creation preview under an explicit parent before creating anything."
+        },
+        "required_context": [
+          {
+            "input": "parent_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_or_database_ref"
+          },
+          {
+            "input": "title",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "notion.page.update.prepare": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.page.update.prepare",
+          "summary": "Prepare a Notion page update preview for an explicit page without applying the update."
+        },
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "change_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_patch",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "notion.workspace.search_context": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "intent": {
+          "category": "notion.workspace.search_context",
+          "summary": "Search bounded Notion pages and databases without exposing raw workspace tools."
+        },
+        "required_context": [
+          {
+            "input": "workspace_scope",
+            "posture": "required:clarify",
+            "semantic_type": "workspace_scope"
+          },
+          {
+            "input": "query",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      }
+    },
+    "capability_hints": [
+      {
+        "capability_id": "notion.workspace.search_context",
+        "required_context": [
+          {
+            "input": "workspace_scope",
+            "posture": "required:clarify",
+            "semantic_type": "workspace_scope"
+          },
+          {
+            "input": "query",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+        "title": "Search Workspace Context"
+      },
+      {
+        "capability_id": "notion.database.query_context",
+        "required_context": [
+          {
+            "input": "database_id",
+            "posture": "required:clarify",
+            "semantic_type": "database_ref"
+          },
+          {
+            "input": "filter",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Query a bounded Notion database view with declared filters and return summarized context.",
+        "title": "Query Database Context"
+      },
+      {
+        "capability_id": "notion.page.create.prepare",
+        "required_context": [
+          {
+            "input": "parent_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_or_database_ref"
+          },
+          {
+            "input": "title",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+        "title": "Prepare Page Creation"
+      },
+      {
+        "capability_id": "notion.page.update.prepare",
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "change_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_patch",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Notion page update preview for an explicit page without applying the update.",
+        "title": "Prepare Page Update"
+      },
+      {
+        "capability_id": "notion.comment.prepare",
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "comment_purpose",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "context",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Notion page comment from supplied context without posting it.",
+        "title": "Prepare Page Comment"
+      }
+    ],
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "findings": [],
+    "probes": [
+      {
+        "capability_id": "notion.workspace.search_context",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "notion.database.query_context",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "notion.page.create.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "notion.page.update.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "notion.comment.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      }
+    ],
+    "required_app_glue": [],
+    "schema_version": "anip-agent-consumption-readiness/v0",
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "capability_surface": 5,
+      "info": 0,
+      "probes": 5,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "notion-fronting-showcase",
+  "blueprint_version": "0.2.0",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "capability_ids": [
+    "notion.workspace.search_context",
+    "notion.database.query_context",
+    "notion.page.create.prepare",
+    "notion.page.update.prepare",
+    "notion.comment.prepare"
+  ],
+  "contract_signature": "sha256:013872334427dd8943ad0912f049fcd8c41afab4f0fc6f8d211d5bb09784c069",
+  "extension_packs": [],
+  "generated_at": "2026-05-15T00:00:00Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "studio:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff:developer-definition-revision-1",
+      "contract_signature": "sha256:013872334427dd8943ad0912f049fcd8c41afab4f0fc6f8d211d5bb09784c069",
+      "ref": "studio:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff:developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "studio:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff:product-baseline",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "studio:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff:product-baseline",
+      "revision_number": 1
+    },
+    "project_ref": "studio:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff"
+  },
+  "lock_kind": "publisher_recommended_lock",
+  "package_id": "notion-fronting-showcase",
+  "package_version": "0.2.0",
+  "regression_packs": [],
+  "runtime_packages": [],
+  "schema_version": "anip-service-definition/v1",
+  "selected_service_ids": [
+    "notion-governance-service"
+  ],
+  "service_definition_digest": "sha256:013872334427dd8943ad0912f049fcd8c41afab4f0fc6f8d211d5bb09784c069",
+  "verifier_packs": [
+    "anip-verifier@local"
+  ]
+}

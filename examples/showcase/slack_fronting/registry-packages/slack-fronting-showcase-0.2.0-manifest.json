@@ -1,0 +1,414 @@
+{
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "capabilities": {
+      "slack.announcement.request": {
+        "business_effects": {},
+        "intent": {
+          "category": "slack.announcement.request",
+          "summary": "Prepare a channel announcement request that requires approval before posting."
+        },
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "announcement",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "audience",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "slack.channel.read_context": {
+        "business_effects": {},
+        "intent": {
+          "category": "slack.channel.read_context",
+          "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools."
+        },
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "query",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "slack.incident_update.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "slack.incident_update.prepare",
+          "summary": "Prepare a structured incident update for a Slack channel and stop before sending."
+        },
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "incident_id",
+            "posture": "required:clarify",
+            "semantic_type": "incident_ref"
+          },
+          {
+            "input": "status",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "next_update_time",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "slack.message.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "slack.message.prepare",
+          "summary": "Prepare a Slack channel message preview without sending it."
+        },
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "text",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "thread_ts",
+            "posture": "optional:clarify",
+            "semantic_type": "thread_ref"
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "slack.thread.summarize": {
+        "business_effects": {},
+        "intent": {
+          "category": "slack.thread.summarize",
+          "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting."
+        },
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "thread_ts",
+            "posture": "required:clarify",
+            "semantic_type": "thread_ref"
+          },
+          {
+            "input": "focus",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      }
+    },
+    "capability_hints": [
+      {
+        "capability_id": "slack.channel.read_context",
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "query",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+        "title": "Read Channel Context"
+      },
+      {
+        "capability_id": "slack.thread.summarize",
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "thread_ts",
+            "posture": "required:clarify",
+            "semantic_type": "thread_ref"
+          },
+          {
+            "input": "focus",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+        "title": "Summarize Thread"
+      },
+      {
+        "capability_id": "slack.message.prepare",
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "text",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "thread_ts",
+            "posture": "optional:clarify",
+            "semantic_type": "thread_ref"
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Slack channel message preview without sending it.",
+        "title": "Prepare Channel Message"
+      },
+      {
+        "capability_id": "slack.incident_update.prepare",
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "incident_id",
+            "posture": "required:clarify",
+            "semantic_type": "incident_ref"
+          },
+          {
+            "input": "status",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "next_update_time",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a structured incident update for a Slack channel and stop before sending.",
+        "title": "Prepare Incident Update"
+      },
+      {
+        "capability_id": "slack.announcement.request",
+        "required_context": [
+          {
+            "input": "channel_id",
+            "posture": "required:clarify",
+            "semantic_type": "channel_ref"
+          },
+          {
+            "input": "announcement",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "audience",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a channel announcement request that requires approval before posting.",
+        "title": "Request Channel Announcement"
+      }
+    ],
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "findings": [],
+    "probes": [
+      {
+        "capability_id": "slack.channel.read_context",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "slack.thread.summarize",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "slack.message.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "slack.incident_update.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "slack.announcement.request",
+        "kind": "contract_declared",
+        "status": "ready"
+      }
+    ],
+    "required_app_glue": [],
+    "schema_version": "anip-agent-consumption-readiness/v0",
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "capability_surface": 5,
+      "info": 0,
+      "probes": 5,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "slack-fronting-showcase",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "capability_count": 5,
+  "generated_at": "2026-05-15T00:00:00Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "slack-fronting-studio-20260516141413-developer-definition-revision-1",
+      "contract_signature": "sha256:10f1557359d5933bdf0481a64cb0dadc792a33745906720cd0008c1e74728557",
+      "ref": "slack-fronting-studio-20260516141413-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "slack-fronting-studio-20260516141413-product-design-revision-1@r1",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "slack-fronting-studio-20260516141413-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:slack-fronting-studio-20260516141413"
+  },
+  "name": "slack_governed_fronting_showcase Service Blueprint",
+  "package_id": "slack-fronting-showcase",
+  "package_kind": "anip_service_blueprint",
+  "package_version": "0.2.0",
+  "publisher": {
+    "display_name": "Local development registry",
+    "id": "local-dev-registry"
+  },
+  "readme": "# slack_governed_fronting_showcase\n\nANIP package `slack-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `slack.channel.read_context`\n- `slack.thread.summarize`\n- `slack.message.prepare`\n- `slack.incident_update.prepare`\n- `slack.announcement.request`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/slack-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id slack-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/slack-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9160` unless overridden by the generated runtime configuration.",
+  "schema_version": "anip-service-definition/v1",
+  "service_count": 1,
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:10f1557359d5933bdf0481a64cb0dadc792a33745906720cd0008c1e74728557",
+  "service_definition_digest_algorithm": "sha256",
+  "service_ids": [
+    "slack-governance-service"
+  ],
+  "source_links": [],
+  "usage": {
+    "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/slack-fronting-showcase --force",
+    "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id slack-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/slack-fronting-showcase --force",
+    "local_port": 9160,
+    "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+    "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "version": "0.2.0"
+}

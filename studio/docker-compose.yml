@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   studio-db:
     image: postgres:16-alpine
@@ -6,10 +5,9 @@ services:
       POSTGRES_DB: anip_studio
       POSTGRES_USER: anip
       POSTGRES_PASSWORD: anip
-    ports:
-      - "5432:5432"
     volumes:
       - studio-pgdata:/var/lib/postgresql/data
+      - ./server/db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U anip -d anip_studio"]
       interval: 2s
@@ -17,23 +15,37 @@ services:
       retries: 10
 
   studio-api:
+    image: "anipprotocol/studio-api:${ANIP_IMAGE_TAG:-local}"
     build:
       context: ..
       dockerfile: studio/server/Dockerfile
     environment:
       DATABASE_URL: postgresql://anip:anip@studio-db:5432/anip_studio
+      STUDIO_READ_ONLY_DATABASE_URL: "${STUDIO_READ_ONLY_DATABASE_URL:-postgresql://anip_readonly:anip_readonly@studio-db:5432/anip_studio}"
+      STUDIO_SEED_SHOWCASES: "${STUDIO_SEED_SHOWCASES:-1}"
+      STUDIO_SEED_PROFILE: "${STUDIO_SEED_PROFILE:-}"
+      STUDIO_READ_ONLY: "${STUDIO_READ_ONLY:-0}"
+      STUDIO_READ_ONLY_REASON: "${STUDIO_READ_ONLY_REASON:-Studio is running in read-only mode. Explore the design, then download and run Studio locally to make changes.}"
+      STUDIO_RUN_MIGRATIONS: "${STUDIO_RUN_MIGRATIONS:-1}"
+      STUDIO_MIGRATE_ONLY: "${STUDIO_MIGRATE_ONLY:-0}"
+      STUDIO_ASSISTANT_PROVIDER: "${STUDIO_ASSISTANT_PROVIDER:-deterministic}"
+      STUDIO_ASSISTANT_MODEL: "${STUDIO_ASSISTANT_MODEL:-}"
+      STUDIO_ASSISTANT_BASE_URL: "${STUDIO_ASSISTANT_BASE_URL:-}"
+      STUDIO_ASSISTANT_API_KEY: "${STUDIO_ASSISTANT_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
-      - "8100:8100"
+      - "${STUDIO_API_PORT:-8100}:8100"
     depends_on:
       studio-db:
         condition: service_healthy
 
   studio-web:
+    image: "anipprotocol/studio-web:${ANIP_IMAGE_TAG:-local}"
     build:
       context: ..
       dockerfile: studio/Dockerfile.standalone
     ports:
-      - "8080:8080"
+      - "${STUDIO_WEB_PORT:-8080}:8080"
     depends_on:
       - studio-api
 

@@ -1,0 +1,33 @@
+{
+  "bundle_path": "../../examples/showcase/notion_fronting/custom-code-bundles/notion_fronting_python",
+  "bundle_sha256": "sha256:36fdb3d197e91cedec4aae85d19ac8d3576e05a175313a35468d4ef1a2bfb28a",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:613995070c24b9f835d7342d6bb00a9cb8f1f0ecd4192cc7157c4c8cb71ea0be",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 660,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/notion_governed_fronting_showcase/backend_adapter.py",
+      "sha256": "sha256:47c6ca074e1c855481bed419d5e0ad3b0a45656ab59d68ad621f05ea5715669f",
+      "seam": "backend_adapter",
+      "mode": "extension_overlay",
+      "bytes": 13344,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "tests/test_notion_backend_adapter.py",
+      "sha256": "sha256:4d3ce7bc0fb27fa5140afa433e933fc0ac77fcbf4e9c7221fbe60a60979ad542",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 5399,
+      "overlaid": false,
+      "substrate": false
+    }
+  ]
+}

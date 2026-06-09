@@ -53,7 +53,7 @@ async function copyKid(kid: string) {
 
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x1F511;</div>
-      <p>Connect to an ANIP service to inspect its JSON Web Key Set.</p>
+      <p>Connect to an ANIP capability service to inspect its JSON Web Key Set.</p>
     </div>
 
     <div v-else-if="loading" class="placeholder">

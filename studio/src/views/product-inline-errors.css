@@ -1,0 +1,75 @@
+.panel {
+  background: var(--surface-depth-panel);
+  border-color: var(--surface-border-panel);
+  box-shadow: var(--surface-shadow-panel);
+}
+
+.panel :where(.entry-card, .summary-card, .artifact-entry, .guidance-card) {
+  border-color: var(--surface-border-card);
+  background: var(--surface-depth-card);
+  box-shadow: var(--surface-shadow-card);
+}
+
+.panel :where(.entry-card, .summary-card, .artifact-entry, .guidance-card)
+  :where(.entry-card, .summary-card, .artifact-entry, .guidance-card) {
+  background: var(--surface-depth-card-nested);
+  box-shadow: var(--surface-shadow-card-nested);
+}
+
+.panel.field-error-card,
+.entry-card.field-error-card,
+.summary-card.field-error-card,
+.artifact-entry.field-error-card,
+.guidance-card.field-error-card {
+  border-color: rgba(248, 113, 113, 0.66);
+  background:
+    linear-gradient(135deg, rgba(127, 29, 29, 0.24), rgba(15, 23, 42, 0.3)),
+    rgba(15, 23, 42, 0.48);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.18), 0 18px 40px rgba(127, 29, 29, 0.12);
+}
+
+.panel.field-warning-card,
+.entry-card.field-warning-card,
+.summary-card.field-warning-card,
+.artifact-entry.field-warning-card,
+.guidance-card.field-warning-card {
+  border-color: rgba(251, 191, 36, 0.5);
+  background:
+    linear-gradient(135deg, rgba(120, 53, 15, 0.18), rgba(15, 23, 42, 0.28)),
+    rgba(15, 23, 42, 0.44);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.12), 0 18px 40px rgba(120, 53, 15, 0.1);
+}
+
+.field.field-error {
+  border: 1px solid rgba(248, 113, 113, 0.62);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: rgba(127, 29, 29, 0.16);
+}
+
+.field.field-error .field-input,
+.field.field-error .textarea,
+.field.field-error select,
+.field.field-error input,
+.field.field-error textarea {
+  border-color: rgba(248, 113, 113, 0.72);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.18);
+}
+
+.inline-field-error,
+.field-error-copy {
+  color: #fecaca;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.inline-field-error {
+  margin: 0.5rem 0 0;
+  font-size: 13px;
+}
+
+.field-error-copy {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 12px;
+}

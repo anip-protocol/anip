@@ -1,0 +1,22 @@
+[
+  {
+    "scenario_id": "score-bounded-cohort",
+    "expected_outcome": "available",
+    "expected_backend_operation": "score_leads"
+  },
+  {
+    "scenario_id": "clarify-missing-cohort",
+    "expected_outcome": "clarification_required",
+    "expected_backend_operation": "score_leads"
+  },
+  {
+    "scenario_id": "deny-raw-model-export",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "score_leads"
+  },
+  {
+    "scenario_id": "approval-gated-routing",
+    "expected_outcome": "approval_required",
+    "expected_backend_operation": "route_leads"
+  }
+]

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { requestConfirmation } from '../confirm'
+
 const props = defineProps<{
   modelValue: string[]
 }>()
@@ -13,7 +15,15 @@ function updateItem(index: number, value: string) {
   emit('update:modelValue', copy)
 }
 
-function removeItem(index: number) {
+async function removeItem(index: number) {
+  const confirmed = await requestConfirmation({
+    title: 'Remove this item?',
+    message: 'This will remove the selected list item.',
+    confirmLabel: 'Remove Item',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   const copy = [...props.modelValue]
   copy.splice(index, 1)
   emit('update:modelValue', copy)

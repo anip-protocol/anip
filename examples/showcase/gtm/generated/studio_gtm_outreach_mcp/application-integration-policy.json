@@ -1,0 +1,24 @@
+{
+  "system": "Outreach Drafting MCP",
+  "default_result_limit": 3,
+  "require_approval_for_writes": true,
+  "require_clarification_on_ambiguous_record": true,
+  "dry_run_before_write": true,
+  "approval_rules": [],
+  "denial_rules": [
+    {
+      "ruleId": "deny_send_actions",
+      "denialType": "forbidden_mutation",
+      "capabilityId": "gtm.draft_outreach_message",
+      "summary": "Deny send or publish requests in the first outreach cut.",
+      "enabled": true
+    },
+    {
+      "ruleId": "deny_raw_transcript_export",
+      "denialType": "forbidden_field",
+      "capabilityId": "gtm.objection_response_variants",
+      "summary": "Deny requests for raw conversation transcripts or training-corpus export.",
+      "enabled": true
+    }
+  ]
+}

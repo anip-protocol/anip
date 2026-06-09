@@ -1,0 +1,66 @@
+{
+  "checks": [
+    {
+      "capability_id": "notion.comment.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "notion.comment.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.comment.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "notion.comment.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.page.update.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "notion.page.update.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.page.update.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "notion.page.update.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.page.create.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "notion.page.create.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.page.create.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "notion.page.create.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.database.query_context",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "notion.database.query_context.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.database.query_context",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "notion.database.query_context.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.workspace.search_context",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "notion.workspace.search_context.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "notion.workspace.search_context",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "notion.workspace.search_context.raw_backend_bound",
+      "status": "pass"
+    }
+  ],
+  "schema_version": "anip-integration-fronting-conformance/v0",
+  "status": "passed"
+}

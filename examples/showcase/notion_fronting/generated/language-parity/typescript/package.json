@@ -1,0 +1,30 @@
+{
+  "dependencies": {
+    "@anip-dev/core": "file:/Users/samirski/Development/ANIP/packages/typescript/core",
+    "@anip-dev/crypto": "file:/Users/samirski/Development/ANIP/packages/typescript/crypto",
+    "@anip-dev/hono": "file:/Users/samirski/Development/ANIP/packages/typescript/hono",
+    "@anip-dev/server": "file:/Users/samirski/Development/ANIP/packages/typescript/server",
+    "@anip-dev/service": "file:/Users/samirski/Development/ANIP/packages/typescript/service",
+    "@anip-dev/stdio": "file:/Users/samirski/Development/ANIP/packages/typescript/stdio",
+    "@hono/node-server": "file:/Users/samirski/Development/ANIP/packages/typescript/node_modules/@hono/node-server",
+    "hono": "file:/Users/samirski/Development/ANIP/packages/typescript/node_modules/hono"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  },
+  "name": "notion-governed-fronting-showcase",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/main.ts",
+    "start": "node dist/main.js",
+    "start:stdio": "node dist/stdio.js",
+    "stdio": "tsx src/stdio.ts",
+    "test": "vitest run"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

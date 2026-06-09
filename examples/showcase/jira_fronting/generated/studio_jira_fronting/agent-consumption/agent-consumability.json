@@ -1,0 +1,190 @@
+{
+  "capabilities": {
+    "jira.backlog.search": {
+      "app_owned_behavior": [
+        "Select native Jira REST or Atlassian MCP backend at deployment time.",
+        "Never route agents directly to raw Jira or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "intent": {
+        "category": "jira.backlog.search",
+        "summary": "Search Jira issues in an allowed project with bounded query and result limits."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "project_key",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "query",
+          "summary": "Bounded issue search query."
+        }
+      ]
+    },
+    "jira.bug.prepare": {
+      "app_owned_behavior": [
+        "Select native Jira REST or Atlassian MCP backend at deployment time.",
+        "Never route agents directly to raw Jira or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "jira.bug.prepare",
+        "summary": "Prepare a Jira bug ticket preview from a bounded incident or defect summary without creating it."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "project_key",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "summary",
+          "summary": "Issue summary."
+        },
+        {
+          "behavior": "clarify",
+          "input": "description",
+          "summary": "Issue description."
+        },
+        {
+          "behavior": "clarify",
+          "input": "severity",
+          "summary": "Business severity."
+        }
+      ]
+    },
+    "jira.comment.prepare": {
+      "app_owned_behavior": [
+        "Select native Jira REST or Atlassian MCP backend at deployment time.",
+        "Never route agents directly to raw Jira or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change system state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change"
+        ]
+      },
+      "intent": {
+        "category": "jira.comment.prepare",
+        "summary": "Prepare a Jira issue comment from incident or triage context without posting it."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "issue_key",
+          "summary": "Jira issue key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "comment_purpose",
+          "summary": "Purpose of the comment."
+        },
+        {
+          "behavior": "clarify",
+          "input": "context",
+          "summary": "Context to summarize in the comment."
+        }
+      ]
+    },
+    "jira.story.prepare": {
+      "app_owned_behavior": [
+        "Select native Jira REST or Atlassian MCP backend at deployment time.",
+        "Never route agents directly to raw Jira or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "jira.story.prepare",
+        "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "project_key",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "summary",
+          "summary": "Story summary."
+        },
+        {
+          "behavior": "clarify",
+          "input": "acceptance_criteria",
+          "summary": "Acceptance criteria to include."
+        }
+      ]
+    },
+    "jira.transition.request": {
+      "app_owned_behavior": [
+        "Select native Jira REST or Atlassian MCP backend at deployment time.",
+        "Never route agents directly to raw Jira or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Execute approved action",
+          "Bypass workflow policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "jira.transition.request",
+        "summary": "Request a governed Jira issue transition and stop for approval when policy requires it."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "issue_key",
+          "summary": "Jira issue key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "target_status",
+          "summary": "Requested target status."
+        },
+        {
+          "behavior": "clarify",
+          "input": "reason",
+          "summary": "Reason for the transition."
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-consumability/v0"
+}

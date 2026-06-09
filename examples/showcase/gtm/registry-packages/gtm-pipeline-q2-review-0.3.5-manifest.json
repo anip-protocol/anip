@@ -1,0 +1,56 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "package_id": "gtm-pipeline-q2-review",
+  "name": "GTM Pipeline Q2 Review Service Blueprint",
+  "version": "0.3.5",
+  "package_version": "0.3.5",
+  "schema_version": "anip-service-definition/v1",
+  "publisher": {
+    "id": "local-studio",
+    "display_name": "Local Studio Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:d16b9cb314e8caeaa536b50566d0efc838974b5491680228f61f48ea970406d7",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "capability_count": 18,
+  "service_count": 4,
+  "service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "lineage": {
+    "project_ref": "studio:gtm-pipeline-q2-review",
+    "product_revision": {
+      "ref": "seed:gtm-revenue-operations-business-spec:v2",
+      "artifact_id": "req-gtm-revenue-operations-business-spec",
+      "revision_number": 2,
+      "baseline_locked_at": "2026-04-27T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "seed:gtm-revenue-operations-four-service-estate:v2",
+      "artifact_id": "developer-definition:gtm-pipeline-q2-review:r2",
+      "revision_number": 2,
+      "contract_signature": "sha256:d16b9cb314e8caeaa536b50566d0efc838974b5491680228f61f48ea970406d7"
+    }
+  },
+  "source": {
+    "business_source_path": "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md",
+    "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v2",
+    "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:v2"
+  },
+  "generated_at": "2026-04-27T22:34:57.938Z"
+}

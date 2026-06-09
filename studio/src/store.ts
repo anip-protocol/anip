@@ -34,11 +34,15 @@ export async function initFromConfig() {
   if (store.baseUrl) {
     try {
       const disco = await fetch(`${store.baseUrl}/.well-known/anip`)
-      if (disco.ok) {
+      const contentType = disco.headers.get('content-type') || ''
+      if (disco.ok && contentType.includes('application/json')) {
         store.connected = true
+      } else {
+        store.baseUrl = ''
       }
     } catch {
       // Service not reachable — user can connect manually
+      store.baseUrl = ''
     }
   }
 }

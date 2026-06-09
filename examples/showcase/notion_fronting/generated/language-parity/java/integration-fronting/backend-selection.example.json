@@ -1,0 +1,41 @@
+{
+  "description": "Deployment-time backend selection template. Edit only when a governed capability has multiple backend realizations.",
+  "schema_version": "anip-integration-fronting-selection/v0",
+  "selection": {
+    "notion.comment.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+      "available": [
+        "native_api:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api:notion.api.comment_prepare"
+      ]
+    },
+    "notion.database.query_context": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+      "available": [
+        "native_api:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api:notion.api.database_query_context"
+      ]
+    },
+    "notion.page.create.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+      "available": [
+        "native_api:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api:notion.api.page_create_prepare"
+      ]
+    },
+    "notion.page.update.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+      "available": [
+        "native_api:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api:notion.api.page_update_prepare"
+      ]
+    },
+    "notion.workspace.search_context": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+      "available": [
+        "native_api:d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api:notion.api.workspace_search_context"
+      ]
+    }
+  }
+}

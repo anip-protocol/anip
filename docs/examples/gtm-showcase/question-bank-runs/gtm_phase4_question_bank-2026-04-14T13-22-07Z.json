@@ -1,0 +1,3059 @@
+{
+  "generated_at": "2026-04-14T13-22-07Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase4_question_bank",
+  "summary": {
+    "passed": 4,
+    "total": 50,
+    "by_category": {
+      "prioritization-read": {
+        "passed": 0,
+        "total": 4
+      },
+      "prioritization-approval": {
+        "passed": 0,
+        "total": 2
+      },
+      "prioritization-actor-aware": {
+        "passed": 0,
+        "total": 2
+      },
+      "prioritization-clarification": {
+        "passed": 0,
+        "total": 3
+      },
+      "prioritization-denied": {
+        "passed": 4,
+        "total": 4
+      },
+      "prioritization-matrix": {
+        "passed": 0,
+        "total": 35
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "score-inbound_last_week",
+      "category": "prioritization-read",
+      "question": "Score the inbound last week cohort.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "score-webinar_q2",
+      "category": "prioritization-read",
+      "question": "Score the webinar q2 cohort.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritize-expansion_candidates_q2",
+      "category": "prioritization-read",
+      "question": "Prioritize the expansion candidates q2 cohort.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates q2 cohort.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritize-at_risk_q2",
+      "category": "prioritization-read",
+      "question": "Prioritize the at risk q2 cohort.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the at risk q2 cohort.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "route-inbound-sales-revops",
+      "category": "prioritization-approval",
+      "question": "Route the inbound leads from last week to SALES.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the inbound leads from last week to SALES.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "route-inbound-sales-analyst",
+      "category": "prioritization-actor-aware",
+      "question": "Route the inbound leads from last week to SALES.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the inbound leads from last week to SALES.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "route-inbound-sdr-revops",
+      "category": "prioritization-approval",
+      "question": "Route the inbound leads from last week to SDR.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the inbound leads from last week to SDR.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "route-inbound-sdr-analyst",
+      "category": "prioritization-actor-aware",
+      "question": "Route the inbound leads from last week to SDR.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the inbound leads from last week to SDR.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-score-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Score these leads.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score these leads.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-prioritize-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Prioritize these accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize these accounts.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-route-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the hot ones to sales.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "deny-raw-model-features",
+      "category": "prioritization-denied",
+      "question": "Show me the raw model features for the inbound leads from last week.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show me the raw model features for the inbound leads from last week.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show me the raw model features for the inbound leads from last week.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show me the raw model features for the inbound leads from last week.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-feature-weights",
+      "category": "prioritization-denied",
+      "question": "Export the feature weights and raw model signals for the webinar Q2 cohort.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Export the feature weights and raw model signals for the webinar Q2 cohort.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Export the feature weights and raw model signals for the webinar Q2 cohort.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Export the feature weights and raw model signals for the webinar Q2 cohort.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-routing-with-export",
+      "category": "prioritization-denied",
+      "question": "Route the hot ones to sales and include the raw underlying model payload.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Route the hot ones to sales and include the raw underlying model payload.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Route the hot ones to sales and include the raw underlying model payload.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+              "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+                "resolution": {
+                  "action": "request_bounded_summary",
+                  "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Route the hot ones to sales and include the raw underlying model payload.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw-export intent. Phase 1 policy denies raw row-level export requests rather than mapping them to a broader workflow.",
+          "user_message": "Raw row-level export is out of scope for this Phase 1 GTM service."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw row-level pipeline export is out of scope for the Phase 1 GTM service.",
+            "resolution": {
+              "action": "request_bounded_summary",
+              "requires": "pipeline summary, stalled opportunity review, or at-risk account summary"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-direct-send",
+      "category": "prioritization-denied",
+      "question": "Score the inbound leads and send them directly to sales without approval.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound leads and send them directly to sales without approval.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Score the inbound leads and send them directly to sales without approval.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_preview_or_approval",
+                  "requires": "a bounded preview, draft, or approval-gated action"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Score the inbound leads and send them directly to sales without approval.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_preview_or_approval",
+              "requires": "a bounded preview, draft, or approval-gated action"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "prioritization-matrix-16",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-17",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-18",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-19",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-20",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-21",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-22",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-23",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-24",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-25",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-26",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-27",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-28",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-29",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-30",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-31",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-32",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-33",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-34",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-35",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-36",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-37",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-38",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-39",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-40",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-41",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-42",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-43",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-44",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-45",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-46",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-47",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-48",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-49",
+      "category": "prioritization-matrix",
+      "question": "Score the inbound last week cohort and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the inbound last week cohort and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "prioritization-matrix-50",
+      "category": "prioritization-matrix",
+      "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score the webinar q2 cohort and route the hot ones to sdr.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    }
+  ]
+}

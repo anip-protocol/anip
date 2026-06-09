@@ -1,0 +1,329 @@
+{
+  "artifact_type": "agent_runtime_customization_overrides",
+  "capability_selection": {
+    "business_language_rules": [
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.account_enrichment_summary",
+        "id": "gtm-account-enrichment-summary-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.account_risk_summary",
+        "id": "gtm-account-risk-summary-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.at_risk_account_enrichment_summary",
+        "id": "gtm-at-risk-account-enrichment-summary-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.bottleneck_account_outreach_draft",
+        "id": "gtm-bottleneck-account-outreach-draft-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.draft_outreach_message",
+        "id": "gtm-draft-outreach-message-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.objection_response_variants",
+        "id": "gtm-objection-response-variants-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.pipeline_forecast_summary",
+        "id": "gtm-pipeline-forecast-summary-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.prioritize_accounts",
+        "id": "gtm-prioritize-accounts-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.prioritized_outreach_draft",
+        "id": "gtm-prioritized-outreach-draft-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.score_leads",
+        "id": "gtm-score-leads-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      },
+      {
+        "agent_action": "clarify",
+        "applies_when": {
+          "any_terms": [
+            "top",
+            "ranked",
+            "selected",
+            "recommended",
+            "at-risk",
+            "highest priority"
+          ],
+          "exclude_terms": [
+            "raw",
+            "export",
+            "download",
+            "send",
+            "email",
+            "message",
+            "draft",
+            "write",
+            "generate"
+          ]
+        },
+        "capability": "gtm.stage_bottleneck_summary",
+        "id": "gtm-stage-bottleneck-summary-derived-target-semantics",
+        "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+        "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+        "owner": "agent_app_glue"
+      }
+    ]
+  },
+  "description": "Editable app-owned overrides. Keep package or domain-specific language interpretation here, not in shared ANIP runtime utilities.",
+  "normalization": {},
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

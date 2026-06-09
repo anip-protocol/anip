@@ -1,0 +1,357 @@
+{
+  "phase": 4,
+  "title": "Prioritization And Routing Questions",
+  "count": 50,
+  "entries": [
+    {
+      "id": "score-inbound_last_week",
+      "category": "prioritization-read",
+      "question": "Score the inbound last week cohort.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "score-webinar_q2",
+      "category": "prioritization-read",
+      "question": "Score the webinar q2 cohort.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "prioritize-expansion_candidates_q2",
+      "category": "prioritization-read",
+      "question": "Prioritize the expansion candidates q2 cohort.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "prioritize-at_risk_q2",
+      "category": "prioritization-read",
+      "question": "Prioritize the at risk q2 cohort.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "route-inbound-sales-revops",
+      "category": "prioritization-approval",
+      "question": "[rev_ops_manager] Route the inbound leads from last week to SALES.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "route-inbound-sales-analyst",
+      "category": "prioritization-actor-aware",
+      "question": "[sales_analyst] Route the inbound leads from last week to SALES.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "route-inbound-sdr-revops",
+      "category": "prioritization-approval",
+      "question": "[rev_ops_manager] Route the inbound leads from last week to SDR.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "route-inbound-sdr-analyst",
+      "category": "prioritization-actor-aware",
+      "question": "[sales_analyst] Route the inbound leads from last week to SDR.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "clarify-score-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Score these leads.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-prioritize-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Prioritize these accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-route-missing-cohort",
+      "category": "prioritization-clarification",
+      "question": "Route the hot ones to sales.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "deny-raw-model-features",
+      "category": "prioritization-denied",
+      "question": "Show me the raw model features for the inbound leads from last week.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-feature-weights",
+      "category": "prioritization-denied",
+      "question": "Export the feature weights and raw model signals for the webinar Q2 cohort.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-routing-with-export",
+      "category": "prioritization-denied",
+      "question": "Route the hot ones to sales and include the raw underlying model payload.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-direct-send",
+      "category": "prioritization-denied",
+      "question": "Score the inbound leads and send them directly to sales without approval.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-16",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-17",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-18",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-19",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-20",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-21",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-22",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-23",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-24",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-25",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-26",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-27",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-28",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-29",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-30",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-31",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-32",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-33",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-34",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-35",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-36",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-37",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-38",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-39",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-40",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-41",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-42",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-43",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-44",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-45",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-46",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-47",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-48",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-49",
+      "category": "prioritization-matrix",
+      "question": "[sales_analyst] Score the inbound last week cohort and route the hot ones to sales.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "prioritization-matrix-50",
+      "category": "prioritization-matrix",
+      "question": "[rev_ops_manager] Score the webinar q2 cohort and route the hot ones to sdr.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    }
+  ]
+}

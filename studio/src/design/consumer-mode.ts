@@ -1,8 +1,13 @@
-export type ProjectConsumerMode = 'human_app' | 'agent_anip' | 'hybrid'
+export type ProjectConsumerMode = 'agent_anip' | 'hybrid'
 
 export const DEFAULT_CONSUMER_MODE: ProjectConsumerMode = 'hybrid'
 
 export const CONSUMER_LABEL_PREFIX = 'consumer:'
+
+const CONSUMER_MODE_LABELS: Record<ProjectConsumerMode, string> = {
+  hybrid: 'Both people and agents',
+  agent_anip: 'Agents/tools through ANIP',
+}
 
 export const CONSUMER_MODE_OPTIONS: Array<{
   value: ProjectConsumerMode
@@ -11,18 +16,13 @@ export const CONSUMER_MODE_OPTIONS: Array<{
 }> = [
   {
     value: 'hybrid',
-    label: 'Both people and agents',
-    description: 'Recommended when a human workflow and an ANIP surface both matter.',
-  },
-  {
-    value: 'human_app',
-    label: 'People through an app',
-    description: 'Bias the design toward operator flow, explainability, and product simplicity.',
+    label: CONSUMER_MODE_LABELS.hybrid,
+    description: 'Design both the human product workflow and the governed ANIP capability surface.',
   },
   {
     value: 'agent_anip',
-    label: 'Agents/tools through ANIP',
-    description: 'Bias the design toward machine-usable capabilities and low-glue protocol consumption.',
+    label: CONSUMER_MODE_LABELS.agent_anip,
+    description: 'Optimize the design for direct agent/tool consumption through explicit ANIP capabilities.',
   },
 ]
 
@@ -38,10 +38,10 @@ export function labelsWithConsumerMode(labels: string[] | undefined, mode: Proje
 export function consumerModeFromLabels(labels: string[] | undefined): ProjectConsumerMode {
   const match = (labels ?? []).find(label => label.startsWith(CONSUMER_LABEL_PREFIX))
   const value = match?.slice(CONSUMER_LABEL_PREFIX.length)
-  if (value === 'human_app' || value === 'agent_anip' || value === 'hybrid') return value
+  if (value === 'agent_anip' || value === 'hybrid') return value
   return DEFAULT_CONSUMER_MODE
 }
 
 export function consumerModeLabel(mode: ProjectConsumerMode): string {
-  return CONSUMER_MODE_OPTIONS.find(option => option.value === mode)?.label ?? CONSUMER_MODE_OPTIONS[0].label
+  return CONSUMER_MODE_LABELS[mode] ?? CONSUMER_MODE_LABELS[DEFAULT_CONSUMER_MODE]
 }

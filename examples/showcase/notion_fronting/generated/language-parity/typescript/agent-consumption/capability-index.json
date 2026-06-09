@@ -1,0 +1,620 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.comment.prepare",
+          "summary": "Prepare a Notion page comment from supplied context without posting it."
+        },
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "comment_purpose",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "context",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "system.mutation",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation",
+          "content.draft"
+        ]
+      },
+      "capability_id": "notion.comment.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "page_id",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "semantic_type": "page_ref",
+          "summary": "Notion page identifier."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "comment_purpose",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Purpose of the comment."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "context",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Bounded context for the proposed comment."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "default_value": "",
+          "input_name": "backend_options",
+          "input_type": "object",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "semantic_type": "backend_options",
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "notion.comment.prepare"
+      ],
+      "service_id": "notion-governance-service",
+      "summary": "Prepare a Notion page comment from supplied context without posting it.",
+      "title": "Prepare Page Comment"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "intent": {
+          "category": "notion.database.query_context",
+          "summary": "Query a bounded Notion database view with declared filters and return summarized context."
+        },
+        "required_context": [
+          {
+            "input": "database_id",
+            "posture": "required:clarify",
+            "semantic_type": "database_ref"
+          },
+          {
+            "input": "filter",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.summary",
+          "data.read"
+        ]
+      },
+      "capability_id": "notion.database.query_context",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for database_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "database_id",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "semantic_type": "database_ref",
+          "summary": "Notion database identifier."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for filter when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "filter",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Declared filter expression or business filter."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "default_value": "20",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum rows to return."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "default_value": "",
+          "input_name": "backend_options",
+          "input_type": "object",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "semantic_type": "backend_options",
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "notion.database.query_context"
+      ],
+      "service_id": "notion-governance-service",
+      "summary": "Query a bounded Notion database view with declared filters and return summarized context.",
+      "title": "Query Database Context"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.page.create.prepare",
+          "summary": "Prepare a Notion page creation preview under an explicit parent before creating anything."
+        },
+        "required_context": [
+          {
+            "input": "parent_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_or_database_ref"
+          },
+          {
+            "input": "title",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "system.mutation",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation",
+          "content.draft"
+        ]
+      },
+      "capability_id": "notion.page.create.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for parent_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "parent_id",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "semantic_type": "page_or_database_ref",
+          "summary": "Parent page or database identifier."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "title",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Proposed page title."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for content_summary when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "content_summary",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Bounded content summary for the new page."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "default_value": "",
+          "input_name": "backend_options",
+          "input_type": "object",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "semantic_type": "backend_options",
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "notion.page.create.prepare"
+      ],
+      "service_id": "notion-governance-service",
+      "summary": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+      "title": "Prepare Page Creation"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "notion.page.update.prepare",
+          "summary": "Prepare a Notion page update preview for an explicit page without applying the update."
+        },
+        "required_context": [
+          {
+            "input": "page_id",
+            "posture": "required:clarify",
+            "semantic_type": "page_ref"
+          },
+          {
+            "input": "change_summary",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "content_patch",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "system.mutation",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation",
+          "content.draft"
+        ]
+      },
+      "capability_id": "notion.page.update.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "page_id",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "semantic_type": "page_ref",
+          "summary": "Notion page identifier."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for change_summary when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "change_summary",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Plain-language change summary."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for content_patch when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "content_patch",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Optional bounded content patch."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "default_value": "",
+          "input_name": "backend_options",
+          "input_type": "object",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "semantic_type": "backend_options",
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "notion.page.update.prepare"
+      ],
+      "service_id": "notion-governance-service",
+      "summary": "Prepare a Notion page update preview for an explicit page without applying the update.",
+      "title": "Prepare Page Update"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "intent": {
+          "category": "notion.workspace.search_context",
+          "summary": "Search bounded Notion pages and databases without exposing raw workspace tools."
+        },
+        "required_context": [
+          {
+            "input": "workspace_scope",
+            "posture": "required:clarify",
+            "semantic_type": "workspace_scope"
+          },
+          {
+            "input": "query",
+            "posture": "required:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional:clarify",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.summary",
+          "data.read"
+        ]
+      },
+      "capability_id": "notion.workspace.search_context",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for workspace_scope when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "workspace_scope",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "semantic_type": "workspace_scope",
+          "summary": "Declared workspace or team scope."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "default_value": "",
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_missing": "clarify"
+          },
+          "summary": "Bounded workspace search query."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "default_value": "20",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum results to return."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "default_value": "",
+          "input_name": "backend_options",
+          "input_type": "object",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "semantic_type": "backend_options",
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "notion.workspace.search_context"
+      ],
+      "service_id": "notion-governance-service",
+      "summary": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+      "title": "Search Workspace Context"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

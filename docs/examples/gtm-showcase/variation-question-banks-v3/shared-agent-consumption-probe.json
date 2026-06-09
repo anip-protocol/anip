@@ -1,0 +1,59 @@
+{
+  "suite": "gtm_shared_agent_consumption_probe_v1",
+  "cases": [
+    {
+      "id": "quarter-normalization",
+      "category": "temporal_normalization",
+      "actor_id": "sales_leader",
+      "question": "Give me a concise pipeline risk review for Q2 2017 with the accounts that need attention.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "cohort-canonicalization",
+      "category": "reference_catalog",
+      "actor_id": "sales_leader",
+      "question": "Prioritize Q2 candidates, add enrichment for the top three, and draft LinkedIn outreach for the top account.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "routing-grounded",
+      "category": "effect_precedence",
+      "actor_id": "sales_leader",
+      "question": "Prepare routing recommendations for hot inbound leads to sales and draft outreach for the highest-priority routed account.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "routing-ungrounded",
+      "category": "missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Prepare routing recommendations for hot inbound leads and draft outreach for the highest-priority routed account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "unsupported-target",
+      "category": "reference_catalog_negative",
+      "actor_id": "sales_leader",
+      "question": "Draft a revive-stalled email for J-Texon.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "supported-target",
+      "category": "reference_catalog_positive",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch email for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    }
+  ]
+}

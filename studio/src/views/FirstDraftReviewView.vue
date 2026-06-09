@@ -331,9 +331,9 @@ async function createFirstDraftSet() {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-content);
   margin-bottom: 1rem;
 }
 
@@ -345,9 +345,9 @@ async function createFirstDraftSet() {
 .brief-card {
   margin-top: 0.9rem;
   padding: 0.9rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.52);
+  background: var(--bg-app);
 }
 
 .hero-kicker {
@@ -414,9 +414,9 @@ async function createFirstDraftSet() {
 
 .review-card {
   padding: 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-content);
 }
 
 .section-title {
@@ -455,13 +455,13 @@ async function createFirstDraftSet() {
 }
 
 .shape-pill.single_service {
-  background: rgba(16, 185, 129, 0.14);
-  color: #047857;
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--design-handled);
 }
 
 .shape-pill.multi_service {
-  background: rgba(234, 179, 8, 0.16);
-  color: #a16207;
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--design-partial);
 }
 
 .chip-row {
@@ -474,7 +474,7 @@ async function createFirstDraftSet() {
 .chip {
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
+  background: var(--bg-hover);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
@@ -488,9 +488,9 @@ async function createFirstDraftSet() {
 }
 
 .banner-success {
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  color: #15803d;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  color: var(--success);
 }
 
 @media (max-width: 720px) {

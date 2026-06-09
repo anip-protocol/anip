@@ -152,4 +152,71 @@ describe('InvokeResult', () => {
 
     expect(wrapper.find('.invocation-id').text()).toBe('inv-fail-1')
   })
+
+  it('renders structured runtime glue signals for approval-bound failures', () => {
+    const wrapper = mount(InvokeResult, {
+      global: {
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+      props: {
+        capabilityName: 'gtm.execute_followup_tasks',
+        sideEffectType: 'write',
+        result: {
+          success: false,
+          invocation_id: 'inv-approve-1',
+          failure: {
+            type: 'approval_required',
+            detail: 'Approval binding missing for follow-up task execution',
+            retry: false,
+            resolution: {
+              action: 'request_approval_binding',
+              requires: 'approval binding',
+              recovery_class: 'redelegation_then_retry',
+            },
+          },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Runtime Drift Signals')
+    expect(wrapper.text()).toContain('Approval Control Missing')
+    expect(wrapper.text()).toContain('Developer design')
+    expect(wrapper.text()).toContain('high priority')
+    expect(wrapper.text()).toContain('gtm.execute_followup_tasks')
+    expect(wrapper.text()).toContain('approval_required')
+    expect(wrapper.text()).toContain('Open filtered audit trail')
+  })
+
+  it('renders clarification-focused runtime glue signals when inputs remain unresolved', () => {
+    const wrapper = mount(InvokeResult, {
+      props: {
+        capabilityName: 'booking.create_reservation',
+        sideEffectType: 'write',
+        result: {
+          success: false,
+          invocation_id: 'inv-clarify-1',
+          failure: {
+            type: 'clarification_required',
+            detail: 'Clarification still required: missing room type and start time',
+            retry: true,
+            resolution: {
+              action: 'clarify_missing_inputs',
+              requires: 'room type,start time',
+              recovery_class: 'wait_then_retry',
+            },
+          },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Runtime Drift Signals')
+    expect(wrapper.text()).toContain('Clarification loop detected')
+    expect(wrapper.text()).toContain('Consuming app or agent')
+    expect(wrapper.text()).toContain('high priority')
+    expect(wrapper.text()).toContain('clarification_required')
+  })
 })

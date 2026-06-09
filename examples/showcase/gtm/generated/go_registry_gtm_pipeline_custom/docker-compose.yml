@@ -1,0 +1,40 @@
+services:
+  gtm-pipeline-service:
+    build:
+      context: .
+      dockerfile: services/gtm_pipeline_service/Dockerfile
+    image: gtm-operator-contract-20260512235040-gtm-pipeline-service
+    ports: ["4100:4100"]
+    environment:
+      PORT: "4100"
+      ANIP_SERVICE_ID: "gtm-pipeline-service"
+
+  gtm-enrichment-service:
+    build:
+      context: .
+      dockerfile: services/gtm_enrichment_service/Dockerfile
+    image: gtm-operator-contract-20260512235040-gtm-enrichment-service
+    ports: ["4101:4100"]
+    environment:
+      PORT: "4100"
+      ANIP_SERVICE_ID: "gtm-enrichment-service"
+
+  gtm-prioritization-service:
+    build:
+      context: .
+      dockerfile: services/gtm_prioritization_service/Dockerfile
+    image: gtm-operator-contract-20260512235040-gtm-prioritization-service
+    ports: ["4102:4100"]
+    environment:
+      PORT: "4100"
+      ANIP_SERVICE_ID: "gtm-prioritization-service"
+
+  gtm-outreach-service:
+    build:
+      context: .
+      dockerfile: services/gtm_outreach_service/Dockerfile
+    image: gtm-operator-contract-20260512235040-gtm-outreach-service
+    ports: ["4103:4100"]
+    environment:
+      PORT: "4100"
+      ANIP_SERVICE_ID: "gtm-outreach-service"

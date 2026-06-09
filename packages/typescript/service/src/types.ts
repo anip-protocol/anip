@@ -14,6 +14,8 @@ export interface InvocationContext {
   taskId: string | null;
   parentInvocationId: string | null;
   upstreamService: string | null;
+  /** Reserved approval grant id for approved continuation invocations. */
+  approvalGrant: string | null;
   /** Set actual cost for variance tracking. */
   setCostActual(cost: Record<string, unknown>): void;
   /** Emit a progress event. No-op in unary mode. */

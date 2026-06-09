@@ -1,0 +1,314 @@
+[
+  {
+    "id": "allowed-1",
+    "question": "Example allowed question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "allowed-2",
+    "question": "Example allowed question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "allowed-3",
+    "question": "Example allowed question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "restricted-1",
+    "question": "Example restricted question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "restricted-2",
+    "question": "Example restricted question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "restricted-3",
+    "question": "Example restricted question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "denied-1",
+    "question": "Example denied question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "denied-2",
+    "question": "Example denied question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "denied-3",
+    "question": "Example denied question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "summarize",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "clarification_required-1",
+    "question": "Example clarification required question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "rank",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "clarification_required-2",
+    "question": "Example clarification required question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "rank",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  },
+  {
+    "id": "clarification_required-3",
+    "question": "Example clarification required question for revenue_operations.",
+    "domain": "revenue_operations",
+    "intent": "rank",
+    "metrics": [
+      "sales_amount"
+    ],
+    "dimensions": [
+      "customer"
+    ],
+    "filters": {
+      "time_window": "example_value"
+    },
+    "sort": [
+      {
+        "field": "sales_amount",
+        "direction": "desc"
+      }
+    ],
+    "limit": 10,
+    "result_mode": "exploratory",
+    "authority_context": {
+      "role": "sales_analyst"
+    }
+  }
+]

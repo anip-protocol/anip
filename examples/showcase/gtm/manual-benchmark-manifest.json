@@ -1,0 +1,120 @@
+{
+  "schema_version": "gtm-manual-benchmark.v1",
+  "description": "Canonical manually maintained GTM benchmark services and agent runtimes. Generated Studio outputs may copy from these files, but must not overwrite them.",
+  "preservation_policy": {
+    "manual_roots": [
+      "examples/showcase/gtm/services",
+      "examples/showcase/gtm/agents"
+    ],
+    "generated_roots": [
+      "examples/showcase/gtm/generated"
+    ],
+    "rule": "Treat every listed file as benchmark source-of-truth. If a listed checksum changes, review the change as an intentional benchmark update."
+  },
+  "files": [
+    {
+      "path": "examples/showcase/gtm/services/README.md",
+      "sha256": "1693ba8e4005528e5185a42b56aabe749f9d6be75afd722939b0b60181faea66"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/Dockerfile",
+      "sha256": "369e7ce90d4d56690dc7ab1701304e9a2dcca0293cfbf81840b2cb65069da259"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/README.md",
+      "sha256": "6377ea719d00c7231255c1ff1ea754a26103281f891cf50ee3f761fa017f21b8"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/app.py",
+      "sha256": "0c0bf5e21e7ba0ae60b8deb72e9a30d8af0503908ee171e832d4c06fdc1c3c83"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/backend_extensions.py",
+      "sha256": "19fdbfade0913154a98b12fa011f17a16de8c752abb9d3034c84f164744a3d41"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/capabilities.py",
+      "sha256": "7ec15b92fd0a39102cc6e93c2bc21dbef937b48968f6a1637477bcaea5acf579"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/data.py",
+      "sha256": "13a34bf8088a26cd4fcb37e73fe6db12118b01f6fc56e73298215ba25f1f4f65"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_pipeline/service_extensions.py",
+      "sha256": "353daec3408d1e249db4430b39acba52b5b09d5cc554c5438dcc0423d5d3a660"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_enrichment/data.py",
+      "sha256": "6b4e129756ec1d0f3df3f95423ca9b1511c0ec92c029ee30f8841844349a479f"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_prioritization_backend/Dockerfile",
+      "sha256": "74b631c2fef2a7951b8840f53c0c5cfd4b4df0c24af4fac969188ba5847ad700"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_prioritization_backend/app.py",
+      "sha256": "1552acf09e7c910d8ecb91075b6b100884be199c1e1ff3fa61bd73cb64ec814a"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_prioritization_backend/fixtures.json",
+      "sha256": "c67e3f1573ed77778c8c0a0bdccbdff7a8ce43640909cbac4b3ca21e51de11c7"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_outreach_mcp_backend/Dockerfile",
+      "sha256": "a7e1723313802d7fe80cfc4dc20f5253abd97f7cbdb55898bfdbdba77681e011"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_outreach_mcp_backend/app.py",
+      "sha256": "c0b23974cd67ac0c44ee973a6d67e3843e3956fa97f286513c24ca712728999a"
+    },
+    {
+      "path": "examples/showcase/gtm/services/gtm_outreach_mcp_backend/fixtures.json",
+      "sha256": "ee334a64f18281009b378196fdd90738018d316869333d61152a8df4554f6349"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/README.md",
+      "sha256": "26f4cee43618fc432b818023cde36c80600c25c4817ceec1774b3ae9f32bdbd6"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/baseline/Dockerfile",
+      "sha256": "808dee386f1686284056326c0cc772040048ccbe0c0664d09bff0be6ca4cd93f"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/baseline/README.md",
+      "sha256": "2d16c6d4ed6261b982845f0a63a913200ad5a5f4ebe23a31c260a6b494752635"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/baseline/app.py",
+      "sha256": "7aef99e413d75914d833777fb430cad9ac63cbfb9eb13f99c1003eafea5f0fee"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/manifest_aware/Dockerfile",
+      "sha256": "a361e57f944204e951e16310a0b7f682dfeb678edc7ace83d50acd63cb8abfa7"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/manifest_aware/README.md",
+      "sha256": "2a6ad8faccb5303060479b57fa7903fabf53cda252612c29187cdcfb1be958de"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/manifest_aware/app.py",
+      "sha256": "4f149087c6e58682912eeb3c20393f2a24c0b3db54ed31f8a6078eeceb618032"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/llm_runtime/Dockerfile",
+      "sha256": "df68f3bb040b3a3764288336dabc603d97fed2965f6d4761d3d08acedf8932ee"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/llm_runtime/README.md",
+      "sha256": "6e24018b6ae878399165ad535f2c5073a4bcc06dc9692ec0132a0b437443057d"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/llm_runtime/app.py",
+      "sha256": "44217726259b6d6e0f5c6cc9cc6989300e54879e321ccaebbb2abd69769cdc6c"
+    },
+    {
+      "path": "examples/showcase/gtm/agents/llm_runtime/index.html",
+      "sha256": "b50c20d69ff008c2e61478a6622f0d810e4ac157cf847166f155c28f33c14666"
+    }
+  ]
+}

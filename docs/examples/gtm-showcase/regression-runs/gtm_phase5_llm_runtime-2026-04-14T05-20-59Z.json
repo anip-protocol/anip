@@ -1,0 +1,2762 @@
+{
+  "generated_at": "2026-04-14T05-20-59Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase5_llm_runtime",
+  "summary": {
+    "passed": 8,
+    "total": 8,
+    "by_category": {
+      "outreach-draft": {
+        "passed": 3,
+        "total": 3
+      },
+      "outreach-clarification": {
+        "passed": 1,
+        "total": 1
+      },
+      "outreach-actor-aware": {
+        "passed": 2,
+        "total": 2
+      },
+      "outreach-denied": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "phase5-draft-condax-first-touch",
+      "category": "outreach-draft",
+      "question": "Draft a first-touch email for Condax based on its current GTM context.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch email for Condax based on its current GTM context.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "max_total_loops": 2,
+            "data_check": "draft_outreach_condax_first_touch"
+          },
+          "actual": {
+            "planned_capability": "gtm.draft_outreach_message",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "outcome": "success",
+            "parameters": {
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded outreach drafting request for a specific target, and the best matching capability is first-touch email drafting. Persona is missing, so I pass only the known parameters and let the service clarify if needed.",
+              "user_message": "I\u2019ll draft a first-touch email for Condax. If needed, the service can ask for the missing persona/context."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "draft_outreach_condax_first_touch",
+            "details": {
+              "expected_rows": {
+                "target_ref": "Condax",
+                "objective": "first_touch",
+                "channel": "email",
+                "persona": "VP of Operations",
+                "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                "target_summary": {
+                  "industry": "industrial manufacturing",
+                  "region": "East",
+                  "priority_context": "high-priority expansion candidate"
+                }
+              },
+              "actual_rows": {
+                "target_ref": "Condax",
+                "objective": "first_touch",
+                "channel": "email",
+                "persona": "VP of Operations",
+                "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                "target_summary": {
+                  "industry": "industrial manufacturing",
+                  "region": "East",
+                  "priority_context": "high-priority expansion candidate"
+                }
+              },
+              "body_contains_condax": true,
+              "body_contains_pain_point": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a first-touch email for Condax based on its current GTM context.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded outreach drafting request for a specific target, and the best matching capability is first-touch email drafting. Persona is missing, so I pass only the known parameters and let the service clarify if needed.",
+              "user_message": "I\u2019ll draft a first-touch email for Condax. If needed, the service can ask for the missing persona/context."
+            },
+            "planned_capability": "gtm.draft_outreach_message",
+            "selected_capability": "gtm.draft_outreach_message",
+            "selected_service": "outreach",
+            "parameters": {
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+                "channel[allowed=email,linkedin,call_follow_up default=email]",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "first_touch",
+                    "follow_up",
+                    "revive_stalled"
+                  ],
+                  "default": "first_touch",
+                  "description": "Message objective such as first_touch or follow_up",
+                  "name": "objective",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "email",
+                    "linkedin",
+                    "call_follow_up"
+                  ],
+                  "default": "email",
+                  "description": "Requested outreach channel",
+                  "name": "channel",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "draft_id": "draft_condax_first_touch",
+                  "target_ref": "Condax",
+                  "objective": "first_touch",
+                  "channel": "email",
+                  "persona": "VP of Operations",
+                  "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                  "body": "Hi VP of Operations,\n\nI'm reaching out because Condax looks like a strong fit for a governed GTM workflow review. Teams in industrial manufacturing often struggle with fragmented forecasting and slow handoff between revenue teams. We help them get to governed pipeline review with approval-aware follow-up planning without giving an agent raw, unconstrained system access.\n\nIf useful, I can show how that would apply to Condax's current priorities and suggest a short operations-focused discovery call.\n\nBest,\nANIP GTM Team",
+                  "tone": "direct and operational",
+                  "rationale": "Anchored to high-priority expansion candidate and fragmented forecasting and slow handoff between revenue teams.",
+                  "target_summary": {
+                    "industry": "industrial manufacturing",
+                    "region": "East",
+                    "priority_context": "high-priority expansion candidate"
+                  }
+                }
+              },
+              "invocation_id": "inv-8b9ae491b4dd",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "max_total_loops": 2,
+        "data_check": "draft_outreach_condax_first_touch"
+      },
+      "actual": {
+        "planned_capability": "gtm.draft_outreach_message",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "outcome": "success",
+        "parameters": {
+          "target_ref": "Condax",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded outreach drafting request for a specific target, and the best matching capability is first-touch email drafting. Persona is missing, so I pass only the known parameters and let the service clarify if needed.",
+          "user_message": "I\u2019ll draft a first-touch email for Condax. If needed, the service can ask for the missing persona/context."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "draft_outreach_condax_first_touch",
+        "details": {
+          "expected_rows": {
+            "target_ref": "Condax",
+            "objective": "first_touch",
+            "channel": "email",
+            "persona": "VP of Operations",
+            "subject": "Condax: governed GTM follow-up without workflow sprawl",
+            "target_summary": {
+              "industry": "industrial manufacturing",
+              "region": "East",
+              "priority_context": "high-priority expansion candidate"
+            }
+          },
+          "actual_rows": {
+            "target_ref": "Condax",
+            "objective": "first_touch",
+            "channel": "email",
+            "persona": "VP of Operations",
+            "subject": "Condax: governed GTM follow-up without workflow sprawl",
+            "target_summary": {
+              "industry": "industrial manufacturing",
+              "region": "East",
+              "priority_context": "high-priority expansion candidate"
+            }
+          },
+          "body_contains_condax": true,
+          "body_contains_pain_point": true
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "outreach",
+          "capability": "gtm.draft_outreach_message",
+          "min_entries": 1,
+          "actual_entries": 16,
+          "latest_entry": {
+            "capability": "gtm.draft_outreach_message",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true|can_use_objection_variants=true",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Draft a first-touch email for Condax based on its current GTM context.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded outreach drafting request for a specific target, and the best matching capability is first-touch email drafting. Persona is missing, so I pass only the known parameters and let the service clarify if needed.",
+          "user_message": "I\u2019ll draft a first-touch email for Condax. If needed, the service can ask for the missing persona/context."
+        },
+        "planned_capability": "gtm.draft_outreach_message",
+        "selected_capability": "gtm.draft_outreach_message",
+        "selected_service": "outreach",
+        "parameters": {
+          "target_ref": "Condax",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+            "channel[allowed=email,linkedin,call_follow_up default=email]",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "first_touch",
+                "follow_up",
+                "revive_stalled"
+              ],
+              "default": "first_touch",
+              "description": "Message objective such as first_touch or follow_up",
+              "name": "objective",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "email",
+                "linkedin",
+                "call_follow_up"
+              ],
+              "default": "email",
+              "description": "Requested outreach channel",
+              "name": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "draft_id": "draft_condax_first_touch",
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email",
+              "persona": "VP of Operations",
+              "subject": "Condax: governed GTM follow-up without workflow sprawl",
+              "body": "Hi VP of Operations,\n\nI'm reaching out because Condax looks like a strong fit for a governed GTM workflow review. Teams in industrial manufacturing often struggle with fragmented forecasting and slow handoff between revenue teams. We help them get to governed pipeline review with approval-aware follow-up planning without giving an agent raw, unconstrained system access.\n\nIf useful, I can show how that would apply to Condax's current priorities and suggest a short operations-focused discovery call.\n\nBest,\nANIP GTM Team",
+              "tone": "direct and operational",
+              "rationale": "Anchored to high-priority expansion candidate and fragmented forecasting and slow handoff between revenue teams.",
+              "target_summary": {
+                "industry": "industrial manufacturing",
+                "region": "East",
+                "priority_context": "high-priority expansion candidate"
+              }
+            }
+          },
+          "invocation_id": "inv-8b9ae491b4dd",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-clarify-target-followup",
+      "category": "outreach-clarification",
+      "question": "Draft a first-touch email for this prospect.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch email for this prospect.",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.draft_outreach_message",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "outcome": "clarification_required",
+            "parameters": {
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an outreach drafting request, and the best matching capability is the bounded email draft tool. The request is underspecified because no target_ref or persona was provided, so I\u2019m passing only the known partial parameters.",
+              "user_message": "I can draft the first-touch email, but I need the prospect target reference and persona to proceed."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a first-touch email for this prospect.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an outreach drafting request, and the best matching capability is the bounded email draft tool. The request is underspecified because no target_ref or persona was provided, so I\u2019m passing only the known partial parameters.",
+              "user_message": "I can draft the first-touch email, but I need the prospect target reference and persona to proceed."
+            },
+            "planned_capability": "gtm.draft_outreach_message",
+            "selected_capability": "gtm.draft_outreach_message",
+            "selected_service": "outreach",
+            "parameters": {
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+                "channel[allowed=email,linkedin,call_follow_up default=email]",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "first_touch",
+                    "follow_up",
+                    "revive_stalled"
+                  ],
+                  "default": "first_touch",
+                  "description": "Message objective such as first_touch or follow_up",
+                  "name": "objective",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "email",
+                    "linkedin",
+                    "call_follow_up"
+                  ],
+                  "default": "email",
+                  "description": "Requested outreach channel",
+                  "name": "channel",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "Which account or lead is this outreach for?",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "target_ref",
+                  "hint": "Use an explicit target such as Condax, Acme Corporation, or Codehow."
+                }
+              },
+              "invocation_id": "inv-f6d88695844c",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use Condax.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "planned_capability": "gtm.draft_outreach_message",
+            "max_total_loops": 2,
+            "data_check": "draft_outreach_condax_first_touch"
+          },
+          "actual": {
+            "planned_capability": "gtm.draft_outreach_message",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "outcome": "success",
+            "parameters": {
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing a prior clarification for a first-touch email draft and has now provided the prospect target reference. This is the narrowest matching outreach capability; persona is still missing, so pass only the known parameter.",
+              "user_message": "I\u2019ll draft the first-touch email for Condax. Persona is still needed to finalize the message."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "draft_outreach_condax_first_touch",
+            "details": {
+              "expected_rows": {
+                "target_ref": "Condax",
+                "objective": "first_touch",
+                "channel": "email",
+                "persona": "VP of Operations",
+                "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                "target_summary": {
+                  "industry": "industrial manufacturing",
+                  "region": "East",
+                  "priority_context": "high-priority expansion candidate"
+                }
+              },
+              "actual_rows": {
+                "target_ref": "Condax",
+                "objective": "first_touch",
+                "channel": "email",
+                "persona": "VP of Operations",
+                "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                "target_summary": {
+                  "industry": "industrial manufacturing",
+                  "region": "East",
+                  "priority_context": "high-priority expansion candidate"
+                }
+              },
+              "body_contains_condax": true,
+              "body_contains_pain_point": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use Condax.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "Draft a first-touch email for this prospect."
+              },
+              {
+                "role": "assistant",
+                "content": "I can draft the first-touch email, but I need the prospect target reference and persona to proceed. | clarification_required | Which account or lead is this outreach for? | provide_missing_parameter | target_ref"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing a prior clarification for a first-touch email draft and has now provided the prospect target reference. This is the narrowest matching outreach capability; persona is still missing, so pass only the known parameter.",
+              "user_message": "I\u2019ll draft the first-touch email for Condax. Persona is still needed to finalize the message."
+            },
+            "planned_capability": "gtm.draft_outreach_message",
+            "selected_capability": "gtm.draft_outreach_message",
+            "selected_service": "outreach",
+            "parameters": {
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+                "channel[allowed=email,linkedin,call_follow_up default=email]",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "first_touch",
+                    "follow_up",
+                    "revive_stalled"
+                  ],
+                  "default": "first_touch",
+                  "description": "Message objective such as first_touch or follow_up",
+                  "name": "objective",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "email",
+                    "linkedin",
+                    "call_follow_up"
+                  ],
+                  "default": "email",
+                  "description": "Requested outreach channel",
+                  "name": "channel",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "draft_id": "draft_condax_first_touch",
+                  "target_ref": "Condax",
+                  "objective": "first_touch",
+                  "channel": "email",
+                  "persona": "VP of Operations",
+                  "subject": "Condax: governed GTM follow-up without workflow sprawl",
+                  "body": "Hi VP of Operations,\n\nI'm reaching out because Condax looks like a strong fit for a governed GTM workflow review. Teams in industrial manufacturing often struggle with fragmented forecasting and slow handoff between revenue teams. We help them get to governed pipeline review with approval-aware follow-up planning without giving an agent raw, unconstrained system access.\n\nIf useful, I can show how that would apply to Condax's current priorities and suggest a short operations-focused discovery call.\n\nBest,\nANIP GTM Team",
+                  "tone": "direct and operational",
+                  "rationale": "Anchored to high-priority expansion candidate and fragmented forecasting and slow handoff between revenue teams.",
+                  "target_summary": {
+                    "industry": "industrial manufacturing",
+                    "region": "East",
+                    "priority_context": "high-priority expansion candidate"
+                  }
+                }
+              },
+              "invocation_id": "inv-44cf7030d52c",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "planned_capability": "gtm.draft_outreach_message",
+        "max_total_loops": 2,
+        "data_check": "draft_outreach_condax_first_touch"
+      },
+      "actual": {
+        "planned_capability": "gtm.draft_outreach_message",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "outcome": "success",
+        "parameters": {
+          "target_ref": "Condax",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing a prior clarification for a first-touch email draft and has now provided the prospect target reference. This is the narrowest matching outreach capability; persona is still missing, so pass only the known parameter.",
+          "user_message": "I\u2019ll draft the first-touch email for Condax. Persona is still needed to finalize the message."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "draft_outreach_condax_first_touch",
+        "details": {
+          "expected_rows": {
+            "target_ref": "Condax",
+            "objective": "first_touch",
+            "channel": "email",
+            "persona": "VP of Operations",
+            "subject": "Condax: governed GTM follow-up without workflow sprawl",
+            "target_summary": {
+              "industry": "industrial manufacturing",
+              "region": "East",
+              "priority_context": "high-priority expansion candidate"
+            }
+          },
+          "actual_rows": {
+            "target_ref": "Condax",
+            "objective": "first_touch",
+            "channel": "email",
+            "persona": "VP of Operations",
+            "subject": "Condax: governed GTM follow-up without workflow sprawl",
+            "target_summary": {
+              "industry": "industrial manufacturing",
+              "region": "East",
+              "priority_context": "high-priority expansion candidate"
+            }
+          },
+          "body_contains_condax": true,
+          "body_contains_pain_point": true
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use Condax.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "Draft a first-touch email for this prospect."
+          },
+          {
+            "role": "assistant",
+            "content": "I can draft the first-touch email, but I need the prospect target reference and persona to proceed. | clarification_required | Which account or lead is this outreach for? | provide_missing_parameter | target_ref"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing a prior clarification for a first-touch email draft and has now provided the prospect target reference. This is the narrowest matching outreach capability; persona is still missing, so pass only the known parameter.",
+          "user_message": "I\u2019ll draft the first-touch email for Condax. Persona is still needed to finalize the message."
+        },
+        "planned_capability": "gtm.draft_outreach_message",
+        "selected_capability": "gtm.draft_outreach_message",
+        "selected_service": "outreach",
+        "parameters": {
+          "target_ref": "Condax",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+            "channel[allowed=email,linkedin,call_follow_up default=email]",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "first_touch",
+                "follow_up",
+                "revive_stalled"
+              ],
+              "default": "first_touch",
+              "description": "Message objective such as first_touch or follow_up",
+              "name": "objective",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "email",
+                "linkedin",
+                "call_follow_up"
+              ],
+              "default": "email",
+              "description": "Requested outreach channel",
+              "name": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "draft_id": "draft_condax_first_touch",
+              "target_ref": "Condax",
+              "objective": "first_touch",
+              "channel": "email",
+              "persona": "VP of Operations",
+              "subject": "Condax: governed GTM follow-up without workflow sprawl",
+              "body": "Hi VP of Operations,\n\nI'm reaching out because Condax looks like a strong fit for a governed GTM workflow review. Teams in industrial manufacturing often struggle with fragmented forecasting and slow handoff between revenue teams. We help them get to governed pipeline review with approval-aware follow-up planning without giving an agent raw, unconstrained system access.\n\nIf useful, I can show how that would apply to Condax's current priorities and suggest a short operations-focused discovery call.\n\nBest,\nANIP GTM Team",
+              "tone": "direct and operational",
+              "rationale": "Anchored to high-priority expansion candidate and fragmented forecasting and slow handoff between revenue teams.",
+              "target_summary": {
+                "industry": "industrial manufacturing",
+                "region": "East",
+                "priority_context": "high-priority expansion candidate"
+              }
+            }
+          },
+          "invocation_id": "inv-44cf7030d52c",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-followup-variants-condax",
+      "category": "outreach-draft",
+      "question": "Generate three follow-up variants for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Generate three follow-up variants for Condax.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.suggest_followup_content",
+            "service": "outreach",
+            "max_total_loops": 2,
+            "data_check": "followup_variants_condax"
+          },
+          "actual": {
+            "planned_capability": "gtm.suggest_followup_content",
+            "capability": "gtm.suggest_followup_content",
+            "service": "outreach",
+            "outcome": "success",
+            "parameters": {
+              "target_ref": "Condax",
+              "variant_count": 3
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded request to generate follow-up content variants for a specific target, which matches the outreach capability best.",
+              "user_message": "Generating three follow-up content variants for Condax."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "followup_variants_condax",
+            "details": {
+              "expected_rows": {
+                "target_ref": "Condax",
+                "variant_limit_applied": 3,
+                "variant_ids": [
+                  "condax_followup_1",
+                  "condax_followup_2",
+                  "condax_followup_3"
+                ]
+              },
+              "actual_rows": {
+                "target_ref": "Condax",
+                "variant_limit_applied": 3,
+                "variant_ids": [
+                  "condax_followup_1",
+                  "condax_followup_2",
+                  "condax_followup_3"
+                ]
+              }
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Generate three follow-up variants for Condax.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a bounded request to generate follow-up content variants for a specific target, which matches the outreach capability best.",
+              "user_message": "Generating three follow-up content variants for Condax."
+            },
+            "planned_capability": "gtm.suggest_followup_content",
+            "selected_capability": "gtm.suggest_followup_content",
+            "selected_service": "outreach",
+            "parameters": {
+              "target_ref": "Condax",
+              "variant_count": 3
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return bounded follow-up content variants for an explicit GTM target.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "variant_count",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum variants to return",
+                  "name": "variant_count",
+                  "required": false,
+                  "type": "integer"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "target_ref": "Condax",
+                  "variants": [
+                    {
+                      "variant_id": "condax_followup_1",
+                      "channel": "email",
+                      "subject": "Condax: quick follow-up on governed GTM review",
+                      "body": "I wanted to follow up on whether a bounded review of Condax's GTM workflow would be useful. The main gap we typically see in industrial manufacturing is fragmented forecasting and slow handoff between revenue teams.",
+                      "rationale": "Keeps the message short and tied to the concrete pain point."
+                    },
+                    {
+                      "variant_id": "condax_followup_2",
+                      "channel": "email",
+                      "subject": "Condax: a focused next step",
+                      "body": "If timing is better next week, I can send a short outline showing how governed scoring, approvals, and follow-up planning could support Condax's current priorities.",
+                      "rationale": "Offers a low-friction next step instead of pushing for a meeting immediately."
+                    },
+                    {
+                      "variant_id": "condax_followup_3",
+                      "channel": "email",
+                      "subject": "Condax: one practical GTM workflow idea",
+                      "body": "A good starting point for Condax would be a short operations-focused discovery call, anchored to governed pipeline review with approval-aware follow-up planning.",
+                      "rationale": "Turns the follow-up into a concrete operational suggestion."
+                    }
+                  ],
+                  "variant_limit_applied": 3
+                }
+              },
+              "invocation_id": "inv-9dbc4c4a8e95",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "max_total_loops": 2,
+        "data_check": "followup_variants_condax"
+      },
+      "actual": {
+        "planned_capability": "gtm.suggest_followup_content",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "outcome": "success",
+        "parameters": {
+          "target_ref": "Condax",
+          "variant_count": 3
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded request to generate follow-up content variants for a specific target, which matches the outreach capability best.",
+          "user_message": "Generating three follow-up content variants for Condax."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "followup_variants_condax",
+        "details": {
+          "expected_rows": {
+            "target_ref": "Condax",
+            "variant_limit_applied": 3,
+            "variant_ids": [
+              "condax_followup_1",
+              "condax_followup_2",
+              "condax_followup_3"
+            ]
+          },
+          "actual_rows": {
+            "target_ref": "Condax",
+            "variant_limit_applied": 3,
+            "variant_ids": [
+              "condax_followup_1",
+              "condax_followup_2",
+              "condax_followup_3"
+            ]
+          }
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Generate three follow-up variants for Condax.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a bounded request to generate follow-up content variants for a specific target, which matches the outreach capability best.",
+          "user_message": "Generating three follow-up content variants for Condax."
+        },
+        "planned_capability": "gtm.suggest_followup_content",
+        "selected_capability": "gtm.suggest_followup_content",
+        "selected_service": "outreach",
+        "parameters": {
+          "target_ref": "Condax",
+          "variant_count": 3
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return bounded follow-up content variants for an explicit GTM target.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "variant_count",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum variants to return",
+              "name": "variant_count",
+              "required": false,
+              "type": "integer"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "target_ref": "Condax",
+              "variants": [
+                {
+                  "variant_id": "condax_followup_1",
+                  "channel": "email",
+                  "subject": "Condax: quick follow-up on governed GTM review",
+                  "body": "I wanted to follow up on whether a bounded review of Condax's GTM workflow would be useful. The main gap we typically see in industrial manufacturing is fragmented forecasting and slow handoff between revenue teams.",
+                  "rationale": "Keeps the message short and tied to the concrete pain point."
+                },
+                {
+                  "variant_id": "condax_followup_2",
+                  "channel": "email",
+                  "subject": "Condax: a focused next step",
+                  "body": "If timing is better next week, I can send a short outline showing how governed scoring, approvals, and follow-up planning could support Condax's current priorities.",
+                  "rationale": "Offers a low-friction next step instead of pushing for a meeting immediately."
+                },
+                {
+                  "variant_id": "condax_followup_3",
+                  "channel": "email",
+                  "subject": "Condax: one practical GTM workflow idea",
+                  "body": "A good starting point for Condax would be a short operations-focused discovery call, anchored to governed pipeline review with approval-aware follow-up planning.",
+                  "rationale": "Turns the follow-up into a concrete operational suggestion."
+                }
+              ],
+              "variant_limit_applied": 3
+            }
+          },
+          "invocation_id": "inv-9dbc4c4a8e95",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-sales-analyst-followup-bounded",
+      "category": "outreach-actor-aware",
+      "question": "Generate three follow-up variants for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Generate three follow-up variants for Condax.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.suggest_followup_content",
+            "service": "outreach",
+            "max_total_loops": 2,
+            "data_check": "followup_variants_condax_bounded"
+          },
+          "actual": {
+            "planned_capability": "gtm.suggest_followup_content",
+            "capability": "gtm.suggest_followup_content",
+            "service": "outreach",
+            "outcome": "success",
+            "parameters": {
+              "target_ref": "Condax",
+              "variant_count": 3
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for follow-up variants for a specific target, which matches the bounded follow-up content capability.",
+              "user_message": "Generating 3 follow-up content variants for Condax."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "followup_variants_condax_bounded",
+            "details": {
+              "expected_rows": {
+                "target_ref": "Condax",
+                "variant_limit_applied": 1,
+                "variant_ids": [
+                  "condax_followup_1"
+                ]
+              },
+              "actual_rows": {
+                "target_ref": "Condax",
+                "variant_limit_applied": 1,
+                "variant_ids": [
+                  "condax_followup_1"
+                ]
+              }
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Generate three follow-up variants for Condax.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for follow-up variants for a specific target, which matches the bounded follow-up content capability.",
+              "user_message": "Generating 3 follow-up content variants for Condax."
+            },
+            "planned_capability": "gtm.suggest_followup_content",
+            "selected_capability": "gtm.suggest_followup_content",
+            "selected_service": "outreach",
+            "parameters": {
+              "target_ref": "Condax",
+              "variant_count": 3
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return bounded follow-up content variants for an explicit GTM target.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "variant_count",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum variants to return",
+                  "name": "variant_count",
+                  "required": false,
+                  "type": "integer"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "target_ref": "Condax",
+                  "variants": [
+                    {
+                      "variant_id": "condax_followup_1",
+                      "channel": "email",
+                      "subject": "Condax: quick follow-up on governed GTM review",
+                      "body": "I wanted to follow up on whether a bounded review of Condax's GTM workflow would be useful. The main gap we typically see in industrial manufacturing is fragmented forecasting and slow handoff between revenue teams.",
+                      "rationale": "Keeps the message short and tied to the concrete pain point."
+                    }
+                  ],
+                  "variant_limit_applied": 1
+                }
+              },
+              "invocation_id": "inv-da24d7783178",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "max_total_loops": 2,
+        "data_check": "followup_variants_condax_bounded"
+      },
+      "actual": {
+        "planned_capability": "gtm.suggest_followup_content",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "outcome": "success",
+        "parameters": {
+          "target_ref": "Condax",
+          "variant_count": 3
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for follow-up variants for a specific target, which matches the bounded follow-up content capability.",
+          "user_message": "Generating 3 follow-up content variants for Condax."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "followup_variants_condax_bounded",
+        "details": {
+          "expected_rows": {
+            "target_ref": "Condax",
+            "variant_limit_applied": 1,
+            "variant_ids": [
+              "condax_followup_1"
+            ]
+          },
+          "actual_rows": {
+            "target_ref": "Condax",
+            "variant_limit_applied": 1,
+            "variant_ids": [
+              "condax_followup_1"
+            ]
+          }
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_analyst",
+          "service": "outreach",
+          "capability": "gtm.suggest_followup_content",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.suggest_followup_content",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:jordan.lee@example.com|actor_id=sales_analyst|display_name=Jordan Lee|role=sales_analyst|pipeline_scope=company|financial_access=masked|enrichment_access=bounded|outreach_access=bounded|can_prepare_followup=false|can_approve_followup=false|can_use_lookalikes=false|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=false",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Generate three follow-up variants for Condax.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for follow-up variants for a specific target, which matches the bounded follow-up content capability.",
+          "user_message": "Generating 3 follow-up content variants for Condax."
+        },
+        "planned_capability": "gtm.suggest_followup_content",
+        "selected_capability": "gtm.suggest_followup_content",
+        "selected_service": "outreach",
+        "parameters": {
+          "target_ref": "Condax",
+          "variant_count": 3
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return bounded follow-up content variants for an explicit GTM target.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "variant_count",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum variants to return",
+              "name": "variant_count",
+              "required": false,
+              "type": "integer"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "target_ref": "Condax",
+              "variants": [
+                {
+                  "variant_id": "condax_followup_1",
+                  "channel": "email",
+                  "subject": "Condax: quick follow-up on governed GTM review",
+                  "body": "I wanted to follow up on whether a bounded review of Condax's GTM workflow would be useful. The main gap we typically see in industrial manufacturing is fragmented forecasting and slow handoff between revenue teams.",
+                  "rationale": "Keeps the message short and tied to the concrete pain point."
+                }
+              ],
+              "variant_limit_applied": 1
+            }
+          },
+          "invocation_id": "inv-da24d7783178",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-objection-variants-competitor",
+      "category": "outreach-draft",
+      "question": "Suggest objection-response variants for a competitor comparison.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Suggest objection-response variants for a competitor comparison.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.objection_response_variants",
+            "service": "outreach",
+            "max_total_loops": 2,
+            "data_check": "objection_variants_competitor"
+          },
+          "actual": {
+            "planned_capability": "gtm.objection_response_variants",
+            "capability": "gtm.objection_response_variants",
+            "service": "outreach",
+            "outcome": "success",
+            "parameters": {
+              "objection_theme": "competitor"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for objection-response variants and the brief includes a direct capability for competitor objections. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify the missing target_ref and persona.",
+              "user_message": "I selected the competitor objection-response capability and passed the known theme. The service may ask for the specific target and persona before generating variants."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "objection_variants_competitor",
+            "details": {
+              "expected_rows": {
+                "objection_theme": "competitor comparison",
+                "pattern_ids": [
+                  "competitor_v1",
+                  "competitor_v2"
+                ]
+              },
+              "actual_rows": {
+                "objection_theme": "competitor comparison",
+                "pattern_ids": [
+                  "competitor_v1",
+                  "competitor_v2"
+                ]
+              }
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Suggest objection-response variants for a competitor comparison.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for objection-response variants and the brief includes a direct capability for competitor objections. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify the missing target_ref and persona.",
+              "user_message": "I selected the competitor objection-response capability and passed the known theme. The service may ask for the specific target and persona before generating variants."
+            },
+            "planned_capability": "gtm.objection_response_variants",
+            "selected_capability": "gtm.objection_response_variants",
+            "selected_service": "outreach",
+            "parameters": {
+              "objection_theme": "competitor"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return bounded objection-response variants for a selected competitor or concern.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "objection_theme[allowed=pricing,competitor,implementation_risk]",
+                "target_ref",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [
+                    "pricing",
+                    "competitor",
+                    "implementation_risk"
+                  ],
+                  "default": null,
+                  "description": "Named objection or competitor theme",
+                  "name": "objection_theme",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Optional GTM target reference",
+                  "name": "target_ref",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "result": {
+                  "objection_theme": "competitor comparison",
+                  "target_ref": null,
+                  "variants": [
+                    {
+                      "pattern_id": "competitor_v1",
+                      "pattern_type": "competitor comparison",
+                      "target_ref": null,
+                      "message": "Position governed service boundaries and auditability as the differentiator.",
+                      "rationale": "Shifts the comparison away from feature checklists toward control and trust."
+                    },
+                    {
+                      "pattern_id": "competitor_v2",
+                      "pattern_type": "competitor comparison",
+                      "target_ref": null,
+                      "message": "Use the multi-service proof to show predictable composition rather than one opaque agent.",
+                      "rationale": "Shows operational realism instead of generic autonomy claims."
+                    }
+                  ]
+                }
+              },
+              "invocation_id": "inv-61b955846bf3",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "max_total_loops": 2,
+        "data_check": "objection_variants_competitor"
+      },
+      "actual": {
+        "planned_capability": "gtm.objection_response_variants",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "outcome": "success",
+        "parameters": {
+          "objection_theme": "competitor"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for objection-response variants and the brief includes a direct capability for competitor objections. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify the missing target_ref and persona.",
+          "user_message": "I selected the competitor objection-response capability and passed the known theme. The service may ask for the specific target and persona before generating variants."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "objection_variants_competitor",
+        "details": {
+          "expected_rows": {
+            "objection_theme": "competitor comparison",
+            "pattern_ids": [
+              "competitor_v1",
+              "competitor_v2"
+            ]
+          },
+          "actual_rows": {
+            "objection_theme": "competitor comparison",
+            "pattern_ids": [
+              "competitor_v1",
+              "competitor_v2"
+            ]
+          }
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Suggest objection-response variants for a competitor comparison.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for objection-response variants and the brief includes a direct capability for competitor objections. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify the missing target_ref and persona.",
+          "user_message": "I selected the competitor objection-response capability and passed the known theme. The service may ask for the specific target and persona before generating variants."
+        },
+        "planned_capability": "gtm.objection_response_variants",
+        "selected_capability": "gtm.objection_response_variants",
+        "selected_service": "outreach",
+        "parameters": {
+          "objection_theme": "competitor"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return bounded objection-response variants for a selected competitor or concern.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "objection_theme[allowed=pricing,competitor,implementation_risk]",
+            "target_ref",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [
+                "pricing",
+                "competitor",
+                "implementation_risk"
+              ],
+              "default": null,
+              "description": "Named objection or competitor theme",
+              "name": "objection_theme",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Optional GTM target reference",
+              "name": "target_ref",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "result": {
+              "objection_theme": "competitor comparison",
+              "target_ref": null,
+              "variants": [
+                {
+                  "pattern_id": "competitor_v1",
+                  "pattern_type": "competitor comparison",
+                  "target_ref": null,
+                  "message": "Position governed service boundaries and auditability as the differentiator.",
+                  "rationale": "Shifts the comparison away from feature checklists toward control and trust."
+                },
+                {
+                  "pattern_id": "competitor_v2",
+                  "pattern_type": "competitor comparison",
+                  "target_ref": null,
+                  "message": "Use the multi-service proof to show predictable composition rather than one opaque agent.",
+                  "rationale": "Shows operational realism instead of generic autonomy claims."
+                }
+              ]
+            }
+          },
+          "invocation_id": "inv-61b955846bf3",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-sales-analyst-objection-denied",
+      "category": "outreach-actor-aware",
+      "question": "Suggest objection-response variants for a competitor comparison.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Suggest objection-response variants for a competitor comparison.",
+          "expected": {
+            "outcome": "denied",
+            "capability": "gtm.objection_response_variants",
+            "service": "outreach",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.objection_response_variants",
+            "capability": "gtm.objection_response_variants",
+            "service": "outreach",
+            "outcome": "denied",
+            "parameters": {
+              "objection_theme": "competitor"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for objection-response variants and the brief explicitly supports competitor-themed variants. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify target_ref and persona if needed.",
+              "user_message": "I selected the competitor objection-response variant capability. The request is missing target and persona details, so the service may ask for clarification."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Suggest objection-response variants for a competitor comparison.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for objection-response variants and the brief explicitly supports competitor-themed variants. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify target_ref and persona if needed.",
+              "user_message": "I selected the competitor objection-response variant capability. The request is missing target and persona details, so the service may ask for clarification."
+            },
+            "planned_capability": "gtm.objection_response_variants",
+            "selected_capability": "gtm.objection_response_variants",
+            "selected_service": "outreach",
+            "parameters": {
+              "objection_theme": "competitor"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return bounded objection-response variants for a selected competitor or concern.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "objection_theme[allowed=pricing,competitor,implementation_risk]",
+                "target_ref",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [
+                    "pricing",
+                    "competitor",
+                    "implementation_risk"
+                  ],
+                  "default": null,
+                  "description": "Named objection or competitor theme",
+                  "name": "objection_theme",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Optional GTM target reference",
+                  "name": "target_ref",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "This actor can use bounded draft generation but not objection-response variants.",
+                "resolution": {
+                  "action": "request_authorized_actor",
+                  "requires": "role with objection-variant access"
+                }
+              },
+              "invocation_id": "inv-24c9012fdbd8",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.objection_response_variants",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "outcome": "denied",
+        "parameters": {
+          "objection_theme": "competitor"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for objection-response variants and the brief explicitly supports competitor-themed variants. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify target_ref and persona if needed.",
+          "user_message": "I selected the competitor objection-response variant capability. The request is missing target and persona details, so the service may ask for clarification."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_analyst",
+          "service": "outreach",
+          "capability": "gtm.objection_response_variants",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.objection_response_variants",
+            "success": false,
+            "failure_type": "denied",
+            "root_principal": "human:jordan.lee@example.com|actor_id=sales_analyst|display_name=Jordan Lee|role=sales_analyst|pipeline_scope=company|financial_access=masked|enrichment_access=bounded|outreach_access=bounded|can_prepare_followup=false|can_approve_followup=false|can_use_lookalikes=false|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=false",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Suggest objection-response variants for a competitor comparison.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for objection-response variants and the brief explicitly supports competitor-themed variants. The request is underspecified, so I pass only the known partial parameter and let the governed service clarify target_ref and persona if needed.",
+          "user_message": "I selected the competitor objection-response variant capability. The request is missing target and persona details, so the service may ask for clarification."
+        },
+        "planned_capability": "gtm.objection_response_variants",
+        "selected_capability": "gtm.objection_response_variants",
+        "selected_service": "outreach",
+        "parameters": {
+          "objection_theme": "competitor"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return bounded objection-response variants for a selected competitor or concern.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "objection_theme[allowed=pricing,competitor,implementation_risk]",
+            "target_ref",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [
+                "pricing",
+                "competitor",
+                "implementation_risk"
+              ],
+              "default": null,
+              "description": "Named objection or competitor theme",
+              "name": "objection_theme",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Optional GTM target reference",
+              "name": "target_ref",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "This actor can use bounded draft generation but not objection-response variants.",
+            "resolution": {
+              "action": "request_authorized_actor",
+              "requires": "role with objection-variant access"
+            }
+          },
+          "invocation_id": "inv-24c9012fdbd8",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-send-denied",
+      "category": "outreach-denied",
+      "question": "Send this outreach sequence now.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Send this outreach sequence now.",
+          "expected": {
+            "outcome": "denied",
+            "service": "outreach",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.draft_outreach_message",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "outcome": "denied",
+            "parameters": {
+              "request_mode": "send_now",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about outreach, but it lacks the required target and objective details. This is the closest bounded outreach capability, and passing minimal parameters lets the governed service clarify.",
+              "user_message": "I can draft the outreach sequence, but I need the target and objective to proceed."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Send this outreach sequence now.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is about outreach, but it lacks the required target and objective details. This is the closest bounded outreach capability, and passing minimal parameters lets the governed service clarify.",
+              "user_message": "I can draft the outreach sequence, but I need the target and objective to proceed."
+            },
+            "planned_capability": "gtm.draft_outreach_message",
+            "selected_capability": "gtm.draft_outreach_message",
+            "selected_service": "outreach",
+            "parameters": {
+              "request_mode": "send_now",
+              "objective": "first_touch",
+              "channel": "email"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "objective",
+                "reason": "default_applied",
+                "from": null,
+                "to": "first_touch"
+              },
+              {
+                "field": "channel",
+                "reason": "default_applied",
+                "from": null,
+                "to": "email"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+                "channel[allowed=email,linkedin,call_follow_up default=email]",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "first_touch",
+                    "follow_up",
+                    "revive_stalled"
+                  ],
+                  "default": "first_touch",
+                  "description": "Message objective such as first_touch or follow_up",
+                  "name": "objective",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "email",
+                    "linkedin",
+                    "call_follow_up"
+                  ],
+                  "default": "email",
+                  "description": "Requested outreach channel",
+                  "name": "channel",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "The first outreach cut is draft-only. Send actions are out of scope.",
+                "resolution": {
+                  "action": "request_draft_only",
+                  "requires": "bounded draft generation only"
+                }
+              },
+              "invocation_id": "inv-c4faeaf6857a",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.draft_outreach_message",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "outcome": "denied",
+        "parameters": {
+          "request_mode": "send_now",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about outreach, but it lacks the required target and objective details. This is the closest bounded outreach capability, and passing minimal parameters lets the governed service clarify.",
+          "user_message": "I can draft the outreach sequence, but I need the target and objective to proceed."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "outreach",
+          "capability": null,
+          "min_entries": 1,
+          "actual_entries": 20,
+          "latest_entry": {
+            "capability": "gtm.draft_outreach_message",
+            "success": false,
+            "failure_type": "denied",
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true|can_use_objection_variants=true",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Send this outreach sequence now.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is about outreach, but it lacks the required target and objective details. This is the closest bounded outreach capability, and passing minimal parameters lets the governed service clarify.",
+          "user_message": "I can draft the outreach sequence, but I need the target and objective to proceed."
+        },
+        "planned_capability": "gtm.draft_outreach_message",
+        "selected_capability": "gtm.draft_outreach_message",
+        "selected_service": "outreach",
+        "parameters": {
+          "request_mode": "send_now",
+          "objective": "first_touch",
+          "channel": "email"
+        },
+        "parameter_normalizations": [
+          {
+            "field": "objective",
+            "reason": "default_applied",
+            "from": null,
+            "to": "first_touch"
+          },
+          {
+            "field": "channel",
+            "reason": "default_applied",
+            "from": null,
+            "to": "email"
+          }
+        ],
+        "capability_metadata": {
+          "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+            "channel[allowed=email,linkedin,call_follow_up default=email]",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "first_touch",
+                "follow_up",
+                "revive_stalled"
+              ],
+              "default": "first_touch",
+              "description": "Message objective such as first_touch or follow_up",
+              "name": "objective",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "email",
+                "linkedin",
+                "call_follow_up"
+              ],
+              "default": "email",
+              "description": "Requested outreach channel",
+              "name": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "The first outreach cut is draft-only. Send actions are out of scope.",
+            "resolution": {
+              "action": "request_draft_only",
+              "requires": "bounded draft generation only"
+            }
+          },
+          "invocation_id": "inv-c4faeaf6857a",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase5-raw-transcript-denied",
+      "category": "outreach-denied",
+      "question": "Show me the raw sales-conversation transcripts you used to draft this message.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show me the raw sales-conversation transcripts you used to draft this message.",
+          "expected": {
+            "outcome": "denied",
+            "service": "outreach",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.draft_outreach_message",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "outcome": "denied",
+            "parameters": {
+              "objective": "first_touch",
+              "request_mode": "raw_transcripts",
+              "channel": "email"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request refers to a message draft, so the closest supported capability is outreach drafting. However, the user is asking for raw transcripts, which are not available in the brief and cannot be requested through any listed capability.",
+              "user_message": "I can\u2019t access or return raw sales-conversation transcripts from the available capabilities. If you want, I can help draft or revise the outreach message instead."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show me the raw sales-conversation transcripts you used to draft this message.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request refers to a message draft, so the closest supported capability is outreach drafting. However, the user is asking for raw transcripts, which are not available in the brief and cannot be requested through any listed capability.",
+              "user_message": "I can\u2019t access or return raw sales-conversation transcripts from the available capabilities. If you want, I can help draft or revise the outreach message instead."
+            },
+            "planned_capability": "gtm.draft_outreach_message",
+            "selected_capability": "gtm.draft_outreach_message",
+            "selected_service": "outreach",
+            "parameters": {
+              "objective": "first_touch",
+              "request_mode": "raw_transcripts",
+              "channel": "email"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "channel",
+                "reason": "default_applied",
+                "from": null,
+                "to": "email"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+              "minimum_scope": [
+                "gtm.outreach.read"
+              ],
+              "inputs": [
+                "target_ref",
+                "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+                "channel[allowed=email,linkedin,call_follow_up default=email]",
+                "persona"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Lead or account reference",
+                  "name": "target_ref",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "first_touch",
+                    "follow_up",
+                    "revive_stalled"
+                  ],
+                  "default": "first_touch",
+                  "description": "Message objective such as first_touch or follow_up",
+                  "name": "objective",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "email",
+                    "linkedin",
+                    "call_follow_up"
+                  ],
+                  "default": "email",
+                  "description": "Requested outreach channel",
+                  "name": "channel",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Target persona or audience",
+                  "name": "persona",
+                  "required": false,
+                  "type": "string"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "outreach",
+              "service_url": "http://gtm-outreach-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw sales-conversation transcripts are out of scope for this outreach service.",
+                "resolution": {
+                  "action": "request_bounded_draft",
+                  "requires": "bounded outreach draft output only"
+                }
+              },
+              "invocation_id": "inv-ccdc0339ab25",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.draft_outreach_message",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "outcome": "denied",
+        "parameters": {
+          "objective": "first_touch",
+          "request_mode": "raw_transcripts",
+          "channel": "email"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request refers to a message draft, so the closest supported capability is outreach drafting. However, the user is asking for raw transcripts, which are not available in the brief and cannot be requested through any listed capability.",
+          "user_message": "I can\u2019t access or return raw sales-conversation transcripts from the available capabilities. If you want, I can help draft or revise the outreach message instead."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "outreach",
+          "capability": null,
+          "min_entries": 1,
+          "actual_entries": 20,
+          "latest_entry": {
+            "capability": "gtm.draft_outreach_message",
+            "success": false,
+            "failure_type": "denied",
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true|can_use_objection_variants=true",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show me the raw sales-conversation transcripts you used to draft this message.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request refers to a message draft, so the closest supported capability is outreach drafting. However, the user is asking for raw transcripts, which are not available in the brief and cannot be requested through any listed capability.",
+          "user_message": "I can\u2019t access or return raw sales-conversation transcripts from the available capabilities. If you want, I can help draft or revise the outreach message instead."
+        },
+        "planned_capability": "gtm.draft_outreach_message",
+        "selected_capability": "gtm.draft_outreach_message",
+        "selected_service": "outreach",
+        "parameters": {
+          "objective": "first_touch",
+          "request_mode": "raw_transcripts",
+          "channel": "email"
+        },
+        "parameter_normalizations": [
+          {
+            "field": "channel",
+            "reason": "default_applied",
+            "from": null,
+            "to": "email"
+          }
+        ],
+        "capability_metadata": {
+          "description": "Draft a bounded outreach message for a selected target and explicit objective.",
+          "minimum_scope": [
+            "gtm.outreach.read"
+          ],
+          "inputs": [
+            "target_ref",
+            "objective[allowed=first_touch,follow_up,revive_stalled default=first_touch]",
+            "channel[allowed=email,linkedin,call_follow_up default=email]",
+            "persona"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Lead or account reference",
+              "name": "target_ref",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "first_touch",
+                "follow_up",
+                "revive_stalled"
+              ],
+              "default": "first_touch",
+              "description": "Message objective such as first_touch or follow_up",
+              "name": "objective",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "email",
+                "linkedin",
+                "call_follow_up"
+              ],
+              "default": "email",
+              "description": "Requested outreach channel",
+              "name": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Target persona or audience",
+              "name": "persona",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "outreach",
+          "service_url": "http://gtm-outreach-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw sales-conversation transcripts are out of scope for this outreach service.",
+            "resolution": {
+              "action": "request_bounded_draft",
+              "requires": "bounded outreach draft output only"
+            }
+          },
+          "invocation_id": "inv-ccdc0339ab25",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    }
+  ]
+}

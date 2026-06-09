@@ -38,6 +38,18 @@
   color: rgba(248, 251, 255, 0.86);
 }
 
+.heroSubLead {
+  max-width: 44rem;
+  margin: -0.75rem auto 2rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid rgba(127, 215, 212, 0.28);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(248, 251, 255, 0.84);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
 .ctaRow {
   display: flex;
   gap: 1rem;
@@ -117,14 +129,38 @@
   border: none;
 }
 
+.compensationCallout {
+  margin: 1.5rem auto 0;
+  max-width: 58rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(20, 163, 161, 0.35);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgba(20, 163, 161, 0.10), rgba(244, 176, 63, 0.08)),
+    var(--ifm-card-background-color);
+}
+
+.compensationCallout h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+}
+
+.compensationCallout p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
 /* ── How it works (flow steps) ── */
 .flowSteps {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
 }
 
 .flowStep {
+  min-width: 0;
   padding: 1.5rem;
   border-radius: 0.75rem;
   border: 1px solid var(--ifm-color-emphasis-200);
@@ -143,6 +179,8 @@
 
 .flowStep pre {
   margin: 0;
+  max-width: 100%;
+  overflow-x: auto;
   font-size: 0.82rem;
 }
 
@@ -177,6 +215,42 @@
   color: var(--ifm-color-emphasis-700);
   line-height: 1.6;
   margin-bottom: 1rem;
+}
+
+.buildPathGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.buildPathCard {
+  min-width: 0;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-card-background-color);
+}
+
+.buildPathCard h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.buildPathCard p,
+.codeIntro p {
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.codeIntro {
+  margin-bottom: 1rem;
+}
+
+.codeIntro h3 {
+  margin-bottom: 0.35rem;
 }
 
 /* ── Feature grid (what ships) ── */
@@ -275,6 +349,45 @@
   margin: 0 auto;
 }
 
+/* ── Alignment section ── */
+.alignmentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.alignmentCard {
+  min-width: 0;
+  padding: 1.35rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(20, 163, 161, 0.28);
+  background:
+    linear-gradient(180deg, rgba(20, 163, 161, 0.08), rgba(244, 176, 63, 0.05)),
+    var(--ifm-card-background-color);
+}
+
+.alignmentCard h3 {
+  margin-bottom: 0.55rem;
+  font-size: 1.05rem;
+}
+
+.alignmentCard p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.alignmentCaption {
+  max-width: 48rem;
+  margin: 0 auto;
+  text-align: center;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
 /* ── Responsive ── */
 @media screen and (max-width: 996px) {
   .heroTitle {
@@ -284,8 +397,10 @@
   .compareGrid,
   .flowSteps,
   .codeSection,
+  .buildPathGrid,
   .featureGrid,
-  .gapGrid {
+  .gapGrid,
+  .alignmentGrid {
     grid-template-columns: 1fr;
   }
 }

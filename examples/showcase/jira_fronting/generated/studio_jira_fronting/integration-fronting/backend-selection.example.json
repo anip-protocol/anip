@@ -1,0 +1,46 @@
+{
+  "description": "Deployment-time backend selection template. Edit only when a governed capability has multiple backend realizations.",
+  "schema_version": "anip-integration-fronting-selection/v0",
+  "selection": {
+    "jira.backlog.search": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "jira_rest_api",
+      "available": [
+        "native_api:jira_rest_api:jira.rest.search_team_backlog",
+        "mcp:atlassian_mcp:atlassian.mcp.search_team_backlog"
+      ]
+    },
+    "jira.bug.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "jira_rest_api",
+      "available": [
+        "native_api:jira_rest_api:jira.rest.prepare_bug_ticket",
+        "mcp:atlassian_mcp:atlassian.mcp.prepare_bug_ticket"
+      ]
+    },
+    "jira.comment.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "jira_rest_api",
+      "available": [
+        "native_api:jira_rest_api:jira.rest.prepare_triage_comment",
+        "mcp:atlassian_mcp:atlassian.mcp.prepare_triage_comment"
+      ]
+    },
+    "jira.story.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "jira_rest_api",
+      "available": [
+        "native_api:jira_rest_api:jira.rest.prepare_story_ticket",
+        "mcp:atlassian_mcp:atlassian.mcp.prepare_story_ticket"
+      ]
+    },
+    "jira.transition.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "jira_rest_api",
+      "available": [
+        "native_api:jira_rest_api:jira.rest.request_status_transition",
+        "mcp:atlassian_mcp:atlassian.mcp.request_status_transition"
+      ]
+    }
+  }
+}

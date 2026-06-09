@@ -118,7 +118,7 @@ export function evaluateScenarioCompleteness(
       message: 'Expected behaviors defined but no ANIP support specified.',
       explanation:
         'Every scenario should define what the protocol interface should provide. ' +
-        'This helps separate what ANIP handles from what requires custom glue.',
+        'This helps separate what ANIP should handle from what still requires additional implementation work.',
       relatedFields: ['scenario.expected_behavior', 'scenario.expected_anip_support'],
     })
   }

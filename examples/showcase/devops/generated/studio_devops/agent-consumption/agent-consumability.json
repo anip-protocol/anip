@@ -1,0 +1,171 @@
+{
+  "capabilities": {
+    "devops.delete_resource": {
+      "business_effects": {
+        "does_not_produce": [
+          "Destroy environment"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "intent": {
+        "category": "devops.delete.resource",
+        "summary": "Permanently delete an infrastructure resource."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "resource_type",
+          "summary": "Resource type."
+        },
+        {
+          "behavior": "clarify",
+          "input": "resource_name",
+          "summary": "Resource name."
+        }
+      ]
+    },
+    "devops.destroy_environment": {
+      "business_effects": {
+        "does_not_produce": [
+          "Delegate destructive environment removal"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "intent": {
+        "category": "devops.destroy.environment",
+        "summary": "Permanently destroy a non-production environment; direct principal action is required."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "environment_name",
+          "summary": "Environment name."
+        }
+      ]
+    },
+    "devops.get_service_health": {
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "intent": {
+        "category": "devops.get.service.health",
+        "summary": "Get health and performance metrics for a service."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "service_name",
+          "summary": "Service to inspect."
+        }
+      ]
+    },
+    "devops.list_deployments": {
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "intent": {
+        "category": "devops.list.deployments",
+        "summary": "List current service deployments and status."
+      },
+      "required_context": []
+    },
+    "devops.rollback_deployment": {
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "intent": {
+        "category": "devops.rollback.deployment",
+        "summary": "Roll back a service deployment to a previous version."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "service_name",
+          "summary": "Service to roll back."
+        },
+        {
+          "behavior": "clarify",
+          "input": "target_version",
+          "summary": "Target version."
+        }
+      ]
+    },
+    "devops.scale_replicas": {
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "intent": {
+        "category": "devops.scale.replicas",
+        "summary": "Scale the replica count for a deployment."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "service_name",
+          "summary": "Service to scale."
+        },
+        {
+          "behavior": "clarify",
+          "input": "replicas",
+          "summary": "Target replica count."
+        }
+      ]
+    },
+    "devops.update_config": {
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "intent": {
+        "category": "devops.update.config",
+        "summary": "Update a configuration key-value pair for a service."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "service_name",
+          "summary": "Service to configure."
+        },
+        {
+          "behavior": "clarify",
+          "input": "key",
+          "summary": "Configuration key."
+        },
+        {
+          "behavior": "clarify",
+          "input": "value",
+          "summary": "New configuration value."
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-consumability/v0"
+}

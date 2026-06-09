@@ -1,0 +1,172 @@
+{
+  "capabilities": {
+    "slack.announcement.request": {
+      "app_owned_behavior": [
+        "Select native Slack Web API or Slack MCP backend at deployment time.",
+        "Never route agents directly to raw Slack API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Bypass communication policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "slack.announcement.request",
+        "summary": "Prepare a channel announcement request that requires approval before posting."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "channel_id",
+          "summary": "Slack channel ID."
+        },
+        {
+          "behavior": "clarify",
+          "input": "announcement",
+          "summary": "Announcement text."
+        }
+      ]
+    },
+    "slack.channel.read_context": {
+      "app_owned_behavior": [
+        "Select native Slack Web API or Slack MCP backend at deployment time.",
+        "Never route agents directly to raw Slack API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "intent": {
+        "category": "slack.channel.read_context",
+        "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "channel_id",
+          "summary": "Slack channel ID."
+        }
+      ]
+    },
+    "slack.incident_update.prepare": {
+      "app_owned_behavior": [
+        "Select native Slack Web API or Slack MCP backend at deployment time.",
+        "Never route agents directly to raw Slack API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "slack.incident_update.prepare",
+        "summary": "Prepare a structured incident update for a Slack channel and stop before sending."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "channel_id",
+          "summary": "Slack channel ID."
+        },
+        {
+          "behavior": "clarify",
+          "input": "incident_id",
+          "summary": "Incident identifier."
+        },
+        {
+          "behavior": "clarify",
+          "input": "status",
+          "summary": "Incident status."
+        },
+        {
+          "behavior": "clarify",
+          "input": "summary",
+          "summary": "Human-readable update summary."
+        }
+      ]
+    },
+    "slack.message.prepare": {
+      "app_owned_behavior": [
+        "Select native Slack Web API or Slack MCP backend at deployment time.",
+        "Never route agents directly to raw Slack API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "intent": {
+        "category": "slack.message.prepare",
+        "summary": "Prepare a Slack channel message preview without sending it."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "channel_id",
+          "summary": "Slack channel ID."
+        },
+        {
+          "behavior": "clarify",
+          "input": "text",
+          "summary": "Message text to preview."
+        }
+      ]
+    },
+    "slack.thread.summarize": {
+      "app_owned_behavior": [
+        "Select native Slack Web API or Slack MCP backend at deployment time.",
+        "Never route agents directly to raw Slack API or MCP operations."
+      ],
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "intent": {
+        "category": "slack.thread.summarize",
+        "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "channel_id",
+          "summary": "Slack channel ID."
+        },
+        {
+          "behavior": "clarify",
+          "input": "thread_ts",
+          "summary": "Slack thread timestamp."
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-consumability/v0"
+}

@@ -16,12 +16,20 @@ build/
 *.egg-info/
 .worktrees/
 .serena/
+.local-archive/
+
+# Generated validation and parity run output. Keep committed fixtures explicit;
+# ad-hoc run directories should not appear in normal git status.
+/output/
+/docs/examples/gtm-showcase/question-bank-runs/generated-*/
 
 # Java build outputs
 target/
 
 # Go binaries
+packages/go/.build-cache/
 packages/go/flight-service
+packages/go/flights
 packages/go/flights-gin
 *.exe
 

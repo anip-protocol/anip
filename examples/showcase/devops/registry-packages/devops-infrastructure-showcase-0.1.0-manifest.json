@@ -1,0 +1,246 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "devops-infrastructure-showcase",
+  "package_id": "devops-infrastructure-showcase",
+  "name": "DevOps Infrastructure Showcase Service Blueprint",
+  "version": "0.1.0",
+  "package_version": "0.1.0",
+  "schema_version": "anip-service-definition/v1",
+  "publisher": {
+    "id": "local-studio-source",
+    "display_name": "Local Studio Source Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:263e1eefb3bc7ab9c7e7d15cda0e81888d5048dccc186ddbd243318408c18be1",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "readme": "# DevOps Infrastructure Showcase\n\nGenerated example ANIP package from Studio-style source docs.\n",
+  "source_links": [
+    {
+      "title": "Source documentation",
+      "url": "https://github.com/anip-protocol/anip/tree/main/docs/examples/devops-showcase"
+    },
+    {
+      "title": "Legacy implementation reference",
+      "url": "https://github.com/anip-protocol/anip/tree/main/examples/showcase/devops"
+    }
+  ],
+  "capability_count": 7,
+  "service_count": 1,
+  "service_ids": [
+    "devops-infra-service"
+  ],
+  "lineage": {
+    "project_ref": "studio-source:devops",
+    "product_revision": {
+      "ref": "devops:source-spec:v1",
+      "artifact_id": "devops-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "devops:developer-definition:v1",
+      "artifact_id": "devops-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:263e1eefb3bc7ab9c7e7d15cda0e81888d5048dccc186ddbd243318408c18be1"
+    }
+  },
+  "source": {
+    "business_source_path": "docs/examples/devops-showcase/source-spec.md",
+    "product_revision_ref": "devops:source-spec:v1",
+    "developer_revision_ref": "devops:developer-definition:v1"
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 0,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capabilities": {
+      "devops.list_deployments": {
+        "intent": {
+          "category": "devops.list.deployments",
+          "summary": "List current service deployments and status."
+        },
+        "business_effects": {
+          "produces": [
+            "Read bounded data"
+          ],
+          "does_not_produce": [
+            "Change infrastructure"
+          ]
+        },
+        "required_context": []
+      },
+      "devops.get_service_health": {
+        "intent": {
+          "category": "devops.get.service.health",
+          "summary": "Get health and performance metrics for a service."
+        },
+        "business_effects": {
+          "produces": [
+            "Read bounded data"
+          ],
+          "does_not_produce": [
+            "Change infrastructure"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "service_name",
+            "behavior": "clarify",
+            "summary": "Service to inspect."
+          }
+        ]
+      },
+      "devops.scale_replicas": {
+        "intent": {
+          "category": "devops.scale.replicas",
+          "summary": "Scale the replica count for a deployment."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Delete infrastructure"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "service_name",
+            "behavior": "clarify",
+            "summary": "Service to scale."
+          },
+          {
+            "input": "replicas",
+            "behavior": "clarify",
+            "summary": "Target replica count."
+          }
+        ]
+      },
+      "devops.update_config": {
+        "intent": {
+          "category": "devops.update.config",
+          "summary": "Update a configuration key-value pair for a service."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Delete infrastructure"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "service_name",
+            "behavior": "clarify",
+            "summary": "Service to configure."
+          },
+          {
+            "input": "key",
+            "behavior": "clarify",
+            "summary": "Configuration key."
+          },
+          {
+            "input": "value",
+            "behavior": "clarify",
+            "summary": "New configuration value."
+          }
+        ]
+      },
+      "devops.rollback_deployment": {
+        "intent": {
+          "category": "devops.rollback.deployment",
+          "summary": "Roll back a service deployment to a previous version."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Delete infrastructure"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "service_name",
+            "behavior": "clarify",
+            "summary": "Service to roll back."
+          },
+          {
+            "input": "target_version",
+            "behavior": "clarify",
+            "summary": "Target version."
+          }
+        ]
+      },
+      "devops.delete_resource": {
+        "intent": {
+          "category": "devops.delete.resource",
+          "summary": "Permanently delete an infrastructure resource."
+        },
+        "business_effects": {
+          "produces": [
+            "Execute approved action"
+          ],
+          "does_not_produce": [
+            "Destroy environment"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "resource_type",
+            "behavior": "clarify",
+            "summary": "Resource type."
+          },
+          {
+            "input": "resource_name",
+            "behavior": "clarify",
+            "summary": "Resource name."
+          }
+        ]
+      },
+      "devops.destroy_environment": {
+        "intent": {
+          "category": "devops.destroy.environment",
+          "summary": "Permanently destroy a non-production environment; direct principal action is required."
+        },
+        "business_effects": {
+          "produces": [
+            "Execute approved action"
+          ],
+          "does_not_produce": [
+            "Delegate destructive environment removal"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "environment_name",
+            "behavior": "clarify",
+            "summary": "Environment name."
+          }
+        ]
+      }
+    }
+  },
+  "generated_at": "2026-05-08T00:00:00Z"
+}

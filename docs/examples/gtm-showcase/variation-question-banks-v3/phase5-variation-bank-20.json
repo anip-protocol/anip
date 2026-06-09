@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase5_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p5v2-01",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch email for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-02",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Write a LinkedIn outreach draft for Codehow around a first-touch objective.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-03",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Create a follow-up email draft for Condax.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-04",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Suggest follow-up content variants for Dalttechnology.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-05",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Give me objection response variants for a pricing concern.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-06",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft competitor-objection response variants for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-07",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Give implementation-risk objection responses for Codehow.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-08",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Draft and send the email to Acme Corporation now.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p5v2-09",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Update CRM after drafting outreach for Codehow.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p5v2-10",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Draft the outreach message.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-11",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Suggest follow-up content for that account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-12",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch email for Globex.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-13",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft a revive-stalled email for J-Texon.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-14",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Create call follow-up talking points for Finjob.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-15",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Draft competitor objection response variants.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p5v2-16",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Write a concise first-touch draft for Konex.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-17",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft LinkedIn copy for Cancity with a first-touch objective.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p5v2-18",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Send the LinkedIn message to Isdom immediately.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p5v2-19",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Give pricing-objection variants for a procurement-heavy buyer.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p5v2-20",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Write objection handling for a concern without saying what concern.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    }
+  ]
+}

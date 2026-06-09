@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM Questions</title>
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Inter", sans-serif; background: #0d1117; color: #e6edf3; }
+    .shell { max-width: 980px; margin: 0 auto; padding: 44px 24px 56px; }
+    a { color: #7ee787; }
+    .eyebrow { color: #7ee787; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: 36px; }
+    p { color: #9fb0c3; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 18px; }
+    .question { display: block; background: #161b22; border: 1px solid #2d333b; border-radius: 16px; padding: 16px; color: #c9d1d9; text-decoration: none; }
+    .question strong { display: block; color: #f0f6fc; margin-bottom: 8px; }
+    .panel { background: #161b22; border: 1px solid #2d333b; border-radius: 16px; padding: 18px; margin-top: 20px; }
+    .panel h2 { margin: 0 0 10px; font-size: 20px; }
+    .docs-card { display: block; background: #0d1117; border: 1px solid #30363d; border-radius: 14px; padding: 14px; color: #c9d1d9; text-decoration: none; }
+    .docs-card strong { display: block; color: #f0f6fc; margin-bottom: 6px; }
+    .pill { display: inline-block; margin-bottom: 8px; padding: 3px 8px; border-radius: 999px; background: #1f6feb22; color: #79c0ff; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow"><a href="/">ANIP GTM Showcase</a></div>
+    <h1>Suggested Questions</h1>
+    <p>
+      Each question opens the GTM agent with the prompt prefilled. The examples
+      intentionally include success, approval, denial, restriction, and
+      clarification cases so you can see the governed boundary in action.
+    </p>
+
+    <section class="panel">
+      <h2>Read This Before Testing</h2>
+      <div class="grid" id="docsGrid">
+        <a class="docs-card" id="docsLink" href="https://anip.dev/docs/showcases/gtm-agent/questions-and-extensions" target="_blank" rel="noreferrer">
+          <strong>What Can And Can't Be Asked</strong>
+          Supported, approval-gated, denied, restricted, clarification, and extension examples.
+        </a>
+        <a class="docs-card" id="questionBankLink" href="https://anip.dev/docs/showcases/gtm-agent/testing#490-question-bank" target="_blank" rel="noreferrer">
+          <strong>490-Question Bank</strong>
+          The full release gate behind this showcase: 350 main questions plus 140 variations.
+        </a>
+        <a class="docs-card" id="capabilityMapLink" href="https://anip.dev/docs/showcases/gtm-agent/capability-map" target="_blank" rel="noreferrer">
+          <strong>Capability Map</strong>
+          See which service owns each governed capability.
+        </a>
+        <a class="docs-card" href="/approvals">
+          <strong>Approval Queue</strong>
+          Use this after approval-gated examples to inspect previews, approve, and retry.
+        </a>
+      </div>
+    </section>
+
+    <div id="questionGrid" class="grid"></div>
+  </main>
+
+  <script>
+    const sampleQuestions = [
+      ['Supported', 'Show pipeline health for 2017-Q2 in the East region.'],
+      ['Supported', 'Show pipeline health for 2017-Q2 with stage breakdown.'],
+      ['Supported', 'Rank the top at-risk accounts for 2017-Q2 in the East region.'],
+      ['Approval required', 'Prepare follow-up tasks for the top at-risk accounts in 2017-Q2 for the East region.'],
+      ['Supported', 'Score the inbound leads from last week.'],
+      ['Approval required', 'Route the inbound leads from last week to sales.'],
+      ['Supported', 'Draft outreach for Acme Corporation with a follow-up objective.'],
+      ['Composed', 'Draft outreach for the top expansion candidate in Q2.'],
+      ['Supported', 'Show lookalike accounts for Acme Corporation.'],
+      ['Denied', 'Export the raw CRM records for 2017-Q2.'],
+      ['Clarification', 'Summarize pipeline health.'],
+      ['Restricted', '[account_manager_east] Rank the top 5 at-risk accounts in 2017-Q2 for the West region.']
+    ];
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    document.getElementById('questionGrid').innerHTML = sampleQuestions.map(([category, question]) => `
+      <a class="question" href="/agent?question=${encodeURIComponent(question)}">
+        <span class="pill">${escapeHtml(category)}</span>
+        <strong>${escapeHtml(question)}</strong>
+        Open in agent
+      </a>
+    `).join('');
+    fetch('/api/runtime')
+      .then((response) => response.json())
+      .then((data) => {
+        const href = data.showcase?.links?.questions;
+        if (href) {
+          document.getElementById('docsLink').href = href;
+        }
+        if (data.showcase?.links?.question_bank) {
+          document.getElementById('questionBankLink').href = data.showcase.links.question_bank;
+        } else if (data.showcase?.links?.testing) {
+          document.getElementById('questionBankLink').href = data.showcase.links.testing;
+        }
+        if (data.showcase?.links?.capability_map) {
+          document.getElementById('capabilityMapLink').href = data.showcase.links.capability_map;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

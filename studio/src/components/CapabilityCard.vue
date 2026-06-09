@@ -50,7 +50,7 @@ const csFollowupVia = computed(() => crossService.value?.followup_via || [])
       <StatusBadge :label="sideEffectBadge.label" :type="sideEffectBadge.type" />
       <span v-for="s in scope" :key="s" class="scope-chip">{{ s }}</span>
       <router-link
-        :to="'/invoke/' + name"
+        :to="'/inspect/invoke/' + name"
         class="invoke-link"
         @click.stop
       >
@@ -124,6 +124,8 @@ const csFollowupVia = computed(() => crossService.value?.followup_via || [])
               <th>Type</th>
               <th>Required</th>
               <th>Default</th>
+              <th>Resolution</th>
+              <th>Semantic</th>
               <th>Description</th>
             </tr>
           </thead>
@@ -138,6 +140,15 @@ const csFollowupVia = computed(() => crossService.value?.followup_via || [])
                 />
               </td>
               <td class="mono-value">{{ input.default ?? '\u2014' }}</td>
+              <td class="mono-value">
+                <span v-if="input.resolution?.mode">{{ input.resolution.mode }}</span>
+                <span v-else>&mdash;</span>
+              </td>
+              <td class="mono-value">
+                <span v-if="input.semantic_type">{{ input.semantic_type }}</span>
+                <span v-else-if="input.entity_reference">entity_reference</span>
+                <span v-else>&mdash;</span>
+              </td>
               <td>{{ input.description || '\u2014' }}</td>
             </tr>
           </tbody>

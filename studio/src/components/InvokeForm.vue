@@ -63,6 +63,11 @@ function onSubmit() {
           <span class="field-type">{{ field.type || 'string' }}</span>
           <span v-if="field.required !== false" class="field-required">*</span>
         </label>
+        <div v-if="field.resolution?.mode || field.semantic_type || field.entity_reference" class="field-hints">
+          <span v-if="field.resolution?.mode" class="field-hint">resolution: {{ field.resolution.mode }}</span>
+          <span v-if="field.semantic_type" class="field-hint">semantic: {{ field.semantic_type }}</span>
+          <span v-if="field.entity_reference" class="field-hint">entity reference</span>
+        </div>
         <input
           v-model="inputs[field.name]"
           type="text"
@@ -119,6 +124,22 @@ function onSubmit() {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+}
+
+.field-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.field-hint {
+  width: fit-content;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
 .field-name {

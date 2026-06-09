@@ -1,0 +1,208 @@
+{
+  "artifact_type": "agent_app_glue_required",
+  "items": [
+    {
+      "capability_id": "gtm.account_enrichment_summary",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "account_names",
+          "missing_behavior": "clarify_or_app_select"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.account_risk_summary",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.draft_outreach_message",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "objective",
+          "missing_behavior": "use_default"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.objection_response_variants",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "objection_theme",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.prioritize_accounts",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.score_leads",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    {
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ]
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}
