@@ -50,7 +50,7 @@ jobs:
             const source = fs.readFileSync(versionFile, 'utf8');
             fs.writeFileSync(
               versionFile,
-              source.replace(/export const STUDIO_VERSION = '[^']+'/u, `export const STUDIO_VERSION = '${process.env.VERSION}'`)
+              source.replace(/export const STUDIO_VERSION = '[^']+'/u, \"export const STUDIO_VERSION = '\" + process.env.VERSION + \"'\")
             );
           "
 
