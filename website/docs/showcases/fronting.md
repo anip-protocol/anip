@@ -28,6 +28,14 @@ The pattern is the same across every showcase:
 
 The public behavior contract is ANIP. The backend API is implementation material.
 
+## Model Posture
+
+Fronting showcases follow the same model split as the GTM showcase.
+
+Studio authoring can use a stronger model such as `gpt-5.4` to draft and review the project contract. The consuming agent path is intentionally designed for smaller models such as `gpt-5.4-mini`, because the ANIP service carries the governed capability surface, backend boundary, approval behavior, denial posture, and audit semantics.
+
+That is especially important for fronting. A raw Jira, Slack, GitHub, Linear, Notion, GitLab, or Superset API gives the agent many low-level operations. ANIP narrows that into business capabilities such as prepare, preview, request approval, deny, restrict, or audit. The smaller action space reduces the amount of policy the consuming model has to carry in prompt memory.
+
 ## Local Setup
 
 Clone the repository before running local generation or smoke commands:

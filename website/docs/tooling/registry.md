@@ -85,6 +85,59 @@ The smoke starts Registry with Postgres, publishes a test package, checks UI rou
 
 The Registry backend redirects `/` to `/registry`, and `/registry` to `/registry/packages`.
 
+## Install or deploy Registry
+
+Registry can be run from source for local evaluation or deployed from the release Docker image.
+
+Source install path:
+
+```bash
+git clone https://github.com/anip-protocol/anip.git
+cd anip/registry
+docker compose up --build
+```
+
+Container image path:
+
+```bash
+docker pull anipprotocol/registry:VERSION
+```
+
+Registry is stateless apart from Postgres. Packages, templates, receipts, digests, lineage, and download counters live in the database.
+
+Minimum production-like configuration:
+
+```text
+ANIP_REGISTRY_DATABASE_URL=postgresql://...
+ANIP_REGISTRY_ADDR=:8200
+ANIP_REGISTRY_MODE=production
+ANIP_REGISTRY_KEY_ID=...
+ANIP_REGISTRY_ED25519_PRIVATE_KEY=...
+ANIP_REGISTRY_PUBLISH_TOKEN=...
+ANIP_REGISTRY_PUBLISHER_ID=...
+ANIP_REGISTRY_PUBLISHER_TYPE=organization
+ANIP_REGISTRY_RUN_MIGRATIONS=1
+ANIP_REGISTRY_SEED_DEMO=0
+```
+
+Expose the browser UI at `/registry` and the API at `/registry-api/v1`. Use `/registry-api/v1/readyz` for load balancer readiness.
+
+For one Registry replica, startup migrations are acceptable. For replicated deployments, run a migration job first:
+
+```bash
+ANIP_REGISTRY_MIGRATE_ONLY=1 anip-registry
+```
+
+Then start application replicas with:
+
+```text
+ANIP_REGISTRY_RUN_MIGRATIONS=0
+```
+
+Use a dedicated Registry database, keep signing keys and publish tokens in a secret manager, and keep public package browsing separate from authenticated publication.
+
+The current hosted Registry is first-party publishing only. Public multi-publisher accounts, namespace ownership, scoped tokens, and moderation are planned as a separate Registry capability.
+
 ## API surface
 
 Registry exposes public read APIs and authenticated publish APIs under `/registry-api/v1`.

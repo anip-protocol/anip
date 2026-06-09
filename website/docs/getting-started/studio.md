@@ -37,6 +37,18 @@ http://127.0.0.1:8080
 
 By default, `STUDIO_SEED_SHOWCASES=1`, so Studio starts with seeded projects you can inspect.
 
+For AI-assisted authoring, configure the Studio assistant model before starting:
+
+```bash
+export STUDIO_ASSISTANT_PROVIDER=openai
+export STUDIO_ASSISTANT_MODEL=gpt-5.4
+export OPENAI_API_KEY="sk-..."
+
+docker compose up --build
+```
+
+Studio authoring was validated with `gpt-5.4` because authoring is contract-design work. Showcase agents intentionally use `gpt-5.4-mini` after the ANIP contract exists.
+
 ## Run Read-Only Demo Mode
 
 Read-only mode is the public demo posture:
@@ -53,6 +65,42 @@ In read-only mode, Studio allows browsing but blocks mutation:
 - Package publication.
 - Template publication.
 - Registry mutation.
+
+When possible, run read-only hosted Studio with a read-only database user as well as `STUDIO_READ_ONLY=1`.
+
+## Install Or Deploy Studio
+
+For hosted deployments, use the release images:
+
+```bash
+docker pull anipprotocol/studio-api:VERSION
+docker pull anipprotocol/studio-web:VERSION
+docker pull anipprotocol/studio:VERSION
+```
+
+Use `anipprotocol/studio-api` for the API container and `anipprotocol/studio-web` for the web UI. Configure Postgres as durable storage.
+
+Minimum internal authoring settings:
+
+```text
+DATABASE_URL=postgresql://...
+STUDIO_ASSISTANT_PROVIDER=openai
+STUDIO_ASSISTANT_MODEL=gpt-5.4
+STUDIO_ASSISTANT_API_KEY=...
+STUDIO_REGISTRY_URL=https://registry.example.com/registry-api/v1
+STUDIO_REGISTRY_REQUIRED_MODE=production
+STUDIO_REGISTRY_TRUSTED_KEY_ID=...
+```
+
+Minimum public demo settings:
+
+```text
+STUDIO_READ_ONLY=1
+STUDIO_SEED_SHOWCASES=1
+STUDIO_READ_ONLY_DATABASE_URL=postgresql://readonly-user@...
+```
+
+See [ANIP Studio Reference](/docs/tooling/studio) and [Deployment](/docs/operations/deployment) for migration, metrics, Registry trust, and read-only hardening details.
 
 ## The Studio Project Flow
 

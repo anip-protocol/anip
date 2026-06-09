@@ -49,6 +49,18 @@ Useful source links:
 | GTM Registry package | [gtm-pipeline-q2-review-0.4.3.anip-package.json](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json) |
 | Fronting showcase folders | [examples/showcase](https://github.com/anip-protocol/anip/tree/main/examples/showcase) |
 
+## Model Choice Is Part Of The Proof
+
+Studio authoring and showcase agent execution intentionally use different model tiers.
+
+Studio project authoring was tested with `gpt-5.4` because authoring a governed contract is high-context design work: source interpretation, Product Design, Developer Design, diagnostics, composition, package material, and review readiness.
+
+The showcase agents were intentionally validated with `gpt-5.4-mini` where an LLM is used for agent consumption. The GTM Agent runs its question-bank validation with `gpt-5.4-mini`, and the showcase consumption pattern is built around the same idea: the agent consumes already-governed ANIP services instead of inventing policy from a large prompt.
+
+That is an ANIP advantage. If the package, manifest, input-resolution rules, approval boundaries, denial posture, and audit expectations are service-owned, the consuming agent has a smaller and safer action space. It can use a smaller model for routing, clarification, and invocation while the service still enforces authority and side effects.
+
+This is not a promise that any small model works for every task. It is a design goal the showcases are meant to make visible: use stronger models for contract authoring when needed, then let smaller agents consume governed capabilities.
+
 ## GTM Agent showcase
 
 The GTM showcase is the deepest example. It models a revenue-operations agent that can answer pipeline, forecast, bottleneck, product pipeline, team performance, account risk, enrichment, outreach, follow-up, and routing questions through governed ANIP capabilities.
