@@ -30,6 +30,8 @@ def _seed_profile() -> str:
         return configured
     if _env_bool("STUDIO_READ_ONLY"):
         return "public_showcase"
+    if _env_bool("STUDIO_SEED_SHOWCASES"):
+        return "public_showcase"
     return "all"
 
 

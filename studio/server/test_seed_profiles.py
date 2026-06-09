@@ -16,6 +16,14 @@ def test_read_only_seed_defaults_to_public_showcase(monkeypatch):
     assert seed._seed_profile() == "public_showcase"
 
 
+def test_showcase_seed_defaults_to_public_showcase(monkeypatch):
+    monkeypatch.delenv("STUDIO_SEED_PROFILE", raising=False)
+    monkeypatch.setenv("STUDIO_READ_ONLY", "false")
+    monkeypatch.setenv("STUDIO_SEED_SHOWCASES", "true")
+
+    assert seed._seed_profile() == "public_showcase"
+
+
 def test_public_showcase_catalog_is_snapshot_only():
     items = _public_seed_projects()
 

@@ -67,7 +67,8 @@ Open:
 http://127.0.0.1:8080
 ```
 
-Studio uses Postgres through compose and seeds showcase projects by default when `STUDIO_SEED_SHOWCASES=1`.
+Studio uses Postgres through compose and restores canonical showcase snapshots by default when `STUDIO_SEED_SHOWCASES=1`.
+Those snapshots are restored into one `ANIP Public Showcases` workspace, matching the public hosted Studio surface. If `STUDIO_READ_ONLY=0`, the same projects are editable locally.
 
 The seeded projects are examples, not hidden state. They should be inspectable through the same pages a user would use for their own work:
 
