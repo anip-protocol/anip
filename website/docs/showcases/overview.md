@@ -39,6 +39,8 @@ go run ./cmd/anip --help
 If you have installed the `anip` CLI separately, replace
 `go run ./cmd/anip` with `anip` in the examples.
 
+If a showcase does not start cleanly, ask in the [ANIP Discord](https://discord.gg/5Kx7tWUF) and include the language stack, compose file, env file names, and the failing command. Do not share API keys or service tokens.
+
 Useful source links:
 
 | Area | Repository link |

@@ -76,6 +76,8 @@ Teams need a way to:
 
 That is why ANIP now includes the protocol, Studio, Registry, CLI, generated runtimes, conformance suites, templates, custom-code bundle support, showcase apps, and operating guidance. The goal is not only to define an interface. The goal is to make governed agent execution repeatable.
 
+If you are evaluating ANIP and want to discuss a use case, join the [ANIP Discord](https://discord.gg/5Kx7tWUF) or open a [GitHub issue](https://github.com/anip-protocol/anip/issues).
+
 ## Studio and Registry are part of the system
 
 ANIP is not only a protocol and a generator. The hard part is producing contracts that business owners, developers, and consumers can trust.
