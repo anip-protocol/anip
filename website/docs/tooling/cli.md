@@ -518,6 +518,23 @@ anip generate --definition ./anip-service-definition.json --target python --outp
 anip package build-local --definition ./anip-service-definition.json --package-id my-service --package-version 0.1.0 --output-dir ./registry-packages
 ```
 
+### Agent-authored prototype
+
+```text
+prompt + examples -> draft definition -> validate -> generate -> review risks
+```
+
+This is useful for learning or prototyping before Studio review. It is not a production release path because it skips reviewed Product Design, Developer Design, Registry signing, package locks, and release evidence.
+
+Commands:
+
+```bash
+anip validate --definition ./anip-service-definition.json
+anip generate --definition ./anip-service-definition.json --target python --transport http,stdio --output ./generated/prototype --force
+```
+
+See [Agent-Authored Contract Quickstart](/docs/getting-started/agent-authored-contract) and `skills/anip-contract-drafter.md`.
+
 ### Registry publication
 
 ```text

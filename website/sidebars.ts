@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
       label: 'Getting Started',
       items: [
         'getting-started/first-10-minutes',
+        'getting-started/agent-authored-contract',
         'getting-started/install',
         'getting-started/quickstart',
         'getting-started/studio',
