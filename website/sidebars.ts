@@ -7,6 +7,7 @@ const sidebars: SidebarsConfig = {
     'anip-for-everyone',
     'anip-for-developers',
     'feature-map',
+    'community',
     {
       type: 'category',
       label: 'Concepts',

@@ -23,6 +23,8 @@ Start by identifying the failing layer:
 
 Do not fix product-specific behavior by adding phrases to shared runtime libraries. Shared ANIP code should implement protocol behavior. Domain interpretation belongs in the contract, scenario evidence, or custom implementation material.
 
+If you are stuck after the first triage pass, ask in the [ANIP Discord](https://discord.gg/5Kx7tWUF) with the command, package/version, target language, and relevant diagnostics. For durable bugs or missing docs, open a [GitHub issue](https://github.com/anip-protocol/anip/issues).
+
 ## CLI cannot find a package
 
 Symptoms:

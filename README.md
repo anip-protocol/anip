@@ -4,7 +4,7 @@
 
 The value is not "agents can call APIs better." The value is "agents can reason before acting."
 
-[anip.dev](https://anip.dev) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
+[anip.dev](https://anip.dev) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Discord](https://discord.gg/5Kx7tWUF) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
 
 ---
 
@@ -379,7 +379,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - Posture-aware agent behavior — agents adapting interaction strategies based on service posture
 - gRPC transport expansion — Java, C#, TypeScript bindings from the shared proto
 
-If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
+If this resonates, star the repo, join the [ANIP Discord](https://discord.gg/5Kx7tWUF), open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
 
 ## How This Was Built
 
