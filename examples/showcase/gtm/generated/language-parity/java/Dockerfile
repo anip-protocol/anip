@@ -11,4 +11,4 @@ RUN mvn -q test package
 
 EXPOSE 4100
 
-CMD ["java", "-jar", "target/gtm-operator-contract-20260512235040-0.1.0.jar", "--server.port=4100"]
+CMD ["java", "-jar", "target/gtm-pipeline-q2-review-0.1.0.jar", "--server.port=4100"]

@@ -18,6 +18,7 @@ const pool = new Pool({
 
 export type GeneratedBackendInvocationContext = {
   rootPrincipal?: string;
+  approvalGrant?: string | null;
 };
 
 export interface GeneratedBackendAdapter {

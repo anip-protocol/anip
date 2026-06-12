@@ -13,4 +13,4 @@ WORKDIR /app
 
 EXPOSE 4100
 
-CMD ["dotnet", "GTMOperatorContract20260512235040.dll"]
+CMD ["dotnet", "GTMPipelineQ2Review.dll"]

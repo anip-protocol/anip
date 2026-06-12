@@ -54,8 +54,9 @@ wait_for_json() {
   started="$(date +%s)"
   while true; do
     if curl -fsS "$url" >/tmp/anip-gtm-smoke-response.json 2>/dev/null; then
-      "$PYTHON_BIN" -m json.tool /tmp/anip-gtm-smoke-response.json >/dev/null
-      return 0
+      if "$PYTHON_BIN" -m json.tool /tmp/anip-gtm-smoke-response.json >/dev/null 2>&1; then
+        return 0
+      fi
     fi
     if (( "$(date +%s)" - started > timeout )); then
       echo "timed out waiting for $label at $url" >&2

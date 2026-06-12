@@ -31,8 +31,12 @@ def _completed(payload: dict[str, Any]) -> dict[str, Any]:
     return {"execution_status": "completed", **payload}
 
 
-def _actor(context: dict[str, Any]) -> dict[str, Any]:
-    return parse_actor_principal(str(context.get("root_principal") or ""))
+def _actor(context: Any) -> dict[str, Any]:
+    if isinstance(context, dict):
+        root_principal = context.get("root_principal")
+    else:
+        root_principal = getattr(context, "root_principal", None)
+    return parse_actor_principal(str(root_principal or ""))
 
 
 def _require_str(params: dict[str, Any], field: str, detail: str, hint: str) -> str:

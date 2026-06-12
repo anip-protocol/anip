@@ -1,32 +1,41 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_typescript",
-  "bundle_sha256": "sha256:f3cadf405d04ea2aa319a736bfe6ef6c48e8d4d830bc0886a42427daf3746bde",
+  "bundle_sha256": "sha256:247d9c0b4344754e06ad4e3a04972914cfdb6f77f065844329776c9756aa9878",
   "files": [
     {
       "path": "README.md",
-      "sha256": "sha256:2523a6287a03fa7888035264facd6459a18bd994ef2da4b9a54599108ad19b5d",
+      "sha256": "sha256:50e669903cabd55450a397b709e27732a46d42ce41f7e9e472daf3b2ecf64965",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 1050,
+      "bytes": 1767,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "package.json",
-      "sha256": "sha256:8a3aca98e4d786f592bd23744acc75c20c78f9d6c5a7be4daf5df4b2abea70c1",
+      "sha256": "sha256:e71340eb48de2fafd77be07ed7458eddef6955ffc9ebd73764f7ba6e27e8644b",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 1159,
+      "bytes": 564,
       "overlaid": true,
       "substrate": false
     },
     {
-      "path": "src/app.ts",
-      "sha256": "sha256:162c123b5d595e8b543e411b57e575097b2a4d090e1d0e052bd050f16f8727f6",
-      "seam": "application_entrypoint",
-      "mode": "extension_overlay",
-      "bytes": 5886,
-      "overlaid": true,
+      "path": "src/gtm-app.ts",
+      "sha256": "sha256:97cb30bcf50f098d2d249316e8c80167c9af8dcfc0d24a76322682e90810d412",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2871,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/gtm-main.ts",
+      "sha256": "sha256:089a27f6ed7274809c11dae298a3d21e33de9fe9b6149250f3ebba8c096e217b",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 412,
+      "overlaid": false,
       "substrate": false
     },
     {
@@ -49,10 +58,10 @@
     },
     {
       "path": "src/runtime/backend-adapter.ts",
-      "sha256": "sha256:81bea5d90495bebad3e756e00927eb90d64c8698eadcfb4390563b0a31b73472",
+      "sha256": "sha256:f5153129ed02e54524922479ca562c5920cbf49fab9c90b3dfd156e11c72852b",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 40364,
+      "bytes": 40513,
       "overlaid": true,
       "substrate": false
     },

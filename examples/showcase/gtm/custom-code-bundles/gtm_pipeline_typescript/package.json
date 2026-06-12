@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "@anip-dev/hono": "0.24.4",
-    "@anip-dev/service": "0.24.4",
+    "@anip-dev/hono": "0.24.5",
+    "@anip-dev/service": "0.24.5",
     "@hono/node-server": "^1.11.0",
     "hono": "^4.12.8",
     "pg": "^8.16.3"

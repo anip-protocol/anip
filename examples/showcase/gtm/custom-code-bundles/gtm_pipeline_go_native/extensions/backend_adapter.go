@@ -14,13 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"generated/gtm-operator-contract-20260512235040/generated"
+	"{{ANIP_GO_MODULE_PATH}}/generated"
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/jackc/pgx/v5"
 )
 
 type BackendInvocationContext struct {
 	RootPrincipal string
+	ApprovalGrant string
 }
 
 type BackendAdapter interface {

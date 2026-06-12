@@ -88,7 +88,7 @@ services:
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
-    command: ["uvicorn", "gtm_operator_contract_20260512235040.app:app", "--host", "0.0.0.0", "--port", "4100"]
+    command: ["uvicorn", "gtm_pipeline_q2_review.app:app", "--host", "0.0.0.0", "--port", "4100"]
     environment:
       PORT: 4100
       ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
@@ -103,7 +103,7 @@ services:
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
-    command: ["uvicorn", "gtm_operator_contract_20260512235040.services.gtm_enrichment_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
+    command: ["uvicorn", "gtm_pipeline_q2_review.services.gtm_enrichment_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
     environment:
       PORT: 4100
       ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
@@ -118,7 +118,7 @@ services:
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
-    command: ["uvicorn", "gtm_operator_contract_20260512235040.services.gtm_prioritization_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
+    command: ["uvicorn", "gtm_pipeline_q2_review.services.gtm_prioritization_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
     environment:
       PORT: 4100
       ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json
@@ -133,7 +133,7 @@ services:
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
-    command: ["uvicorn", "gtm_operator_contract_20260512235040.services.gtm_outreach_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
+    command: ["uvicorn", "gtm_pipeline_q2_review.services.gtm_outreach_service.app:app", "--host", "0.0.0.0", "--port", "4100"]
     environment:
       PORT: 4100
       ANIP_API_KEYS_JSON: *gtm-demo-api-keys-json

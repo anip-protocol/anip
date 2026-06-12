@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace GTMOperatorContract20260512235040;
+namespace GTMPipelineQ2Review;
 
 public static class GeneratedRuntimeTarget
 {
@@ -14,7 +14,7 @@ public static class GeneratedRuntimeTarget
 
     public const string RuntimeTargetJson = """
 {
-  "system_name": "GTM Operator Contract 20260512235040",
+  "system_name": "GTM Pipeline Q2 Review",
   "domain_name": "gtm",
   "delivery_model": "multiple_coordinated_services",
   "architecture_shape": "multi_service_estate",
@@ -24,8 +24,8 @@ public static class GeneratedRuntimeTarget
   "services": [
     {
       "service_id": "gtm-pipeline-service",
-      "service_name": "Pipeline Service",
-      "source_role": "governs CRM-state reads and operational previews",
+      "service_name": "Gtm Pipeline",
+      "source_role": "implementation service",
       "source_capabilities": [
         "gtm.pipeline_summary",
         "gtm.pipeline_forecast_summary",
@@ -35,7 +35,9 @@ public static class GeneratedRuntimeTarget
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan"
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
       ],
       "formalized_capability_ids": [
         "gtm.pipeline_summary",
@@ -46,14 +48,16 @@ public static class GeneratedRuntimeTarget
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan"
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
       ],
       "owned_concept_ids": []
     },
     {
       "service_id": "gtm-enrichment-service",
-      "service_name": "Enrichment Service",
-      "source_role": "provides bounded account context",
+      "service_name": "Gtm Enrichment",
+      "source_role": "implementation service",
       "source_capabilities": [
         "gtm.account_enrichment_summary",
         "gtm.lookalike_accounts",
@@ -68,37 +72,39 @@ public static class GeneratedRuntimeTarget
     },
     {
       "service_id": "gtm-prioritization-service",
-      "service_name": "Prioritization Service",
-      "source_role": "scores and ranks bounded cohorts",
+      "service_name": "Gtm Prioritization",
+      "source_role": "implementation service",
       "source_capabilities": [
         "gtm.score_leads",
         "gtm.prioritize_accounts",
-        "gtm.route_leads"
+        "gtm.route_leads",
+        "gtm.prioritized_routing_preparation"
       ],
       "formalized_capability_ids": [
         "gtm.score_leads",
         "gtm.prioritize_accounts",
-        "gtm.route_leads"
+        "gtm.route_leads",
+        "gtm.prioritized_routing_preparation"
       ],
       "owned_concept_ids": []
     },
     {
       "service_id": "gtm-outreach-service",
-      "service_name": "Outreach Service",
-      "source_role": "drafts bounded outbound content",
+      "service_name": "Gtm Outreach",
+      "source_role": "implementation service",
       "source_capabilities": [
         "gtm.draft_outreach_message",
         "gtm.suggest_followup_content",
         "gtm.objection_response_variants",
-        "gtm.bottleneck_account_outreach_draft",
-        "gtm.prioritized_outreach_draft"
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
       ],
       "formalized_capability_ids": [
         "gtm.draft_outreach_message",
         "gtm.suggest_followup_content",
         "gtm.objection_response_variants",
-        "gtm.bottleneck_account_outreach_draft",
-        "gtm.prioritized_outreach_draft"
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
       ],
       "owned_concept_ids": []
     }
@@ -107,76 +113,53 @@ public static class GeneratedRuntimeTarget
     {
       "id": "policy_permission_rule_0",
       "source_permission_id": "permission_rule_0",
-      "actor_id": "sales_analyst",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "sales_analyst"
-      },
-      "business_area": "outreach_drafting",
-      "business_area_label": "Outreach Drafting",
-      "service_ids": [
-        "gtm-outreach-service"
-      ],
-      "capability_ids": [
-        "gtm.draft_outreach_message",
-        "gtm.suggest_followup_content",
-        "gtm.objection_response_variants",
-        "gtm.bottleneck_account_outreach_draft",
-        "gtm.prioritized_outreach_draft"
-      ],
-      "required_scopes": [
-        "gtm.draft_outreach_message",
-        "gtm.suggest_followup_content",
-        "gtm.objection_response_variants",
-        "gtm.bottleneck_account_outreach_draft",
-        "gtm.prioritized_outreach_draft"
-      ],
-      "decision": "allow",
-      "business_rule": "Return bounded read results for in-scope pipeline, enrichment, prioritization, or outreach-draft requests.",
-      "enforcement_notes": "sales_analyst allowed access to Outreach Drafting should return direct_result. Return bounded read results for in-scope pipeline, enrichment, prioritization, or outreach-draft requests. Use only after actor and business-area vocabularies are confirmed. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"sales_analyst\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"outreach_drafting\"."
-    },
-    {
-      "id": "policy_permission_rule_1",
-      "source_permission_id": "permission_rule_1",
       "actor_id": "sales_leader",
       "principal_selector": {
         "claim": "actor_id",
         "equals": "sales_leader"
       },
-      "business_area": "pipeline_insight",
-      "business_area_label": "Pipeline Insight",
+      "business_area": "operational_previews",
+      "business_area_label": "Operational Previews",
       "service_ids": [
         "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation"
+      ],
+      "required_scopes": [
+        "gtm.at_risk_followup_preparation",
+        "gtm.prepare_followup_tasks"
+      ],
+      "decision": "approval_required",
+      "business_rule": "Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation.",
+      "enforcement_notes": "sales_leader approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation. Supported by the umbrella spec and preview-specific specs that distinguish preparation from execution."
+    },
+    {
+      "id": "policy_permission_rule_1",
+      "source_permission_id": "permission_rule_1",
+      "actor_id": "rev_ops_manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "rev_ops_manager"
+      },
+      "business_area": "operational_previews",
+      "business_area_label": "Operational Previews",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
         "gtm.at_risk_followup_preparation",
         "gtm.at_risk_reassignment_preparation"
       ],
       "required_scopes": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
         "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_followup_tasks",
+        "gtm.at_risk_reassignment_preparation",
+        "gtm.prepare_reassignment_plan"
       ],
-      "decision": "allow_with_limits",
-      "business_rule": "Return a narrowed or masked result when the actor can see the shape of the data but not the full scope or values.",
-      "enforcement_notes": "sales_leader bounded access to Pipeline Insight should return masked_or_restricted_result. Return a narrowed or masked result when the actor can see the shape of the data but not the full scope or values. Applies to partial visibility cases described in the forecast, bottleneck, team performance, and product pipeline specs. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"sales_leader\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"pipeline_insight\"."
+      "decision": "approval_required",
+      "business_rule": "Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation.",
+      "enforcement_notes": "rev_ops_manager approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation. Applies to reassignment preview, routing preparation, and other write-adjacent preparation flows."
     },
     {
       "id": "policy_permission_rule_2",
@@ -186,8 +169,8 @@ public static class GeneratedRuntimeTarget
         "claim": "actor_id",
         "equals": "account_manager_east"
       },
-      "business_area": "governance_and_approvals",
-      "business_area_label": "Governance and Approvals",
+      "business_area": "actor_aware_governance",
+      "business_area_label": "Actor-Aware Governance",
       "service_ids": [
         "gtm-pipeline-service"
       ],
@@ -218,16 +201,148 @@ public static class GeneratedRuntimeTarget
         "gtm.at_risk_reassignment_preparation"
       ],
       "decision": "allow_with_limits",
-      "business_rule": "Restrict the requested region, ownership boundary, or slice when the actor is outside the allowed scope.",
-      "enforcement_notes": "account_manager_east restricted access to Governance and Approvals should return masked_or_restricted_result. Restrict the requested region, ownership boundary, or slice when the actor is outside the allowed scope. Use for actor-aware regional or ownership boundaries. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"account_manager_east\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"governance_and_approvals\"."
+      "business_rule": "When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope.",
+      "enforcement_notes": "account_manager_east restricted access to Actor-Aware Governance should return masked_or_restricted_result. When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope. The source repeatedly requires actor-aware restriction for region requests beyond allowed boundaries."
     },
     {
       "id": "policy_permission_rule_3",
       "source_permission_id": "permission_rule_3",
+      "actor_id": "account_manager_west",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "account_manager_west"
+      },
+      "business_area": "actor_aware_governance",
+      "business_area_label": "Actor-Aware Governance",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope.",
+      "enforcement_notes": "account_manager_west restricted access to Actor-Aware Governance should return masked_or_restricted_result. When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope. The source repeatedly requires actor-aware restriction for region requests beyond allowed boundaries."
+    },
+    {
+      "id": "policy_permission_rule_4",
+      "source_permission_id": "permission_rule_4",
       "actor_id": "sales_analyst",
       "principal_selector": {
         "claim": "actor_id",
         "equals": "sales_analyst"
+      },
+      "business_area": "actor_aware_governance",
+      "business_area_label": "Actor-Aware Governance",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded analytic visibility where permitted, but mask financial values when the actor can see shape or trends without full numbers.",
+      "enforcement_notes": "sales_analyst bounded access to Actor-Aware Governance should return masked_or_restricted_result. Allow bounded analytic visibility where permitted, but mask financial values when the actor can see shape or trends without full numbers. The forecast, bottleneck, team-performance, and product-pipeline specs all require actor-aware masking for some actors."
+    },
+    {
+      "id": "policy_permission_rule_5",
+      "source_permission_id": "permission_rule_5",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "pipeline_review_analytics",
+      "business_area_label": "Pipeline Review Analytics",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.prepare_followup_tasks"
+      ],
+      "required_scopes": [
+        "gtm.prepare_followup_tasks"
+      ],
+      "decision": "clarify",
+      "business_rule": "If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing.",
+      "enforcement_notes": "sales_leader bounded access to Pipeline Review Analytics should return clarification_required. If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing. Applies to bounded analytics reads where quarter is a required input."
+    },
+    {
+      "id": "policy_permission_rule_6",
+      "source_permission_id": "permission_rule_6",
+      "actor_id": "rev_ops_manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "rev_ops_manager"
+      },
+      "business_area": "pipeline_review_analytics",
+      "business_area_label": "Pipeline Review Analytics",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.prepare_followup_tasks"
+      ],
+      "required_scopes": [
+        "gtm.prepare_followup_tasks"
+      ],
+      "decision": "clarify",
+      "business_rule": "If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing.",
+      "enforcement_notes": "rev_ops_manager bounded access to Pipeline Review Analytics should return clarification_required. If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing. Applies to bounded analytics reads where quarter is a required input."
+    },
+    {
+      "id": "policy_permission_rule_7",
+      "source_permission_id": "permission_rule_7",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
       },
       "business_area": "account_enrichment",
       "business_area_label": "Account Enrichment",
@@ -243,54 +358,159 @@ public static class GeneratedRuntimeTarget
         "gtm.lookalike_accounts"
       ],
       "decision": "deny",
-      "business_rule": "Deny raw export, direct-send, unsupported analysis, or other out-of-scope requests instead of improvising unsafe behavior.",
-      "enforcement_notes": "sales_analyst denied access to Account Enrichment should return deny_request. Deny raw export, direct-send, unsupported analysis, or other out-of-scope requests instead of improvising unsafe behavior. Covers raw CRM export, raw model-feature dumps, raw transcripts, and direct-send outreach. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"sales_analyst\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"account_enrichment\"."
+      "business_rule": "Deny raw bulk enrichment export, unsupported source exposure, outreach-only requests, lead-scoring requests, and downstream mutation requests in the enrichment service.",
+      "enforcement_notes": "sales_leader denied access to Account Enrichment should return deny_request. Deny raw bulk enrichment export, unsupported source exposure, outreach-only requests, lead-scoring requests, and downstream mutation requests in the enrichment service. The enrichment service is bounded, read-only, and must not expose raw unconstrained enrichment exports."
     },
     {
-      "id": "policy_permission_rule_4",
-      "source_permission_id": "permission_rule_4",
+      "id": "policy_permission_rule_8",
+      "source_permission_id": "permission_rule_8",
       "actor_id": "rev_ops_manager",
       "principal_selector": {
         "claim": "actor_id",
         "equals": "rev_ops_manager"
       },
-      "business_area": "prioritization_and_routing",
-      "business_area_label": "Prioritization and Routing",
-      "service_ids": [
-        "gtm-pipeline-service"
-      ],
-      "capability_ids": [
-        "gtm.at_risk_followup_preparation"
-      ],
-      "required_scopes": [
-        "gtm.at_risk_followup_preparation"
-      ],
-      "decision": "approval_required",
-      "business_rule": "Prepare the operational preview, then stop before routing, reassignment, follow-up execution, or any downstream mutation.",
-      "enforcement_notes": "rev_ops_manager approval_required access to Prioritization and Routing should return approval_stop. Prepare the operational preview, then stop before routing, reassignment, follow-up execution, or any downstream mutation. Applies to lead routing, reassignment previews, and follow-up task preparation. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"rev_ops_manager\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"prioritization_and_routing\"."
-    },
-    {
-      "id": "policy_permission_rule_5",
-      "source_permission_id": "permission_rule_5",
-      "actor_id": "account_manager_east",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "account_manager_east"
-      },
-      "business_area": "prioritization_and_routing",
-      "business_area_label": "Prioritization and Routing",
+      "business_area": "work_prioritization_and_routing",
+      "business_area_label": "Work Prioritization and Routing",
       "service_ids": [
         "gtm-prioritization-service"
       ],
       "capability_ids": [
-        "gtm.prioritized_routing_preparation"
+        "gtm.route_leads"
       ],
       "required_scopes": [
-        "gtm.prioritized_routing_preparation"
+        "gtm.route_leads"
       ],
-      "decision": "clarify",
-      "business_rule": "Ask for missing quarter, account reference, cohort, ranking basis, target, or other critical input instead of guessing.",
-      "enforcement_notes": "account_manager_east allowed access to Prioritization and Routing should return clarification_required. Ask for missing quarter, account reference, cohort, ranking basis, target, or other critical input instead of guessing. Use when required parameters are missing from the request. Studio mapped assistant actor reference \"\u003crequires_clarification\u003e\" to existing actor \"account_manager_east\". Studio mapped assistant business-area reference \"\u003crequires_clarification\u003e\" to existing business area \"prioritization_and_routing\"."
+      "decision": "approval_required",
+      "business_rule": "Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation.",
+      "enforcement_notes": "rev_ops_manager approval_required access to Work Prioritization and Routing should return approval_stop. Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation. The prioritization service distinguishes recommendation from execution."
+    },
+    {
+      "id": "policy_permission_rule_9",
+      "source_permission_id": "permission_rule_9",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "work_prioritization_and_routing",
+      "business_area_label": "Work Prioritization and Routing",
+      "service_ids": [
+        "gtm-prioritization-service"
+      ],
+      "capability_ids": [
+        "gtm.route_leads"
+      ],
+      "required_scopes": [
+        "gtm.route_leads"
+      ],
+      "decision": "approval_required",
+      "business_rule": "Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation.",
+      "enforcement_notes": "sales_leader approval_required access to Work Prioritization and Routing should return approval_stop. Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation. The prioritization service distinguishes recommendation from execution."
+    },
+    {
+      "id": "policy_permission_rule_10",
+      "source_permission_id": "permission_rule_10",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "outreach_drafting",
+      "business_area_label": "Outreach Drafting",
+      "service_ids": [
+        "gtm-outreach-service"
+      ],
+      "capability_ids": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "required_scopes": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content.",
+      "enforcement_notes": "sales_leader bounded access to Outreach Drafting should return bounded_result. Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content. The outreach service is draft-only in the first cut."
+    },
+    {
+      "id": "policy_permission_rule_11",
+      "source_permission_id": "permission_rule_11",
+      "actor_id": "rev_ops_manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "rev_ops_manager"
+      },
+      "business_area": "outreach_drafting",
+      "business_area_label": "Outreach Drafting",
+      "service_ids": [
+        "gtm-outreach-service"
+      ],
+      "capability_ids": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "required_scopes": [
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content.",
+      "enforcement_notes": "rev_ops_manager bounded access to Outreach Drafting should return bounded_result. Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content. The outreach service is draft-only in the first cut."
+    },
+    {
+      "id": "policy_permission_rule_12",
+      "source_permission_id": "permission_rule_12",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "auditability_and_validation",
+      "business_area_label": "Auditability and Validation",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Governed calls must remain reconstructable with actor identity, capability used, normalized parameters, outcome type, and explanation for actor-specific differences.",
+      "enforcement_notes": "sales_leader bounded access to Auditability and Validation should return direct_result. Governed calls must remain reconstructable with actor identity, capability used, normalized parameters, outcome type, and explanation for actor-specific differences. This is a cross-cutting trust requirement rather than a user-facing business action."
     }
   ],
   "authority": {
@@ -308,15 +528,15 @@ public static class GeneratedRuntimeTarget
 [
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.pipeline_summary",
-    "title": "pipeline_summary",
-    "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+    "title": "Pipeline Summary",
+    "summary": "Return bounded pipeline health evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -332,9 +552,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.pipeline_summary",
     "path_template": "/gtm/pipeline-summary",
     "output_shape": "gtm_pipeline_summary_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "pipeline health visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded pipeline health evidence.",
     "minimum_scope": [
       "gtm.pipeline_summary"
     ],
@@ -359,7 +579,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -373,7 +593,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "detail_level",
         "input_type": "string",
         "required": false,
-        "summary": "summary or stage_breakdown",
+        "summary": "Summary depth",
         "default_value": "summary",
         "allowed_values": [
           "summary",
@@ -408,15 +628,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.pipeline_forecast_summary",
-    "title": "pipeline_forecast_summary",
-    "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+    "title": "Pipeline Forecast Summary",
+    "summary": "Return bounded forecast evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -432,9 +652,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.pipeline_forecast_summary",
     "path_template": "/gtm/pipeline-forecast-summary",
     "output_shape": "gtm_pipeline_forecast_summary_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "forecast posture visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded forecast evidence.",
     "minimum_scope": [
       "gtm.pipeline_forecast_summary"
     ],
@@ -459,7 +679,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -473,7 +693,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "forecast_mode",
         "input_type": "string",
         "required": false,
-        "summary": "risk_adjusted, likely, or best_case",
+        "summary": "Forecast mode",
         "default_value": "risk_adjusted",
         "allowed_values": [
           "risk_adjusted",
@@ -491,11 +711,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum contributing accounts to return",
+        "summary": "Maximum contributing accounts or opportunities",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -521,15 +744,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.stage_bottleneck_summary",
-    "title": "stage_bottleneck_summary",
-    "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+    "title": "Stage Bottleneck Summary",
+    "summary": "Return bounded bottleneck evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -545,9 +768,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.stage_bottleneck_summary",
     "path_template": "/gtm/stage-bottleneck-summary",
     "output_shape": "gtm_stage_bottleneck_summary_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "bottleneck visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded bottleneck evidence.",
     "minimum_scope": [
       "gtm.stage_bottleneck_summary"
     ],
@@ -572,7 +795,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -586,7 +809,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "slice_by",
         "input_type": "string",
         "required": false,
-        "summary": "regional_office, manager_name, or product_name",
+        "summary": "Bottleneck slice",
         "default_value": "regional_office",
         "allowed_values": [
           "regional_office",
@@ -604,11 +827,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum bottleneck rows to return",
+        "summary": "Maximum bottleneck rows",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -634,15 +860,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.sales_team_performance_summary",
-    "title": "sales_team_performance_summary",
-    "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+    "title": "Sales Team Performance Summary",
+    "summary": "Return bounded team performance evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -658,9 +884,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.sales_team_performance_summary",
     "path_template": "/gtm/sales-team-performance-summary",
     "output_shape": "gtm_sales_team_performance_summary_result",
-    "subject_kind": "quarter-scoped GTM leader",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "team performance visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded team performance evidence.",
     "minimum_scope": [
       "gtm.sales_team_performance_summary"
     ],
@@ -685,7 +911,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -699,7 +925,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "slice_by",
         "input_type": "string",
         "required": false,
-        "summary": "manager_name or regional_office",
+        "summary": "Team performance slice",
         "default_value": "manager_name",
         "allowed_values": [
           "manager_name",
@@ -716,11 +942,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum team rows to return",
+        "summary": "Maximum team rows",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -746,15 +975,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.product_pipeline_summary",
-    "title": "product_pipeline_summary",
-    "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+    "title": "Product Pipeline Summary",
+    "summary": "Return bounded product pipeline evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -770,9 +999,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.product_pipeline_summary",
     "path_template": "/gtm/product-pipeline-summary",
     "output_shape": "gtm_product_pipeline_summary_result",
-    "subject_kind": "quarter-scoped GTM leader",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "product pipeline visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded product pipeline evidence.",
     "minimum_scope": [
       "gtm.product_pipeline_summary"
     ],
@@ -797,7 +1026,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -828,11 +1057,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum product rows to return",
+        "summary": "Maximum product rows",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -858,15 +1090,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.stalled_opportunity_review",
-    "title": "stalled_opportunity_review",
-    "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+    "title": "Stalled Opportunity Review",
+    "summary": "Return bounded stalled opportunity evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "review",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -882,9 +1114,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.stalled_opportunity_review",
     "path_template": "/gtm/stalled-opportunity-review",
     "output_shape": "gtm_stalled_opportunity_review_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "stalled opportunity visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded stalled opportunity evidence.",
     "minimum_scope": [
       "gtm.stalled_opportunity_review"
     ],
@@ -911,16 +1143,19 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Minimum days open",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       },
       {
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -934,11 +1169,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum opportunities to return",
+        "summary": "Maximum opportunities",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -964,15 +1202,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.account_risk_summary",
-    "title": "account_risk_summary",
-    "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+    "title": "Account Risk Summary",
+    "summary": "Return bounded account risk evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -988,9 +1226,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.account_risk_summary",
     "path_template": "/gtm/account-risk-summary",
     "output_shape": "gtm_account_risk_summary_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "risk visibility",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Return bounded account risk evidence.",
     "minimum_scope": [
       "gtm.account_risk_summary"
     ],
@@ -1031,7 +1269,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -1045,11 +1283,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum accounts to return",
+        "summary": "Maximum accounts",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1075,10 +1316,10 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.prepare_followup_tasks",
-    "title": "prepare_followup_tasks",
-    "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+    "title": "Prepare Followup Tasks",
+    "summary": "Prepare follow-up task preview and stop at approval.",
     "kind": "atomic",
     "grant_policy": {
       "allowed_grant_types": [
@@ -1089,9 +1330,9 @@ public static class GeneratedRuntimeTarget
       "expires_in_seconds": 900,
       "max_uses": 1
     },
-    "intent_type": "approval_required",
-    "operation_type": "preview_mutation",
-    "execution_posture": "approval_required",
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
     "side_effect_level": "approval_required",
     "implementation_fit": {
       "category": "custom_service_logic",
@@ -1100,18 +1341,20 @@ public static class GeneratedRuntimeTarget
     "business_effects": {
       "produces": [
         "approval.request",
-        "system.preview_mutation"
+        "system.preview_mutation",
+        "content.summary"
       ],
       "does_not_produce": [
-        "approval.execute"
+        "approval.execute",
+        "raw_data_export"
       ]
     },
-    "backend_operation": "system.preview_mutation",
+    "backend_operation": "gtm.prepare_followup_tasks",
     "path_template": "/gtm/prepare-followup-tasks",
-    "output_shape": "gtm_prepare_followup_tasks_result",
-    "subject_kind": "authorized GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "operational preview",
+    "output_shape": "gtm_followup_task_preview",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Prepare follow-up task preview and stop at approval.",
     "minimum_scope": [
       "gtm.prepare_followup_tasks"
     ],
@@ -1152,7 +1395,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -1168,9 +1411,12 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Maximum accounts to include",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1196,10 +1442,10 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
+    "service_name": "Gtm Pipeline",
     "capability_id": "gtm.prepare_reassignment_plan",
-    "title": "prepare_reassignment_plan",
-    "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+    "title": "Prepare Reassignment Plan",
+    "summary": "Prepare reassignment preview and stop at approval.",
     "kind": "atomic",
     "grant_policy": {
       "allowed_grant_types": [
@@ -1210,9 +1456,9 @@ public static class GeneratedRuntimeTarget
       "expires_in_seconds": 900,
       "max_uses": 1
     },
-    "intent_type": "approval_required",
-    "operation_type": "preview_mutation",
-    "execution_posture": "approval_required",
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
     "side_effect_level": "approval_required",
     "implementation_fit": {
       "category": "custom_service_logic",
@@ -1221,18 +1467,20 @@ public static class GeneratedRuntimeTarget
     "business_effects": {
       "produces": [
         "approval.request",
-        "system.preview_mutation"
+        "system.preview_mutation",
+        "content.summary"
       ],
       "does_not_produce": [
-        "approval.execute"
+        "approval.execute",
+        "raw_data_export"
       ]
     },
-    "backend_operation": "system.preview_mutation",
+    "backend_operation": "gtm.prepare_reassignment_plan",
     "path_template": "/gtm/prepare-reassignment-plan",
-    "output_shape": "gtm_prepare_reassignment_plan_result",
-    "subject_kind": "authorized GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "operational preview",
+    "output_shape": "gtm_reassignment_preview",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Prepare reassignment preview and stop at approval.",
     "minimum_scope": [
       "gtm.prepare_reassignment_plan"
     ],
@@ -1257,7 +1505,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "selection_basis",
         "input_type": "string",
         "required": false,
-        "summary": "manager_capacity or stalled_risk_mix",
+        "summary": "Reassignment selection basis",
         "default_value": "manager_capacity",
         "allowed_values": [
           "manager_capacity",
@@ -1274,7 +1522,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -1288,11 +1536,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum reassignment candidates to include",
+        "summary": "Maximum reassignment candidates",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1317,16 +1568,329 @@ public static class GeneratedRuntimeTarget
     "outbound_controls": {}
   },
   {
+    "service_id": "gtm-pipeline-service",
+    "service_name": "Gtm Pipeline",
+    "capability_id": "gtm.at_risk_followup_preparation",
+    "title": "At Risk Followup Preparation",
+    "summary": "Compose at-risk account selection with follow-up preparation and stop at approval.",
+    "kind": "composed",
+    "composition": {
+      "authority_boundary": "same_service",
+      "steps": [
+        {
+          "id": "prepare_followup_preview",
+          "capability": "gtm.prepare_followup_tasks"
+        }
+      ],
+      "input_mapping": {
+        "prepare_followup_preview": {
+          "limit": "$.input.limit",
+          "owner_scope": "$.input.owner_scope",
+          "quarter": "$.input.quarter",
+          "ranking_basis": "$.input.ranking_basis"
+        }
+      },
+      "output_mapping": {
+        "result": "$.steps.prepare_followup_preview.output.result"
+      },
+      "failure_policy": {
+        "child_clarification": "propagate",
+        "child_denial": "propagate",
+        "child_approval_required": "propagate",
+        "child_error": "fail_parent"
+      },
+      "audit_policy": {
+        "record_child_invocations": true,
+        "parent_task_lineage": true
+      }
+    },
+    "grant_policy": {
+      "allowed_grant_types": [
+        "one_time",
+        "session_bound"
+      ],
+      "default_grant_type": "one_time",
+      "expires_in_seconds": 900,
+      "max_uses": 1
+    },
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
+    "side_effect_level": "approval_required",
+    "implementation_fit": {
+      "category": "native_anip",
+      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
+    },
+    "business_effects": {
+      "produces": [
+        "approval.request",
+        "system.preview_mutation",
+        "content.summary"
+      ],
+      "does_not_produce": [
+        "approval.execute",
+        "raw_data_export"
+      ]
+    },
+    "backend_operation": "gtm.at_risk_followup_preparation",
+    "path_template": "/gtm/at-risk-followup-preparation",
+    "output_shape": "gtm_followup_task_preview",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Compose at-risk account selection with follow-up preparation and stop at approval.",
+    "minimum_scope": [
+      "gtm.at_risk_followup_preparation",
+      "gtm.prepare_followup_tasks"
+    ],
+    "required_inputs": [
+      {
+        "input_name": "quarter",
+        "input_type": "string",
+        "required": true,
+        "summary": "Quarter label like 2017-Q2",
+        "default_value": "",
+        "semantic_type": "time_scope",
+        "resolution": {
+          "mode": "clarify",
+          "on_missing": "clarify",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "ranking_basis",
+        "input_type": "string",
+        "required": true,
+        "summary": "Risk ranking basis",
+        "default_value": "risk_score",
+        "allowed_values": [
+          "risk_score"
+        ],
+        "resolution": {
+          "mode": "closed_values",
+          "on_missing": "use_default",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "optional_inputs": [
+      {
+        "input_name": "owner_scope",
+        "input_type": "string",
+        "required": false,
+        "summary": "Regional office, team, owner, or company-wide scope",
+        "default_value": "",
+        "semantic_type": "scope_reference",
+        "resolution": {
+          "mode": "actor_policy_or_explicit",
+          "on_missing": "use_actor_scope",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "limit",
+        "input_type": "integer",
+        "required": false,
+        "summary": "Maximum accounts",
+        "default_value": "",
+        "semantic_type": "quantity_limit",
+        "resolution": {
+          "mode": "explicit_only",
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "sample_parameters": {
+      "limit": 1,
+      "owner_scope": "owner_scope-value",
+      "quarter": "quarter-value",
+      "ranking_basis": "risk_score"
+    },
+    "backend_input_mode": "implicit",
+    "derived_required_backend_inputs": [],
+    "derived_optional_backend_inputs": [],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
+    "backend_bindings": [],
+    "governance": {
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
+      "clarification_rule_refs": [],
+      "audit_required": false
+    },
+    "outbound_controls": {}
+  },
+  {
+    "service_id": "gtm-pipeline-service",
+    "service_name": "Gtm Pipeline",
+    "capability_id": "gtm.at_risk_reassignment_preparation",
+    "title": "At Risk Reassignment Preparation",
+    "summary": "Compose at-risk account selection with reassignment preparation and stop at approval.",
+    "kind": "composed",
+    "composition": {
+      "authority_boundary": "same_service",
+      "steps": [
+        {
+          "id": "prepare_reassignment_preview",
+          "capability": "gtm.prepare_reassignment_plan"
+        }
+      ],
+      "input_mapping": {
+        "prepare_reassignment_preview": {
+          "limit": "$.input.limit",
+          "owner_scope": "$.input.owner_scope",
+          "quarter": "$.input.quarter"
+        }
+      },
+      "output_mapping": {
+        "result": "$.steps.prepare_reassignment_preview.output.result"
+      },
+      "failure_policy": {
+        "child_clarification": "propagate",
+        "child_denial": "propagate",
+        "child_approval_required": "propagate",
+        "child_error": "fail_parent"
+      },
+      "audit_policy": {
+        "record_child_invocations": true,
+        "parent_task_lineage": true
+      }
+    },
+    "grant_policy": {
+      "allowed_grant_types": [
+        "one_time",
+        "session_bound"
+      ],
+      "default_grant_type": "one_time",
+      "expires_in_seconds": 900,
+      "max_uses": 1
+    },
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
+    "side_effect_level": "approval_required",
+    "implementation_fit": {
+      "category": "native_anip",
+      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
+    },
+    "business_effects": {
+      "produces": [
+        "approval.request",
+        "system.preview_mutation",
+        "content.summary"
+      ],
+      "does_not_produce": [
+        "approval.execute",
+        "raw_data_export"
+      ]
+    },
+    "backend_operation": "gtm.at_risk_reassignment_preparation",
+    "path_template": "/gtm/at-risk-reassignment-preparation",
+    "output_shape": "gtm_reassignment_preview",
+    "subject_kind": "pipeline",
+    "context_type": "quarter_scope",
+    "output_intent": "Compose at-risk account selection with reassignment preparation and stop at approval.",
+    "minimum_scope": [
+      "gtm.at_risk_reassignment_preparation",
+      "gtm.prepare_reassignment_plan"
+    ],
+    "required_inputs": [
+      {
+        "input_name": "quarter",
+        "input_type": "string",
+        "required": true,
+        "summary": "Quarter label like 2017-Q2",
+        "default_value": "",
+        "semantic_type": "time_scope",
+        "resolution": {
+          "mode": "clarify",
+          "on_missing": "clarify",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "ranking_basis",
+        "input_type": "string",
+        "required": true,
+        "summary": "Risk ranking basis",
+        "default_value": "risk_score",
+        "allowed_values": [
+          "risk_score"
+        ],
+        "resolution": {
+          "mode": "closed_values",
+          "on_missing": "use_default",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "optional_inputs": [
+      {
+        "input_name": "owner_scope",
+        "input_type": "string",
+        "required": false,
+        "summary": "Regional office, team, owner, or company-wide scope",
+        "default_value": "",
+        "semantic_type": "scope_reference",
+        "resolution": {
+          "mode": "actor_policy_or_explicit",
+          "on_missing": "use_actor_scope",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "limit",
+        "input_type": "integer",
+        "required": false,
+        "summary": "Maximum accounts",
+        "default_value": "",
+        "semantic_type": "quantity_limit",
+        "resolution": {
+          "mode": "explicit_only",
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "sample_parameters": {
+      "limit": 1,
+      "owner_scope": "owner_scope-value",
+      "quarter": "quarter-value",
+      "ranking_basis": "risk_score"
+    },
+    "backend_input_mode": "implicit",
+    "derived_required_backend_inputs": [],
+    "derived_optional_backend_inputs": [],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
+    "backend_bindings": [],
+    "governance": {
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
+      "clarification_rule_refs": [],
+      "audit_required": false
+    },
+    "outbound_controls": {}
+  },
+  {
     "service_id": "gtm-enrichment-service",
-    "service_name": "Enrichment Service",
+    "service_name": "Gtm Enrichment",
     "capability_id": "gtm.account_enrichment_summary",
-    "title": "account_enrichment_summary",
-    "summary": "Return bounded firmographic context and fit signals for selected accounts; raw records, full exports, underlying notes, and debug payloads are not supported.",
+    "title": "Account Enrichment Summary",
+    "summary": "Return bounded enrichment context without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1342,9 +1906,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.account_enrichment_summary",
     "path_template": "/gtm/account-enrichment-summary",
     "output_shape": "gtm_account_enrichment_summary_result",
-    "subject_kind": "account manager or revenue operator",
-    "context_type": "selected account scope",
-    "output_intent": "account context visibility",
+    "subject_kind": "enrichment",
+    "context_type": "account_scope",
+    "output_intent": "Return bounded enrichment context.",
     "minimum_scope": [
       "gtm.account_enrichment_summary"
     ],
@@ -1356,6 +1920,7 @@ public static class GeneratedRuntimeTarget
         "summary": "Comma-separated account names",
         "default_value": "",
         "semantic_type": "entity_reference",
+        "clarification_hint": "Ask which accounts to summarize.",
         "entity_reference": true,
         "catalog_ref": "gtm.account_catalog",
         "resolution": {
@@ -1374,9 +1939,12 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Maximum accounts to summarize",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1400,15 +1968,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-enrichment-service",
-    "service_name": "Enrichment Service",
+    "service_name": "Gtm Enrichment",
     "capability_id": "gtm.lookalike_accounts",
-    "title": "lookalike_accounts",
-    "summary": "Return bounded lookalike accounts using explainable similarity logic; raw payloads and underlying model data are not supported.",
+    "title": "Lookalike Accounts",
+    "summary": "Return bounded lookalike account evidence without exporting raw rows.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "discovery",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1424,9 +1992,9 @@ public static class GeneratedRuntimeTarget
     "backend_operation": "gtm.lookalike_accounts",
     "path_template": "/gtm/lookalike-accounts",
     "output_shape": "gtm_lookalike_accounts_result",
-    "subject_kind": "account manager or revenue operator",
-    "context_type": "reference account",
-    "output_intent": "lookalike discovery",
+    "subject_kind": "enrichment",
+    "context_type": "account_scope",
+    "output_intent": "Return bounded lookalike account evidence.",
     "minimum_scope": [
       "gtm.lookalike_accounts"
     ],
@@ -1438,6 +2006,7 @@ public static class GeneratedRuntimeTarget
         "summary": "Reference account name",
         "default_value": "",
         "semantic_type": "entity_reference",
+        "clarification_hint": "Ask which reference account to use.",
         "entity_reference": true,
         "catalog_ref": "gtm.account_catalog",
         "resolution": {
@@ -1454,11 +2023,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum lookalike accounts to return",
+        "summary": "Maximum lookalike accounts",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1482,15 +2054,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-enrichment-service",
-    "service_name": "Enrichment Service",
+    "service_name": "Gtm Enrichment",
     "capability_id": "gtm.at_risk_account_enrichment_summary",
-    "title": "at_risk_account_enrichment_summary",
-    "summary": "Rank at-risk accounts and return bounded enrichment context for the selected accounts.",
+    "title": "At Risk Account Enrichment Summary",
+    "summary": "Compose at-risk account selection with bounded enrichment context.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "summary",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "summary",
+    "operation_type": "read",
+    "execution_posture": "summary",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1505,10 +2077,10 @@ public static class GeneratedRuntimeTarget
     },
     "backend_operation": "gtm.at_risk_account_enrichment_summary",
     "path_template": "/gtm/at-risk-account-enrichment-summary",
-    "output_shape": "gtm_at_risk_account_enrichment_summary_result",
-    "subject_kind": "quarter-scoped GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "at-risk account visibility",
+    "output_shape": "gtm_account_enrichment_summary_result",
+    "subject_kind": "enrichment",
+    "context_type": "account_scope",
+    "output_intent": "Compose at-risk account selection with bounded enrichment context.",
     "minimum_scope": [
       "gtm.at_risk_account_enrichment_summary"
     ],
@@ -1549,7 +2121,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -1565,9 +2137,12 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Maximum accounts to enrich",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -1593,15 +2168,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-prioritization-service",
-    "service_name": "Prioritization Service",
+    "service_name": "Gtm Prioritization",
     "capability_id": "gtm.score_leads",
-    "title": "score_leads",
-    "summary": "Return bounded lead scores and explainable priority bands for a named cohort.",
+    "title": "Score Leads",
+    "summary": "Score a bounded lead cohort with explainable rationale without exposing raw model features.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "ranking",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "recommendation",
+    "operation_type": "read",
+    "execution_posture": "recommendation",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1612,15 +2187,16 @@ public static class GeneratedRuntimeTarget
         "content.recommendation"
       ],
       "does_not_produce": [
+        "raw_model_features",
         "raw_data_export"
       ]
     },
     "backend_operation": "gtm.score_leads",
     "path_template": "/gtm/score-leads",
-    "output_shape": "gtm_score_leads_result",
-    "subject_kind": "rev ops manager or sales leader",
-    "context_type": "cohort and optional owner scope",
-    "output_intent": "lead prioritization",
+    "output_shape": "gtm_lead_score_summary",
+    "subject_kind": "prioritization",
+    "context_type": "cohort_scope",
+    "output_intent": "Score a bounded lead cohort with explainable rationale.",
     "minimum_scope": [
       "gtm.score_leads"
     ],
@@ -1629,16 +2205,18 @@ public static class GeneratedRuntimeTarget
         "input_name": "cohort_ref",
         "input_type": "string",
         "required": true,
-        "summary": "Cohort reference; map phrases like inbound leads or last week inbound leads to inbound_last_week",
+        "summary": "Cohort reference; map inbound leads or last week inbound leads to inbound_last_week",
         "default_value": "",
         "allowed_values": [
           "inbound_last_week",
           "webinar_q2"
         ],
         "semantic_type": "cohort_reference",
+        "clarification_hint": "Ask which lead cohort to score.",
         "catalog_ref": "gtm.cohort_catalog",
         "resolution": {
           "mode": "closed_values",
+          "resolver_ref": "gtm.cohort_catalog",
           "on_missing": "clarify",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
@@ -1650,11 +2228,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum leads to return",
+        "summary": "Maximum leads",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       },
       {
@@ -1693,15 +2274,15 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-prioritization-service",
-    "service_name": "Prioritization Service",
+    "service_name": "Gtm Prioritization",
     "capability_id": "gtm.prioritize_accounts",
-    "title": "prioritize_accounts",
-    "summary": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+    "title": "Prioritize Accounts",
+    "summary": "Prioritize a bounded account cohort with explainable rationale without exposing raw model features.",
     "kind": "atomic",
-    "intent_type": "read",
-    "operation_type": "ranking",
-    "execution_posture": "read",
-    "side_effect_level": "read_only",
+    "intent_type": "recommendation",
+    "operation_type": "read",
+    "execution_posture": "recommendation",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1712,15 +2293,16 @@ public static class GeneratedRuntimeTarget
         "content.recommendation"
       ],
       "does_not_produce": [
+        "raw_model_features",
         "raw_data_export"
       ]
     },
     "backend_operation": "gtm.prioritize_accounts",
     "path_template": "/gtm/prioritize-accounts",
-    "output_shape": "gtm_prioritize_accounts_result",
-    "subject_kind": "rev ops manager or sales leader",
-    "context_type": "cohort and optional ownership scope",
-    "output_intent": "account prioritization",
+    "output_shape": "gtm_account_priority_summary",
+    "subject_kind": "prioritization",
+    "context_type": "cohort_scope",
+    "output_intent": "Prioritize a bounded account cohort with explainable rationale.",
     "minimum_scope": [
       "gtm.prioritize_accounts"
     ],
@@ -1729,16 +2311,18 @@ public static class GeneratedRuntimeTarget
         "input_name": "cohort_ref",
         "input_type": "string",
         "required": true,
-        "summary": "Account cohort; map phrases like expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2",
+        "summary": "Account cohort; map expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2",
         "default_value": "",
         "allowed_values": [
           "expansion_candidates_q2",
           "at_risk_q2"
         ],
         "semantic_type": "cohort_reference",
+        "clarification_hint": "Ask which account cohort to prioritize.",
         "catalog_ref": "gtm.cohort_catalog",
         "resolution": {
           "mode": "closed_values",
+          "resolver_ref": "gtm.cohort_catalog",
           "on_missing": "clarify",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
@@ -1766,11 +2350,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "limit",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum accounts to return",
+        "summary": "Maximum accounts",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       },
       {
@@ -1810,10 +2397,10 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-prioritization-service",
-    "service_name": "Prioritization Service",
+    "service_name": "Gtm Prioritization",
     "capability_id": "gtm.route_leads",
-    "title": "route_leads",
-    "summary": "Prepare an approval-gated routing preview for scored or hot leads in a named cohort; outreach drafting is not supported by this capability.",
+    "title": "Route Leads",
+    "summary": "Prepare routing preview and stop at approval.",
     "kind": "atomic",
     "grant_policy": {
       "allowed_grant_types": [
@@ -1824,9 +2411,9 @@ public static class GeneratedRuntimeTarget
       "expires_in_seconds": 900,
       "max_uses": 1
     },
-    "intent_type": "approval_required",
-    "operation_type": "preview_mutation",
-    "execution_posture": "approval_required",
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
     "side_effect_level": "approval_required",
     "implementation_fit": {
       "category": "custom_service_logic",
@@ -1834,23 +2421,22 @@ public static class GeneratedRuntimeTarget
     },
     "business_effects": {
       "produces": [
-        "content.draft",
-        "content.recommendation",
         "approval.request",
-        "system.preview_mutation"
+        "system.preview_mutation",
+        "content.summary"
       ],
       "does_not_produce": [
-        "external_dispatch",
-        "system.mutation",
-        "approval.execute"
+        "approval.execute",
+        "raw_model_features",
+        "raw_data_export"
       ]
     },
-    "backend_operation": "system.preview_mutation",
+    "backend_operation": "gtm.route_leads",
     "path_template": "/gtm/route-leads",
-    "output_shape": "gtm_route_leads_result",
-    "subject_kind": "rev ops manager or sales leader",
-    "context_type": "cohort and optional ownership scope",
-    "output_intent": "routing preview",
+    "output_shape": "gtm_routing_preview",
+    "subject_kind": "prioritization",
+    "context_type": "cohort_scope",
+    "output_intent": "Prepare routing preview and stop at approval.",
     "minimum_scope": [
       "gtm.route_leads"
     ],
@@ -1859,16 +2445,18 @@ public static class GeneratedRuntimeTarget
         "input_name": "cohort_ref",
         "input_type": "string",
         "required": true,
-        "summary": "Lead cohort; map phrases like inbound leads or last week inbound leads to inbound_last_week",
+        "summary": "Lead cohort; map inbound leads or last week inbound leads to inbound_last_week",
         "default_value": "",
         "allowed_values": [
           "inbound_last_week",
           "webinar_q2"
         ],
         "semantic_type": "cohort_reference",
+        "clarification_hint": "Ask which lead cohort to route.",
         "catalog_ref": "gtm.cohort_catalog",
         "resolution": {
           "mode": "closed_values",
+          "resolver_ref": "gtm.cohort_catalog",
           "on_missing": "clarify",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
@@ -1880,7 +2468,7 @@ public static class GeneratedRuntimeTarget
         "input_name": "target_queue",
         "input_type": "string",
         "required": false,
-        "summary": "Destination queue or team; defaults to sales when the user asks for routing recommendations without naming a queue",
+        "summary": "Destination queue or team",
         "default_value": "sales",
         "allowed_values": [
           "sales",
@@ -1928,16 +2516,191 @@ public static class GeneratedRuntimeTarget
     "outbound_controls": {}
   },
   {
+    "service_id": "gtm-prioritization-service",
+    "service_name": "Gtm Prioritization",
+    "capability_id": "gtm.prioritized_routing_preparation",
+    "title": "Prioritized Routing Preparation",
+    "summary": "Compose account prioritization with routing preparation and stop at approval.",
+    "kind": "composed",
+    "composition": {
+      "authority_boundary": "same_service",
+      "steps": [
+        {
+          "id": "prioritize_accounts",
+          "capability": "gtm.prioritize_accounts"
+        },
+        {
+          "id": "route_leads",
+          "capability": "gtm.route_leads"
+        }
+      ],
+      "input_mapping": {
+        "prioritize_accounts": {
+          "cohort_ref": "$.input.cohort_ref",
+          "limit": "$.input.limit",
+          "owner_scope": "$.input.owner_scope",
+          "ranking_basis": "$.input.ranking_basis"
+        },
+        "route_leads": {
+          "cohort_ref": "$.input.cohort_ref",
+          "owner_scope": "$.input.owner_scope"
+        }
+      },
+      "output_mapping": {
+        "prioritized_accounts": "$.steps.prioritize_accounts.output.result",
+        "result": "$.steps.route_leads.output.result"
+      },
+      "failure_policy": {
+        "child_clarification": "propagate",
+        "child_denial": "propagate",
+        "child_approval_required": "propagate",
+        "child_error": "fail_parent"
+      },
+      "audit_policy": {
+        "record_child_invocations": true,
+        "parent_task_lineage": true
+      }
+    },
+    "grant_policy": {
+      "allowed_grant_types": [
+        "one_time",
+        "session_bound"
+      ],
+      "default_grant_type": "one_time",
+      "expires_in_seconds": 900,
+      "max_uses": 1
+    },
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
+    "side_effect_level": "approval_required",
+    "implementation_fit": {
+      "category": "native_anip",
+      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
+    },
+    "business_effects": {
+      "produces": [
+        "approval.request",
+        "system.preview_mutation",
+        "content.summary"
+      ],
+      "does_not_produce": [
+        "approval.execute",
+        "raw_model_features",
+        "raw_data_export"
+      ]
+    },
+    "backend_operation": "gtm.prioritized_routing_preparation",
+    "path_template": "/gtm/prioritized-routing-preparation",
+    "output_shape": "gtm_routing_preview",
+    "subject_kind": "prioritization",
+    "context_type": "cohort_scope",
+    "output_intent": "Compose account prioritization with routing preparation and stop at approval.",
+    "minimum_scope": [
+      "gtm.prioritized_routing_preparation",
+      "gtm.prioritize_accounts",
+      "gtm.route_leads"
+    ],
+    "required_inputs": [
+      {
+        "input_name": "cohort_ref",
+        "input_type": "string",
+        "required": true,
+        "summary": "Account cohort; map expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2",
+        "default_value": "",
+        "allowed_values": [
+          "expansion_candidates_q2",
+          "at_risk_q2"
+        ],
+        "semantic_type": "cohort_reference",
+        "clarification_hint": "Ask which cohort to use.",
+        "catalog_ref": "gtm.cohort_catalog",
+        "resolution": {
+          "mode": "closed_values",
+          "resolver_ref": "gtm.cohort_catalog",
+          "on_missing": "clarify",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "optional_inputs": [
+      {
+        "input_name": "ranking_basis",
+        "input_type": "string",
+        "required": false,
+        "summary": "Priority ranking basis",
+        "default_value": "deal_likelihood",
+        "allowed_values": [
+          "deal_likelihood"
+        ],
+        "resolution": {
+          "mode": "closed_values",
+          "on_missing": "use_default",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "limit",
+        "input_type": "integer",
+        "required": false,
+        "summary": "Maximum accounts",
+        "default_value": "",
+        "semantic_type": "quantity_limit",
+        "resolution": {
+          "mode": "explicit_only",
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "owner_scope",
+        "input_type": "string",
+        "required": false,
+        "summary": "Actor-safe ownership scope",
+        "default_value": "",
+        "semantic_type": "scope_reference",
+        "resolution": {
+          "mode": "actor_policy_or_explicit",
+          "on_missing": "use_actor_scope",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      }
+    ],
+    "sample_parameters": {
+      "cohort_ref": "expansion_candidates_q2",
+      "limit": 1,
+      "owner_scope": "owner_scope-value",
+      "ranking_basis": "deal_likelihood"
+    },
+    "backend_input_mode": "implicit",
+    "derived_required_backend_inputs": [],
+    "derived_optional_backend_inputs": [],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
+    "backend_bindings": [],
+    "governance": {
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
+      "clarification_rule_refs": [],
+      "audit_required": false
+    },
+    "outbound_controls": {}
+  },
+  {
     "service_id": "gtm-outreach-service",
-    "service_name": "Outreach Service",
+    "service_name": "Gtm Outreach",
     "capability_id": "gtm.draft_outreach_message",
-    "title": "draft_outreach_message",
-    "summary": "Draft a bounded outreach message for a selected target and explicit objective; send actions and raw transcripts are not supported.",
+    "title": "Draft Outreach Message",
+    "summary": "Draft outreach content without sending messages changing backend state or exporting raw source content.",
     "kind": "atomic",
     "intent_type": "draft",
-    "operation_type": "generation",
+    "operation_type": "read",
     "execution_posture": "draft",
-    "side_effect_level": "read_only",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
@@ -1948,15 +2711,16 @@ public static class GeneratedRuntimeTarget
       ],
       "does_not_produce": [
         "external_dispatch",
-        "system.mutation"
+        "system.mutation",
+        "raw_data_export"
       ]
     },
     "backend_operation": "gtm.draft_outreach_message",
     "path_template": "/gtm/draft-outreach-message",
-    "output_shape": "gtm_draft_outreach_message_result",
-    "subject_kind": "sales user or account manager",
-    "context_type": "target and objective",
-    "output_intent": "outreach drafting",
+    "output_shape": "gtm_outreach_draft",
+    "subject_kind": "outreach",
+    "context_type": "target_scope",
+    "output_intent": "Draft outreach content without sending or changing backend state.",
     "minimum_scope": [
       "gtm.draft_outreach_message"
     ],
@@ -1968,6 +2732,7 @@ public static class GeneratedRuntimeTarget
         "summary": "Lead or account reference",
         "default_value": "",
         "semantic_type": "entity_reference",
+        "clarification_hint": "Ask which lead or account the draft should target.",
         "entity_reference": true,
         "catalog_ref": "gtm.account_or_lead_catalog",
         "resolution": {
@@ -2022,9 +2787,13 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Target persona or audience",
         "default_value": "",
+        "semantic_type": "audience_reference",
+        "entity_reference": true,
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -2050,35 +2819,35 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-outreach-service",
-    "service_name": "Outreach Service",
+    "service_name": "Gtm Outreach",
     "capability_id": "gtm.suggest_followup_content",
-    "title": "suggest_followup_content",
-    "summary": "Return bounded follow-up content variants for an explicit GTM target.",
+    "title": "Suggest Followup Content",
+    "summary": "Suggest follow-up content without sending messages changing backend state or exporting raw source content.",
     "kind": "atomic",
     "intent_type": "draft",
-    "operation_type": "generation",
+    "operation_type": "read",
     "execution_posture": "draft",
-    "side_effect_level": "read_only",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
     },
     "business_effects": {
       "produces": [
-        "content.draft",
-        "content.recommendation"
+        "content.draft"
       ],
       "does_not_produce": [
         "external_dispatch",
-        "system.mutation"
+        "system.mutation",
+        "raw_data_export"
       ]
     },
     "backend_operation": "gtm.suggest_followup_content",
     "path_template": "/gtm/suggest-followup-content",
-    "output_shape": "gtm_suggest_followup_content_result",
-    "subject_kind": "sales user or account manager",
-    "context_type": "target and persona",
-    "output_intent": "follow-up drafting",
+    "output_shape": "gtm_followup_content_variants",
+    "subject_kind": "outreach",
+    "context_type": "target_scope",
+    "output_intent": "Suggest follow-up content without sending or changing backend state.",
     "minimum_scope": [
       "gtm.suggest_followup_content"
     ],
@@ -2090,6 +2859,7 @@ public static class GeneratedRuntimeTarget
         "summary": "Lead or account reference",
         "default_value": "",
         "semantic_type": "entity_reference",
+        "clarification_hint": "Ask which lead or account the follow-up should target.",
         "entity_reference": true,
         "catalog_ref": "gtm.account_or_lead_catalog",
         "resolution": {
@@ -2106,11 +2876,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "variant_count",
         "input_type": "integer",
         "required": false,
-        "summary": "Maximum variants to return",
+        "summary": "Maximum variants",
         "default_value": "",
+        "semantic_type": "quantity_limit",
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       },
       {
@@ -2119,9 +2892,13 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Target persona or audience",
         "default_value": "",
+        "semantic_type": "audience_reference",
+        "entity_reference": true,
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -2146,35 +2923,35 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-outreach-service",
-    "service_name": "Outreach Service",
+    "service_name": "Gtm Outreach",
     "capability_id": "gtm.objection_response_variants",
-    "title": "objection_response_variants",
-    "summary": "Return bounded objection-response variants for a selected competitor or concern.",
+    "title": "Objection Response Variants",
+    "summary": "Draft objection response variants without sending messages changing backend state or exporting raw source content.",
     "kind": "atomic",
     "intent_type": "draft",
-    "operation_type": "generation",
+    "operation_type": "read",
     "execution_posture": "draft",
-    "side_effect_level": "read_only",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
     },
     "business_effects": {
       "produces": [
-        "content.draft",
-        "content.recommendation"
+        "content.draft"
       ],
       "does_not_produce": [
         "external_dispatch",
-        "system.mutation"
+        "system.mutation",
+        "raw_data_export"
       ]
     },
     "backend_operation": "gtm.objection_response_variants",
     "path_template": "/gtm/objection-response-variants",
-    "output_shape": "gtm_objection_response_variants_result",
-    "subject_kind": "sales user or account manager",
-    "context_type": "objection theme and optional target",
-    "output_intent": "objection handling drafting",
+    "output_shape": "gtm_objection_response_variants",
+    "subject_kind": "outreach",
+    "context_type": "target_scope",
+    "output_intent": "Draft objection response variants without sending or changing backend state.",
     "minimum_scope": [
       "gtm.objection_response_variants"
     ],
@@ -2183,13 +2960,14 @@ public static class GeneratedRuntimeTarget
         "input_name": "objection_theme",
         "input_type": "string",
         "required": true,
-        "summary": "Named objection theme. Use competitor for competitor objections.",
+        "summary": "Named objection theme",
         "default_value": "",
         "allowed_values": [
           "pricing",
           "competitor",
           "implementation_risk"
         ],
+        "clarification_hint": "Ask which objection theme to address.",
         "resolution": {
           "mode": "closed_values",
           "on_missing": "clarify",
@@ -2222,9 +3000,13 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Target persona or audience",
         "default_value": "",
+        "semantic_type": "audience_reference",
+        "entity_reference": true,
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
@@ -2249,76 +3031,56 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-outreach-service",
-    "service_name": "Outreach Service",
-    "capability_id": "gtm.bottleneck_account_outreach_draft",
-    "title": "bottleneck_account_outreach_draft",
-    "summary": "Draft outreach only for a specific account already selected from a bounded bottleneck or at-risk account review. Do not use this capability to choose the top or affected account from analysis; use the approval-gated follow-up preparation flow for derived-target bottleneck or at-risk requests.",
+    "service_name": "Gtm Outreach",
+    "capability_id": "gtm.prioritized_outreach_draft",
+    "title": "Prioritized Outreach Draft",
+    "summary": "Prioritize a bounded account cohort and produce draft outreach content only without sending or changing backend state.",
     "kind": "atomic",
-    "grant_policy": {
-      "allowed_grant_types": [
-        "one_time",
-        "session_bound"
-      ],
-      "default_grant_type": "one_time",
-      "expires_in_seconds": 900,
-      "max_uses": 1
-    },
     "intent_type": "draft",
-    "operation_type": "generation",
+    "operation_type": "read",
     "execution_posture": "draft",
-    "side_effect_level": "read_only",
+    "side_effect_level": "read",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
     },
     "business_effects": {
       "produces": [
-        "content.draft",
-        "approval.request",
-        "system.preview_mutation"
+        "content.draft"
       ],
       "does_not_produce": [
         "external_dispatch",
         "system.mutation",
-        "approval.execute"
+        "approval.execute",
+        "raw_data_export"
       ]
     },
-    "backend_operation": "gtm.bottleneck_account_outreach_draft",
-    "path_template": "/gtm/bottleneck-account-outreach-draft",
-    "output_shape": "gtm_bottleneck_account_outreach_draft_result",
-    "subject_kind": "sales user or account manager",
-    "context_type": "quarter and selected account",
-    "output_intent": "outreach drafting",
+    "backend_operation": "gtm.prioritized_outreach_draft",
+    "path_template": "/gtm/prioritized-outreach-draft",
+    "output_shape": "gtm_outreach_draft",
+    "subject_kind": "outreach",
+    "context_type": "cohort_scope",
+    "output_intent": "Prioritize a bounded account cohort and produce draft outreach only.",
     "minimum_scope": [
-      "gtm.bottleneck_account_outreach_draft"
+      "gtm.prioritized_outreach_draft"
     ],
     "required_inputs": [
       {
-        "input_name": "quarter",
+        "input_name": "cohort_ref",
         "input_type": "string",
         "required": true,
-        "summary": "Quarter label like 2017-Q2",
+        "summary": "Account cohort to prioritize",
         "default_value": "",
-        "semantic_type": "time_scope",
+        "allowed_values": [
+          "expansion_candidates_q2",
+          "at_risk_q2"
+        ],
+        "semantic_type": "cohort_reference",
+        "clarification_hint": "Ask which account cohort to use.",
+        "catalog_ref": "gtm.cohort_catalog",
         "resolution": {
-          "mode": "clarify",
-          "on_missing": "clarify",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "target_ref",
-        "input_type": "string",
-        "required": true,
-        "summary": "Specific account selected from the bottleneck review",
-        "default_value": "",
-        "semantic_type": "entity_reference",
-        "entity_reference": true,
-        "catalog_ref": "gtm.account_catalog",
-        "resolution": {
-          "mode": "backend_resolved",
-          "resolver_ref": "gtm.account_catalog",
+          "mode": "closed_values",
+          "resolver_ref": "gtm.cohort_catalog",
           "on_missing": "clarify",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
@@ -2327,10 +3089,40 @@ public static class GeneratedRuntimeTarget
     ],
     "optional_inputs": [
       {
+        "input_name": "ranking_basis",
+        "input_type": "string",
+        "required": false,
+        "summary": "Priority ranking basis",
+        "default_value": "deal_likelihood",
+        "allowed_values": [
+          "deal_likelihood"
+        ],
+        "resolution": {
+          "mode": "closed_values",
+          "on_missing": "use_default",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
+        "input_name": "limit",
+        "input_type": "integer",
+        "required": false,
+        "summary": "Maximum accounts before drafting",
+        "default_value": "",
+        "semantic_type": "quantity_limit",
+        "resolution": {
+          "mode": "explicit_only",
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
+        }
+      },
+      {
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -2382,19 +3174,24 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Target persona or audience",
         "default_value": "",
+        "semantic_type": "audience_reference",
+        "entity_reference": true,
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
     "sample_parameters": {
       "channel": "email",
+      "cohort_ref": "expansion_candidates_q2",
+      "limit": 1,
       "objective": "first_touch",
       "owner_scope": "owner_scope-value",
       "persona": "persona-value",
-      "quarter": "quarter-value",
-      "target_ref": "target_ref-value"
+      "ranking_basis": "deal_likelihood"
     },
     "backend_input_mode": "implicit",
     "derived_required_backend_inputs": [],
@@ -2412,53 +3209,61 @@ public static class GeneratedRuntimeTarget
   },
   {
     "service_id": "gtm-outreach-service",
-    "service_name": "Outreach Service",
-    "capability_id": "gtm.prioritized_outreach_draft",
-    "title": "prioritized_outreach_draft",
-    "summary": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account; this is for prioritization-to-enrichment-to-draft requests, not lead routing.",
+    "service_name": "Gtm Outreach",
+    "capability_id": "gtm.bottleneck_account_outreach_draft",
+    "title": "Bottleneck Account Outreach Draft",
+    "summary": "Select or accept a bounded bottleneck target draft outreach and stop at approval without sending or changing backend state.",
     "kind": "atomic",
-    "intent_type": "draft",
-    "operation_type": "compound_read_and_draft",
-    "execution_posture": "draft",
-    "side_effect_level": "read_only",
+    "grant_policy": {
+      "allowed_grant_types": [
+        "one_time",
+        "session_bound"
+      ],
+      "default_grant_type": "one_time",
+      "expires_in_seconds": 900,
+      "max_uses": 1
+    },
+    "intent_type": "approval_preview",
+    "operation_type": "approval_gated",
+    "execution_posture": "approval_preview",
+    "side_effect_level": "approval_required",
     "implementation_fit": {
       "category": "custom_service_logic",
       "rationale": "ANIP can expose and govern this capability, but the service still needs domain/backend implementation logic."
     },
     "business_effects": {
       "produces": [
-        "content.draft",
-        "content.recommendation"
+        "approval.request",
+        "system.preview_mutation",
+        "content.draft"
       ],
       "does_not_produce": [
         "external_dispatch",
-        "system.mutation"
+        "system.mutation",
+        "approval.execute",
+        "raw_data_export"
       ]
     },
-    "backend_operation": "gtm.prioritized_outreach_draft",
-    "path_template": "/gtm/prioritized-outreach-draft",
-    "output_shape": "gtm_prioritized_outreach_draft_result",
-    "subject_kind": "sales user or account manager",
-    "context_type": "cohort and optional ownership scope",
-    "output_intent": "prioritized outreach drafting",
+    "backend_operation": "gtm.bottleneck_account_outreach_draft",
+    "path_template": "/gtm/bottleneck-account-outreach-draft",
+    "output_shape": "gtm_outreach_draft_preview",
+    "subject_kind": "outreach",
+    "context_type": "target_scope",
+    "output_intent": "Select or accept a bounded bottleneck target draft outreach and stop at approval.",
     "minimum_scope": [
-      "gtm.prioritized_outreach_draft"
+      "gtm.bottleneck_account_outreach_draft"
     ],
     "required_inputs": [
       {
-        "input_name": "cohort_ref",
+        "input_name": "quarter",
         "input_type": "string",
         "required": true,
-        "summary": "Account cohort to prioritize, such as expansion_candidates_q2",
+        "summary": "Quarter label like 2017-Q2",
         "default_value": "",
-        "allowed_values": [
-          "expansion_candidates_q2",
-          "at_risk_q2"
-        ],
-        "semantic_type": "cohort_reference",
-        "catalog_ref": "gtm.cohort_catalog",
+        "semantic_type": "time_scope",
+        "clarification_hint": "Ask which quarter to use for bottleneck-based outreach drafting.",
         "resolution": {
-          "mode": "closed_values",
+          "mode": "clarify",
           "on_missing": "clarify",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
@@ -2467,37 +3272,28 @@ public static class GeneratedRuntimeTarget
     ],
     "optional_inputs": [
       {
-        "input_name": "ranking_basis",
+        "input_name": "target_ref",
         "input_type": "string",
         "required": false,
-        "summary": "Priority ranking basis",
-        "default_value": "deal_likelihood",
-        "allowed_values": [
-          "deal_likelihood"
-        ],
+        "summary": "Optional explicit account selected from the bottleneck review; omit when the request asks the provider to select the top candidate before the approval boundary.",
+        "default_value": "",
+        "semantic_type": "entity_reference",
+        "clarification_hint": "Ask for a specific account only when the request is a direct draft request rather than a bottleneck-derived provider selection.",
+        "entity_reference": true,
+        "catalog_ref": "gtm.account_catalog",
         "resolution": {
-          "mode": "closed_values",
-          "on_missing": "use_default",
+          "mode": "backend_resolved",
+          "resolver_ref": "gtm.account_catalog",
+          "on_missing": "omit",
           "on_ambiguous": "clarify",
           "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "limit",
-        "input_type": "integer",
-        "required": false,
-        "summary": "Maximum accounts to consider before drafting",
-        "default_value": "",
-        "resolution": {
-          "mode": "explicit_only",
-          "on_missing": "omit"
         }
       },
       {
         "input_name": "owner_scope",
         "input_type": "string",
         "required": false,
-        "summary": "Regional office or company",
+        "summary": "Regional office, team, owner, or company-wide scope",
         "default_value": "",
         "semantic_type": "scope_reference",
         "resolution": {
@@ -2549,528 +3345,23 @@ public static class GeneratedRuntimeTarget
         "required": false,
         "summary": "Target persona or audience",
         "default_value": "",
+        "semantic_type": "audience_reference",
+        "entity_reference": true,
         "resolution": {
           "mode": "explicit_only",
-          "on_missing": "omit"
+          "on_missing": "omit",
+          "on_ambiguous": "clarify",
+          "on_unresolved": "clarify"
         }
       }
     ],
     "sample_parameters": {
       "channel": "email",
-      "cohort_ref": "expansion_candidates_q2",
-      "limit": 1,
       "objective": "first_touch",
       "owner_scope": "owner_scope-value",
       "persona": "persona-value",
-      "ranking_basis": "deal_likelihood"
-    },
-    "backend_input_mode": "implicit",
-    "derived_required_backend_inputs": [],
-    "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [],
-    "explicit_optional_backend_inputs": [],
-    "backend_bindings": [],
-    "governance": {
-      "approval_rule_refs": [],
-      "denial_rule_refs": [],
-      "clarification_rule_refs": [],
-      "audit_required": false
-    },
-    "outbound_controls": {}
-  },
-  {
-    "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
-    "capability_id": "gtm.at_risk_followup_preparation",
-    "title": "Gtm.At Risk Followup Preparation",
-    "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation.",
-    "kind": "composed",
-    "composition": {
-      "authority_boundary": "same_service",
-      "steps": [
-        {
-          "id": "account_risk_summary",
-          "capability": "gtm.account_risk_summary",
-          "empty_result_source": true
-        },
-        {
-          "id": "prepare_followup_tasks",
-          "capability": "gtm.prepare_followup_tasks"
-        }
-      ],
-      "input_mapping": {
-        "account_risk_summary": {
-          "limit": "$.input.limit",
-          "owner_scope": "$.input.owner_scope",
-          "quarter": "$.input.quarter",
-          "ranking_basis": "$.input.ranking_basis"
-        },
-        "prepare_followup_tasks": {
-          "limit": "$.input.limit",
-          "owner_scope": "$.input.owner_scope",
-          "quarter": "$.input.quarter",
-          "ranking_basis": "$.input.ranking_basis"
-        }
-      },
-      "output_mapping": {
-        "result": "$.steps.prepare_followup_tasks.output.result"
-      },
-      "empty_result_policy": "return_success_no_results",
-      "empty_result_output": {
-        "empty": true,
-        "result": null
-      },
-      "failure_policy": {
-        "child_clarification": "propagate",
-        "child_denial": "propagate",
-        "child_approval_required": "propagate",
-        "child_error": "fail_parent"
-      },
-      "audit_policy": {
-        "record_child_invocations": true,
-        "parent_task_lineage": true
-      }
-    },
-    "grant_policy": {
-      "allowed_grant_types": [
-        "one_time",
-        "session_bound"
-      ],
-      "default_grant_type": "one_time",
-      "expires_in_seconds": 900,
-      "max_uses": 1
-    },
-    "intent_type": "business_action",
-    "operation_type": "approval_gated",
-    "execution_posture": "business_action",
-    "side_effect_level": "approval_required",
-    "implementation_fit": {
-      "category": "native_anip",
-      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
-    },
-    "business_effects": {
-      "produces": [
-        "content.summary",
-        "approval.request",
-        "system.preview_mutation"
-      ],
-      "does_not_produce": [
-        "raw_data_export",
-        "approval.execute"
-      ]
-    },
-    "backend_operation": "gtm.at_risk_followup_preparation",
-    "path_template": "/gtm/at-risk-followup-preparation",
-    "output_shape": "gtm_at_risk_followup_preparation_result",
-    "subject_kind": "authorized GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "operational preview",
-    "minimum_scope": [
-      "gtm.at_risk_followup_preparation"
-    ],
-    "required_inputs": [
-      {
-        "input_name": "quarter",
-        "input_type": "string",
-        "required": true,
-        "summary": "Quarter label like 2017-Q2",
-        "default_value": "",
-        "semantic_type": "time_scope",
-        "resolution": {
-          "mode": "clarify",
-          "on_missing": "clarify",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "ranking_basis",
-        "input_type": "string",
-        "required": true,
-        "summary": "Risk ranking basis",
-        "default_value": "risk_score",
-        "allowed_values": [
-          "risk_score"
-        ],
-        "resolution": {
-          "mode": "closed_values",
-          "on_missing": "use_default",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      }
-    ],
-    "optional_inputs": [
-      {
-        "input_name": "owner_scope",
-        "input_type": "string",
-        "required": false,
-        "summary": "Regional office or company",
-        "default_value": "",
-        "semantic_type": "scope_reference",
-        "resolution": {
-          "mode": "actor_policy_or_explicit",
-          "on_missing": "use_actor_scope",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "limit",
-        "input_type": "integer",
-        "required": false,
-        "summary": "Maximum accounts to return",
-        "default_value": "",
-        "resolution": {
-          "mode": "explicit_only",
-          "on_missing": "omit"
-        }
-      }
-    ],
-    "sample_parameters": {
-      "limit": 1,
-      "owner_scope": "owner_scope-value",
       "quarter": "quarter-value",
-      "ranking_basis": "risk_score"
-    },
-    "backend_input_mode": "implicit",
-    "derived_required_backend_inputs": [],
-    "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [],
-    "explicit_optional_backend_inputs": [],
-    "backend_bindings": [],
-    "governance": {
-      "approval_rule_refs": [],
-      "denial_rule_refs": [],
-      "clarification_rule_refs": [],
-      "audit_required": false
-    },
-    "outbound_controls": {}
-  },
-  {
-    "service_id": "gtm-pipeline-service",
-    "service_name": "Pipeline Service",
-    "capability_id": "gtm.at_risk_reassignment_preparation",
-    "title": "Gtm.At Risk Reassignment Preparation",
-    "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation.",
-    "kind": "composed",
-    "composition": {
-      "authority_boundary": "same_service",
-      "steps": [
-        {
-          "id": "account_risk_summary",
-          "capability": "gtm.account_risk_summary",
-          "empty_result_source": true
-        },
-        {
-          "id": "prepare_reassignment_plan",
-          "capability": "gtm.prepare_reassignment_plan"
-        }
-      ],
-      "input_mapping": {
-        "account_risk_summary": {
-          "limit": "$.input.limit",
-          "owner_scope": "$.input.owner_scope",
-          "quarter": "$.input.quarter",
-          "ranking_basis": "$.input.ranking_basis"
-        },
-        "prepare_reassignment_plan": {
-          "limit": "$.input.limit",
-          "owner_scope": "$.input.owner_scope",
-          "quarter": "$.input.quarter"
-        }
-      },
-      "output_mapping": {
-        "result": "$.steps.prepare_reassignment_plan.output.result"
-      },
-      "empty_result_policy": "return_success_no_results",
-      "empty_result_output": {
-        "empty": true,
-        "result": null
-      },
-      "failure_policy": {
-        "child_clarification": "propagate",
-        "child_denial": "propagate",
-        "child_approval_required": "propagate",
-        "child_error": "fail_parent"
-      },
-      "audit_policy": {
-        "record_child_invocations": true,
-        "parent_task_lineage": true
-      }
-    },
-    "grant_policy": {
-      "allowed_grant_types": [
-        "one_time",
-        "session_bound"
-      ],
-      "default_grant_type": "one_time",
-      "expires_in_seconds": 900,
-      "max_uses": 1
-    },
-    "intent_type": "business_action",
-    "operation_type": "approval_gated",
-    "execution_posture": "business_action",
-    "side_effect_level": "approval_required",
-    "implementation_fit": {
-      "category": "native_anip",
-      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
-    },
-    "business_effects": {
-      "produces": [
-        "content.summary",
-        "approval.request",
-        "system.preview_mutation"
-      ],
-      "does_not_produce": [
-        "raw_data_export",
-        "approval.execute"
-      ]
-    },
-    "backend_operation": "gtm.at_risk_reassignment_preparation",
-    "path_template": "/gtm/at-risk-reassignment-preparation",
-    "output_shape": "gtm_at_risk_reassignment_preparation_result",
-    "subject_kind": "authorized GTM operator",
-    "context_type": "quarter and optional owner scope",
-    "output_intent": "operational preview",
-    "minimum_scope": [
-      "gtm.at_risk_reassignment_preparation"
-    ],
-    "required_inputs": [
-      {
-        "input_name": "quarter",
-        "input_type": "string",
-        "required": true,
-        "summary": "Quarter label like 2017-Q2",
-        "default_value": "",
-        "semantic_type": "time_scope",
-        "resolution": {
-          "mode": "clarify",
-          "on_missing": "clarify",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "ranking_basis",
-        "input_type": "string",
-        "required": true,
-        "summary": "Risk ranking basis",
-        "default_value": "risk_score",
-        "allowed_values": [
-          "risk_score"
-        ],
-        "resolution": {
-          "mode": "closed_values",
-          "on_missing": "use_default",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      }
-    ],
-    "optional_inputs": [
-      {
-        "input_name": "owner_scope",
-        "input_type": "string",
-        "required": false,
-        "summary": "Regional office or company",
-        "default_value": "",
-        "semantic_type": "scope_reference",
-        "resolution": {
-          "mode": "actor_policy_or_explicit",
-          "on_missing": "use_actor_scope",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "limit",
-        "input_type": "integer",
-        "required": false,
-        "summary": "Maximum accounts to return",
-        "default_value": "",
-        "resolution": {
-          "mode": "explicit_only",
-          "on_missing": "omit"
-        }
-      }
-    ],
-    "sample_parameters": {
-      "limit": 1,
-      "owner_scope": "owner_scope-value",
-      "quarter": "quarter-value",
-      "ranking_basis": "risk_score"
-    },
-    "backend_input_mode": "implicit",
-    "derived_required_backend_inputs": [],
-    "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [],
-    "explicit_optional_backend_inputs": [],
-    "backend_bindings": [],
-    "governance": {
-      "approval_rule_refs": [],
-      "denial_rule_refs": [],
-      "clarification_rule_refs": [],
-      "audit_required": false
-    },
-    "outbound_controls": {}
-  },
-  {
-    "service_id": "gtm-prioritization-service",
-    "service_name": "Prioritization Service",
-    "capability_id": "gtm.prioritized_routing_preparation",
-    "title": "Gtm.Prioritized Routing Preparation",
-    "summary": "Compose gtm.prioritize_accounts -\u003e gtm.route_leads when the requested business action needs derived targets before governed preparation.",
-    "kind": "composed",
-    "composition": {
-      "authority_boundary": "same_service",
-      "steps": [
-        {
-          "id": "prioritize_accounts",
-          "capability": "gtm.prioritize_accounts",
-          "empty_result_source": true
-        },
-        {
-          "id": "route_leads",
-          "capability": "gtm.route_leads"
-        }
-      ],
-      "input_mapping": {
-        "prioritize_accounts": {
-          "cohort_ref": "$.input.cohort_ref",
-          "limit": "$.input.limit",
-          "owner_scope": "$.input.owner_scope",
-          "ranking_basis": "$.input.ranking_basis"
-        },
-        "route_leads": {
-          "cohort_ref": "$.input.cohort_ref",
-          "owner_scope": "$.input.owner_scope"
-        }
-      },
-      "output_mapping": {
-        "result": "$.steps.route_leads.output.result"
-      },
-      "empty_result_policy": "return_success_no_results",
-      "empty_result_output": {
-        "empty": true,
-        "result": null
-      },
-      "failure_policy": {
-        "child_clarification": "propagate",
-        "child_denial": "propagate",
-        "child_approval_required": "propagate",
-        "child_error": "fail_parent"
-      },
-      "audit_policy": {
-        "record_child_invocations": true,
-        "parent_task_lineage": true
-      }
-    },
-    "grant_policy": {
-      "allowed_grant_types": [
-        "one_time",
-        "session_bound"
-      ],
-      "default_grant_type": "one_time",
-      "expires_in_seconds": 900,
-      "max_uses": 1
-    },
-    "intent_type": "business_action",
-    "operation_type": "approval_gated",
-    "execution_posture": "business_action",
-    "side_effect_level": "approval_required",
-    "implementation_fit": {
-      "category": "native_anip",
-      "rationale": "Represented as a declared contract-level composed business capability. Child handlers may still require service implementation."
-    },
-    "business_effects": {
-      "produces": [
-        "content.recommendation",
-        "approval.request",
-        "system.preview_mutation"
-      ],
-      "does_not_produce": [
-        "approval.execute"
-      ]
-    },
-    "backend_operation": "gtm.prioritized_routing_preparation",
-    "path_template": "/gtm/prioritized-routing-preparation",
-    "output_shape": "gtm_prioritized_routing_preparation_result",
-    "subject_kind": "rev ops manager or sales leader",
-    "context_type": "cohort and optional ownership scope",
-    "output_intent": "routing preview",
-    "minimum_scope": [
-      "gtm.prioritized_routing_preparation"
-    ],
-    "required_inputs": [
-      {
-        "input_name": "cohort_ref",
-        "input_type": "string",
-        "required": true,
-        "summary": "Account cohort; map phrases like expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2",
-        "default_value": "",
-        "allowed_values": [
-          "expansion_candidates_q2",
-          "at_risk_q2"
-        ],
-        "semantic_type": "cohort_reference",
-        "catalog_ref": "gtm.cohort_catalog",
-        "resolution": {
-          "mode": "closed_values",
-          "on_missing": "clarify",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      }
-    ],
-    "optional_inputs": [
-      {
-        "input_name": "ranking_basis",
-        "input_type": "string",
-        "required": false,
-        "summary": "Priority ranking basis",
-        "default_value": "deal_likelihood",
-        "allowed_values": [
-          "deal_likelihood"
-        ],
-        "resolution": {
-          "mode": "closed_values",
-          "on_missing": "use_default",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      },
-      {
-        "input_name": "limit",
-        "input_type": "integer",
-        "required": false,
-        "summary": "Maximum accounts to return",
-        "default_value": "",
-        "resolution": {
-          "mode": "explicit_only",
-          "on_missing": "omit"
-        }
-      },
-      {
-        "input_name": "owner_scope",
-        "input_type": "string",
-        "required": false,
-        "summary": "Actor-safe ownership scope",
-        "default_value": "",
-        "semantic_type": "scope_reference",
-        "resolution": {
-          "mode": "actor_policy_or_explicit",
-          "on_missing": "use_actor_scope",
-          "on_ambiguous": "clarify",
-          "on_unresolved": "clarify"
-        }
-      }
-    ],
-    "sample_parameters": {
-      "cohort_ref": "expansion_candidates_q2",
-      "limit": 1,
-      "owner_scope": "owner_scope-value",
-      "ranking_basis": "deal_likelihood"
+      "target_ref": "target_ref-value"
     },
     "backend_input_mode": "implicit",
     "derived_required_backend_inputs": [],

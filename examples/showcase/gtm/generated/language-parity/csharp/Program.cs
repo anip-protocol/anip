@@ -4,7 +4,7 @@ using Anip.Mcp.AspNetCore;
 using Anip.Rest.AspNetCore;
 using Anip.Service;
 using System.Text.Json;
-using GTMOperatorContract20260512235040;
+using GTMPipelineQ2Review;
 
 var builder = WebApplication.CreateBuilder(args);
 var bindUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
@@ -14,7 +14,7 @@ var bindUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
 builder.WebHost.UseUrls(bindUrl);
 
 var apiKeys = ApiKeys();
-var serviceId = Environment.GetEnvironmentVariable("ANIP_SERVICE_ID") ?? "GTM Operator Contract 20260512235040";
+var serviceId = Environment.GetEnvironmentVariable("ANIP_SERVICE_ID") ?? "GTM Pipeline Q2 Review";
 var serviceFilter = Environment.GetEnvironmentVariable("ANIP_SERVICE_FILTER") ?? serviceId;
 
 var service = new AnipService(new ServiceConfig

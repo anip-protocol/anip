@@ -14,6 +14,23 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded enrichment context without exporting raw rows.",
+      "required_context": [
+        {
+          "input": "account_names",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.account_risk_summary": {
@@ -29,6 +46,36 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded account risk evidence without exporting raw rows.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk score"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.at_risk_account_enrichment_summary": {
@@ -44,6 +91,32 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Compose at-risk account selection with bounded enrichment context.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk score"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.at_risk_followup_preparation": {
@@ -72,6 +145,36 @@
           "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Compose at-risk account selection with follow-up preparation and stop at approval.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk score"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.at_risk_reassignment_preparation": {
@@ -100,6 +203,36 @@
           "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Compose at-risk account selection with reassignment preparation and stop at approval.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk score"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.bottleneck_account_outreach_draft": {
@@ -108,6 +241,7 @@
         "unsupported_effects": [
           "approval.execute",
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ]
       },
@@ -123,6 +257,7 @@
         "does_not_produce": [
           "approval.execute",
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ],
         "produces": [
@@ -130,23 +265,95 @@
           "content.draft",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Select or accept a bounded bottleneck target draft outreach and stop at approval without sending or changing backend state.",
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call follow up",
+          "email": "email",
+          "linkedin": "linkedin"
+        },
+        "objective": {
+          "first_touch": "first touch",
+          "follow_up": "follow up",
+          "revive_stalled": "revive stalled"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "persona",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
       }
     },
     "gtm.draft_outreach_message": {
       "app_boundaries": {
         "unsupported_effects": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ]
       },
       "business_effects": {
         "does_not_produce": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ],
         "produces": [
           "content.draft"
         ]
+      },
+      "capability_framing": "Draft outreach content without sending messages changing backend state or exporting raw source content.",
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call follow up",
+          "email": "email",
+          "linkedin": "linkedin"
+        },
+        "objective": {
+          "first_touch": "first touch",
+          "follow_up": "follow up",
+          "revive_stalled": "revive stalled"
+        }
+      },
+      "required_context": [
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "objective",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "persona",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
       }
     },
     "gtm.lookalike_accounts": {
@@ -162,24 +369,70 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded lookalike account evidence without exporting raw rows.",
+      "required_context": [
+        {
+          "input": "reference_account",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.objection_response_variants": {
       "app_boundaries": {
         "unsupported_effects": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ]
       },
       "business_effects": {
         "does_not_produce": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ],
         "produces": [
-          "content.draft",
-          "content.recommendation"
+          "content.draft"
         ]
+      },
+      "capability_framing": "Draft objection response variants without sending messages changing backend state or exporting raw source content.",
+      "input_meanings": {
+        "objection_theme": {
+          "competitor": "competitor",
+          "implementation_risk": "implementation risk",
+          "pricing": "pricing"
+        }
+      },
+      "required_context": [
+        {
+          "input": "objection_theme",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "persona",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
       }
     },
     "gtm.pipeline_forecast_summary": {
@@ -195,6 +448,34 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded forecast evidence without exporting raw rows.",
+      "input_meanings": {
+        "forecast_mode": {
+          "best_case": "best case",
+          "likely": "likely",
+          "risk_adjusted": "risk adjusted"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.pipeline_summary": {
@@ -210,13 +491,37 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded pipeline health evidence without exporting raw rows.",
+      "input_meanings": {
+        "detail_level": {
+          "stage_breakdown": "stage breakdown",
+          "summary": "summary"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.prepare_followup_tasks": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export"
         ]
       },
       "approval": {
@@ -229,19 +534,52 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export"
         ],
         "produces": [
           "approval.request",
+          "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Prepare follow-up task preview and stop at approval.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk score"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.prepare_reassignment_plan": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export"
         ]
       },
       "approval": {
@@ -254,53 +592,163 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export"
         ],
         "produces": [
           "approval.request",
+          "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Prepare reassignment preview and stop at approval.",
+      "input_meanings": {
+        "selection_basis": {
+          "manager_capacity": "manager capacity",
+          "stalled_risk_mix": "stalled risk mix"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.prioritize_accounts": {
       "app_boundaries": {
         "unsupported_effects": [
-          "raw_data_export"
+          "raw_data_export",
+          "raw_model_features"
         ]
       },
       "business_effects": {
         "does_not_produce": [
-          "raw_data_export"
+          "raw_data_export",
+          "raw_model_features"
         ],
         "produces": [
           "content.recommendation",
           "content.summary"
         ]
+      },
+      "capability_framing": "Prioritize a bounded account cohort with explainable rationale without exposing raw model features.",
+      "input_meanings": {
+        "cohort_ref": {
+          "at_risk_q2": "at risk q2",
+          "expansion_candidates_q2": "expansion candidates q2"
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal likelihood"
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show recommendations or variants with concise rationale."
       }
     },
     "gtm.prioritized_outreach_draft": {
       "app_boundaries": {
         "unsupported_effects": [
+          "approval.execute",
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ]
       },
       "business_effects": {
         "does_not_produce": [
+          "approval.execute",
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ],
         "produces": [
-          "content.draft",
-          "content.recommendation"
+          "content.draft"
         ]
+      },
+      "capability_framing": "Prioritize a bounded account cohort and produce draft outreach content only without sending or changing backend state.",
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call follow up",
+          "email": "email",
+          "linkedin": "linkedin"
+        },
+        "cohort_ref": {
+          "at_risk_q2": "at risk q2",
+          "expansion_candidates_q2": "expansion candidates q2"
+        },
+        "objective": {
+          "first_touch": "first touch",
+          "follow_up": "follow up",
+          "revive_stalled": "revive stalled"
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal likelihood"
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "persona",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
       }
     },
     "gtm.prioritized_routing_preparation": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "raw_model_features"
         ]
       },
       "approval": {
@@ -313,13 +761,45 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "raw_model_features"
         ],
         "produces": [
           "approval.request",
-          "content.recommendation",
+          "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Compose account prioritization with routing preparation and stop at approval.",
+      "input_meanings": {
+        "cohort_ref": {
+          "at_risk_q2": "at risk q2",
+          "expansion_candidates_q2": "expansion candidates q2"
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal likelihood"
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.product_pipeline_summary": {
@@ -335,6 +815,31 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded product pipeline evidence without exporting raw rows.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "product_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.route_leads": {
@@ -342,8 +847,8 @@
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
           "approval.execute",
-          "external_dispatch",
-          "system.mutation"
+          "raw_data_export",
+          "raw_model_features"
         ]
       },
       "approval": {
@@ -357,15 +862,41 @@
       "business_effects": {
         "does_not_produce": [
           "approval.execute",
-          "external_dispatch",
-          "system.mutation"
+          "raw_data_export",
+          "raw_model_features"
         ],
         "produces": [
           "approval.request",
-          "content.draft",
-          "content.recommendation",
+          "content.summary",
           "system.preview_mutation"
         ]
+      },
+      "capability_framing": "Prepare routing preview and stop at approval.",
+      "input_meanings": {
+        "cohort_ref": {
+          "inbound_last_week": "inbound last week",
+          "webinar_q2": "webinar q2"
+        },
+        "target_queue": {
+          "sales": "sales",
+          "sdr": "sdr"
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.sales_team_performance_summary": {
@@ -381,22 +912,78 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded team performance evidence without exporting raw rows.",
+      "input_meanings": {
+        "slice_by": {
+          "manager_name": "manager name",
+          "regional_office": "regional office"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.score_leads": {
       "app_boundaries": {
         "unsupported_effects": [
-          "raw_data_export"
+          "raw_data_export",
+          "raw_model_features"
         ]
       },
       "business_effects": {
         "does_not_produce": [
-          "raw_data_export"
+          "raw_data_export",
+          "raw_model_features"
         ],
         "produces": [
           "content.recommendation",
           "content.summary"
         ]
+      },
+      "capability_framing": "Score a bounded lead cohort with explainable rationale without exposing raw model features.",
+      "input_meanings": {
+        "cohort_ref": {
+          "inbound_last_week": "inbound last week",
+          "webinar_q2": "webinar q2"
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show recommendations or variants with concise rationale."
       }
     },
     "gtm.stage_bottleneck_summary": {
@@ -412,6 +999,34 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded bottleneck evidence without exporting raw rows.",
+      "input_meanings": {
+        "slice_by": {
+          "manager_name": "manager name",
+          "product_name": "product name",
+          "regional_office": "regional office"
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.stalled_opportunity_review": {
@@ -427,24 +1042,71 @@
         "produces": [
           "content.summary"
         ]
+      },
+      "capability_framing": "Return bounded stalled opportunity evidence without exporting raw rows.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "min_days_open",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
       }
     },
     "gtm.suggest_followup_content": {
       "app_boundaries": {
         "unsupported_effects": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ]
       },
       "business_effects": {
         "does_not_produce": [
           "external_dispatch",
+          "raw_data_export",
           "system.mutation"
         ],
         "produces": [
-          "content.draft",
-          "content.recommendation"
+          "content.draft"
         ]
+      },
+      "capability_framing": "Suggest follow-up content without sending messages changing backend state or exporting raw source content.",
+      "required_context": [
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "variant_count",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "persona",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
       }
     }
   },

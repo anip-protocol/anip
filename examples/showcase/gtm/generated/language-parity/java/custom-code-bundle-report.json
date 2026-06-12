@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_java_native",
-  "bundle_sha256": "sha256:6b037ef9a46fb62210ca6ae50ab4f323e330b89bba3b5bed37304af8209b2767",
+  "bundle_sha256": "sha256:7bf213fc1102fca59d75ec96b9c0270fb5d84921ba01db3a90d69a27517a91d1",
   "files": [
     {
       "path": "README.md",
@@ -12,29 +12,29 @@
       "substrate": false
     },
     {
-      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/BackendAdapter.java",
-      "sha256": "sha256:fd0da8de42c45bb2af5adaa7e8ab75c4011bef2d14c9125e77adba832791876c",
+      "path": "src/main/java/dev/anip/generated/gtm_pipeline_q2_review/BackendAdapter.java",
+      "sha256": "sha256:d88213ce5a7810a00b30fd207d71cf1f4ecfb857c2042b994d0877a8f9b4ee5d",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 71647,
+      "bytes": 71854,
       "overlaid": true,
       "substrate": false
     },
     {
-      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/GtmApprovalController.java",
-      "sha256": "sha256:b403ba3c446c8d3b218201b4b6cd742b4cb3e2fcef9b73a6588945eba562945a",
+      "path": "src/main/java/dev/anip/generated/gtm_pipeline_q2_review/GtmApprovalController.java",
+      "sha256": "sha256:2df9e9ae52891052f2e0a8c4c45be851ef0e47a23d25b5cda0f51507a20c92ae",
       "seam": "custom_file",
       "mode": "custom_file",
-      "bytes": 2687,
+      "bytes": 2673,
       "overlaid": false,
       "substrate": false
     },
     {
-      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/Policy.java",
-      "sha256": "sha256:303226c9e3dcfb691eceb009c739de30ad3c02cf301db2c56654b0a904ce9196",
+      "path": "src/main/java/dev/anip/generated/gtm_pipeline_q2_review/Policy.java",
+      "sha256": "sha256:f3969de609e84a3f694a903187292e8dc50c50b800bb6045e09f52378aad0211",
       "seam": "policy",
       "mode": "extension_overlay",
-      "bytes": 462,
+      "bytes": 448,
       "overlaid": true,
       "substrate": false
     }

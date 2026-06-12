@@ -1,4 +1,4 @@
-import { ANIPError, defineCapability, type CapabilityDef, type InvocationContext } from "@anip-dev/service";
+import { ANIPError, defineCapability, type CapabilityDef } from "@anip-dev/service";
 import { backendAdapter } from "../runtime/backend-adapter.js";
 import { evaluatePolicy } from "../runtime/policy.js";
 import { generatedCapabilityMetadata, type BackendInvocationPlan, type EffectiveBackendInputContract, type GeneratedBackendBinding, type GeneratedCapabilityRuntimeMetadata } from "./runtime-target.js";
@@ -139,7 +139,7 @@ function inputResolution(value: Record<string, unknown> | undefined) {
   };
 }
 
-async function handleGeneratedCapability(ctx: { rootPrincipal?: string }, capability: GeneratedCapabilityRuntimeMetadata, params: Record<string, unknown>) {
+async function handleGeneratedCapability(ctx: { rootPrincipal?: string; approvalGrant?: string | null }, capability: GeneratedCapabilityRuntimeMetadata, params: Record<string, unknown>) {
   params = applyInputDefaults(capability, params);
   assertRequiredSemanticInputs(capability, params);
   validateInputBehavior(capability, params);
@@ -151,18 +151,18 @@ async function handleGeneratedCapability(ctx: { rootPrincipal?: string }, capabi
     throw new ANIPError("clarification_required", policy.detail || `Clarification required for ${capability.capability_id}.`, policy.resolution || { action: "obtain_binding", recovery_class: "refresh_then_retry" }, false);
   }
   const plan = buildBackendInvocationPlan(capability, params);
-  if (policy.decision === "approval_required") {
+  if (policy.decision === "approval_required" && !ctx.approvalGrant) {
     let preview: Record<string, unknown> = {};
     try {
       const candidatePreview = await backendAdapter.execute(capability, plan, plan.adapter_input, {
         rootPrincipal: ctx.rootPrincipal,
+        approvalGrant: ctx.approvalGrant ?? null,
       });
       preview = candidatePreview && typeof candidatePreview === "object" && !Array.isArray(candidatePreview) ? candidatePreview : {};
-    } catch (err: unknown) {
-      const anipError = err instanceof ANIPError ? err : null;
-      if (!anipError || anipError.errorType !== "approval_required") throw err;
-      const resolutionPreview = anipError.resolution?.preview;
-      const suppliedPreview = anipError.approvalRequired?.preview;
+    } catch (err) {
+      if (!(err instanceof ANIPError) || err.errorType !== "approval_required") throw err;
+      const resolutionPreview = err.resolution?.preview;
+      const suppliedPreview = err.approvalRequired?.preview;
       preview = suppliedPreview && typeof suppliedPreview === "object" && !Array.isArray(suppliedPreview)
         ? suppliedPreview as Record<string, unknown>
         : resolutionPreview && typeof resolutionPreview === "object" && !Array.isArray(resolutionPreview)
@@ -180,6 +180,7 @@ async function handleGeneratedCapability(ctx: { rootPrincipal?: string }, capabi
   }
   return backendAdapter.execute(capability, plan, plan.adapter_input, {
     rootPrincipal: ctx.rootPrincipal,
+    approvalGrant: ctx.approvalGrant ?? null,
   });
 }
 
@@ -237,7 +238,7 @@ export const generatedCapabilities: CapabilityDef[] = generatedCapabilityMetadat
     composition: (capability.composition ?? null) as CapabilityDef["declaration"]["composition"],
     grant_policy: (capability.grant_policy ?? null) as CapabilityDef["declaration"]["grant_policy"],
   },
-  handler: async (ctx: InvocationContext, params: Record<string, unknown>) => handleGeneratedCapability(ctx, capability, params),
+  handler: async (ctx, params) => handleGeneratedCapability(ctx, capability, params),
 }));
 
 export { generatedCapabilityMetadata };

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"generated/gtm-operator-contract-20260512235040/generated"
+	"generated/gtm-pipeline-q2-review/generated"
 )
 
 func issueToken(t *testing.T, ts *httptest.Server, capabilityID string, scope []string) string {

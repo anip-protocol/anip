@@ -6,14 +6,14 @@ import (
 	"slices"
 	"strings"
 
-	"generated/gtm-operator-contract-20260512235040/extensions"
-	"generated/gtm-operator-contract-20260512235040/generated"
+	"generated/gtm-pipeline-q2-review/extensions"
+	"generated/gtm-pipeline-q2-review/generated"
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
 type activeBackendSelection struct {
-	BackendKind   string `json:"backend_kind"`
+	BackendKind string `json:"backend_kind"`
 	ConnectionRef string `json:"connection_ref"`
 }
 
@@ -68,11 +68,16 @@ func buildCapabilityDef(capability generated.GeneratedCapabilityRuntimeMetadata)
 				return nil, core.NewANIPError("clarification_required", firstNonEmpty(policy.Detail, "Clarification required for "+capability.CapabilityID+".")).WithResolution("obtain_binding")
 			}
 			plan := buildBackendInvocationPlan(capability, params)
-			if policy.Decision == "approval_required" {
+			approvalGrant := ""
+			if ctx != nil {
+				approvalGrant = ctx.ApprovalGrant
+			}
+			if policy.Decision == "approval_required" && approvalGrant == "" {
 				return nil, core.NewANIPError("approval_required", firstNonEmpty(policy.Detail, "Approval required for "+capability.CapabilityID+".")).WithResolution("request_approval")
 			}
 			return extensions.BackendAdapterInstance.Execute(capability, plan, plan.AdapterInput, extensions.BackendInvocationContext{
 				RootPrincipal: rootPrincipal,
+				ApprovalGrant: approvalGrant,
 			})
 		},
 	}
@@ -82,58 +87,58 @@ func buildCapabilityDeclaration(capability generated.GeneratedCapabilityRuntimeM
 	inputs := make([]core.CapabilityInput, 0, len(capability.RequiredInputs)+len(capability.OptionalInputs))
 	for _, input := range capability.RequiredInputs {
 		inputs = append(inputs, core.CapabilityInput{
-			Name:            input.InputName,
-			Type:            firstNonEmpty(input.InputType, "string"),
-			Required:        true,
-			Default:         defaultValue(input.DefaultValue),
-			Description:     firstNonEmpty(input.Summary, input.InputName),
-			SemanticType:    optionalString(input.SemanticType),
+			Name: input.InputName,
+			Type: firstNonEmpty(input.InputType, "string"),
+			Required: true,
+			Default: defaultValue(input.DefaultValue),
+			Description: firstNonEmpty(input.Summary, input.InputName),
+			SemanticType: optionalString(input.SemanticType),
 			EntityReference: input.EntityReference,
-			AllowedValues:   input.AllowedValues,
-			CatalogRef:      optionalString(input.CatalogRef),
-			Resolution:      input.Resolution,
+			AllowedValues: input.AllowedValues,
+			CatalogRef: optionalString(input.CatalogRef),
+			Resolution: input.Resolution,
 		})
 	}
 	for _, input := range capability.OptionalInputs {
 		inputs = append(inputs, core.CapabilityInput{
-			Name:            input.InputName,
-			Type:            firstNonEmpty(input.InputType, "string"),
-			Required:        false,
-			Default:         defaultValue(input.DefaultValue),
-			Description:     firstNonEmpty(input.Summary, input.InputName),
-			SemanticType:    optionalString(input.SemanticType),
+			Name: input.InputName,
+			Type: firstNonEmpty(input.InputType, "string"),
+			Required: false,
+			Default: defaultValue(input.DefaultValue),
+			Description: firstNonEmpty(input.Summary, input.InputName),
+			SemanticType: optionalString(input.SemanticType),
 			EntityReference: input.EntityReference,
-			AllowedValues:   input.AllowedValues,
-			CatalogRef:      optionalString(input.CatalogRef),
-			Resolution:      input.Resolution,
+			AllowedValues: input.AllowedValues,
+			CatalogRef: optionalString(input.CatalogRef),
+			Resolution: input.Resolution,
 		})
 	}
 	return core.CapabilityDeclaration{
-		Name:            capability.CapabilityID,
-		Description:     capability.Summary,
+		Name: capability.CapabilityID,
+		Description: capability.Summary,
 		ContractVersion: "1.0",
-		Inputs:          inputs,
+		Inputs: inputs,
 		Output: core.CapabilityOutput{
-			Type:   firstNonEmpty(capability.OutputShape, "governed_result"),
+			Type: firstNonEmpty(capability.OutputShape, "governed_result"),
 			Fields: []string{"execution_status", "capability_id", "semantic_input"},
 		},
 		SideEffect: core.SideEffect{
-			Type:           sideEffectType(capability.SideEffectLevel),
+			Type: sideEffectType(capability.SideEffectLevel),
 			RollbackWindow: rollbackWindow(capability.SideEffectLevel),
 		},
-		MinimumScope:        capability.MinimumScope,
-		Requires:            []core.CapabilityRequirement{},
-		ComposesWith:        []core.CapabilityComposition{},
-		Session:             &core.SessionInfo{Type: "stateless"},
-		ResponseModes:       []string{"unary"},
-		RequiresBinding:     []core.BindingRequirement{},
+		MinimumScope: capability.MinimumScope,
+		Requires: []core.CapabilityRequirement{},
+		ComposesWith: []core.CapabilityComposition{},
+		Session: &core.SessionInfo{Type: "stateless"},
+		ResponseModes: []string{"unary"},
+		RequiresBinding: []core.BindingRequirement{},
 		ControlRequirements: []core.ControlRequirement{},
-		RefreshVia:          []string{},
-		VerifyVia:           []string{},
-		CrossService:        nil,
-		Kind:                declarationKind(capability),
-		Composition:         declarationComposition(capability),
-		GrantPolicy:         decodeGrantPolicy(capability.GrantPolicy),
+		RefreshVia: []string{},
+		VerifyVia: []string{},
+		CrossService: nil,
+		Kind: declarationKind(capability),
+		Composition: declarationComposition(capability),
+		GrantPolicy: decodeGrantPolicy(capability.GrantPolicy),
 	}
 }
 
@@ -194,7 +199,7 @@ func rollbackWindow(sideEffectLevel string) string {
 		return "not_applicable"
 	case "irreversible":
 		return "none"
-	default:
+default:
 		return "PT15M"
 	}
 }
@@ -206,12 +211,8 @@ func effectiveBackendInputContract(capability generated.GeneratedCapabilityRunti
 	}
 	derivedRequired := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string { return binding.DerivedRequiredBackendInputs }, capability.DerivedRequiredBackendInputs)
 	derivedOptional := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string { return binding.DerivedOptionalBackendInputs }, capability.DerivedOptionalBackendInputs)
-	explicitRequired := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string {
-		return binding.ExplicitRequiredBackendInputs
-	}, capability.ExplicitRequiredBackendInputs)
-	explicitOptional := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string {
-		return binding.ExplicitOptionalBackendInputs
-	}, capability.ExplicitOptionalBackendInputs)
+	explicitRequired := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string { return binding.ExplicitRequiredBackendInputs }, capability.ExplicitRequiredBackendInputs)
+	explicitOptional := chooseBindingList(selectedBinding, func(binding *generated.GeneratedBackendBinding) []string { return binding.ExplicitOptionalBackendInputs }, capability.ExplicitOptionalBackendInputs)
 	switch mode {
 	case "explicit":
 		required := uniqueStrings(explicitRequired)
@@ -221,7 +222,7 @@ func effectiveBackendInputContract(capability generated.GeneratedCapabilityRunti
 		required := uniqueStrings(append(append([]string{}, derivedRequired...), explicitRequired...))
 		optional := exclude(uniqueStrings(append(append([]string{}, derivedOptional...), explicitOptional...)), required)
 		return generated.EffectiveBackendInputContract{Mode: mode, Required: required, Optional: optional}
-	default:
+default:
 		required := uniqueStrings(derivedRequired)
 		optional := exclude(uniqueStrings(derivedOptional), required)
 		return generated.EffectiveBackendInputContract{Mode: "implicit", Required: required, Optional: optional}
@@ -252,12 +253,8 @@ func buildBackendInvocationPlan(capability generated.GeneratedCapabilityRuntimeM
 	selectedBinding := selectBackendBinding(capability)
 	contract := effectiveBackendInputContract(capability, selectedBinding)
 	semanticKeys := map[string]struct{}{}
-	for _, input := range capability.RequiredInputs {
-		semanticKeys[input.InputName] = struct{}{}
-	}
-	for _, input := range capability.OptionalInputs {
-		semanticKeys[input.InputName] = struct{}{}
-	}
+	for _, input := range capability.RequiredInputs { semanticKeys[input.InputName] = struct{}{} }
+	for _, input := range capability.OptionalInputs { semanticKeys[input.InputName] = struct{}{} }
 	semanticInput := map[string]any{}
 	for key, value := range params {
 		if _, ok := semanticKeys[key]; ok {
@@ -265,15 +262,9 @@ func buildBackendInvocationPlan(capability generated.GeneratedCapabilityRuntimeM
 		}
 	}
 	adapterKeys := map[string]struct{}{}
-	for key := range semanticKeys {
-		adapterKeys[key] = struct{}{}
-	}
-	for _, key := range contract.Required {
-		adapterKeys[key] = struct{}{}
-	}
-	for _, key := range contract.Optional {
-		adapterKeys[key] = struct{}{}
-	}
+	for key := range semanticKeys { adapterKeys[key] = struct{}{} }
+	for _, key := range contract.Required { adapterKeys[key] = struct{}{} }
+	for _, key := range contract.Optional { adapterKeys[key] = struct{}{} }
 	adapterInput := map[string]any{}
 	for key, value := range params {
 		if _, ok := adapterKeys[key]; ok {
@@ -287,10 +278,10 @@ func buildBackendInvocationPlan(capability generated.GeneratedCapabilityRuntimeM
 		}
 	}
 	return generated.BackendInvocationPlan{
-		SelectedBinding:                 selectedBinding,
-		SemanticInput:                   semanticInput,
-		AdapterInput:                    adapterInput,
-		BackendInputContract:            contract,
+		SelectedBinding: selectedBinding,
+		SemanticInput: semanticInput,
+		AdapterInput: adapterInput,
+		BackendInputContract: contract,
 		UnresolvedRequiredBackendInputs: unresolved,
 	}
 }

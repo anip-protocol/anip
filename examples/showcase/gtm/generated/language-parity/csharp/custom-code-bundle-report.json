@@ -1,22 +1,22 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_csharp_native",
-  "bundle_sha256": "sha256:2f3df80b56a12e9e7d47f8f277b92bb847690393f76cbe76ddd02346e2b169d9",
+  "bundle_sha256": "sha256:ca3a84e5c1e5734844392030508c82078a00f74b68c9bc7701dad90df1e79d16",
   "files": [
     {
       "path": "BackendAdapter.cs",
-      "sha256": "sha256:6aebb68af5a78be889fbe21f632b539814e2af027be94f6e5fc54a4fe4bc732a",
+      "sha256": "sha256:767ae68bd4ea903510efab1c1798b0eab4e19f064e9edbed35ddb040cd668625",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 51265,
+      "bytes": 51663,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "GtmApprovalController.cs",
-      "sha256": "sha256:2844421032ebd5cf526702846c05addeac206445d3aa4b32bc237e12190b2d89",
+      "sha256": "sha256:286e628e30f5cee388aff790b36244ff09a2724b733e73e33d76922763915c5c",
       "seam": "custom_file",
       "mode": "custom_file",
-      "bytes": 1852,
+      "bytes": 1837,
       "overlaid": false,
       "substrate": false
     },

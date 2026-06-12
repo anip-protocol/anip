@@ -1,6 +1,6 @@
 package extensions
 
-import "generated/gtm-operator-contract-20260512235040/generated"
+import "generated/gtm-pipeline-q2-review/generated"
 
 type PolicyDecision struct {
 	Decision   string

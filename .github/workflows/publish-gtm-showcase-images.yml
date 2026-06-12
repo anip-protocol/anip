@@ -28,22 +28,5 @@ jobs:
         env:
           ANIP_GTM_IMAGE_TAG: ${{ inputs.version }}
           ANIP_GTM_PUSH: "1"
+          ANIP_GTM_TAG_LATEST: ${{ inputs.push_latest && '1' || '0' }}
         run: examples/showcase/gtm/scripts/build-language-parity-images.sh
-
-      - name: Tag and push latest
-        if: inputs.push_latest == true
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          for image in \
-            anipprotocol/showcase-gtm-agent-ui \
-            anipprotocol/showcase-gtm-python \
-            anipprotocol/showcase-gtm-typescript \
-            anipprotocol/showcase-gtm-go \
-            anipprotocol/showcase-gtm-java \
-            anipprotocol/showcase-gtm-csharp; do
-            docker tag "$image:$VERSION" "$image:latest"
-            docker push "$image:latest"
-          done
-

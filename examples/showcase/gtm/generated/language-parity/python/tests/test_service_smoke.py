@@ -3,13 +3,13 @@ import importlib
 import pytest
 from fastapi.testclient import TestClient
 
-from gtm_operator_contract_20260512235040.runtime_target import GENERATED_CAPABILITY_METADATA
+from gtm_pipeline_q2_review.runtime_target import GENERATED_CAPABILITY_METADATA
 
 SERVICE_MODULES = [
-    {"service_id": "gtm-pipeline-service", "module": "gtm_operator_contract_20260512235040.app", "capabilities": ["gtm.pipeline_summary", "gtm.pipeline_forecast_summary", "gtm.stage_bottleneck_summary", "gtm.sales_team_performance_summary", "gtm.product_pipeline_summary", "gtm.stalled_opportunity_review", "gtm.account_risk_summary", "gtm.prepare_followup_tasks", "gtm.prepare_reassignment_plan", "gtm.at_risk_followup_preparation", "gtm.at_risk_reassignment_preparation"]},
-    {"service_id": "gtm-enrichment-service", "module": "gtm_operator_contract_20260512235040.services.gtm_enrichment_service.app", "capabilities": ["gtm.account_enrichment_summary", "gtm.lookalike_accounts", "gtm.at_risk_account_enrichment_summary"]},
-    {"service_id": "gtm-prioritization-service", "module": "gtm_operator_contract_20260512235040.services.gtm_prioritization_service.app", "capabilities": ["gtm.score_leads", "gtm.prioritize_accounts", "gtm.route_leads", "gtm.prioritized_routing_preparation"]},
-    {"service_id": "gtm-outreach-service", "module": "gtm_operator_contract_20260512235040.services.gtm_outreach_service.app", "capabilities": ["gtm.draft_outreach_message", "gtm.suggest_followup_content", "gtm.objection_response_variants", "gtm.bottleneck_account_outreach_draft", "gtm.prioritized_outreach_draft"]},
+    {"service_id": "gtm-pipeline-service", "module": "gtm_pipeline_q2_review.app", "capabilities": ["gtm.pipeline_summary", "gtm.pipeline_forecast_summary", "gtm.stage_bottleneck_summary", "gtm.sales_team_performance_summary", "gtm.product_pipeline_summary", "gtm.stalled_opportunity_review", "gtm.account_risk_summary", "gtm.prepare_followup_tasks", "gtm.prepare_reassignment_plan", "gtm.at_risk_followup_preparation", "gtm.at_risk_reassignment_preparation"]},
+    {"service_id": "gtm-enrichment-service", "module": "gtm_pipeline_q2_review.services.gtm_enrichment_service.app", "capabilities": ["gtm.account_enrichment_summary", "gtm.lookalike_accounts", "gtm.at_risk_account_enrichment_summary"]},
+    {"service_id": "gtm-prioritization-service", "module": "gtm_pipeline_q2_review.services.gtm_prioritization_service.app", "capabilities": ["gtm.score_leads", "gtm.prioritize_accounts", "gtm.route_leads", "gtm.prioritized_routing_preparation"]},
+    {"service_id": "gtm-outreach-service", "module": "gtm_pipeline_q2_review.services.gtm_outreach_service.app", "capabilities": ["gtm.draft_outreach_message", "gtm.suggest_followup_content", "gtm.objection_response_variants", "gtm.prioritized_outreach_draft", "gtm.bottleneck_account_outreach_draft"]},
 ]
 
 def _capability_map(payload: dict) -> dict:

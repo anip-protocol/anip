@@ -78,7 +78,13 @@ def _build_backend_invocation_plan(capability: dict[str, Any], params: dict[str,
     }
 
 def _assert_required_semantic_inputs(capability: dict[str, Any], params: dict[str, Any]) -> None:
-    missing = [item['input_name'] for item in capability.get('required_inputs', []) if not item.get('default_value') and params.get(item['input_name']) in (None, '')]
+    missing = []
+    for item in capability.get('required_inputs', []):
+        resolution = item.get('resolution') or {}
+        if resolution.get("on_missing") in {"app_select_or_clarify"}:
+            continue
+        if not item.get('default_value') and params.get(item['input_name']) in (None, ''):
+            missing.append(item['input_name'])
     if missing:
         raise ANIPError(
             "clarification_required",
@@ -223,7 +229,7 @@ async def _handle_generated_capability(capability: dict[str, Any], ctx: Invocati
     plan = _build_backend_invocation_plan(capability, params)
     if policy.get("decision") == "approval_required":
         raise ANIPError("approval_required", policy.get("detail") or f"Approval required for {capability['capability_id']}.", {"action": "request_approval", "capability_id": capability["capability_id"], "semantic_input": plan["semantic_input"], "backend_input_contract": plan["backend_input_contract"], "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", [])})
-    return await backend_adapter.execute(capability, plan, plan["adapter_input"], {"root_principal": ctx.root_principal, "subject": ctx.subject, "invocation_id": ctx.invocation_id, "client_reference_id": ctx.client_reference_id})
+    return await backend_adapter.execute(capability, plan, plan["adapter_input"], ctx)
 
 def _build_declaration(capability: dict[str, Any]) -> CapabilityDeclaration:
     inputs = [
