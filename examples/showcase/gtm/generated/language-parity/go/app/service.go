@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"generated/gtm-operator-contract-20260512235040/generated"
-	"generated/gtm-operator-contract-20260512235040/host"
+	"generated/gtm-pipeline-q2-review/generated"
+	"generated/gtm-pipeline-q2-review/host"
 	"github.com/anip-protocol/anip/packages/go/httpapi"
 	"github.com/anip-protocol/anip/packages/go/service"
 )

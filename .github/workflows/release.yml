@@ -740,44 +740,8 @@ jobs:
             echo "OK: showcase-$app pushed"
           done
 
-  publish-gtm-showcase-docker:
-    needs: bump-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push GTM showcase images
-        env:
-          ANIP_GTM_IMAGE_TAG: ${{ inputs.version }}
-          ANIP_GTM_PUSH: "1"
-        run: examples/showcase/gtm/scripts/build-language-parity-images.sh
-
-      - name: Tag and push GTM latest images
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -e
-          for image in \
-            anipprotocol/showcase-gtm-agent-ui \
-            anipprotocol/showcase-gtm-python \
-            anipprotocol/showcase-gtm-typescript \
-            anipprotocol/showcase-gtm-go \
-            anipprotocol/showcase-gtm-java \
-            anipprotocol/showcase-gtm-csharp; do
-            docker tag "$image:$VERSION" "$image:latest"
-            docker push "$image:latest"
-          done
-
   release:
-    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-registry-docker, publish-showcase-docker, publish-gtm-showcase-docker]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-registry-docker, publish-showcase-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -935,13 +899,9 @@ jobs:
           # DevOps — infrastructure management
           docker run -p 9100:9100 anipprotocol/showcase-devops:$VERSION
 
-          # GTM Agent — generated ANIP services plus agent UI stack
-          docker pull anipprotocol/showcase-gtm-python:$VERSION
-          docker pull anipprotocol/showcase-gtm-typescript:$VERSION
-          docker pull anipprotocol/showcase-gtm-go:$VERSION
-          docker pull anipprotocol/showcase-gtm-java:$VERSION
-          docker pull anipprotocol/showcase-gtm-csharp:$VERSION
-          docker pull anipprotocol/showcase-gtm-agent-ui:$VERSION
+          # GTM Agent images are published by the dedicated
+          # publish-gtm-showcase-images workflow because their image tag follows
+          # the GTM package version, not the ANIP runtime release version.
           \`\`\`
 
           ---

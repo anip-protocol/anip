@@ -1,4 +1,4 @@
-package dev.anip.generated.gtm_operator_contract_20260512235040;
+package dev.anip.generated.gtm_pipeline_q2_review;
 
 import dev.anip.service.ANIPService;
 import dev.anip.service.ServiceConfig;
@@ -33,7 +33,7 @@ public class Application {
     @Bean
     public ANIPService anipService(BackendAdapter backendAdapter) {
         Map<String, String> apiKeys = apiKeys();
-        String serviceId = System.getenv().getOrDefault("ANIP_SERVICE_ID", "GTM Operator Contract 20260512235040");
+        String serviceId = System.getenv().getOrDefault("ANIP_SERVICE_ID", "GTM Pipeline Q2 Review");
         String serviceFilter = System.getenv().getOrDefault("ANIP_SERVICE_FILTER", serviceId);
 
         return new ANIPService(new ServiceConfig()

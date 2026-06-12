@@ -1,12 +1,12 @@
 [project]
-name = "gtm-operator-contract-20260512235040"
+name = "gtm-pipeline-q2-review"
 version = "0.1.0"
 description = "Generated ANIP Python host with self-contained GTM native implementation"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core==0.24.4",
-    "anip-service==0.24.4",
-    "anip-fastapi==0.24.4",
+    "anip-core==0.24.5",
+    "anip-service==0.24.5",
+    "anip-fastapi==0.24.5",
     "fastapi>=0.115.0",
     "psycopg[binary]>=3.2.0",
     "uvicorn>=0.30.0",
@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["gtm_operator_contract_20260512235040*"]
+include = ["gtm_pipeline_q2_review*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace GTMOperatorContract20260512235040;
+namespace GTMPipelineQ2Review;
 
 public readonly record struct PolicyDecision(string Decision, string? Detail);
 

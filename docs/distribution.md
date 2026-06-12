@@ -243,7 +243,9 @@ Docker image names:
 - `anipprotocol/showcase-gtm-java`
 - `anipprotocol/showcase-gtm-csharp`
 
-The manual GTM image workflow accepts a GTM image tag, usually the GTM package version such as `0.4.3`. The main release workflow also publishes the same image set tagged with the ANIP release version and `latest`.
+The GTM image workflow accepts a GTM image tag, usually the GTM package version such as `0.4.3`, and can optionally move `latest`.
+
+GTM images are intentionally not published by the main ANIP release workflow because their image tag follows the GTM package version, not the ANIP runtime release version.
 
 Smoke:
 
@@ -265,7 +267,7 @@ examples/showcase/*_fronting/registry-packages/
 
 Current first-release set:
 
-- `jira-fronting-showcase@0.2.0`
+- `jira-fronting-showcase@0.2.3`
 - `github-fronting-showcase@0.2.0`
 - `slack-fronting-showcase@0.2.0`
 - `gitlab-fronting-showcase@0.2.0`

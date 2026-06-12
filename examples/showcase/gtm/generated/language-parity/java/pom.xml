@@ -11,14 +11,14 @@
     </parent>
 
     <groupId>dev.anip.generated</groupId>
-    <artifactId>gtm-operator-contract-20260512235040</artifactId>
+    <artifactId>gtm-pipeline-q2-review</artifactId>
     <version>0.1.0</version>
-    <name>Gtm Operator Contract 20260512235040</name>
+    <name>Gtm Pipeline Q2 Review</name>
     <description>Generated ANIP Java host</description>
 
     <properties>
         <java.version>17</java.version>
-        <anip.version>0.24.0</anip.version>
+        <anip.version>0.24.5</anip.version>
     </properties>
 
     <dependencies>
@@ -81,6 +81,7 @@
                                 <source>../../../../../../packages/java/anip-server/src/main/java</source>
                                 <source>../../../../../../packages/java/anip-service/src/main/java</source>
                                 <source>../../../../../../packages/java/anip-spring-boot/src/main/java</source>
+                                <source>../../../../../../packages/java/anip-stdio/src/main/java</source>
                             </sources>
                         </configuration>
                     </execution>

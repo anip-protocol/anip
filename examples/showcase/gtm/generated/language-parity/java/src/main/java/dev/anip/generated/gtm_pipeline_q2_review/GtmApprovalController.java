@@ -1,4 +1,4 @@
-package dev.anip.generated.gtm_operator_contract_20260512235040;
+package dev.anip.generated.gtm_pipeline_q2_review;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -18,6 +18,7 @@ const pool = new Pool({
 
 export type GeneratedBackendInvocationContext = {
   rootPrincipal?: string;
+  approvalGrant?: string | null;
 };
 
 export interface GeneratedBackendAdapter {
@@ -466,7 +467,7 @@ function parseAccountNames(value: unknown): string[] {
     .replace(/^(?:my\s+|our\s+|the\s+)?account\s+/i, "")
     .trim();
   if (Array.isArray(value)) return value.map(normalize).filter(Boolean);
-  if (typeof value === "string") return value.split(",").map(normalize).filter(Boolean);
+  if (typeof value === "string") return value.replace(/\s+\band\b\s+/gi, ",").split(/[;,]/).map(normalize).filter(Boolean);
   return [];
 }
 
@@ -705,7 +706,7 @@ export function createDefaultBackendAdapter(): GeneratedBackendAdapter {
           return completed({ result: { ...prioritized, prioritized_accounts: accounts, selected_target_ref: accounts[0].account_name, draft: draft.result } });
         }
         case "gtm.prioritized_routing_preparation":
-          return routeLeads({ ...params, cohort_ref: params.cohort_ref || "inbound_last_week", target_queue: params.target_queue || "sales" }, actor);
+          return routeLeads({ ...params, target_queue: params.target_queue || "sales" }, actor);
         default:
           fail("temporarily_unavailable", `The TypeScript native GTM bundle has not implemented ${capability.capability_id} yet.`, { action: "complete_native_language_slice", capability_id: capability.capability_id });
       }

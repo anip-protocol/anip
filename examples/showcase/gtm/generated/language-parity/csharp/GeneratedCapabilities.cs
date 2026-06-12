@@ -3,10 +3,11 @@ using Anip.Service;
 using System.Linq;
 using System.Text.Json;
 
-namespace GTMOperatorContract20260512235040;
+namespace GTMPipelineQ2Review;
 
 public static class GeneratedCapabilities
 {
+
     public static List<CapabilityDef> CreateAll(BackendAdapterHandler backendAdapter)
     {
         return CreateAll(backendAdapter, "");
@@ -91,7 +92,7 @@ public static class GeneratedCapabilities
         }
 
         var plan = BuildBackendInvocationPlan(capability, parameters);
-        if (policy.Decision == "approval_required")
+        if (policy.Decision == "approval_required" && string.IsNullOrWhiteSpace(ctx.ApprovalGrant))
         {
             throw new AnipError("approval_required", FirstNonEmpty(policy.Detail, $"Approval required for {StringValue(capability, "capability_id")}.")!).WithResolution("request_approval");
         }

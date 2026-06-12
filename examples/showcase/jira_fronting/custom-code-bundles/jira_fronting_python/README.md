@@ -8,7 +8,7 @@ It is implementation material, not part of the signed ANIP behavior contract. Ge
 go run ./cmd/anip-generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
   --package-id jira-fronting-showcase \
-  --package-version 0.2.0 \
+  --package-version 0.2.3 \
   --target python \
   --transport http,stdio \
   --dependency-source registry \

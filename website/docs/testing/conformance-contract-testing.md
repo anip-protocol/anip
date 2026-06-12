@@ -53,7 +53,7 @@ Use this before generating code from a Registry package or bundle:
 ```bash
 anip verify \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0
+  --package jira-fronting-showcase@0.2.3
 ```
 
 Package verification is not behavior validation. It proves artifact integrity and trust posture.

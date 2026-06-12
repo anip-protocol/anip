@@ -96,7 +96,7 @@ When a showcase claims five-language live adapter parity, it means all five gene
 
 | Showcase | Native backend | Package | Main proof |
 | --- | --- | --- | --- |
-| [Jira](/docs/showcases/fronting-apps/jira) | Jira REST API | `jira-fronting-showcase@0.2.0` | Issue and workflow operations become preview/approval-governed workflows. |
+| [Jira](/docs/showcases/fronting-apps/jira) | Jira REST API | `jira-fronting-showcase@0.2.3` | Issue and workflow operations become preview/approval-governed workflows. |
 | [GitHub](/docs/showcases/fronting-apps/github) | GitHub REST/GraphQL APIs | `github-fronting-showcase@0.2.0` | Repository and delivery operations become repo-scoped, approval-aware capabilities. |
 | [GitLab](/docs/showcases/fronting-apps/gitlab) | GitLab REST/GraphQL APIs | `gitlab-fronting-showcase@0.2.0` | Project, MR, pipeline, and release-note operations are bounded by project policy. |
 | [Slack](/docs/showcases/fronting-apps/slack) | Slack Web API | `slack-fronting-showcase@0.2.0` | Channel reads and sends are controlled through scope, preview, and approval grants. |
@@ -299,7 +299,7 @@ Use the same CLI shape for every fronting showcase. Change the package ID, bundl
 
 ```bash
 anip generate \
-  --package-bundle examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json \
+  --package-bundle examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json \
   --target python \
   --transport http,stdio \
   --custom-code-bundle examples/showcase/jira_fronting/custom-code-bundles/jira_fronting_python \

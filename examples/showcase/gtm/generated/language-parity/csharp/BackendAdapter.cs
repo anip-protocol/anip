@@ -4,8 +4,9 @@ using Npgsql;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
-namespace GTMOperatorContract20260512235040;
+namespace GTMPipelineQ2Review;
 
 public delegate Dictionary<string, object?> BackendAdapterHandler(
     Dictionary<string, object?> capability,
@@ -588,7 +589,8 @@ internal sealed class GtmNativeBackendAdapter
     {
         if (value is IEnumerable<object?> items) return items.Select(Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToList();
         if (value is JsonElement { ValueKind: JsonValueKind.Array } array) return array.EnumerateArray().Select(item => Text(item)).Where(text => !string.IsNullOrWhiteSpace(text)).ToList();
-        return Text(value).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(text => !string.IsNullOrWhiteSpace(text)).ToList();
+        var normalized = Regex.Replace(Text(value), @"\s+\band\b\s+", ",", RegexOptions.IgnoreCase);
+        return normalized.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(text => !string.IsNullOrWhiteSpace(text)).ToList();
     }
 
     private static bool LooksVagueAccountScope(string value)

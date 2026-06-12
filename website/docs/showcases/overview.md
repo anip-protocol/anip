@@ -126,7 +126,7 @@ Fronting showcases demonstrate ANIP as the governed layer in front of existing s
 
 | Showcase | Backend posture | Package |
 | --- | --- | --- |
-| Jira | Native Jira REST API | `jira-fronting-showcase@0.2.0` |
+| Jira | Native Jira REST API | `jira-fronting-showcase@0.2.3` |
 | GitHub | Native GitHub REST/GraphQL APIs | `github-fronting-showcase@0.2.0` |
 | Slack | Native Slack Web API | `slack-fronting-showcase@0.2.0` |
 | GitLab | Native GitLab REST/GraphQL APIs | `gitlab-fronting-showcase@0.2.0` |
@@ -144,7 +144,7 @@ Generate one:
 cd packages/go
 
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json \
+  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json \
   --target python \
   --transport http,stdio \
   --dependency-source registry \

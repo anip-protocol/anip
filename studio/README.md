@@ -34,7 +34,7 @@ To run a published release image instead of tagging local builds as `local`, set
 `ANIP_IMAGE_TAG` before starting Compose:
 
 ```bash
-ANIP_IMAGE_TAG=0.8.0 docker compose up
+ANIP_IMAGE_TAG=0.24.6 docker compose up
 ```
 
 Useful environment switches:

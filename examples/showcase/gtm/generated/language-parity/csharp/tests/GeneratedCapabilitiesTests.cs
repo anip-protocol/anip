@@ -1,7 +1,7 @@
 using Xunit;
-using GTMOperatorContract20260512235040;
+using GTMPipelineQ2Review;
 
-namespace GTMOperatorContract20260512235040.Tests;
+namespace GTMPipelineQ2Review.Tests;
 
 public class GeneratedCapabilitiesTests
 {

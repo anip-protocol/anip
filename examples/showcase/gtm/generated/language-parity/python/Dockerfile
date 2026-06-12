@@ -29,4 +29,4 @@ WORKDIR /repo/examples/showcase/gtm/generated/language-parity/python
 
 EXPOSE 4100
 
-CMD ["uvicorn", "gtm_operator_contract_20260512235040.app:app", "--host", "0.0.0.0", "--port", "4100"]
+CMD ["uvicorn", "gtm_pipeline_q2_review.app:app", "--host", "0.0.0.0", "--port", "4100"]

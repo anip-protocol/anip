@@ -1,49 +1,40 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_go_native",
-  "bundle_sha256": "sha256:69e4aa4f00178460edcbb6afe792e9a58d8df09ce712908067fa64c88e630137",
+  "bundle_sha256": "sha256:a99c1daa07f91b315bf28074bab6c1f26e0597fa4333c1d60c3db1d6bf041993",
   "files": [
     {
       "path": "README.md",
-      "sha256": "sha256:31806c8a6ba2f7c4ddeca9e71a44dd1101caddadfbd8985bfa2cf01e895514dc",
+      "sha256": "sha256:a19547e6f9bfa37707235a1f4a458acc715557b26e6c9b662095aea5fa4a70e9",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 830,
+      "bytes": 742,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "extensions/backend_adapter.go",
-      "sha256": "sha256:90331161a08975312ef2f0ffdea7d81516724de1fe2ae70e3d271095a440cc9b",
+      "sha256": "sha256:375c8352749efa3265a3b7ee0e569483e6d438e74f9ecc02c6e414f01242180e",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 58696,
+      "bytes": 60667,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "extensions/policy.go",
-      "sha256": "sha256:e4414a6ea40e83cda8adb54bd91f8799567712eb5d2f78087cb18facfb3789b8",
+      "sha256": "sha256:334277112ed4e6fbf63183ac143abd61b66b982fa4136d0141d163d115cdcd86",
       "seam": "policy",
       "mode": "extension_overlay",
-      "bytes": 663,
+      "bytes": 649,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "go.mod",
-      "sha256": "sha256:85f4f4d05ef449925dc321e6baed23343a3819a2e3d5b7a0359074a87510a49e",
+      "sha256": "sha256:9e27856b85ebcac5b2b139dda73e0e4d874927f18f69b7d05e57c3f788c25de7",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 259,
-      "overlaid": true,
-      "substrate": false
-    },
-    {
-      "path": "main.go",
-      "sha256": "sha256:2d306d9956adb9c64ed2d151246ecaa2d2263c8b0152657a5ba65526b716787f",
-      "seam": "custom_file",
-      "mode": "extension_overlay",
-      "bytes": 3142,
+      "bytes": 147,
       "overlaid": true,
       "substrate": false
     }

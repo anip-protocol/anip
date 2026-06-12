@@ -16,12 +16,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../GTMOperatorContract20260512235040.csproj" />
+    <ProjectReference Include="../GTMPipelineQ2Review.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../../../../../packages/csharp/src/Anip.Core/Anip.Core.csproj" />
-    <ProjectReference Include="../../../../../../../packages/csharp/src/Anip.Service/Anip.Service.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Core/Anip.Core.csproj" />
+    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Service/Anip.Service.csproj" />
   </ItemGroup>
 
 </Project>

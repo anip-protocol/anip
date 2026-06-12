@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace GTMOperatorContract20260512235040;
+namespace GTMPipelineQ2Review;
 
 [ApiController]
 public sealed class GtmApprovalController : ControllerBase
@@ -45,4 +45,3 @@ public sealed class GtmApprovalController : ControllerBase
         };
     }
 }
-

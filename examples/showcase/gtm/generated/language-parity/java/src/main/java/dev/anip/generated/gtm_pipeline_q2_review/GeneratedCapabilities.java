@@ -1,4 +1,4 @@
-package dev.anip.generated.gtm_operator_contract_20260512235040;
+package dev.anip.generated.gtm_pipeline_q2_review;
 
 import dev.anip.core.ANIPError;
 import dev.anip.core.AuditPolicy;
@@ -126,7 +126,7 @@ public final class GeneratedCapabilities {
         }
 
         Map<String, Object> plan = buildBackendInvocationPlan(capability, params);
-        if ("approval_required".equals(policy.decision())) {
+        if ("approval_required".equals(policy.decision()) && (ctx.getApprovalGrant() == null || ctx.getApprovalGrant().isBlank())) {
             throw new ANIPError("approval_required", firstNonEmpty(policy.detail(), "Approval required for " + stringValue(capability, "capability_id") + ".")).withResolution("request_approval");
         }
         return backendAdapter.execute(capability, plan, objectMap(plan.get("adapter_input")), ctx);

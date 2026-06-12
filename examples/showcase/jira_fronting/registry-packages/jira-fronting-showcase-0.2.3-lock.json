@@ -1,0 +1,56 @@
+{
+  "agent_consumability": {
+    "capability_count": 11,
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_publication_gate": {
+    "detail": "Run the AI Simulator from Agent & App Glue before publishing, or explicitly accept the risk.",
+    "label": "Simulator report missing",
+    "latest_report_artifact_id": null,
+    "overridden": false,
+    "status": "missing"
+  },
+  "agent_consumption_readiness": {
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "info": 0,
+      "probes": 35,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "agent_consumption_simulation": null,
+  "anip_spec_version": "anip/0.24",
+  "blueprint_id": "jira-fronting-showcase",
+  "blueprint_version": "0.2.3",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "extension_packs": [],
+  "generated_at": "2026-06-04T20:14:22.212Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-developer-definition-revision-1",
+      "contract_signature": "2caf110cd3fd6a3763c09454db3ca5d6c0c6a84d03ede134b8a2cfcc0197f29e",
+      "ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-product-design-revision-1",
+      "baseline_locked_at": null,
+      "ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8"
+  },
+  "lock_kind": "publisher_recommended_lock",
+  "regression_packs": [],
+  "runtime_packages": [],
+  "schema_version": "anip-service-definition/v1",
+  "service_definition_digest": "2caf110cd3fd6a3763c09454db3ca5d6c0c6a84d03ede134b8a2cfcc0197f29e",
+  "verifier_packs": [
+    "anip-verifier@local"
+  ]
+}
