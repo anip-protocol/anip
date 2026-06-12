@@ -71,7 +71,7 @@ To run a published release image instead of tagging the build as `local`, set
 `ANIP_IMAGE_TAG`:
 
 ```bash
-ANIP_IMAGE_TAG=0.8.0 docker compose up
+ANIP_IMAGE_TAG=0.24.5 docker compose up
 ```
 
 The compose stack defaults to development signing mode and a local publish token:

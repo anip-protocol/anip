@@ -133,7 +133,7 @@ Current fronting packages:
 
 | Package | Backend posture |
 | --- | --- |
-| `jira-fronting-showcase@0.2.0` | Native Jira REST API |
+| `jira-fronting-showcase@0.2.3` | Native Jira REST API |
 | `github-fronting-showcase@0.2.0` | Native GitHub REST/GraphQL APIs |
 | `slack-fronting-showcase@0.2.0` | Native Slack Web API |
 | `gitlab-fronting-showcase@0.2.0` | Native GitLab REST/GraphQL APIs |

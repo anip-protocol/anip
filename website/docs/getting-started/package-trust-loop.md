@@ -25,9 +25,9 @@ For examples and local smoke testing:
 ```bash
 cd packages/go
 go run ./cmd/anip package build-local \
-  --definition ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0-service-definition.json \
+  --definition ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json \
   --package-id jira-fronting-showcase \
-  --package-version 0.2.0 \
+  --package-version 0.2.3 \
   --output-dir /tmp/anip-packages \
   --write-definition
 ```
@@ -46,7 +46,7 @@ Before publication, check package metadata:
 
 ```bash
 go run ./cmd/anip verify \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json
+  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json
 ```
 
 Verification checks:
@@ -63,7 +63,7 @@ Verification checks:
 
 ```bash
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json \
+  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json \
   --target python \
   --dependency-source local \
   --write-lock /tmp/jira-fronting.lock.json \
@@ -76,7 +76,7 @@ Use the lock later:
 ```bash
 go run ./cmd/anip generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0 \
+  --package jira-fronting-showcase@0.2.3 \
   --lock-file /tmp/jira-fronting.lock.json \
   --target python \
   --output /tmp/jira-fronting-regenerated \

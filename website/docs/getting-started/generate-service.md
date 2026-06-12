@@ -178,7 +178,7 @@ Once the project is reviewed and packaged, generate from the signed package inst
 
 ```bash
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json \
+  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/jira_fronting/custom-code-bundles/jira_fronting_python \

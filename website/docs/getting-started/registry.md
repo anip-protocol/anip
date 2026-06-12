@@ -96,7 +96,7 @@ Use `anip verify` against the Registry package:
 ```bash
 anip verify \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0 \
+  --package jira-fronting-showcase@0.2.3 \
   --require-registry-mode production \
   --trusted-registry-key-id anip-protocol-registry-root-2026-q2
 ```
@@ -108,7 +108,7 @@ For local development, use the local Registry URL:
 ```bash
 anip verify \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0
+  --package jira-fronting-showcase@0.2.3
 ```
 
 ## 4. Generate With A Lock
@@ -118,7 +118,7 @@ Generate code and write a lock:
 ```bash
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0 \
+  --package jira-fronting-showcase@0.2.3 \
   --target python \
   --transport http,stdio \
   --dependency-source registry \
@@ -132,7 +132,7 @@ Regenerate later with lock enforcement:
 ```bash
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0 \
+  --package jira-fronting-showcase@0.2.3 \
   --lock-file ./anip-package-lock.json \
   --target python \
   --output ./generated/jira-fronting \

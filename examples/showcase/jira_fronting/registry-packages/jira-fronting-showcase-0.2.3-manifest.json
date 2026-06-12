@@ -1,0 +1,1865 @@
+{
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "capabilities": {
+      "jira.assignee_change.request": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for issue_key."
+          },
+          {
+            "catalog_ref": "jira.user_catalog",
+            "entity_reference": true,
+            "input_name": "assignee_ref",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.user_catalog"
+            },
+            "semantic_type": "user_ref",
+            "summary": "Reviewed input contract for assignee_ref."
+          },
+          {
+            "input_name": "reason",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "business_reason",
+            "summary": "Reviewed input contract for reason."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "assignee.change.request",
+          "summary": "Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "assignee_change_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "assignee_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "reason",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.backlog.search_context": {
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "system.mutation"
+          ]
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "input_meanings": {
+          "issue_type": {
+            "bug": "bug",
+            "epic": "epic",
+            "story": "story",
+            "task": "task"
+          }
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.project_catalog",
+            "entity_reference": true,
+            "input_name": "project_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.project_catalog"
+            },
+            "semantic_type": "project_scope",
+            "summary": "Reviewed input contract for project_key."
+          },
+          {
+            "input_name": "query",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify"
+            },
+            "semantic_type": "search_query",
+            "summary": "Reviewed input contract for query."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "bug",
+                "value": "bug"
+              },
+              {
+                "meaning": "story",
+                "value": "story"
+              },
+              {
+                "meaning": "task",
+                "value": "task"
+              },
+              {
+                "meaning": "epic",
+                "value": "epic"
+              }
+            ],
+            "input_name": "issue_type",
+            "required": false,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "omit",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "business_category",
+            "summary": "Reviewed input contract for issue_type."
+          },
+          {
+            "catalog_ref": "jira.workflow_status_catalog",
+            "input_name": "status",
+            "required": false,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "omit",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.workflow_status_catalog"
+            },
+            "semantic_type": "workflow_status",
+            "summary": "Reviewed input contract for status."
+          },
+          {
+            "input_name": "limit",
+            "required": false,
+            "resolution": {
+              "mode": "clarify",
+              "on_missing": "use_default"
+            },
+            "semantic_type": "integer",
+            "summary": "Reviewed input contract for limit."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "backlog.search.context",
+          "summary": "Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "bounded_issue_context_result"
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "query",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "status",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        }
+      },
+      "jira.customer_escalation.comment.prepare": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_meanings": {
+          "comment_purpose": {
+            "customer_impact": "customer impact",
+            "incident_followup": "incident followup",
+            "release_note": "release note",
+            "triage_update": "triage update"
+          },
+          "visibility": {
+            "customer_visible": "customer visible",
+            "internal": "internal"
+          }
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for issue_key."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "triage update",
+                "value": "triage_update"
+              },
+              {
+                "meaning": "customer impact",
+                "value": "customer_impact"
+              },
+              {
+                "meaning": "release note",
+                "value": "release_note"
+              },
+              {
+                "meaning": "incident followup",
+                "value": "incident_followup"
+              }
+            ],
+            "input_name": "comment_purpose",
+            "required": true,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "clarify",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "business_category",
+            "summary": "Reviewed input contract for comment_purpose."
+          },
+          {
+            "input_name": "context",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "comment_context",
+            "summary": "Reviewed input contract for context."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "internal",
+                "value": "internal"
+              },
+              {
+                "meaning": "customer visible",
+                "value": "customer_visible"
+              }
+            ],
+            "input_name": "visibility",
+            "required": false,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "use_default",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "business_category",
+            "summary": "Reviewed input contract for visibility."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "customer.escalation.comment.prepare",
+          "summary": "Prepare a customer-safe Jira comment from incident or triage context without posting it."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "comment_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "comment_purpose",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "context",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.incident_bug.prepare": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_meanings": {
+          "severity": {
+            "sev1": "sev1",
+            "sev2": "sev2",
+            "sev3": "sev3",
+            "sev4": "sev4"
+          }
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.project_catalog",
+            "entity_reference": true,
+            "input_name": "project_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.project_catalog"
+            },
+            "semantic_type": "project_scope",
+            "summary": "Reviewed input contract for project_key."
+          },
+          {
+            "input_name": "summary",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "work_item_summary",
+            "summary": "Reviewed input contract for summary."
+          },
+          {
+            "input_name": "description",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "work_item_description",
+            "summary": "Reviewed input contract for description."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "sev1",
+                "value": "sev1"
+              },
+              {
+                "meaning": "sev2",
+                "value": "sev2"
+              },
+              {
+                "meaning": "sev3",
+                "value": "sev3"
+              },
+              {
+                "meaning": "sev4",
+                "value": "sev4"
+              }
+            ],
+            "input_name": "severity",
+            "required": true,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "clarify",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "risk_level",
+            "summary": "Reviewed input contract for severity."
+          },
+          {
+            "input_name": "labels",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "array<string>",
+            "summary": "Reviewed input contract for labels."
+          },
+          {
+            "catalog_ref": "jira.component_catalog",
+            "input_name": "components",
+            "required": false,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "omit",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.component_catalog"
+            },
+            "semantic_type": "array<string>",
+            "summary": "Reviewed input contract for components."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "incident.bug.prepare",
+          "summary": "Prepare a Jira bug ticket from incident or defect context without creating it."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "issue_creation_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "summary",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "description",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "severity",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.issue.get_context": {
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "system.mutation"
+          ]
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.summary",
+            "data.read"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for issue_key."
+          },
+          {
+            "input_name": "include_comments",
+            "required": false,
+            "resolution": {
+              "mode": "clarify",
+              "on_missing": "use_default"
+            },
+            "semantic_type": "boolean",
+            "summary": "Reviewed input contract for include_comments."
+          },
+          {
+            "input_name": "include_changelog",
+            "required": false,
+            "resolution": {
+              "mode": "clarify",
+              "on_missing": "use_default"
+            },
+            "semantic_type": "boolean",
+            "summary": "Reviewed input contract for include_changelog."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "issue.get.context",
+          "summary": "Inspect one Jira issue with bounded actor-visible fields, comments, and history."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "bounded_issue_detail_result"
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        }
+      },
+      "jira.issue_link.request": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "source_issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for source_issue_key."
+          },
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "target_issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for target_issue_key."
+          },
+          {
+            "catalog_ref": "jira.link_type_catalog",
+            "input_name": "link_type",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "deny",
+              "resolver_ref": "jira.link_type_catalog"
+            },
+            "semantic_type": "relationship_type",
+            "summary": "Reviewed input contract for link_type."
+          },
+          {
+            "input_name": "reason",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "business_reason",
+            "summary": "Reviewed input contract for reason."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "issue.link.request",
+          "summary": "Request linking two Jira issues with a declared relationship and cross-project policy checks."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "issue_link_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "source_issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "link_type",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "reason",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.release_notes.prepare": {
+        "app_boundaries": {
+          "unsupported_effects": [
+            "external_dispatch",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.draft",
+            "data.aggregate"
+          ]
+        },
+        "input_meanings": {
+          "audience": {
+            "customer": "customer",
+            "executive": "executive",
+            "internal": "internal"
+          }
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.project_catalog",
+            "entity_reference": true,
+            "input_name": "project_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.project_catalog"
+            },
+            "semantic_type": "project_scope",
+            "summary": "Reviewed input contract for project_key."
+          },
+          {
+            "catalog_ref": "jira.release_catalog",
+            "entity_reference": true,
+            "input_name": "release_ref",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.release_catalog"
+            },
+            "semantic_type": "release_ref",
+            "summary": "Reviewed input contract for release_ref."
+          },
+          {
+            "input_name": "issue_query",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "search_query",
+            "summary": "Reviewed input contract for issue_query."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "internal",
+                "value": "internal"
+              },
+              {
+                "meaning": "customer",
+                "value": "customer"
+              },
+              {
+                "meaning": "executive",
+                "value": "executive"
+              }
+            ],
+            "input_name": "audience",
+            "required": false,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "use_default",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "business_category",
+            "summary": "Reviewed input contract for audience."
+          },
+          {
+            "input_name": "limit",
+            "required": false,
+            "resolution": {
+              "mode": "clarify",
+              "on_missing": "use_default"
+            },
+            "semantic_type": "integer",
+            "summary": "Reviewed input contract for limit."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "release.notes.prepare",
+          "summary": "Prepare release notes from bounded Jira issues without publishing or mutating Jira."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "release_notes_draft_result"
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "release_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "issue_query",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.sprint_move.request": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "input_name": "issue_keys",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for issue_keys."
+          },
+          {
+            "catalog_ref": "jira.sprint_catalog",
+            "entity_reference": true,
+            "input_name": "target_sprint",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.sprint_catalog"
+            },
+            "semantic_type": "sprint_ref",
+            "summary": "Reviewed input contract for target_sprint."
+          },
+          {
+            "input_name": "reason",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "business_reason",
+            "summary": "Reviewed input contract for reason."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "sprint.move.request",
+          "summary": "Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "sprint_move_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "issue_keys",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_sprint",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "reason",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.story.prepare": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_meanings": {
+          "priority": {
+            "high": "high",
+            "low": "low",
+            "medium": "medium"
+          }
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.project_catalog",
+            "entity_reference": true,
+            "input_name": "project_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.project_catalog"
+            },
+            "semantic_type": "project_scope",
+            "summary": "Reviewed input contract for project_key."
+          },
+          {
+            "input_name": "summary",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "work_item_summary",
+            "summary": "Reviewed input contract for summary."
+          },
+          {
+            "input_name": "acceptance_criteria",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "acceptance_criteria",
+            "summary": "Reviewed input contract for acceptance_criteria."
+          },
+          {
+            "allowed_values": [
+              {
+                "meaning": "low",
+                "value": "low"
+              },
+              {
+                "meaning": "medium",
+                "value": "medium"
+              },
+              {
+                "meaning": "high",
+                "value": "high"
+              }
+            ],
+            "input_name": "priority",
+            "required": false,
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "omit",
+              "on_unresolved": "deny"
+            },
+            "semantic_type": "business_category",
+            "summary": "Reviewed input contract for priority."
+          },
+          {
+            "input_name": "labels",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "array<string>",
+            "summary": "Reviewed input contract for labels."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "story.prepare",
+          "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "issue_creation_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "summary",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "acceptance_criteria",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.subtask.prepare": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "parent_issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for parent_issue_key."
+          },
+          {
+            "input_name": "summary",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "work_item_summary",
+            "summary": "Reviewed input contract for summary."
+          },
+          {
+            "input_name": "description",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "work_item_description",
+            "summary": "Reviewed input contract for description."
+          },
+          {
+            "catalog_ref": "jira.user_catalog",
+            "input_name": "assignee",
+            "required": false,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "omit",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.user_catalog"
+            },
+            "semantic_type": "user_ref",
+            "summary": "Reviewed input contract for assignee."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "subtask.prepare",
+          "summary": "Prepare a subtask under an existing parent issue without creating it."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "subtask_creation_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "parent_issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "summary",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "description",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "assignee",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      },
+      "jira.workflow_transition.request": {
+        "app_boundaries": {
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "approval": {
+          "approval_effect": "approval.request",
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "required": true
+        },
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ]
+        },
+        "input_semantics": [
+          {
+            "catalog_ref": "jira.issue_catalog",
+            "entity_reference": true,
+            "input_name": "issue_key",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "clarify",
+              "resolver_ref": "jira.issue_catalog"
+            },
+            "semantic_type": "issue_ref",
+            "summary": "Reviewed input contract for issue_key."
+          },
+          {
+            "catalog_ref": "jira.workflow_status_catalog",
+            "input_name": "target_status",
+            "required": true,
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_ambiguous": "clarify",
+              "on_missing": "clarify",
+              "on_unresolved": "deny",
+              "resolver_ref": "jira.workflow_status_catalog"
+            },
+            "semantic_type": "workflow_status",
+            "summary": "Reviewed input contract for target_status."
+          },
+          {
+            "input_name": "reason",
+            "required": true,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify"
+            },
+            "semantic_type": "business_reason",
+            "summary": "Reviewed input contract for reason."
+          },
+          {
+            "input_name": "comment",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "string",
+            "summary": "Reviewed input contract for comment."
+          },
+          {
+            "input_name": "backend_options",
+            "required": false,
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit"
+            },
+            "semantic_type": "backend_options",
+            "summary": "Reviewed input contract for backend_options."
+          }
+        ],
+        "intent": {
+          "category": "workflow.transition.request",
+          "summary": "Request a governed Jira issue transition and stop for approval when policy requires it."
+        },
+        "output_semantics": {
+          "display_fields": [
+            "result"
+          ],
+          "primary_field": "result",
+          "result_type": "transition_preview_result"
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_status",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "reason",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        }
+      }
+    },
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_publication_gate": {
+    "detail": "Run the AI Simulator from Agent & App Glue before publishing, or explicitly accept the risk.",
+    "label": "Simulator report missing",
+    "latest_report_artifact_id": null,
+    "overridden": false,
+    "status": "missing"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "finding_reviews": {},
+    "findings": [],
+    "probes": [
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.backlog.search_context:project_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.backlog.search_context for top or priority results without naming a concrete value for project_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.backlog.search_context"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.backlog.search_context:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.backlog.search_context to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.backlog.search_context"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.issue.get_context:issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.issue.get_context for top or priority results without naming a concrete value for issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.issue.get_context"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.issue.get_context:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.issue.get_context to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.issue.get_context"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.incident_bug.prepare:project_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.incident_bug.prepare for top or priority results without naming a concrete value for project_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.incident_bug.prepare"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.incident_bug.prepare:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.incident_bug.prepare to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.incident_bug.prepare"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.incident_bug.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.incident_bug.prepare to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.incident_bug.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.story.prepare:project_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.story.prepare for top or priority results without naming a concrete value for project_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.story.prepare"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.story.prepare:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.story.prepare to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.story.prepare"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.story.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.story.prepare to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.story.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.subtask.prepare:parent_issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.subtask.prepare for top or priority results without naming a concrete value for parent_issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.subtask.prepare"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.subtask.prepare:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.subtask.prepare to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.subtask.prepare"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.subtask.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.subtask.prepare to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.subtask.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.customer_escalation.comment.prepare:issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.customer_escalation.comment.prepare for top or priority results without naming a concrete value for issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.customer_escalation.comment.prepare"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.customer_escalation.comment.prepare:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.customer_escalation.comment.prepare to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.customer_escalation.comment.prepare"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.customer_escalation.comment.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.customer_escalation.comment.prepare to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.customer_escalation.comment.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.release_notes.prepare:project_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.release_notes.prepare for top or priority results without naming a concrete value for project_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.release_notes.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.release_notes.prepare:release_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.release_notes.prepare for top or priority results without naming a concrete value for release_ref.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.release_notes.prepare"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.release_notes.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.release_notes.prepare to send the result now.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.release_notes.prepare"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.workflow_transition.request:issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.workflow_transition.request for top or priority results without naming a concrete value for issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.workflow_transition.request"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.workflow_transition.request:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.workflow_transition.request to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.workflow_transition.request"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.workflow_transition.request:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.workflow_transition.request to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.workflow_transition.request"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.sprint_move.request:target_sprint:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.sprint_move.request for top or priority results without naming a concrete value for target_sprint.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.sprint_move.request"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.sprint_move.request:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.sprint_move.request to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.sprint_move.request"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.sprint_move.request:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.sprint_move.request to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.sprint_move.request"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.assignee_change.request:issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.assignee_change.request for top or priority results without naming a concrete value for issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.assignee_change.request"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.assignee_change.request:assignee_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.assignee_change.request for top or priority results without naming a concrete value for assignee_ref.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.assignee_change.request"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.assignee_change.request:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.assignee_change.request to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.assignee_change.request"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.assignee_change.request:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.assignee_change.request to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.assignee_change.request"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.issue_link.request:source_issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.issue_link.request for top or priority results without naming a concrete value for source_issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.issue_link.request"
+      },
+      {
+        "expected_outcome": "clarification_required",
+        "id": "jira.issue_link.request:target_issue_key:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask jira.issue_link.request for top or priority results without naming a concrete value for target_issue_key.",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults.",
+        "target_capability_id": "jira.issue_link.request"
+      },
+      {
+        "expected_outcome": "approval_required",
+        "id": "jira.issue_link.request:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask jira.issue_link.request to prepare, preview, plan, or route the governed action.",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability.",
+        "target_capability_id": "jira.issue_link.request"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "jira.issue_link.request:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask jira.issue_link.request to perform an explicitly unsupported effect.",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs.",
+        "target_capability_id": "jira.issue_link.request"
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "scn-3697efb7-25e2-464f-be86-977627e490f6:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Prepare release notes from bounded Jira issues without publishing.",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      },
+      {
+        "expected_outcome": "unsupported",
+        "id": "scn-86bca8f9-7a36-4cac-a8d2-235eee64bd69:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Search bounded Jira backlog context without exposing raw JQL.",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      }
+    ],
+    "required_app_glue": [],
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "info": 0,
+      "probes": 35,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "agent_consumption_simulation": null,
+  "anip_spec_version": "anip/0.24",
+  "blueprint_id": "jira-fronting-showcase",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "generated_at": "2026-06-04T20:14:22.212Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-developer-definition-revision-1",
+      "contract_signature": "2caf110cd3fd6a3763c09454db3ca5d6c0c6a84d03ede134b8a2cfcc0197f29e",
+      "ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "a7c941cf-b552-4d5b-a361-e649591ff5f8-product-design-revision-1",
+      "baseline_locked_at": null,
+      "ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8"
+  },
+  "name": "Jira Fronting Showcase ANIP Package",
+  "package_kind": "anip_service_blueprint",
+  "publisher": {
+    "display_name": "ANIP Protocol",
+    "id": "anip-protocol"
+  },
+  "readme": "# Jira Fronting Showcase\n\nCanonical governed Jira fronting showcase package.\n\nThis package exposes ANIP capabilities for bounded Jira reads, preview-only issue preparation, approval-gated Jira changes, audit evidence, and explicit denial of raw Jira/JQL/tool access.\n\nProject: a7c941cf-b552-4d5b-a361-e649591ff5f8\nPackage: jira-fronting-showcase@0.2.3\nProduct revision: r1\nDeveloper revision: r1\nContract signature: 2caf110cd3fd6a3763c09454db3ca5d6c0c6a84d03ede134b8a2cfcc0197f29e\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle jira-fronting-showcase-0.2.3.anip-package.json --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url <registry-url> --package-id jira-fronting-showcase --package-version 0.2.3 --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --registry-url <registry-url> --package-id jira-fronting-showcase --package-version 0.2.3\n```",
+  "schema_version": "anip-service-definition/v1",
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "2caf110cd3fd6a3763c09454db3ca5d6c0c6a84d03ede134b8a2cfcc0197f29e",
+  "service_definition_digest_algorithm": "sha256",
+  "source_links": [],
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "version": "0.2.3"
+}

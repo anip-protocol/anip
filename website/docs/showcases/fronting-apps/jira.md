@@ -10,7 +10,7 @@ Jira demonstrates how broad issue-tracker APIs become a smaller governed ANIP ca
 The package is:
 
 ```text
-jira-fronting-showcase@0.2.0
+jira-fronting-showcase@0.2.3
 ```
 
 ## What It Proves
@@ -52,8 +52,8 @@ Native Jira REST remains an implementation detail inside custom bundles. The con
 | Artifact | Path |
 | --- | --- |
 | Source spec | `docs/examples/jira-fronting-showcase/source-spec.md` |
-| Package | `examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0.anip-package.json` |
-| Service definition | `examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.0-service-definition.json` |
+| Package | `examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json` |
+| Service definition | `examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json` |
 | Custom bundles | `examples/showcase/jira_fronting/custom-code-bundles/` |
 | Generated services | `examples/showcase/jira_fronting/generated/` |
 
@@ -71,4 +71,3 @@ Mutation is disabled unless both conditions are true:
 - the invoke request includes the required ANIP approval grant.
 
 The important behavior is not "agent can create Jira issue". The important behavior is that the service can prepare the issue, stop at the approval boundary, and only continue when the host supplies the governed approval continuation.
-

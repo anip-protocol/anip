@@ -159,7 +159,7 @@ Use this when the artifact is already packaged and signed.
 ```bash
 anip generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
-  --package jira-fronting-showcase@0.2.0 \
+  --package jira-fronting-showcase@0.2.3 \
   --target python \
   --dependency-source registry \
   --output ./generated/jira-fronting \
@@ -172,7 +172,7 @@ Equivalent long form:
 anip generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
   --package-id jira-fronting-showcase \
-  --package-version 0.2.0 \
+  --package-version 0.2.3 \
   --target python \
   --output ./generated/jira-fronting \
   --force

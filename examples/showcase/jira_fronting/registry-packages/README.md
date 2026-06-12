@@ -1,6 +1,6 @@
 # jira_governed_fronting_showcase
 
-ANIP package `jira-fronting-showcase@0.2.0` for local showcase and registry smoke usage.
+ANIP package `jira-fronting-showcase@0.2.3` for local showcase and registry smoke usage.
 
 ## Contents
 
@@ -33,7 +33,7 @@ go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.js
 From a trusted registry package:
 
 ```bash
-go run ./cmd/anip-generate --registry-url <registry-url> --package-id jira-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force
+go run ./cmd/anip-generate --registry-url <registry-url> --package-id jira-fronting-showcase --package-version 0.2.3 --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force
 ```
 
 ## Verify

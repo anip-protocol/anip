@@ -39,14 +39,14 @@ The generated project contains:
 
 ## Generate From A Published Package
 
-After the Studio project has produced and published `jira-fronting-showcase@0.2.0`, generate from the trusted Registry package:
+After the Studio project has produced and published `jira-fronting-showcase@0.2.3`, generate from the trusted Registry package:
 
 ```bash
 cd packages/go
 go run ./cmd/anip-generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
   --package-id jira-fronting-showcase \
-  --package-version 0.2.0 \
+  --package-version 0.2.3 \
   --target python \
   --dependency-source registry \
   --transport http,stdio \
@@ -61,7 +61,7 @@ cd packages/go
 go run ./cmd/anip-generate \
   --registry-url http://127.0.0.1:8200/registry-api/v1 \
   --package-id jira-fronting-showcase \
-  --package-version 0.2.0 \
+  --package-version 0.2.3 \
   --target python \
   --dependency-source registry \
   --transport http,stdio \
