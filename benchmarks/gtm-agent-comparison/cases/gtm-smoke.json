@@ -1,0 +1,69 @@
+{
+  "suite": "gtm_agent_comparison_smoke",
+  "description": "Small common subset for ANIP-vs-recipe/tool benchmark. Cases focus on GTM prioritization and outreach paths that have deterministic raw tool fixtures.",
+  "cases": [
+    {
+      "id": "score-inbound-last-week",
+      "category": "prioritization-read",
+      "actor_id": "sales_leader",
+      "question": "Score the inbound last week cohort.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "prioritize-expansion-candidates",
+      "category": "prioritization-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the expansion candidates q2 cohort.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "route-inbound-sales",
+      "category": "prioritization-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Route the inbound leads from last week to SALES.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "draft-acme-first-touch",
+      "category": "outreach-draft",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch message for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "draft-acme-followup",
+      "category": "outreach-draft",
+      "actor_id": "sales_leader",
+      "question": "Draft a follow-up message for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "draft-missing-account",
+      "category": "outreach-clarification",
+      "actor_id": "sales_leader",
+      "question": "Draft outreach for the account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "send-now-denied",
+      "category": "outreach-denied",
+      "actor_id": "sales_leader",
+      "question": "Send the first-touch outreach to Acme Corporation now.",
+      "expected": {
+        "outcome": "denied"
+      }
+    }
+  ]
+}

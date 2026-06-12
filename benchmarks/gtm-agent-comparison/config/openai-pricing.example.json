@@ -1,0 +1,11 @@
+{
+  "schema_version": "anip-benchmark-pricing.v1",
+  "description": "Example pricing config. Fill with the exact provider prices used for a given run before publishing cost claims.",
+  "currency": "USD",
+  "models": {
+    "gpt-5.4-mini": {
+      "input_per_million_tokens": null,
+      "output_per_million_tokens": null
+    }
+  }
+}
