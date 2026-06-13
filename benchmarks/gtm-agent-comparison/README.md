@@ -85,6 +85,35 @@ python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
 
 The result JSON can be compared directly because both agents return the normalized fields used by the runner.
 
+## Build The Full GTM ANIP Benchmark Suite
+
+The checked-in GTM release gate is `350 + 140` questions:
+
+- `350` broad question-bank entries in `docs/examples/gtm-showcase/question-banks/`
+- `140` variation-bank entries in `docs/examples/gtm-showcase/variation-question-banks-v3/`
+
+The benchmark harness is currently single-turn. The builder therefore converts the single-turn entries and skips the five multi-turn clarification follow-up entries from the 350 bank.
+
+```bash
+python3 benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py \
+  --suite all \
+  --output /tmp/anip-benchmark/gtm-485-cases.json
+```
+
+Run the resulting ANIP benchmark:
+
+```bash
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases /tmp/anip-benchmark/gtm-485-cases.json \
+  --output-dir /tmp/anip-benchmark/anip-485 \
+  --pricing benchmarks/gtm-agent-comparison/config/openai-pricing.example.json \
+  --timeout-seconds 180
+```
+
+Do not compare the recipe/tool baseline against this full suite until equivalent raw tools, recipes, and backend fixtures exist for every covered GTM capability. The current baseline intentionally covers only the smoke subset.
+
 ## Compare Runs
 
 ```bash
