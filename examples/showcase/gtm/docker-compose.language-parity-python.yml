@@ -166,8 +166,9 @@ services:
       ANIP_AGENT_LANGUAGE: python
       ANIP_AGENT_METABASE_URL: http://127.0.0.1:${GTM_METABASE_PORT:-3041}
       ANIP_AGENT_README_URL: https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm
-      ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-gpt-5.4-mini}
+      ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-}
       ANIP_AGENT_API_KEY: ${ANIP_AGENT_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANIP_AGENT_ACTORS_JSON: >-
         [

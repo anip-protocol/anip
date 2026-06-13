@@ -160,9 +160,9 @@ def _extract_json(text: str) -> dict[str, Any]:
 
 async def _call_model_json(system_prompt: str, user_prompt: str) -> tuple[dict[str, Any], dict[str, Any], dict[str, int]]:
     if not OPENAI_MODEL:
-        raise HTTPException(status_code=503, detail="OPENAI_MODEL or ANIP_AGENT_MODEL is not configured")
+        raise HTTPException(status_code=503, detail="OPENAI_MODEL is not configured")
     if not OPENAI_API_KEY:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY or ANIP_AGENT_API_KEY is not configured")
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
     body = {
         "model": OPENAI_MODEL,
         "messages": [

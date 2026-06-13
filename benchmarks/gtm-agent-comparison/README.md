@@ -34,16 +34,17 @@ The ANIP agent can run broader GTM question banks. The recipe/tool baseline shou
 From the repository root:
 
 ```bash
+export OPENAI_API_KEY=...
+export OPENAI_MODEL=gpt-5.4-mini
+
 cd examples/showcase/gtm
-ANIP_AGENT_MODEL=gpt-5.4-mini \
-ANIP_AGENT_API_KEY="$OPENAI_API_KEY" \
-docker compose up --build
+docker compose -f docker-compose.language-parity-python.yml up --build
 ```
 
 The ANIP LLM agent defaults to:
 
 ```text
-http://127.0.0.1:9303/api/ask
+http://127.0.0.1:4310/api/ask
 ```
 
 ## Start The Recipe/Tool Baseline
@@ -51,8 +52,6 @@ http://127.0.0.1:9303/api/ask
 From the repository root:
 
 ```bash
-OPENAI_MODEL=gpt-5.4-mini \
-OPENAI_API_KEY="$OPENAI_API_KEY" \
 python3 benchmarks/gtm-agent-comparison/agents/recipe_tool_agent.py
 ```
 
@@ -69,7 +68,7 @@ It uses the same OpenAI-compatible chat API shape as the GTM ANIP agent. It does
 ```bash
 python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
   --agent anip \
-  --agent-url http://127.0.0.1:9303/api/ask \
+  --agent-url http://127.0.0.1:4310/api/ask \
   --cases benchmarks/gtm-agent-comparison/cases/gtm-smoke.json \
   --output-dir /tmp/anip-benchmark/anip \
   --pricing benchmarks/gtm-agent-comparison/config/openai-pricing.example.json
@@ -98,6 +97,12 @@ python3 benchmarks/gtm-agent-comparison/scripts/compare_runs.py \
 ```
 
 For public claims, fill `config/openai-pricing.example.json` with the exact provider pricing that applied at the time of the run and keep the pricing file with the run artifacts.
+
+## Environment Variables
+
+Use `OPENAI_API_KEY` and `OPENAI_MODEL` as the canonical benchmark variables.
+
+The GTM showcase runtime also accepts `ANIP_AGENT_API_KEY` and `ANIP_AGENT_MODEL` for compatibility with the Docker compose examples. Do not set both unless you intentionally want the ANIP runtime to use different credentials or a different model than the recipe/tool baseline.
 
 ## Important Limits
 
