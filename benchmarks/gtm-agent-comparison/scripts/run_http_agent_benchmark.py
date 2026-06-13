@@ -167,6 +167,8 @@ def _run_case(
     timeout_seconds: float,
     pricing: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    if isinstance(case.get("turns"), list):
+        return _run_multi_turn_case(agent, agent_url, case, timeout_seconds, pricing)
     request_payload = {
         "question": case["question"],
         "actor_id": case.get("actor_id") or "sales_leader",
@@ -200,6 +202,98 @@ def _run_case(
         "prompt_stats": prompt_stats,
         "estimated_prompt_tokens": _estimated_tokens_from_prompt_stats(prompt_stats),
         "raw_response": response,
+    }
+
+
+def _history_assistant_content(response: dict[str, Any]) -> str:
+    if response.get("user_message"):
+        return str(response["user_message"])
+    planner = response.get("planner")
+    if isinstance(planner, dict) and planner.get("user_message"):
+        return str(planner["user_message"])
+    failure = _failure_type(response)
+    if failure:
+        return failure
+    return _observed_outcome(response)
+
+
+def _run_multi_turn_case(
+    agent: str,
+    agent_url: str,
+    case: dict[str, Any],
+    timeout_seconds: float,
+    pricing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    actor_id = case.get("actor_id") or "sales_leader"
+    history = list(case.get("history") or [])
+    turn_results: list[dict[str, Any]] = []
+    started = time.perf_counter()
+    for index, turn in enumerate(case["turns"], start=1):
+        question = str(turn["question"])
+        request_payload = {
+            "question": question,
+            "actor_id": actor_id,
+            "history": history,
+        }
+        turn_started = time.perf_counter()
+        status, response = _post_json(agent_url, request_payload, timeout_seconds)
+        elapsed_ms = round((time.perf_counter() - turn_started) * 1000, 2)
+        observed = _observed_outcome(response)
+        expected = str((turn.get("expected") or {}).get("outcome") or "")
+        prompt_stats = _prompt_stats(response)
+        usage = _usage(response)
+        model = _model(response)
+        turn_result = {
+            "turn": index,
+            "question": question,
+            "http_status": status,
+            "elapsed_ms": elapsed_ms,
+            "expected_outcome": expected,
+            "observed_outcome": observed,
+            "passed": observed == expected,
+            "model": model,
+            "loop_counts": _loop_counts(response),
+            "selected": _selected(response),
+            "failure_type": _failure_type(response),
+            "usage": usage,
+            "estimated_cost": _estimate_cost(usage, pricing, model),
+            "prompt_stats": prompt_stats,
+            "estimated_prompt_tokens": _estimated_tokens_from_prompt_stats(prompt_stats),
+            "raw_response": response,
+        }
+        turn_results.append(turn_result)
+        history.append({"role": "user", "content": question})
+        history.append({"role": "assistant", "content": _history_assistant_content(response)})
+    elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+    final_turn = turn_results[-1] if turn_results else {}
+    loop_counts = {
+        "planner_loops": sum(int(item["loop_counts"].get("planner_loops") or 0) for item in turn_results),
+        "service_invoke_loops": sum(int(item["loop_counts"].get("service_invoke_loops") or 0) for item in turn_results),
+        "tool_invoke_loops": sum(int(item["loop_counts"].get("tool_invoke_loops") or 0) for item in turn_results),
+        "total_loops": sum(int(item["loop_counts"].get("total_loops") or 0) for item in turn_results),
+    }
+    estimated_prompt_tokens = sum(int(item.get("estimated_prompt_tokens") or 0) for item in turn_results)
+    return {
+        "id": case["id"],
+        "category": case.get("category"),
+        "agent": agent,
+        "actor_id": actor_id,
+        "question": str(case.get("question") or final_turn.get("question") or ""),
+        "turn_count": len(turn_results),
+        "http_status": final_turn.get("http_status"),
+        "elapsed_ms": elapsed_ms,
+        "expected_outcome": final_turn.get("expected_outcome"),
+        "observed_outcome": final_turn.get("observed_outcome"),
+        "passed": all(item["passed"] for item in turn_results),
+        "model": final_turn.get("model"),
+        "loop_counts": loop_counts,
+        "selected": final_turn.get("selected"),
+        "failure_type": final_turn.get("failure_type"),
+        "usage": {},
+        "estimated_cost": None,
+        "prompt_stats": {},
+        "estimated_prompt_tokens": estimated_prompt_tokens or None,
+        "turn_results": turn_results,
     }
 
 
