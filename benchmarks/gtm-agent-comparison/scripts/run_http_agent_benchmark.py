@@ -142,6 +142,35 @@ def _estimate_cost(usage: dict[str, Any], pricing: dict[str, Any] | None, model:
     }
 
 
+def _usage_token_totals(usage: dict[str, Any]) -> dict[str, int]:
+    prompt_details = usage.get("prompt_tokens_details")
+    completion_details = usage.get("completion_tokens_details")
+    return {
+        "prompt_tokens": int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0),
+        "completion_tokens": int(usage.get("completion_tokens") or usage.get("output_tokens") or 0),
+        "total_tokens": int(usage.get("total_tokens") or 0),
+        "cached_tokens": int(prompt_details.get("cached_tokens") or 0) if isinstance(prompt_details, dict) else 0,
+        "reasoning_tokens": int(completion_details.get("reasoning_tokens") or 0) if isinstance(completion_details, dict) else 0,
+    }
+
+
+def _sum_usage(usages: list[dict[str, Any]]) -> dict[str, int]:
+    totals = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+    }
+    for usage in usages:
+        if not isinstance(usage, dict):
+            continue
+        item = _usage_token_totals(usage)
+        for key in totals:
+            totals[key] += item[key]
+    return totals
+
+
 def _model(payload: dict[str, Any]) -> str | None:
     planner = payload.get("planner")
     if isinstance(planner, dict) and planner.get("model"):
@@ -273,6 +302,8 @@ def _run_multi_turn_case(
         "total_loops": sum(int(item["loop_counts"].get("total_loops") or 0) for item in turn_results),
     }
     estimated_prompt_tokens = sum(int(item.get("estimated_prompt_tokens") or 0) for item in turn_results)
+    usage = _sum_usage([dict(item.get("usage") or {}) for item in turn_results])
+    model = final_turn.get("model")
     return {
         "id": case["id"],
         "category": case.get("category"),
@@ -285,12 +316,12 @@ def _run_multi_turn_case(
         "expected_outcome": final_turn.get("expected_outcome"),
         "observed_outcome": final_turn.get("observed_outcome"),
         "passed": all(item["passed"] for item in turn_results),
-        "model": final_turn.get("model"),
+        "model": model,
         "loop_counts": loop_counts,
         "selected": final_turn.get("selected"),
         "failure_type": final_turn.get("failure_type"),
-        "usage": {},
-        "estimated_cost": None,
+        "usage": usage,
+        "estimated_cost": _estimate_cost(usage, pricing, str(model) if model else None),
         "prompt_stats": {},
         "estimated_prompt_tokens": estimated_prompt_tokens or None,
         "turn_results": turn_results,
@@ -302,6 +333,8 @@ def _summarize(agent: str, suite: str, cases: list[dict[str, Any]], results: lis
     loop_total = sum(int(item["loop_counts"].get("total_loops") or 0) for item in results)
     elapsed_total = sum(float(item["elapsed_ms"]) for item in results)
     estimated_prompt_tokens = sum(int(item.get("estimated_prompt_tokens") or 0) for item in results)
+    usage_totals = _sum_usage([dict(item.get("usage") or {}) for item in results])
+    has_usage = any(value > 0 for value in usage_totals.values())
     total_cost = 0.0
     has_cost = False
     currency = None
@@ -323,6 +356,19 @@ def _summarize(agent: str, suite: str, cases: list[dict[str, Any]], results: lis
         "total_elapsed_ms": round(elapsed_total, 2),
         "average_elapsed_ms": round(elapsed_total / len(cases), 2) if cases else 0.0,
         "estimated_prompt_tokens": estimated_prompt_tokens or None,
+        "usage": (
+            {
+                **usage_totals,
+                "average_total_tokens": round(usage_totals["total_tokens"] / len(cases), 2) if cases else 0.0,
+                "cached_token_ratio": (
+                    round(usage_totals["cached_tokens"] / usage_totals["prompt_tokens"], 4)
+                    if usage_totals["prompt_tokens"] > 0
+                    else 0.0
+                ),
+            }
+            if has_usage
+            else None
+        ),
         "estimated_cost": (
             {
                 "currency": currency or "USD",
