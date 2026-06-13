@@ -599,7 +599,7 @@ def _retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
     return min(1.0 * (2 ** attempt), 20.0)
 
 
-async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None) -> dict[str, Any]:
+async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     if not OPENAI_MODEL:
         raise HTTPException(status_code=503, detail="ANIP_AGENT_MODEL or OPENAI_MODEL is not configured")
     if not OPENAI_API_KEY:
@@ -653,14 +653,15 @@ async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None
     content = data["choices"][0]["message"]["content"]
     if isinstance(content, list):
         content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-    return _parse_json_object(str(content))
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    return _parse_json_object(str(content)), dict(usage)
 
 
 async def _plan_with_model(question: str, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     capability_brief, metadata, _ = _load_catalog()
     conversation = _conversation_text(question, history)
     user_prompt = _user_prompt(question, capability_brief, history)
-    plan = await _call_model_json(user_prompt)
+    plan, usage = await _call_model_json(user_prompt)
 
     selection_hints = APP_PROFILE.get("selection_hints") if isinstance(APP_PROFILE.get("selection_hints"), list) else []
     try:
@@ -681,6 +682,7 @@ async def _plan_with_model(question: str, history: list[dict[str, Any]] | None =
             "user_prompt_chars": len(user_prompt),
             "capability_brief_chars": len(capability_brief),
         },
+        "usage": usage,
     }
 
 
@@ -703,7 +705,7 @@ async def _plan_clarification_continuation(
         continuation=continuation,
         capability_metadata=capability_metadata,
     )
-    raw_plan = await _call_model_json(user_prompt)
+    raw_plan, usage = await _call_model_json(user_prompt)
     conversation = _conversation_text(question, history)
     plan = normalize_clarification_continuation_plan(
         raw_plan,
@@ -727,6 +729,7 @@ async def _plan_clarification_continuation(
             "user_prompt_chars": len(user_prompt),
             "capability_brief_chars": 0,
         },
+        "usage": usage,
     }
 
 
@@ -1118,7 +1121,9 @@ async def ask(req: AskRequest):
             "user_message": plan.get("user_message"),
             "prompt_stats": planned.get("prompt_stats"),
             "catalog_stats": planned.get("catalog_stats"),
+            "usage": planned.get("usage") or {},
         },
+        "usage": planned.get("usage") or {},
         "planned_capability": capability,
         "selected_capability": capability,
         "selected_service": metadata.get("service_name"),
@@ -1159,6 +1164,7 @@ async def ask_stream(req: AskRequest):
                     "rationale": plan.get("rationale"),
                     "prompt_stats": planned.get("prompt_stats"),
                     "catalog_stats": planned.get("catalog_stats"),
+                    "usage": planned.get("usage") or {},
                 },
             )
 
@@ -1217,7 +1223,9 @@ async def ask_stream(req: AskRequest):
                     "user_message": plan.get("user_message"),
                     "prompt_stats": planned.get("prompt_stats"),
                     "catalog_stats": planned.get("catalog_stats"),
+                    "usage": planned.get("usage") or {},
                 },
+                "usage": planned.get("usage") or {},
                 "planned_capability": capability,
                 "selected_capability": capability,
                 "selected_service": metadata.get("service_name"),
