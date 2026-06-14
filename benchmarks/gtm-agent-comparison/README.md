@@ -185,7 +185,7 @@ The important observation is not only token count. The MCP-style baseline did no
 
 - deny `draft and send now`;
 - stop provider-selected target drafting at the approval boundary;
-- avoid silently mapping vague `Q2 candidates` to a cohort;
+- avoid silently executing provider-selected target flows instead of stopping at the declared clarification or approval boundary;
 - avoid selecting read-only tools for compound approval-gated requests;
 - prevent final-response overclaims such as saying a draft was sent.
 
@@ -194,7 +194,7 @@ That is the implementation burden ANIP is designed to move from every agent cons
 MCP-style skill/recipe full-bank iteration:
 
 - Initial `gpt-5.4-mini` full-bank run: `516/540` passed.
-- The `24` failures were not ANIP failures; they were consumer-side recipe/guardrail gaps: scope restriction classification, unknown entity handling, temporal parsing, vague cohort repair, compound flow policy, and final-response overclaims.
+- The `24` failures were not ANIP failures; they were consumer-side recipe/guardrail gaps: scope restriction classification, unknown entity handling, temporal parsing, provider-selected-target boundary handling, compound flow policy, and final-response overclaims.
 - After adding those consumer-side rules, the targeted 24-case regression passed `24/24`.
 - A second full-bank run exposed `14` remaining consumer-side policy gaps.
 - A third full-bank run exposed `7` remaining gaps after targeted regression fixes.

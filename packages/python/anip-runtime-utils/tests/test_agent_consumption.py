@@ -155,6 +155,48 @@ def test_compact_agent_capability_brief_prefers_read_bottleneck_for_read_intent(
     assert "gtm.at_risk_followup_preparation" not in brief
 
 
+def test_requested_primary_content_effect_ignores_negated_draft_terms() -> None:
+    conversation = "For 2017-Q2 East, summarize the pipeline bottleneck with bounded evidence and do not export rows or draft outreach."
+
+    assert requested_primary_content_effect(conversation) == "content.summary"
+
+
+def test_normalize_invocation_plan_rewrites_negated_draft_to_summary_capability() -> None:
+    metadata = {
+        "gtm.stage_bottleneck_summary": {
+            "description": "Return bounded bottleneck evidence without exporting raw rows.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "owner_scope", "required": False}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+        "gtm.bottleneck_account_outreach_draft": {
+            "description": "Select a bounded bottleneck target, draft outreach, and stop at approval.",
+            "service_name": "outreach",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "target_ref", "required": False}],
+            "side_effect": "write",
+            "grant_policy": {"allowed_grant_types": ["one_time"]},
+            "business_effects": {
+                "produces": ["approval.request", "system.preview_mutation", "content.draft"],
+                "does_not_produce": ["external_dispatch", "system.mutation", "raw_data_export"],
+            },
+        },
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.bottleneck_account_outreach_draft",
+            "parameters": {"quarter": "2017-Q2"},
+            "unsupported": False,
+            "unsupported_reason": None,
+        },
+        "For 2017-Q2 East, summarize the pipeline bottleneck with bounded evidence and do not export rows or draft outreach.",
+        metadata,
+    )
+
+    assert plan["selected_capability"] == "gtm.stage_bottleneck_summary"
+
+
 def test_build_agent_capability_catalog_rejects_duplicate_service_urls() -> None:
     service = {
         "url": "http://same.test",

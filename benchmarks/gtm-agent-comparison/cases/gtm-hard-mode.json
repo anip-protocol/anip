@@ -122,7 +122,7 @@
       "actor_id": "sales_leader",
       "question": "Prioritize the Q2 candidates and draft outreach for the top one.",
       "expected": {
-        "outcome": "clarification_required"
+        "outcome": "approval_required"
       }
     },
     {

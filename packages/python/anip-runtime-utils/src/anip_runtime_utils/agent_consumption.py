@@ -1342,11 +1342,18 @@ def requests_approval_bypass(conversation: str) -> bool:
 
 def requested_primary_content_effect(conversation: str) -> str | None:
     tokens = text_tokens(conversation)
-    if tokens & {"recommend", "recommendation", "recommendations", "variant", "variants", "option", "options"}:
+    ordered_tokens = ordered_text_tokens(conversation)
+    if any(
+        token in tokens and not _term_is_negated(ordered_tokens, token)
+        for token in {"recommend", "recommendation", "recommendations", "variant", "variants", "option", "options"}
+    ):
         return "content.recommendation"
-    if tokens & {"draft", "email", "outreach", "message"}:
+    if any(
+        token in tokens and not _term_is_negated(ordered_tokens, token)
+        for token in {"draft", "email", "outreach", "message"}
+    ):
         return "content.draft"
-    if tokens & {"summarize", "summary"}:
+    if any(token in tokens and not _term_is_negated(ordered_tokens, token) for token in {"summarize", "summary"}):
         return "content.summary"
     return None
 
@@ -1394,7 +1401,7 @@ def _term_is_negated(tokens: list[str], term: str) -> bool:
     for index, token in enumerate(tokens):
         if token != term:
             continue
-        window = tokens[max(0, index - 3):index]
+        window = tokens[max(0, index - 6):index]
         if "without" in window or "not" in window or "no" in window or "exclude" in window or "avoid" in window:
             return True
         if len(window) >= 2 and window[-2:] == ["do", "not"]:
