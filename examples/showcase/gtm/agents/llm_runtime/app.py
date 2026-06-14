@@ -20,6 +20,7 @@ from anip_runtime_utils.agent_consumption import (
     build_agent_capability_catalog,
     build_clarification_continuation,
     build_clarification_continuation_prompt,
+    build_compact_agent_capability_brief,
     clarification_continuation_from_history,
     conversation_text_from_history,
     normalize_clarification_continuation_plan,
@@ -30,13 +31,42 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 
+def _env_int(name: str, default: int, *, minimum: int = 1) -> int:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(minimum, value)
+
+
 OPENAI_BASE_URL = (os.getenv("ANIP_AGENT_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
 OPENAI_MODEL = (os.getenv("ANIP_AGENT_MODEL") or os.getenv("OPENAI_MODEL") or "").strip()
 OPENAI_API_KEY = (os.getenv("ANIP_AGENT_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
+FALLBACK_BASE_URL = (
+    os.getenv("ANIP_AGENT_FALLBACK_BASE_URL")
+    or os.getenv("OPENAI_FALLBACK_BASE_URL")
+    or OPENAI_BASE_URL
+).rstrip("/")
+FALLBACK_MODEL = (
+    os.getenv("ANIP_AGENT_FALLBACK_MODEL")
+    or os.getenv("ANIP_AGENT_MODEL_FALLBACK")
+    or os.getenv("OPENAI_FALLBACK_MODEL")
+    or ""
+).strip()
+FALLBACK_API_KEY = (
+    os.getenv("ANIP_AGENT_FALLBACK_API_KEY")
+    or os.getenv("OPENAI_FALLBACK_API_KEY")
+    or OPENAI_API_KEY
+).strip()
 AGENT_TIMEOUT_SECONDS = float(os.getenv("ANIP_AGENT_TIMEOUT_SECONDS", "30"))
 AGENT_TEMPERATURE = float(os.getenv("ANIP_AGENT_TEMPERATURE", "0.1"))
 AGENT_MODEL_MAX_RETRIES = int(os.getenv("ANIP_AGENT_MODEL_MAX_RETRIES", "6"))
 CATALOG_TTL_SECONDS = int(os.getenv("ANIP_AGENT_CATALOG_TTL_SECONDS", os.getenv("CATALOG_TTL_SECONDS", "30")))
+COMPACT_CATALOG_ENABLED = (os.getenv("ANIP_AGENT_COMPACT_CATALOG") or "").strip().lower() in {"1", "true", "yes"}
+COMPACT_CATALOG_TOP_N = _env_int("ANIP_AGENT_COMPACT_CATALOG_TOP_N", 10)
 UI_PATH = Path(__file__).resolve().parent / "index.html"
 ENTRY_PATH = Path(__file__).resolve().parent / "entry.html"
 METABASE_PATH = Path(__file__).resolve().parent / "metabase.html"
@@ -538,6 +568,17 @@ def _conversation_text(question: str, history: list[dict[str, Any]] | None = Non
     return conversation_text_from_history(question, history)
 
 
+def _planner_capability_brief(
+    question: str,
+    history: list[dict[str, Any]] | None,
+    routing_brief: str,
+    metadata: dict[str, dict[str, Any]],
+) -> tuple[str, dict[str, Any]]:
+    if not COMPACT_CATALOG_ENABLED:
+        return routing_brief, {"compact_catalog": False}
+    return build_compact_agent_capability_brief(_conversation_text(question, history), metadata, top_n=COMPACT_CATALOG_TOP_N)
+
+
 def _user_prompt(question: str, capability_brief: str, history: list[dict[str, Any]] | None = None) -> str:
     transcript = _conversation_text(question, history)
     planning_guidance = str(APP_PROFILE.get("planning_guidance") or "").strip()
@@ -560,6 +601,8 @@ def _user_prompt(question: str, capability_brief: str, history: list[dict[str, A
         "- Do not invent inputs that the metadata classifies as business context, references, or app-selected targets; bind them only when present in the conversation or provided by explicit app glue.\n"
         "- If an input is required but not present in the user request/history, omit it rather than guessing; the service owns clarification.\n"
         "- If the user asks for a compound outcome, choose a single declared compound/business capability if one exists; otherwise choose the narrowest capability that can safely respond.\n\n"
+        "- Negative constraints are exclusions, not requested work. If the user says not to draft, send, export, mutate, route, assign, or create something, do not select a capability merely because that forbidden action appears in the text.\n"
+        "- Prefer the capability that satisfies the affirmative requested outcome while preserving the user's negative constraints as boundaries.\n\n"
         "- If a compound request includes both read/summary language and prepare/preview/approval/mutation language, prefer a declared capability whose business_effects produce approval.request, system.preview_mutation, or content.draft over a plain read-only summary.\n"
         "- Use app_glue and required_context hints as routing constraints: if the request needs app selection or derived target handling, choose the capability that owns that boundary rather than a harmless adjacent read capability.\n\n"
         "- Set unsupported=true only when the user explicitly asks for hard out-of-contract behavior such as raw data, full exports, debug/internal payloads, hidden underlying records, send-now behavior, or direct unsupported mutations.\n"
@@ -589,6 +632,44 @@ def _parse_json_object(text: str) -> dict[str, Any]:
     return parsed
 
 
+def _fallback_model_enabled() -> bool:
+    return bool(FALLBACK_MODEL and FALLBACK_API_KEY)
+
+
+def _usage_int(usage: dict[str, Any], key: str) -> int:
+    try:
+        return int(usage.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _sum_model_usage(*usages: dict[str, Any]) -> dict[str, Any]:
+    prompt_tokens = sum(_usage_int(usage, "prompt_tokens") or _usage_int(usage, "input_tokens") for usage in usages)
+    completion_tokens = sum(_usage_int(usage, "completion_tokens") or _usage_int(usage, "output_tokens") for usage in usages)
+    total_tokens = sum(_usage_int(usage, "total_tokens") for usage in usages)
+    prompt_details: dict[str, int] = {}
+    completion_details: dict[str, int] = {}
+    for usage in usages:
+        raw_prompt_details = usage.get("prompt_tokens_details")
+        if isinstance(raw_prompt_details, dict):
+            for key, value in raw_prompt_details.items():
+                prompt_details[str(key)] = prompt_details.get(str(key), 0) + int(value or 0)
+        raw_completion_details = usage.get("completion_tokens_details")
+        if isinstance(raw_completion_details, dict):
+            for key, value in raw_completion_details.items():
+                completion_details[str(key)] = completion_details.get(str(key), 0) + int(value or 0)
+    result: dict[str, Any] = {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens or prompt_tokens + completion_tokens,
+    }
+    if prompt_details:
+        result["prompt_tokens_details"] = prompt_details
+    if completion_details:
+        result["completion_tokens_details"] = completion_details
+    return result
+
+
 def _retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
     retry_after = response.headers.get("retry-after")
     if retry_after:
@@ -599,14 +680,24 @@ def _retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
     return min(1.0 * (2 ** attempt), 20.0)
 
 
-async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
-    if not OPENAI_MODEL:
+async def _call_model_json(
+    user_prompt: str,
+    *,
+    system_prompt: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    selected_model = (model or OPENAI_MODEL).strip()
+    selected_base_url = (base_url or OPENAI_BASE_URL).rstrip("/")
+    selected_api_key = (api_key or OPENAI_API_KEY).strip()
+    if not selected_model:
         raise HTTPException(status_code=503, detail="ANIP_AGENT_MODEL or OPENAI_MODEL is not configured")
-    if not OPENAI_API_KEY:
+    if not selected_api_key:
         raise HTTPException(status_code=503, detail="ANIP_AGENT_API_KEY or OPENAI_API_KEY is not configured")
 
     body = {
-        "model": OPENAI_MODEL,
+        "model": selected_model,
         "messages": [
             {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -614,14 +705,14 @@ async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None
         "temperature": AGENT_TEMPERATURE,
         "response_format": {"type": "json_object"},
     }
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {OPENAI_API_KEY}"}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {selected_api_key}"}
 
     async with httpx.AsyncClient(timeout=AGENT_TIMEOUT_SECONDS) as client:
         response: httpx.Response | None = None
         last_transport_error: httpx.TransportError | None = None
         for attempt in range(max(1, AGENT_MODEL_MAX_RETRIES)):
             try:
-                response = await client.post(f"{OPENAI_BASE_URL}/chat/completions", headers=headers, json=body)
+                response = await client.post(f"{selected_base_url}/chat/completions", headers=headers, json=body)
             except httpx.TransportError as exc:
                 last_transport_error = exc
                 if attempt < max(1, AGENT_MODEL_MAX_RETRIES) - 1:
@@ -657,32 +748,102 @@ async def _call_model_json(user_prompt: str, *, system_prompt: str | None = None
     return _parse_json_object(str(content)), dict(usage)
 
 
+def _normalize_planner_candidate(
+    raw_plan: dict[str, Any],
+    *,
+    conversation: str,
+    metadata: dict[str, dict[str, Any]],
+    compact_stats: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
+    selection_hints = APP_PROFILE.get("selection_hints") if isinstance(APP_PROFILE.get("selection_hints"), list) else []
+    plan = normalize_invocation_plan(raw_plan, conversation, metadata, selection_hints=selection_hints)
+    plan = _apply_app_plan_customization(plan, conversation, metadata)
+    capability = str(plan.get("selected_capability") or "")
+    if capability not in metadata:
+        return plan, f"selected capability {capability!r} is not in discovered metadata"
+    candidate_ids = compact_stats.get("compact_candidate_ids")
+    if isinstance(candidate_ids, list) and candidate_ids and capability not in {str(item) for item in candidate_ids}:
+        return plan, f"selected capability {capability!r} is outside compact candidate set"
+    return plan, None
+
+
 async def _plan_with_model(question: str, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    capability_brief, metadata, _ = _load_catalog()
+    routing_brief, metadata, _ = _load_catalog()
+    capability_brief, compact_stats = _planner_capability_brief(question, history, routing_brief, metadata)
     conversation = _conversation_text(question, history)
     user_prompt = _user_prompt(question, capability_brief, history)
-    plan, usage = await _call_model_json(user_prompt)
+    fallback_reason: str | None = None
+    fallback_usage: dict[str, Any] | None = None
+    fallback_raw_plan: dict[str, Any] | None = None
+    usage: dict[str, Any] = {}
+    if not fallback_reason:
+        try:
+            raw_plan, usage = await _call_model_json(user_prompt)
+            plan, fallback_reason = _normalize_planner_candidate(
+                raw_plan,
+                conversation=conversation,
+                metadata=metadata,
+                compact_stats=compact_stats,
+            )
+        except ValueError as exc:
+            if not _fallback_model_enabled():
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+            fallback_reason = f"primary planner response failed validation: {exc}"
+            plan = {}
+    else:
+        plan = {}
+    if fallback_reason and _fallback_model_enabled():
+        try:
+            fallback_raw_plan, fallback_usage = await _call_model_json(
+                user_prompt,
+                model=FALLBACK_MODEL,
+                base_url=FALLBACK_BASE_URL,
+                api_key=FALLBACK_API_KEY,
+            )
+            plan, second_reason = _normalize_planner_candidate(
+                fallback_raw_plan,
+                conversation=conversation,
+                metadata=metadata,
+                compact_stats=compact_stats,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback planner failed validation: {exc}") from exc
+        if second_reason:
+            raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback planner failed validation: {second_reason}")
+    elif fallback_reason:
+        raise HTTPException(status_code=502, detail=fallback_reason)
 
-    selection_hints = APP_PROFILE.get("selection_hints") if isinstance(APP_PROFILE.get("selection_hints"), list) else []
-    try:
-        plan = normalize_invocation_plan(plan, conversation, metadata, selection_hints=selection_hints)
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    plan = _apply_app_plan_customization(plan, conversation, metadata)
     capability = str(plan["selected_capability"])
     catalog = CATALOG_CACHE.get("catalog")
     stats = catalog.get("stats", {}) if isinstance(catalog, dict) else {}
+    stats = {**stats, **compact_stats}
+    used_fallback = fallback_usage is not None
+    total_usage = _sum_model_usage(usage, fallback_usage or {})
     return {
         "plan": plan,
         "metadata": metadata[capability],
         "capability_brief": capability_brief,
         "catalog_stats": stats,
+        "model": FALLBACK_MODEL if used_fallback else OPENAI_MODEL,
+        "base_url": FALLBACK_BASE_URL if used_fallback else OPENAI_BASE_URL,
+        "planner_fallback": {
+            "enabled": _fallback_model_enabled(),
+            "used": used_fallback,
+            "reason": fallback_reason if used_fallback else None,
+            "primary_model": OPENAI_MODEL,
+            "primary_base_url": OPENAI_BASE_URL,
+            "fallback_model": FALLBACK_MODEL or None,
+            "fallback_base_url": FALLBACK_BASE_URL if FALLBACK_MODEL else None,
+        },
         "prompt_stats": {
             "system_prompt_chars": len(SYSTEM_PROMPT),
             "user_prompt_chars": len(user_prompt),
             "capability_brief_chars": len(capability_brief),
         },
-        "usage": usage,
+        "usage": total_usage,
+        "primary_usage": usage,
+        "fallback_usage": fallback_usage or {},
+        "raw_fallback_plan": fallback_raw_plan,
     }
 
 
@@ -705,31 +866,74 @@ async def _plan_clarification_continuation(
         continuation=continuation,
         capability_metadata=capability_metadata,
     )
-    raw_plan, usage = await _call_model_json(user_prompt)
     conversation = _conversation_text(question, history)
-    plan = normalize_clarification_continuation_plan(
-        raw_plan,
-        conversation=conversation,
-        continuation=continuation,
-        capability_metadata=capability_metadata,
-    )
+    fallback_reason: str | None = None
+    fallback_usage: dict[str, Any] | None = None
+    usage: dict[str, Any] = {}
+    if not fallback_reason:
+        try:
+            raw_plan, usage = await _call_model_json(user_prompt)
+            plan = normalize_clarification_continuation_plan(
+                raw_plan,
+                conversation=conversation,
+                continuation=continuation,
+                capability_metadata=capability_metadata,
+            )
+        except ValueError as exc:
+            if not _fallback_model_enabled():
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+            fallback_reason = f"primary clarification response failed validation: {exc}"
+            plan = None
+    else:
+        plan = None
+    if plan is None and _fallback_model_enabled():
+        fallback_reason = fallback_reason or "primary clarification response did not produce a continuation plan"
+        try:
+            raw_plan, fallback_usage = await _call_model_json(
+                user_prompt,
+                model=FALLBACK_MODEL,
+                base_url=FALLBACK_BASE_URL,
+                api_key=FALLBACK_API_KEY,
+            )
+            plan = normalize_clarification_continuation_plan(
+                raw_plan,
+                conversation=conversation,
+                continuation=continuation,
+                capability_metadata=capability_metadata,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback clarification failed validation: {exc}") from exc
     if plan is None:
         return None
 
     catalog = CATALOG_CACHE.get("catalog")
     stats = catalog.get("stats", {}) if isinstance(catalog, dict) else {}
+    used_fallback = fallback_usage is not None
     return {
         "plan": plan,
         "metadata": capability_metadata,
         "capability_brief": capability_brief,
         "catalog_stats": stats,
         "planner_mode": "clarification_continuation",
+        "model": FALLBACK_MODEL if used_fallback else OPENAI_MODEL,
+        "base_url": FALLBACK_BASE_URL if used_fallback else OPENAI_BASE_URL,
+        "planner_fallback": {
+            "enabled": _fallback_model_enabled(),
+            "used": used_fallback,
+            "reason": fallback_reason if used_fallback else None,
+            "primary_model": OPENAI_MODEL,
+            "primary_base_url": OPENAI_BASE_URL,
+            "fallback_model": FALLBACK_MODEL or None,
+            "fallback_base_url": FALLBACK_BASE_URL if FALLBACK_MODEL else None,
+        },
         "prompt_stats": {
             "system_prompt_chars": len(SYSTEM_PROMPT),
             "user_prompt_chars": len(user_prompt),
             "capability_brief_chars": 0,
         },
-        "usage": usage,
+        "usage": _sum_model_usage(usage, fallback_usage or {}),
+        "primary_usage": usage,
+        "fallback_usage": fallback_usage or {},
     }
 
 
@@ -986,6 +1190,17 @@ def runtime_info():
         "actors": _public_actor_profiles(),
         "model": OPENAI_MODEL or None,
         "base_url": OPENAI_BASE_URL,
+        "model_optimization": {
+            "compact_catalog": {
+                "enabled": COMPACT_CATALOG_ENABLED,
+                "top_n": COMPACT_CATALOG_TOP_N,
+            },
+            "fallback": {
+                "enabled": _fallback_model_enabled(),
+                "model": FALLBACK_MODEL or None,
+                "base_url": FALLBACK_BASE_URL if FALLBACK_MODEL else None,
+            },
+        },
         "capabilities": metadata,
         "capability_brief": brief,
         "catalog_stats": catalog_stats,
@@ -1114,14 +1329,17 @@ async def ask(req: AskRequest):
             "total_loops": PLANNER_LOOP_COUNT + SERVICE_INVOKE_LOOP_COUNT,
         },
         "planner": {
-            "model": OPENAI_MODEL,
-            "base_url": OPENAI_BASE_URL,
+            "model": planned.get("model") or OPENAI_MODEL,
+            "base_url": planned.get("base_url") or OPENAI_BASE_URL,
             "mode": planned.get("planner_mode") or "selection",
             "rationale": plan.get("rationale"),
             "user_message": plan.get("user_message"),
             "prompt_stats": planned.get("prompt_stats"),
             "catalog_stats": planned.get("catalog_stats"),
             "usage": planned.get("usage") or {},
+            "primary_usage": planned.get("primary_usage") or {},
+            "fallback_usage": planned.get("fallback_usage") or {},
+            "fallback": planned.get("planner_fallback") or {},
         },
         "usage": planned.get("usage") or {},
         "planned_capability": capability,
@@ -1158,6 +1376,8 @@ async def ask_stream(req: AskRequest):
                 "planner",
                 {
                     "mode": planned.get("planner_mode") or "selection",
+                    "model": planned.get("model") or OPENAI_MODEL,
+                    "base_url": planned.get("base_url") or OPENAI_BASE_URL,
                     "selected_capability": capability,
                     "selected_service": metadata.get("service_name"),
                     "parameters": parameters,
@@ -1165,6 +1385,9 @@ async def ask_stream(req: AskRequest):
                     "prompt_stats": planned.get("prompt_stats"),
                     "catalog_stats": planned.get("catalog_stats"),
                     "usage": planned.get("usage") or {},
+                    "primary_usage": planned.get("primary_usage") or {},
+                    "fallback_usage": planned.get("fallback_usage") or {},
+                    "fallback": planned.get("planner_fallback") or {},
                 },
             )
 
@@ -1216,14 +1439,17 @@ async def ask_stream(req: AskRequest):
                     "total_loops": PLANNER_LOOP_COUNT + SERVICE_INVOKE_LOOP_COUNT,
                 },
                 "planner": {
-                    "model": OPENAI_MODEL,
-                    "base_url": OPENAI_BASE_URL,
+                    "model": planned.get("model") or OPENAI_MODEL,
+                    "base_url": planned.get("base_url") or OPENAI_BASE_URL,
                     "mode": planned.get("planner_mode") or "selection",
                     "rationale": plan.get("rationale"),
                     "user_message": plan.get("user_message"),
                     "prompt_stats": planned.get("prompt_stats"),
                     "catalog_stats": planned.get("catalog_stats"),
                     "usage": planned.get("usage") or {},
+                    "primary_usage": planned.get("primary_usage") or {},
+                    "fallback_usage": planned.get("fallback_usage") or {},
+                    "fallback": planned.get("planner_fallback") or {},
                 },
                 "usage": planned.get("usage") or {},
                 "planned_capability": capability,

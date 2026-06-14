@@ -292,7 +292,11 @@ def _run_multi_turn_case(
         }
         turn_results.append(turn_result)
         history.append({"role": "user", "content": question})
-        history.append({"role": "assistant", "content": _history_assistant_content(response)})
+        assistant_entry: dict[str, Any] = {"role": "assistant", "content": _history_assistant_content(response)}
+        continuation = response.get("continuation")
+        if isinstance(continuation, dict):
+            assistant_entry["continuation"] = continuation
+        history.append(assistant_entry)
     elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
     final_turn = turn_results[-1] if turn_results else {}
     loop_counts = {

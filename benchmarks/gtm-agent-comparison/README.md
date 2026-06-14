@@ -163,6 +163,19 @@ ANIP full-bank reference:
 - Cached-token ratio: `75.41%`.
 - Average elapsed time: `1366.76ms`.
 
+ANIP compact-catalog optimization experiment:
+
+- This is a local opt-in runtime experiment, not a protocol/package change.
+- Enable with `ANIP_AGENT_COMPACT_CATALOG=true`.
+- The runtime still loads the full ANIP catalog for validation and invocation, but sends only a locally retrieved compact candidate set to the planner.
+- Naive top-12 retrieval passed smoke `7/7` but failed the 60-case stratified sample `58/60`, because “at risk” wording ranked approval-preparation capabilities above read-only risk summary.
+- Top-16 retrieval passed the same 60-case stratified sample `60/60`.
+- On the exact same 60 cases, full-catalog ANIP used `497,217` total tokens, compact top-16 ANIP used `179,443`, and the final MCP-style baseline used `199,808`.
+- Top-16 retrieval also passed the full 540-case benchmark `540/540`.
+- On the full 540-case benchmark, full-catalog ANIP used `4,158,463` total tokens, compact top-16 ANIP used `1,494,235`, and the final MCP-style baseline used `1,670,658`.
+- Compact ANIP kept the same ANIP loop profile as full-catalog ANIP: average loops `2.20`, total loops `1188`.
+- The engineering conclusion is that ANIP prompt/catalog packing is a real optimization opportunity. The compact routing result should still be treated as an opt-in runtime experiment until it is generalized beyond the GTM showcase.
+
 MCP-style skill/recipe 60-case stratified sample:
 
 - `gpt-5.4`: `60/60` passed, average loops `3.55`, total loops `213`, total tokens `201,096`, cached-token ratio `0%`, average elapsed time `4552.51ms`.
@@ -202,6 +215,41 @@ The fair conclusion from this GTM suite is precise:
 - The ANIP path passed through provider-owned capability contracts, generated services, and service-side governance semantics.
 - This suite proves governance-location and repair-burden differences more directly than model-tier differences.
 
+Hard-mode extension:
+
+- Added `cases/gtm-hard-mode.json`, a 24-case suite for prompt injection, mixed safe/unsafe intent, actor-boundary pressure, provider-selected targets, approval bypass attempts, negated actions, and multi-turn ambiguity.
+- Compact ANIP with `gpt-5.4-mini` passed `24/24`, average loops `2.33`, total loops `56`, total tokens `72,400`.
+- MCP-style skill/recipe baseline with `gpt-5.4-mini` passed `20/24`, average loops `3.50`, total loops `84`, total tokens `75,162`.
+- MCP-style skill/recipe baseline with `gpt-5.4` passed `19/24`, average loops `3.50`, total loops `84`, total tokens `76,968`.
+- The failed MCP-style cases were consumer-side policy errors: draft-vs-send confusion, over-denial of safe draft-only requests, approval-bypass handling, provider-selected target continuation, and one safe-forecast/raw-SQL fallback conflict.
+- The hard-mode result does not prove that a stronger model can never help. It shows that stronger reasoning alone is not a reliable substitute for provider-owned execution contracts when policy and recovery live in consumer prompts/recipes.
+
+Mixed nano-to-mini routing experiment:
+
+- The mixed runner first sends each request to a compact ANIP runtime using `gpt-5.4-nano`, then falls back to compact ANIP on `gpt-5.4-mini` only when the benchmark acceptance check fails.
+- This is an engineering opportunity measurement, not a production routing policy. The fallback decision uses the benchmark's expected outcome oracle, so these results must not be presented as evidence that the runtime already has safe automatic nano-to-mini routing.
+- A production mixed-model router must make the escalation decision from contract posture, requested effects, schema validity, confidence, clarification state, actor/scope boundaries, approval/denial/masking outcomes, and structured continuation state.
+- On the hard-mode suite, mixed nano-to-mini passed `24/24` with `0` fallbacks.
+- On the full 540-case benchmark, mixed nano-to-mini passed `540/540` with `7` fallbacks, a `1.3%` fallback rate.
+- Full 540 mixed primary nano usage: `1,545,147` total tokens, `1,472,761` prompt tokens, `72,386` completion tokens.
+- Full 540 mixed fallback mini usage: `18,492` total tokens, `17,736` prompt tokens, `756` completion tokens.
+- Full 540 mixed total usage: `1,563,639` total tokens, `1,490,497` prompt tokens, `73,142` completion tokens.
+- Full 540 mixed loop profile stayed the same as compact ANIP on mini: average loops `2.20`, total loops `1188`.
+- Using the June 2026 list prices supplied for this benchmark (`nano` input `$0.20/M`, nano output `$1.25/M`, mini input `$0.75/M`, mini output `$4.50/M`), the measured suite cost was approximately `$0.4017`.
+- For the same full 540 cases and the same pricing model, compact ANIP on mini was approximately `$0.9120`, full-catalog ANIP on mini was approximately `$1.2549`, and MCP-style on mini was approximately `$1.9031`.
+- The practical conclusion is narrower: ANIP's structured service-owned outcomes make mixed-model routing worth implementing properly, but the production router still needs first-class runtime validators before this can become a public claim.
+
+MCP-style mixed nano-to-mini comparison:
+
+- The same mixed runner was also used against the MCP-style skill/recipe baseline, with `gpt-5.4-nano` as primary and `gpt-5.4-mini` as fallback.
+- This uses the same benchmark-oracle fallback limitation as the ANIP mixed experiment.
+- On the 60-case non-hard stratified sample, MCP-style mixed passed `60/60` with `6` fallbacks, a `10%` fallback rate, `240,341` total tokens, average latency `6018.70ms`, and total loops `213`.
+- On the full 540-case non-hard benchmark, MCP-style mixed passed `540/540` with `22` fallbacks, a `4.07%` fallback rate, `1,831,222` total tokens, average latency `4592.92ms`, and total loops `1785`.
+- Using the same June 2026 list prices, MCP-style mixed full-bank cost was approximately `$0.6858`.
+- MCP-style mixed was cheaper than MCP-style mini-only by dollars, but not by tokens or latency: `1,831,222` tokens versus `1,670,658`, and `4592.92ms` average latency versus `2910.00ms`.
+- MCP-style mixed did not fix hard-mode reliability. It passed `19/24` on hard-mode with `7` fallbacks, compared with MCP-style mini-only at `20/24` and MCP-style standard at `19/24`.
+- The apples-to-apples conclusion is that mixed-model routing is possible in both approaches, but the economics differ. ANIP mixed used fewer tokens, fewer loops, lower latency, fewer fallbacks, and lower estimated cost because the smaller model consumed a compact governed capability contract instead of carrying policy and recovery behavior in consumer-side skills/recipes.
+
 ## Environment Variables
 
 Use `OPENAI_API_KEY` and `OPENAI_MODEL` as the canonical benchmark variables.
@@ -222,5 +270,5 @@ The point is to measure where routing, policy, clarification, and approval logic
 ## Next Steps
 
 - Add a summarizer that compares two run directories and produces a publishable table.
-- Add a hard-mode benchmark suite that does not modify the published GTM Agent package. It should push ambiguous multi-step planning, conflicting policies, tool-surface drift, and adversarial prompt pressure until `gpt-5.4-mini` struggles in the MCP-style path.
-- Run hard-mode with `gpt-5.4-mini` and a stronger model to measure model-tier pressure separately from the current GTM showcase.
+- Expand the hard-mode benchmark with tool-surface drift and additional adversarial recovery cases.
+- Add a separate benchmark variant where the MCP-style baseline is allowed to keep iterating on consumer-side recipes, so we can measure maintenance cost and brittleness over time rather than only first-pass pass rate.
