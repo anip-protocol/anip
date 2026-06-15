@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/server",
-  "version": "0.24.5",
+  "version": "0.24.6",
   "description": "ANIP server primitives — delegation, audit, checkpoints, Merkle trees",
   "type": "module",
   "engines": {
@@ -13,8 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/core": "0.24.5",
-    "@anip-dev/crypto": "0.24.5",
+    "@anip-dev/core": "0.24.6",
+    "@anip-dev/crypto": "0.24.6",
     "better-sqlite3": "^12.6.2"
   },
   "peerDependencies": {
