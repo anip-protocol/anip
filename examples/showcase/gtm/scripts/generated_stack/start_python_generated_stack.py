@@ -21,18 +21,35 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_GENERATED_DIR = REPO_ROOT / "output" / "gtm-language-parity" / "python"
 START_RUNTIME = REPO_ROOT / "examples" / "showcase" / "gtm" / "scripts" / "start_generated_llm_runtime.py"
-RUNTIME_MODULE = "gtm_operator_contract_20260512235040"
 SERVICE_MODULES = [
-    ("pipeline", "gtm-pipeline-service", f"{RUNTIME_MODULE}.app:app"),
-    ("enrichment", "gtm-enrichment-service", f"{RUNTIME_MODULE}.services.gtm_enrichment_service.app:app"),
-    ("prioritization", "gtm-prioritization-service", f"{RUNTIME_MODULE}.services.gtm_prioritization_service.app:app"),
-    ("outreach", "gtm-outreach-service", f"{RUNTIME_MODULE}.services.gtm_outreach_service.app:app"),
+    ("pipeline", "gtm-pipeline-service", "{runtime_module}.app:app"),
+    ("enrichment", "gtm-enrichment-service", "{runtime_module}.services.gtm_enrichment_service.app:app"),
+    ("prioritization", "gtm-prioritization-service", "{runtime_module}.services.gtm_prioritization_service.app:app"),
+    ("outreach", "gtm-outreach-service", "{runtime_module}.services.gtm_outreach_service.app:app"),
 ]
+
+
+def _runtime_module(generated_dir: Path) -> str:
+    src_dir = generated_dir / "src"
+    candidates = [
+        path.parent.parent.name
+        for path in src_dir.glob("*/runtime/actor.py")
+        if path.parent.parent.name and not path.parent.parent.name.startswith(".")
+    ]
+    if len(candidates) != 1:
+        raise RuntimeError(
+            "Expected exactly one generated Python runtime package under "
+            f"{src_dir}, found {candidates or 'none'}."
+        )
+    return candidates[0]
 
 
 def _api_keys_json(generated_dir: Path) -> str:
     sys.path.insert(0, str(generated_dir / "src"))
-    from gtm_operator_contract_20260512235040.runtime.actor import actor_profiles, encode_actor_principal
+    runtime_module = _runtime_module(generated_dir)
+    actor_module = __import__(f"{runtime_module}.runtime.actor", fromlist=["actor_profiles", "encode_actor_principal"])
+    actor_profiles = actor_module.actor_profiles
+    encode_actor_principal = actor_module.encode_actor_principal
 
     return json.dumps({profile.api_key: encode_actor_principal(profile) for profile in actor_profiles().values()})
 
@@ -85,7 +102,9 @@ def _start_services(args: argparse.Namespace) -> list[subprocess.Popen[bytes]]:
     _ensure_key_file(generated_dir)
     api_keys = _api_keys_json(generated_dir)
     processes: list[subprocess.Popen[bytes]] = []
-    for index, (_name, service_id, module) in enumerate(SERVICE_MODULES):
+    runtime_module = _runtime_module(generated_dir)
+    for index, (_name, service_id, module_template) in enumerate(SERVICE_MODULES):
+        module = module_template.format(runtime_module=runtime_module)
         env = os.environ.copy()
         env.update(
             {

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 GTM_DIR="$ROOT_DIR/examples/showcase/gtm"
-TAG="${ANIP_GTM_IMAGE_TAG:-0.4.3}"
+TAG="${ANIP_GTM_IMAGE_TAG:-0.4.4}"
 PUSH="${ANIP_GTM_PUSH:-0}"
 TAG_LATEST="${ANIP_GTM_TAG_LATEST:-1}"
 IMAGES=(
@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 gtm_dir = Path("examples/showcase/gtm")
-package_path = gtm_dir / "registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json"
+package_path = gtm_dir / "registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json"
 generated_root = gtm_dir / "generated/language-parity"
 languages = ["python", "typescript", "go", "java", "csharp"]
 

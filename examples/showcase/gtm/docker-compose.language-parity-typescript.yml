@@ -81,7 +81,7 @@ services:
     command: ["python", "/scripts/setup_metabase_verification.py"]
 
   gtm-pipeline-service: &gtm-service
-    image: "anipprotocol/showcase-gtm-typescript:${ANIP_GTM_IMAGE_TAG:-0.4.3}"
+    image: "anipprotocol/showcase-gtm-typescript:${ANIP_GTM_IMAGE_TAG:-0.4.4}"
     build:
       context: ../../..
       dockerfile: examples/showcase/gtm/generated/language-parity/typescript/Dockerfile
@@ -131,7 +131,7 @@ services:
       - "${GTM_OUTREACH_PORT:-4223}:4100"
 
   gtm-agent-llm-ui:
-    image: "anipprotocol/showcase-gtm-agent-ui:${ANIP_GTM_IMAGE_TAG:-0.4.3}"
+    image: "anipprotocol/showcase-gtm-agent-ui:${ANIP_GTM_IMAGE_TAG:-0.4.4}"
     build:
       context: ../../..
       dockerfile: examples/showcase/gtm/agents/llm_runtime/Dockerfile

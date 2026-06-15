@@ -196,6 +196,11 @@ CAPABILITY_METADATA = {
         },
     },
     "gtm.bottleneck_account_outreach_draft": {
+        "input_meanings": {
+            "quarter": {
+                "2017-Q2": "Q2 at-risk account or bottleneck review context for this GTM showcase package.",
+            }
+        },
         "business_effects": {
             "produces": ["content.draft"],
             "does_not_produce": ["external_dispatch"],
@@ -254,13 +259,6 @@ CAPABILITY_METADATA = {
         "app_boundaries": {
             "guidance": "This capability prepares task previews for approval; it does not create tasks or contact customers.",
         },
-    },
-    "gtm.bottleneck_account_outreach_draft": {
-        "input_meanings": {
-            "quarter": {
-                "2017-Q2": "Q2 at-risk account or bottleneck review context for this GTM showcase package.",
-            }
-        }
     },
 }
 
@@ -373,6 +371,7 @@ def _extract_gtm_owner_scope(conversation: str) -> str | None:
     for scope in GTM_SCOPE_VALUES:
         escaped = re.escape(scope)
         patterns = [
+            rf"\b(?:my\s+|our\s+|the\s+)?{escaped}[-\s]+(?:region|territory|office|scope|accounts|opportunities|pipeline|forecast|stage|bottlenecks?)\b",
             rf"\b(?:for|in|within|under|across)\s+(?:my\s+|our\s+|the\s+)?{escaped}\s+(?:region|territory|office|scope|accounts|opportunities|pipeline|forecast|stage|bottlenecks?)\b",
             rf"\b(?:region|territory|office|scope)\s+(?:of|=|:)\s*(?:my\s+|our\s+|the\s+)?{escaped}\b",
             rf"\b(?:my\s+|our\s+|the\s+)?{escaped}\s+(?:region|territory|office|scope|accounts|opportunities|pipeline|forecast|stage|bottlenecks?)\b",

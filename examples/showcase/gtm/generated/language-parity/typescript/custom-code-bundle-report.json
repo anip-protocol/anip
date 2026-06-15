@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_typescript",
-  "bundle_sha256": "sha256:247d9c0b4344754e06ad4e3a04972914cfdb6f77f065844329776c9756aa9878",
+  "bundle_sha256": "sha256:3c0b52e1f8aa07a55568df86726197248f44a838a574f6461c92df0662ab5ab1",
   "files": [
     {
       "path": "README.md",
@@ -58,10 +58,10 @@
     },
     {
       "path": "src/runtime/backend-adapter.ts",
-      "sha256": "sha256:f5153129ed02e54524922479ca562c5920cbf49fab9c90b3dfd156e11c72852b",
+      "sha256": "sha256:1b56b6bfa7d0b9b82e73a69478b7b25c73937fe90ba4a590ef6e56e1bb81eed8",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 40513,
+      "bytes": 40488,
       "overlaid": true,
       "substrate": false
     },

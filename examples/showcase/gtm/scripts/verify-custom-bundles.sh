@@ -16,14 +16,18 @@ esac
 rm -rf "$OUTPUT_ROOT"
 mkdir -p "$OUTPUT_ROOT"
 
-"$PYTHON_BIN" - "$CATALOG" <<'PY' | while IFS=$'\t' read -r language target path digest; do
+"$PYTHON_BIN" - "$CATALOG" <<'PY' | while IFS=$'\t' read -r package_bundle language target path digest; do
 import json
 import sys
+from pathlib import Path
 
-with open(sys.argv[1], encoding="utf-8") as handle:
+catalog_path = Path(sys.argv[1]).resolve()
+with catalog_path.open(encoding="utf-8") as handle:
     catalog = json.load(handle)
+package_bundle = (catalog_path.parent / catalog["package"]["bundle_path"]).resolve()
 for bundle in catalog["bundles"]:
     print(
+        package_bundle,
         bundle["language"],
         bundle["target"],
         bundle["path"],
@@ -35,7 +39,7 @@ PY
   (
     cd "$ROOT_DIR/packages/go"
     GOCACHE="${GOCACHE:-/private/tmp/anip-go-cache}" go run ./cmd/anip generate \
-      --package-bundle "$GTM_DIR/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json" \
+      --package-bundle "$package_bundle" \
       --target "$target" \
       --dependency-source local \
       --custom-code-bundle "$GTM_DIR/custom-code-bundles/$path" \

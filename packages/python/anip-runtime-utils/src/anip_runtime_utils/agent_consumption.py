@@ -47,6 +47,7 @@ GENERIC_CATALOG_TOKENS = {
     "follow",
     "followup",
     "highest",
+    "in",
     "lead",
     "leads",
     "list",
@@ -71,6 +72,7 @@ GENERIC_CATALOG_TOKENS = {
     "suggest",
     "suggested",
     "summary",
+    "show",
     "target",
     "targets",
     "that",
@@ -194,6 +196,22 @@ def _apply_token_variant_rules(tokens: set[str], customization: dict[str, Any] |
     return variants
 
 
+def _apply_basic_inflection_variants(tokens: set[str]) -> set[str]:
+    variants = set(tokens)
+    for token in list(tokens):
+        if len(token) <= 3:
+            continue
+        if token.endswith("ies") and len(token) > 4:
+            variants.add(f"{token[:-3]}y")
+        if token.endswith("es") and len(token) > 4:
+            variants.add(token[:-2])
+        if token.endswith("s") and len(token) > 4:
+            variants.add(token[:-1])
+        else:
+            variants.add(f"{token}s")
+    return variants
+
+
 def _capability_selection_customization(customization: dict[str, Any] | None = None) -> dict[str, Any]:
     if not isinstance(customization, dict):
         return {}
@@ -251,6 +269,7 @@ def _configured_float(
 
 def content_token_variants(value: Any, customization: dict[str, Any] | None = None) -> set[str]:
     variants = set(content_tokens(value))
+    variants = _apply_basic_inflection_variants(variants)
     return _apply_token_variant_rules(variants, customization)
 
 
@@ -906,6 +925,93 @@ def render_agent_detail_metadata(metadata: dict[str, Any]) -> str:
     )
 
 
+def render_compact_agent_input_summary(input_specs: list[Any]) -> str:
+    """Render input specs for compact routing prompts.
+
+    This is intentionally smaller than `render_agent_input_spec`: compact
+    profile prompts need enough structure for routing and obvious parameter
+    binding, while full contract validation still happens against the complete
+    metadata after selection.
+    """
+    rendered: list[str] = []
+    for raw_spec in input_specs:
+        if not isinstance(raw_spec, dict):
+            continue
+        name = str(raw_spec.get("name") or "").strip()
+        if not name:
+            continue
+        marker = "req" if raw_spec.get("required") is True else "opt"
+        allowed = raw_spec.get("allowed_values")
+        allowed_text = ""
+        if isinstance(allowed, list) and allowed:
+            allowed_text = f"={ '/'.join(str(item) for item in allowed[:8]) }"
+        rendered.append(f"{name}({marker}{allowed_text})")
+    return ", ".join(rendered) or "none"
+
+
+def _metadata_effect_values(metadata: dict[str, Any], key: str) -> list[str]:
+    effects = metadata.get("business_effects")
+    values = effects.get(key) if isinstance(effects, dict) else None
+    return [str(item) for item in values if str(item).strip()] if isinstance(values, list) else []
+
+
+def render_compact_agent_capability_line(capability_id: str, metadata: dict[str, Any]) -> str:
+    """Render one compact capability candidate line for model routing."""
+    produces = _metadata_effect_values(metadata, "produces")
+    forbidden = _metadata_effect_values(metadata, "does_not_produce")
+    grant_policy = metadata.get("grant_policy")
+    approval = " approval" if isinstance(grant_policy, dict) and grant_policy else ""
+    input_specs = metadata.get("input_specs") if isinstance(metadata.get("input_specs"), list) else []
+    return (
+        f"- {capability_id}: {metadata.get('description') or 'No description provided.'} "
+        f"| service={metadata.get('service_name') or 'unknown'} "
+        f"| inputs={render_compact_agent_input_summary(input_specs)} "
+        f"| side_effect={metadata.get('side_effect') or 'unknown'}{approval} "
+        f"| produces={','.join(produces) or 'none'} "
+        f"| forbids={','.join(forbidden) or 'none'}"
+    )
+
+
+def build_compact_agent_capability_brief(
+    conversation: str,
+    metadata: dict[str, dict[str, Any]],
+    *,
+    top_n: int = 10,
+) -> tuple[str, dict[str, Any]]:
+    """Build a compact top-N routing brief from full runtime metadata.
+
+    The returned brief is an optimization artifact only. Callers must retain the
+    full metadata for normalization, invocation, permission, approval, denial,
+    recovery, and audit behavior.
+    """
+    bounded_top_n = max(1, int(top_n or 1))
+    scored = sorted(
+        (
+            (
+                compact_capability_match_score(conversation, capability_id, capability_metadata),
+                capability_id,
+                capability_metadata,
+            )
+            for capability_id, capability_metadata in metadata.items()
+        ),
+        key=lambda item: (-item[0], item[1]),
+    )
+    selected = scored[: min(bounded_top_n, len(scored))]
+    lines = [
+        "Compact ANIP capability candidates selected by local retrieval.",
+        "The model must choose only from these candidate capability IDs.",
+    ]
+    lines.extend(render_compact_agent_capability_line(capability_id, capability_metadata) for _, capability_id, capability_metadata in selected)
+    brief = "\n".join(lines)
+    return brief, {
+        "compact_catalog": True,
+        "compact_top_n": len(selected),
+        "compact_candidate_ids": [capability_id for _, capability_id, _ in selected],
+        "compact_candidate_scores": {capability_id: round(score, 4) for score, capability_id, _ in selected},
+        "compact_brief_chars": len(brief),
+    }
+
+
 def _capability_map(raw_value: Any) -> dict[str, dict[str, Any]]:
     if isinstance(raw_value, dict):
         return {str(key): value for key, value in raw_value.items() if isinstance(value, dict)}
@@ -1236,11 +1342,18 @@ def requests_approval_bypass(conversation: str) -> bool:
 
 def requested_primary_content_effect(conversation: str) -> str | None:
     tokens = text_tokens(conversation)
-    if tokens & {"recommend", "recommendation", "recommendations", "variant", "variants", "option", "options"}:
+    ordered_tokens = ordered_text_tokens(conversation)
+    if any(
+        token in tokens and not _term_is_negated(ordered_tokens, token)
+        for token in {"recommend", "recommendation", "recommendations", "variant", "variants", "option", "options"}
+    ):
         return "content.recommendation"
-    if tokens & {"draft", "email", "outreach", "message"}:
+    if any(
+        token in tokens and not _term_is_negated(ordered_tokens, token)
+        for token in {"draft", "email", "outreach", "message"}
+    ):
         return "content.draft"
-    if tokens & {"summarize", "summary"}:
+    if any(token in tokens and not _term_is_negated(ordered_tokens, token) for token in {"summarize", "summary"}):
         return "content.summary"
     return None
 
@@ -1288,7 +1401,7 @@ def _term_is_negated(tokens: list[str], term: str) -> bool:
     for index, token in enumerate(tokens):
         if token != term:
             continue
-        window = tokens[max(0, index - 3):index]
+        window = tokens[max(0, index - 6):index]
         if "without" in window or "not" in window or "no" in window or "exclude" in window or "avoid" in window:
             return True
         if len(window) >= 2 and window[-2:] == ["do", "not"]:
@@ -1342,6 +1455,54 @@ def capability_match_score(conversation: str, capability_id: str, capability_met
         return 0.0
     overlap = source_tokens & target_tokens
     return len(overlap) / max(1, len(source_tokens))
+
+
+READ_INTENT_TOKENS = {
+    "biggest",
+    "breakdown",
+    "explain",
+    "forecast",
+    "health",
+    "list",
+    "rank",
+    "ranking",
+    "review",
+    "show",
+    "summarize",
+    "summary",
+    "top",
+    "why",
+}
+
+
+def _conversation_has_read_intent(conversation: str) -> bool:
+    tokens = text_tokens(conversation)
+    return bool(tokens & READ_INTENT_TOKENS)
+
+
+def compact_capability_match_score(conversation: str, capability_id: str, capability_metadata: dict[str, Any]) -> float:
+    """Score a capability for compact retrieval.
+
+    Compact retrieval has a stronger obligation than ordinary ranking: if it
+    omits the right capability, the planner cannot recover. This score keeps
+    the base semantic overlap but adds small contract-posture adjustments so
+    read-only requests prefer read/summary capabilities over approval or
+    mutation-preparation capabilities unless the conversation itself contains
+    approval/write-adjacent intent.
+    """
+
+    score = capability_match_score(conversation, capability_id, capability_metadata)
+    produced = capability_produces(capability_metadata)
+    read_intent = _conversation_has_read_intent(conversation)
+    approval_intent = has_approval_intent(conversation)
+    unsupported_effects = requested_unsupported_effects(conversation, capability_metadata)
+    if read_intent and "content.summary" in produced and not is_approval_capability(capability_metadata):
+        score += 0.12
+    if read_intent and is_approval_capability(capability_metadata) and not approval_intent:
+        score -= 0.08
+    if unsupported_effects:
+        score += 0.03
+    return max(0.0, score)
 
 
 def missing_required_input_names(conversation: str, capability_metadata: dict[str, Any]) -> set[str]:
@@ -1400,12 +1561,15 @@ def select_grounded_capability(
         if len(missing) >= best_missing_count:
             continue
         score = capability_match_score(conversation, capability_id, capability_metadata)
-        if score > best_score:
+        if score > best_score or (best_capability == selected_capability and score == best_score):
             best_capability = capability_id
             best_score = score
             best_missing_count = len(missing)
 
-    if best_capability != selected_capability and best_score >= max(min_score, selected_score + margin):
+    if best_capability != selected_capability and (
+        best_score >= max(min_score, selected_score + margin)
+        or (selected_score == 0 and best_missing_count < len(selected_missing))
+    ):
         return best_capability
     return selected_capability
 
@@ -1683,6 +1847,14 @@ def normalize_invocation_plan(
         user_conversation,
         metadata[capability],
         requested_effects=unsupported_effects,
+    ):
+        normalized_plan["unsupported"] = False
+        normalized_plan["unsupported_reason"] = None
+    elif (
+        normalized_plan.get("unsupported") is True
+        and not unsupported_effects
+        and _conversation_has_read_intent(user_conversation)
+        and (capability_produces(metadata[capability]) & {"content.summary", "data.aggregate", "data.read"})
     ):
         normalized_plan["unsupported"] = False
         normalized_plan["unsupported_reason"] = None

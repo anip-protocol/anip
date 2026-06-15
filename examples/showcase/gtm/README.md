@@ -241,6 +241,10 @@ Optional:
 - `ANIP_AGENT_BASE_URL`
 - `ANIP_AGENT_TEMPERATURE`
 - `ANIP_AGENT_TIMEOUT_SECONDS`
+- `ANIP_AGENT_COMPACT_CATALOG=true` to send the planner a locally retrieved compact capability candidate set while retaining the full discovered metadata for validation and invocation
+- `ANIP_AGENT_COMPACT_CATALOG_TOP_N=16` to tune the compact candidate set size
+- `ANIP_AGENT_FALLBACK_MODEL` to enable a second planner model when the primary model output fails deterministic selection validation
+- `ANIP_AGENT_FALLBACK_API_KEY` and `ANIP_AGENT_FALLBACK_BASE_URL` when the fallback model uses different credentials or a different OpenAI-compatible endpoint
 - `ANIP_AGENT_ACTORS_JSON`
 - `ANIP_AGENT_DEFAULT_ACTOR_ID`
 - `ANIP_AGENT_APP_MODULE`

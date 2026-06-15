@@ -1,6 +1,6 @@
 # GTM Pipeline Q2 Review
 
-ANIP package `gtm-pipeline-q2-review@0.4.3` for local showcase and registry smoke usage.
+ANIP package `gtm-pipeline-q2-review@0.4.4` for local showcase and registry smoke usage.
 
 ## Contents
 
@@ -45,7 +45,7 @@ go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.js
 From a trusted registry package:
 
 ```bash
-go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.3 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
+go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.4 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
 ```
 
 ## Verify

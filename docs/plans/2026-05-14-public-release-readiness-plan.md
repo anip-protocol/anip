@@ -163,7 +163,7 @@ Tasks:
 - Add Keycloak or another OAuth2 provider if it can be included without making the first release brittle.
 - Keep the original hand-written Python showcase only as reference material, not as the parity target.
 - Use `examples/showcase/gtm/generated/language-parity/` as the committed apples-to-apples generated baseline. Done: Python, TypeScript, Go, Java, and C# source/config trees promoted from the latest same-contract generated outputs with generated keys, dependency directories, build outputs, and caches excluded.
-- Publish a reproducible strict `anip/0.24` GTM showcase package. Initial baseline: `gtm-pipeline-q2-review@0.4.0`. Current release baseline: `gtm-pipeline-q2-review@0.4.3` in `examples/showcase/gtm/registry-packages/`, generated from the promoted language-parity service definition and verified before registry publication.
+- Publish a reproducible strict `anip/0.24` GTM showcase package. Initial baseline: `gtm-pipeline-q2-review@0.4.0`. Current release baseline: `gtm-pipeline-q2-review@0.4.4` in `examples/showcase/gtm/registry-packages/`, generated from the promoted language-parity service definition and verified before registry publication.
 - Add a reusable full-stack smoke gate. Done: `examples/showcase/gtm/scripts/smoke-language-compose.sh` uses dynamic host ports, starts a language compose stack, verifies all four service discovery documents, checks the 23-capability union, verifies agent runtime JSON, verifies the agent UI route, and tears the stack down.
 
 Release gate:

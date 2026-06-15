@@ -2,8 +2,8 @@
   "schema_version": "anip-custom-code-bundle-catalog/v1",
   "package": {
     "package_id": "gtm-pipeline-q2-review",
-    "package_version": "0.4.3",
-    "bundle_path": "../registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json",
+    "package_version": "0.4.4",
+    "bundle_path": "../registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json",
     "anip_spec_version": "anip/0.24"
   },
   "bundles": [
@@ -11,35 +11,35 @@
       "language": "python",
       "target": "python",
       "path": "gtm_pipeline_python_native",
-      "bundle_tree_sha256": "sha256:28785e10bb726203f97216dee9f4f587e628e3faa0c45a8d71f96853482ce278",
+      "bundle_tree_sha256": "sha256:4c7d8ffa416aa1db7988b71ffa6f0f68b9c5e6d7b85ce2265256ee1e8eae2b59",
       "role": "native_language_parity"
     },
     {
       "language": "typescript",
       "target": "typescript",
       "path": "gtm_pipeline_typescript",
-      "bundle_tree_sha256": "sha256:247d9c0b4344754e06ad4e3a04972914cfdb6f77f065844329776c9756aa9878",
+      "bundle_tree_sha256": "sha256:3c0b52e1f8aa07a55568df86726197248f44a838a574f6461c92df0662ab5ab1",
       "role": "native_language_parity"
     },
     {
       "language": "go",
       "target": "go",
       "path": "gtm_pipeline_go_native",
-      "bundle_tree_sha256": "sha256:a99c1daa07f91b315bf28074bab6c1f26e0597fa4333c1d60c3db1d6bf041993",
+      "bundle_tree_sha256": "sha256:5669b6b0a876f66a4cb42ba30eda5a27b4c1242d81c7675ee8561f3398e36dc9",
       "role": "native_language_parity"
     },
     {
       "language": "java",
       "target": "java",
       "path": "gtm_pipeline_java_native",
-      "bundle_tree_sha256": "sha256:7bf213fc1102fca59d75ec96b9c0270fb5d84921ba01db3a90d69a27517a91d1",
+      "bundle_tree_sha256": "sha256:461198a63640edb1d8cb17877421f3c64236f87f172c365d5d207ef4977bc8bc",
       "role": "native_language_parity"
     },
     {
       "language": "csharp",
       "target": "csharp",
       "path": "gtm_pipeline_csharp_native",
-      "bundle_tree_sha256": "sha256:ca3a84e5c1e5734844392030508c82078a00f74b68c9bc7701dad90df1e79d16",
+      "bundle_tree_sha256": "sha256:5498cdbad254e8931898d0abcaeead89ab064073cbc62ce918ac96dc5a8b08c3",
       "role": "native_language_parity"
     }
   ]

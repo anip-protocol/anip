@@ -20,8 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Core/Anip.Core.csproj" />
-    <ProjectReference Include="/Users/samirski/Development/ANIP/packages/csharp/src/Anip.Service/Anip.Service.csproj" />
+    <ProjectReference Include="../../../../../../../packages/csharp/src/Anip.Core/Anip.Core.csproj" />
+    <ProjectReference Include="../../../../../../../packages/csharp/src/Anip.Service/Anip.Service.csproj" />
   </ItemGroup>
 
 </Project>

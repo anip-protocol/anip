@@ -29,6 +29,11 @@ def load_manifest(path: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), help="Path to the benchmark manifest.")
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Refresh checksums in the manifest for files that currently exist.",
+    )
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest)
@@ -43,8 +48,16 @@ def main() -> int:
             failures.append(f"missing: {relative}")
             continue
         actual = sha256(path)
+        if args.write:
+            entry["sha256"] = actual
+            continue
         if actual != expected:
             failures.append(f"changed: {relative} expected={expected} actual={actual}")
+
+    if args.write:
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        print(f"Manual GTM benchmark manifest refreshed: {len(manifest.get('files', []))} files in {manifest_path}")
+        return 0
 
     if failures:
         print("Manual GTM benchmark verification failed:")

@@ -593,6 +593,7 @@ function draftOutreach(params: Record<string, unknown>): Record<string, unknown>
 
 function bottleneckAccountOutreachDraft(params: Record<string, unknown>, actor: ActorPolicy): Record<string, unknown> {
   const quarter = requireString(params, "quarter", "quarter is missing", "Quarter label like 2017-Q2.");
+  const ownerScope = guardedOwnerScope(params.owner_scope, actor);
   if (typeof params.target_ref === "string" && params.target_ref.trim()) {
     return draftOutreach(params);
   }
@@ -607,7 +608,7 @@ function bottleneckAccountOutreachDraft(params: Record<string, unknown>, actor: 
     requires: "specific target_ref selected from the bounded bottleneck or at-risk account review",
     preview: {
       quarter,
-      owner_scope: typeof params.owner_scope === "string" && params.owner_scope.trim() ? params.owner_scope.trim() : null,
+      owner_scope: ownerScope,
       objective: String(params.objective || "first_touch").trim() || "first_touch",
       channel: String(params.channel || "email").trim() || "email",
     },

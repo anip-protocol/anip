@@ -25,19 +25,19 @@ The showcase proves:
 
 | Item | Baseline |
 | --- | --- |
-| Package | `gtm-pipeline-q2-review@0.4.3` |
+| Package | `gtm-pipeline-q2-review@0.4.4` |
 | ANIP spec | `anip/0.24` |
 | Services | 4 |
 | Capabilities | 23 |
 | Generated languages | Python, TypeScript, Go, Java, C# |
 | Agent model used for validation | `gpt-5.4-mini` |
 | Question bank | 350 phase questions + 140 variation questions |
-| Docker images | `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.3` |
+| Docker images | `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.4` |
 
 The package artifact lives at:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json
 ```
 
 The generated language outputs live at:

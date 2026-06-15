@@ -119,7 +119,7 @@ STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
 The GTM showcase is the release-quality deep example:
 
 - Studio-produced contract.
-- Registry package: `gtm-pipeline-q2-review@0.4.3`.
+- Registry package: `gtm-pipeline-q2-review@0.4.4`.
 - Generated native services in Python, TypeScript, Go, Java, and C#.
 - Full-stack compose per language.
 - Docker images for each language stack and the shared agent UI.
@@ -154,7 +154,7 @@ Some assets are implemented but still require release-run validation:
 
 - Homebrew tap update with real release version.
 - Public Docker image push through the release workflow.
-- Manual GTM showcase image publish to Docker Hub, if we want package-version tags such as `0.4.3` before the next platform release.
+- Manual GTM showcase image publish to Docker Hub, if we want package-version tags such as `0.4.4` before the next platform release.
 - Hosted Registry deployment.
 - Hosted read-only Studio deployment.
 - Docs site build and publishing.

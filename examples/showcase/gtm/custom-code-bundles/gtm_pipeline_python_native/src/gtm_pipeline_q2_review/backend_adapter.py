@@ -610,11 +610,12 @@ def objection_variants(params: dict[str, Any], actor: dict[str, Any]) -> dict[st
 
 def bottleneck_outreach(params: dict[str, Any], actor: dict[str, Any]) -> dict[str, Any]:
     quarter = _require_str(params, "quarter", "quarter is missing", "Quarter label like 2017-Q2.")
+    owner = _owner_scope(params, actor)
     target = params.get("target_ref")
     if not isinstance(target, str) or not target.strip():
         if actor.get("outreach_access") != "full":
             _fail("denied", "This actor cannot request approval-gated outreach target selection.", {"action": "request_authorized_actor", "requires": "role with full outreach approval authority or explicit selected target_ref"})
-        _fail("approval_required", "Drafting outreach from a bottleneck review requires approval or an explicit selected account before generating the message.", {"action": "request_approval_or_select_target", "requires": "specific target_ref selected from the bounded bottleneck or at-risk account review", "preview": {"quarter": quarter, "owner_scope": params.get("owner_scope"), "objective": params.get("objective") or "first_touch", "channel": params.get("channel") or "email"}})
+        _fail("approval_required", "Drafting outreach from a bottleneck review requires approval or an explicit selected account before generating the message.", {"action": "request_approval_or_select_target", "requires": "specific target_ref selected from the bounded bottleneck or at-risk account review", "preview": {"quarter": quarter, "owner_scope": owner, "objective": params.get("objective") or "first_touch", "channel": params.get("channel") or "email"}})
     return _completed({"result": {"target_ref": target.strip(), "draft": draft_outreach(params)["result"]}})
 
 

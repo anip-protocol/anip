@@ -1,13 +1,13 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_csharp_native",
-  "bundle_sha256": "sha256:ca3a84e5c1e5734844392030508c82078a00f74b68c9bc7701dad90df1e79d16",
+  "bundle_sha256": "sha256:5498cdbad254e8931898d0abcaeead89ab064073cbc62ce918ac96dc5a8b08c3",
   "files": [
     {
       "path": "BackendAdapter.cs",
-      "sha256": "sha256:767ae68bd4ea903510efab1c1798b0eab4e19f064e9edbed35ddb040cd668625",
+      "sha256": "sha256:de4e7fcc7d35181bdcf407cfe93cf61aa21cbfa1e087c9a7f30ea87d01e991f9",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 51663,
+      "bytes": 51700,
       "overlaid": true,
       "substrate": false
     },
@@ -21,11 +21,20 @@
       "substrate": false
     },
     {
-      "path": "README.md",
-      "sha256": "sha256:c70058dbce7c2cb1fb5cf9a166c35cc38f1d34c57e6970a57531e145318e068f",
+      "path": "Policy.cs",
+      "sha256": "sha256:666195e494951682697660bcbc5a03d7932077a0fe42fe341eddd8e1945469f8",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 616,
+      "bytes": 480,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "README.md",
+      "sha256": "sha256:cde4d2110fd3875019541995934e9315b8cc306ea8eda5f3b2619934f9aaf2d9",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 820,
       "overlaid": true,
       "substrate": false
     }

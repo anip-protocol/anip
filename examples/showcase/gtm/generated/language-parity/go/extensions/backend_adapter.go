@@ -1257,6 +1257,10 @@ func bottleneckAccountOutreachDraft(params map[string]any, actor ActorPolicy) (m
 	if err != nil {
 		return nil, err
 	}
+	owner, err := ownerScope(params["owner_scope"], actor)
+	if err != nil {
+		return nil, err
+	}
 	if target := strings.TrimSpace(fmt.Sprint(params["target_ref"])); target != "" && target != "<nil>" {
 		return draftOutreach(params)
 	}
@@ -1264,12 +1268,9 @@ func bottleneckAccountOutreachDraft(params map[string]any, actor ActorPolicy) (m
 		return nil, failRequires("denied", "This actor cannot request approval-gated outreach target selection.", "request_authorized_actor", "role with full outreach approval authority or explicit selected target_ref")
 	}
 	preview := map[string]any{
-		"quarter": quarter, "owner_scope": nil,
+		"quarter": quarter, "owner_scope": owner,
 		"objective": optionalText(params["objective"], "first_touch"),
 		"channel":   optionalText(params["channel"], "email"),
-	}
-	if owner := strings.TrimSpace(fmt.Sprint(params["owner_scope"])); owner != "" && owner != "<nil>" {
-		preview["owner_scope"] = owner
 	}
 	record := createApprovalRequest("gtm.bottleneck_account_outreach_draft", actor, "sales_leader", preview)
 	return nil, approvalError(record, "Drafting outreach from a bottleneck review requires approval or an explicit selected account before generating the message.")

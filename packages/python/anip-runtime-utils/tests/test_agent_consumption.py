@@ -2,9 +2,11 @@ from anip_runtime_utils.agent_consumption import (
     build_agent_capability_catalog,
     build_clarification_continuation,
     build_clarification_continuation_prompt,
+    build_compact_agent_capability_brief,
     canonical_from_candidates,
     clarification_continuation_from_history,
     capability_match_score,
+    compact_capability_match_score,
     contains_deictic_reference,
     conversation_text_from_history,
     conversation_supports_canonical_value,
@@ -73,6 +75,126 @@ def test_build_agent_capability_catalog_compacts_routing_brief() -> None:
     assert "input_meanings=" not in catalog["routing_brief"]
     assert "input_meanings=" in catalog["detail_brief"]
     assert catalog["stats"]["routing_brief_chars"] < catalog["stats"]["detail_brief_chars"]
+
+
+def test_build_compact_agent_capability_brief_selects_top_candidates() -> None:
+    metadata = {
+        "crm.pipeline_summary": {
+            "description": "Summarize quarterly pipeline health by region.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "owner_scope", "required": False}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+        "crm.send_email": {
+            "description": "Send an outbound email immediately.",
+            "service_name": "outreach",
+            "input_specs": [{"name": "target_ref", "required": True}],
+            "side_effect": "write",
+            "business_effects": {"produces": ["external_dispatch"], "does_not_produce": []},
+        },
+        "crm.account_enrichment": {
+            "description": "Summarize bounded account enrichment context.",
+            "service_name": "enrichment",
+            "input_specs": [{"name": "account_names", "required": True}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+    }
+
+    brief, stats = build_compact_agent_capability_brief(
+        "Show pipeline health for 2017-Q2 in the East region.",
+        metadata,
+        top_n=2,
+    )
+
+    assert stats["compact_catalog"] is True
+    assert stats["compact_top_n"] == 2
+    assert stats["compact_candidate_ids"][0] == "crm.pipeline_summary"
+    assert "crm.pipeline_summary" in brief
+    assert "inputs=quarter(req), owner_scope(opt)" in brief
+    assert "forbids=raw_data_export" in brief
+    assert "crm.send_email" not in brief
+    assert stats["compact_brief_chars"] == len(brief)
+
+
+def test_compact_agent_capability_brief_prefers_read_bottleneck_for_read_intent() -> None:
+    metadata = {
+        "gtm.stage_bottleneck_summary": {
+            "description": "Return bounded bottleneck evidence without exporting raw rows.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+        "gtm.at_risk_followup_preparation": {
+            "description": "Compose at-risk account selection with follow-up preparation and stop at approval.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "ranking_basis", "required": False}],
+            "side_effect": "write",
+            "grant_policy": {"allowed_grant_types": ["one_time"]},
+            "business_effects": {
+                "produces": ["approval.request", "content.summary", "system.preview_mutation"],
+                "does_not_produce": ["system.mutation", "raw_data_export"],
+            },
+        },
+    }
+
+    conversation = "Show the biggest bottlenecks in 2017-Q1."
+    read_score = compact_capability_match_score(conversation, "gtm.stage_bottleneck_summary", metadata["gtm.stage_bottleneck_summary"])
+    approval_score = compact_capability_match_score(
+        conversation,
+        "gtm.at_risk_followup_preparation",
+        metadata["gtm.at_risk_followup_preparation"],
+    )
+    brief, stats = build_compact_agent_capability_brief(conversation, metadata, top_n=1)
+
+    assert read_score > approval_score
+    assert stats["compact_candidate_ids"] == ["gtm.stage_bottleneck_summary"]
+    assert "gtm.stage_bottleneck_summary" in brief
+    assert "gtm.at_risk_followup_preparation" not in brief
+
+
+def test_requested_primary_content_effect_ignores_negated_draft_terms() -> None:
+    conversation = "For 2017-Q2 East, summarize the pipeline bottleneck with bounded evidence and do not export rows or draft outreach."
+
+    assert requested_primary_content_effect(conversation) == "content.summary"
+
+
+def test_normalize_invocation_plan_rewrites_negated_draft_to_summary_capability() -> None:
+    metadata = {
+        "gtm.stage_bottleneck_summary": {
+            "description": "Return bounded bottleneck evidence without exporting raw rows.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "owner_scope", "required": False}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+        "gtm.bottleneck_account_outreach_draft": {
+            "description": "Select a bounded bottleneck target, draft outreach, and stop at approval.",
+            "service_name": "outreach",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "target_ref", "required": False}],
+            "side_effect": "write",
+            "grant_policy": {"allowed_grant_types": ["one_time"]},
+            "business_effects": {
+                "produces": ["approval.request", "system.preview_mutation", "content.draft"],
+                "does_not_produce": ["external_dispatch", "system.mutation", "raw_data_export"],
+            },
+        },
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.bottleneck_account_outreach_draft",
+            "parameters": {"quarter": "2017-Q2"},
+            "unsupported": False,
+            "unsupported_reason": None,
+        },
+        "For 2017-Q2 East, summarize the pipeline bottleneck with bounded evidence and do not export rows or draft outreach.",
+        metadata,
+    )
+
+    assert plan["selected_capability"] == "gtm.stage_bottleneck_summary"
 
 
 def test_build_agent_capability_catalog_rejects_duplicate_service_urls() -> None:
@@ -844,7 +966,12 @@ def test_requested_unsupported_effect_uses_declared_boundary_terms() -> None:
         "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
         "app_profile": {
             "app_boundaries": {
-                "unsupported_terms": {"raw_data_export": ["masked financial detail"]},
+                "unsupported_terms": {
+                    "raw_data_export": [
+                        "masked financial detail",
+                        "even if my role normally gets masked values",
+                    ],
+                },
             },
         },
     }
@@ -852,6 +979,11 @@ def test_requested_unsupported_effect_uses_declared_boundary_terms() -> None:
     assert requested_unsupported_effects("Summarize using masked financial detail only.", metadata) == {
         "raw_data_export"
     }
+    assert requested_unsupported_effects(
+        "Show exact revenue numbers even if my role normally gets masked values.",
+        metadata,
+    ) == {"raw_data_export"}
+    assert requested_unsupported_effects("Show exact numbers for the bounded summary.", metadata) == set()
 
 
 def test_approval_intent_and_match_score_support_generic_precedence() -> None:
@@ -1099,6 +1231,67 @@ def test_normalize_invocation_plan_clears_model_only_unsupported_when_declared_e
 
     assert plan["unsupported"] is False
     assert plan["unsupported_reason"] is None
+
+
+def test_normalize_invocation_plan_clears_model_only_unsupported_for_bounded_read() -> None:
+    metadata = {
+        "gtm.pipeline_summary": {
+            "description": "Summarize bounded pipeline health.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [
+                {"name": "quarter", "required": True},
+                {"name": "owner_scope"},
+            ],
+            "app_profile": {
+                "app_boundaries": {
+                    "unsupported_terms": {
+                        "raw_data_export": ["masked financial detail"],
+                    },
+                },
+            },
+        }
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.pipeline_summary",
+            "parameters": {"quarter": "2017-Q2", "owner_scope": "West"},
+            "unsupported": True,
+            "unsupported_reason": "The model guessed exact numbers are out of contract.",
+        },
+        "Show the same West summary and include exact numbers.",
+        metadata,
+    )
+
+    assert plan["unsupported"] is False
+    assert plan["unsupported_reason"] is None
+
+
+def test_normalize_invocation_plan_prefers_grounded_peer_when_scores_are_zero() -> None:
+    metadata = {
+        "demo.selected_draft": {
+            "description": "",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": []},
+            "input_specs": [{"name": "cohort_ref", "required": True, "allowed_values": ["known_cohort"]}],
+        },
+        "demo.provider_selected_draft": {
+            "description": "",
+            "business_effects": {"produces": ["content.draft", "approval.request"], "does_not_produce": []},
+            "input_specs": [{"name": "quarter", "required": False}],
+        },
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "demo.selected_draft",
+            "parameters": {},
+            "unsupported": False,
+        },
+        "Draft for the top candidate.",
+        metadata,
+    )
+
+    assert plan["selected_capability"] == "demo.provider_selected_draft"
 
 
 def test_business_language_rule_can_mark_reviewed_phrase_supported() -> None:
