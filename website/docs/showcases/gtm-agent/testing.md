@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: GTM Agent 490-question validation and release gates.
+description: GTM Agent 490-question validation, hard-mode governance tests, multi-turn benchmark coverage, and release gates.
 ---
 
 # Testing
@@ -15,7 +15,7 @@ The question bank is not generic ANIP conformance. It is the GTM release gate fo
 
 For concrete user-facing examples, see [Questions And Extensions](/docs/showcases/gtm-agent/questions-and-extensions).
 
-The showcase also has a hard-mode governance bank used for benchmark and next-revision evidence. It exercises prompt injection, mixed safe/unsafe intent, actor-boundary pressure, provider-selected targets, approval bypass attempts, negated actions, and multi-turn ambiguity.
+The showcase also has a hard-mode governance bank. It exercises prompt injection, mixed safe/unsafe intent, actor-boundary pressure, provider-selected targets, approval bypass attempts, negated actions, and multi-turn ambiguity.
 
 ## 490-question bank
 
@@ -42,6 +42,18 @@ benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json
 ```
 
 The `gtm-pipeline-q2-review@0.4.4` release gate includes the 490-question broad behavior bank plus the 24-case hard-mode governance bank.
+
+## Benchmark multi-turn extension
+
+The benchmark suite also expands the broad release bank into a multi-turn representation used for ANIP-vs-MCP-style comparison work:
+
+| Benchmark component | Count | Purpose |
+| --- | ---: | --- |
+| Converted release follow-up cases | 5 | Existing clarification-follow-up entries from the 350 main bank, represented as two-turn benchmark cases. |
+| Generated two-turn cases | 50 | Clarification and resolution flows across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment. |
+| Combined benchmark suite | 540 | 345 non-follow-up main cases, 140 variation cases, 5 converted follow-up cases, and 50 generated two-turn cases. |
+
+The 540-case benchmark is not a replacement for the official release gate. It is used to measure runtime behavior, loop counts, token usage, and model-tier behavior under repeated multi-turn pressure.
 
 Run artifacts live under:
 
@@ -88,7 +100,7 @@ python3 examples/showcase/gtm/scripts/generated_stack/run_question_bank.py \
   --bank docs/examples/gtm-showcase/question-banks/gtm_phase1_question_bank.json
 ```
 
-Use phase-sized banks while debugging. Use the full 350 and 140 sets as release gates.
+Use phase-sized banks while debugging. Use the full 350 and 140 sets as the broad release gate, then run the 24-case hard-mode bank before publishing package or showcase changes. Use the 540-case benchmark suite when comparing runtime strategies or model tiers.
 
 ## Model
 

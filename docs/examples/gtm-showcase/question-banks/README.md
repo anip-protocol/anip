@@ -27,6 +27,20 @@ Files:
 Each phase also has a matching `.json` file with the same content in structured
 form.
 
-These banks are now also executed against the live GTM stack:
+The official `gtm-pipeline-q2-review@0.4.4` release gate combines:
+
+- `350` main phase questions from this folder;
+- `140` wording-variation questions from `../variation-question-banks-v3/`;
+- `24` hard-mode governance cases from `../hard-mode-governance-scenarios.md` and `../../../../benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json`.
+
+The benchmark suite also expands multi-turn coverage. It converts the `5`
+existing clarification-follow-up entries from the main bank into explicit
+two-turn cases, then adds `50` generated two-turn clarification/resolution
+cases. The resulting `540`-case benchmark suite is used for token, loop,
+latency, and model-tier comparisons. It is intentionally separate from the
+official broad release gate so release validation and benchmark analysis stay
+easy to reason about.
+
+These banks are also executed against the live GTM stack:
 
 - broad execution results: [question-bank-runs/README.md](../question-bank-runs/README.md)

@@ -107,10 +107,12 @@ The checked-in GTM release gate is `350 + 140` questions:
 - `350` broad question-bank entries in `docs/examples/gtm-showcase/question-banks/`
 - `140` variation-bank entries in `docs/examples/gtm-showcase/variation-question-banks-v3/`
 
-The benchmark suite also includes a 55-case multi-turn extension:
+The benchmark suite also expands the broad bank into a multi-turn benchmark shape:
 
-- the five original clarification follow-up entries from the 350 bank
-- 50 generated two-turn clarification/resolution scenarios across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment
+- the five original clarification follow-up entries from the 350 bank are represented as explicit two-turn cases
+- 50 generated two-turn clarification/resolution scenarios are added across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment
+
+That produces 540 benchmark cases: 345 non-follow-up main cases, 140 variation cases, 5 converted follow-up cases, and 50 generated two-turn cases.
 
 ```bash
 python3 benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py \
