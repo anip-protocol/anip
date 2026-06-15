@@ -39,13 +39,13 @@ It includes Python, TypeScript, Go, Java, and C# implementations generated from 
 The package is:
 
 ```text
-gtm-pipeline-q2-review@0.4.3
+gtm-pipeline-q2-review@0.4.4
 ```
 
 Package path:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json
 ```
 
 Expected contract shape:
@@ -53,7 +53,7 @@ Expected contract shape:
 | Property | Expected value |
 | --- | --- |
 | Spec | `anip/0.24` |
-| Package | `gtm-pipeline-q2-review@0.4.3` |
+| Package | `gtm-pipeline-q2-review@0.4.4` |
 | Services | 4 |
 | Capabilities | 23 |
 | Languages | Python, TypeScript, Go, Java, C# |
@@ -110,7 +110,7 @@ Generation uses the same package and changes only the target language and bundle
 
 ```bash
 anip generate \
-  --package-bundle examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json \
+  --package-bundle examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
   --target typescript \
   --transport http \
   --custom-code-bundle examples/showcase/gtm/custom-code-bundles/gtm_pipeline_typescript \
@@ -273,7 +273,7 @@ That model choice is for generated ANIP service testing. Studio assistant author
 
 When parity breaks, triage in this order:
 
-1. **Same contract?** Confirm every language was generated from `gtm-pipeline-q2-review@0.4.3`.
+1. **Same contract?** Confirm every language was generated from `gtm-pipeline-q2-review@0.4.4`.
 2. **Same capability count?** Confirm all five expose the 23-capability union.
 3. **Same manifest semantics?** Confirm bundle code did not mutate declarations.
 4. **Same topology?** Confirm the agent runtime points to four service endpoints, not duplicated aliases or stale ports.

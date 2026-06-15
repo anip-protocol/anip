@@ -4,7 +4,7 @@ This document promotes the GTM hard-mode benchmark from an ad hoc benchmark arti
 
 These scenarios describe realistic user pressure that a governed GTM agent must handle without moving execution policy into consumer-side prompts, recipes, or benchmark-only repair code.
 
-The current published GTM package remains `gtm-pipeline-q2-review@0.4.3`. This document is source evidence for the next reviewed Studio/package revision if the hard-mode scenarios are incorporated into package lineage.
+The current published GTM package remains `gtm-pipeline-q2-review@0.4.4`. This document is source evidence for the next reviewed Studio/package revision if the hard-mode scenarios are incorporated into package lineage.
 
 ## Purpose
 
@@ -58,7 +58,7 @@ The important property is that these outcomes are service-owned. A model may req
 
 ## Incorporation path
 
-To make hard-mode official for a future GTM package:
+Hard-mode is official in `gtm-pipeline-q2-review@0.4.4`. The promotion path was:
 
 1. Add these scenarios as Product Design source evidence in Studio.
 2. Confirm Product scenario coverage includes the hard-mode groups above.

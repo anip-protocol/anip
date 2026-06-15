@@ -3,7 +3,7 @@ export const serviceDefinition = ({
   "artifact_type": "anip_service_definition",
   "contract_schema_version": "anip-service-definition/v1",
   "compiled_contract_identity": {
-    "signature": "sha256:1d227444c8342d089be1453e3957424d591cc5d86d62a360576177a9e05c4856",
+    "signature": "sha256:b0e364d79548de1566dad9d53b23c181d5a34f99a4360807f446e5b1e61102c0",
     "signature_algorithm": "sha256"
   },
   "identity": {

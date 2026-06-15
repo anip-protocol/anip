@@ -228,7 +228,7 @@ examples/showcase/gtm/
 
 Important artifacts:
 
-- `examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json`
+- `examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json`
 - `examples/showcase/gtm/generated/language-parity/`
 - `examples/showcase/gtm/docker-compose.language-parity-{python,typescript,go,java,csharp}.yml`
 - `examples/showcase/gtm/custom-code-bundles/`
@@ -243,7 +243,7 @@ Docker image names:
 - `anipprotocol/showcase-gtm-java`
 - `anipprotocol/showcase-gtm-csharp`
 
-The GTM image workflow accepts a GTM image tag, usually the GTM package version such as `0.4.3`, and can optionally move `latest`.
+The GTM image workflow accepts a GTM image tag, usually the GTM package version such as `0.4.4`, and can optionally move `latest`.
 
 GTM images are intentionally not published by the main ANIP release workflow because their image tag follows the GTM package version, not the ANIP runtime release version.
 

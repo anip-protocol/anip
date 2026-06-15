@@ -7,7 +7,7 @@ description: Example GTM Agent questions, supported and unsupported request patt
 
 The GTM Agent showcase is not a generic chatbot over CRM data. It supports a declared set of governed revenue-operations questions and stops when a request crosses the contract boundary.
 
-This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.3` package supports, what it intentionally does not support, and how the project can be extended.
+This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.4` package supports, what it intentionally does not support, and how the project can be extended.
 
 ## Question Bank Shape
 
@@ -41,7 +41,7 @@ The 140 wording-variation questions cover these outcomes:
 
 The point of the bank is not just "does the service return something?" It validates routing, parameter grounding, actor scope, approval stops, denial, restricted visibility, composed service behavior, and unsupported-effect handling.
 
-The benchmark suite also includes a separate 24-case hard-mode governance bank. That bank is source evidence for the next reviewed package revision, not part of the published `0.4.3` 490-question release gate.
+The benchmark suite also includes a separate 24-case hard-mode governance bank. In `0.4.4`, that bank is part of the official GTM release gate alongside the 490-question broad behavior bank.
 
 ## Supported Examples
 

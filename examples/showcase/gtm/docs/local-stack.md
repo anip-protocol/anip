@@ -21,12 +21,12 @@ docker-compose.language-parity-csharp.yml
 ## Image tags
 
 ```text
-anipprotocol/showcase-gtm-python:0.4.3
-anipprotocol/showcase-gtm-typescript:0.4.3
-anipprotocol/showcase-gtm-go:0.4.3
-anipprotocol/showcase-gtm-java:0.4.3
-anipprotocol/showcase-gtm-csharp:0.4.3
-anipprotocol/showcase-gtm-agent-ui:0.4.3
+anipprotocol/showcase-gtm-python:0.4.4
+anipprotocol/showcase-gtm-typescript:0.4.4
+anipprotocol/showcase-gtm-go:0.4.4
+anipprotocol/showcase-gtm-java:0.4.4
+anipprotocol/showcase-gtm-csharp:0.4.4
+anipprotocol/showcase-gtm-agent-ui:0.4.4
 ```
 
 ## Entry points

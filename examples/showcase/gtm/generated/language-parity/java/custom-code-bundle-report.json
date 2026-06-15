@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_java_native",
-  "bundle_sha256": "sha256:7bf213fc1102fca59d75ec96b9c0270fb5d84921ba01db3a90d69a27517a91d1",
+  "bundle_sha256": "sha256:461198a63640edb1d8cb17877421f3c64236f87f172c365d5d207ef4977bc8bc",
   "files": [
     {
       "path": "README.md",
@@ -13,10 +13,10 @@
     },
     {
       "path": "src/main/java/dev/anip/generated/gtm_pipeline_q2_review/BackendAdapter.java",
-      "sha256": "sha256:d88213ce5a7810a00b30fd207d71cf1f4ecfb857c2042b994d0877a8f9b4ee5d",
+      "sha256": "sha256:d2985c63227256c88ca3afcd3509d07435d75cb781e95806af45bb7cbd9a5660",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 71854,
+      "bytes": 71811,
       "overlaid": true,
       "substrate": false
     },

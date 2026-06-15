@@ -41,7 +41,7 @@ docs/examples/gtm-showcase/hard-mode-governance-scenarios.md
 benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json
 ```
 
-The hard-mode cases are not counted in the published `gtm-pipeline-q2-review@0.4.3` 490-question gate yet. They are promoted source evidence for the next reviewed Studio/package revision.
+The `gtm-pipeline-q2-review@0.4.4` release gate includes the 490-question broad behavior bank plus the 24-case hard-mode governance bank.
 
 Run artifacts live under:
 
@@ -104,7 +104,7 @@ This matters because the showcase should not require a very large model to compe
 
 When a question fails, triage in this order:
 
-1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.3`.
+1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.4`.
 2. Confirm the expected language service exposes 23 capabilities.
 3. Confirm the agent runtime is pointed at the selected language stack.
 4. Confirm the dbt models and Metabase views return sane values.

@@ -31,7 +31,7 @@ changes, ignored-cache leakage, or the wrong bundle fail fast:
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native \
@@ -55,7 +55,7 @@ digest:
 ```bash
 cd packages/go
 go run ./cmd/anip package attach-implementation \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
   --package-version 0.4.1 \
   --custom-code-bundle-ref 'git+https://github.com/anip-protocol/gtm-bundles.git@<commit-sha>#sha256:<artifact-sha256>' \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native \

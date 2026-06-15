@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_go_native",
-  "bundle_sha256": "sha256:a99c1daa07f91b315bf28074bab6c1f26e0597fa4333c1d60c3db1d6bf041993",
+  "bundle_sha256": "sha256:5669b6b0a876f66a4cb42ba30eda5a27b4c1242d81c7675ee8561f3398e36dc9",
   "files": [
     {
       "path": "README.md",
@@ -13,10 +13,10 @@
     },
     {
       "path": "extensions/backend_adapter.go",
-      "sha256": "sha256:375c8352749efa3265a3b7ee0e569483e6d438e74f9ecc02c6e414f01242180e",
+      "sha256": "sha256:acbb2d6179d20d8d964098482067952fe37add3b00227a38c36b57e822c13f50",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 60667,
+      "bytes": 60626,
       "overlaid": true,
       "substrate": false
     },

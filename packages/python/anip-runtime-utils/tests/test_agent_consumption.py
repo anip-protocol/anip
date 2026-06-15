@@ -966,7 +966,12 @@ def test_requested_unsupported_effect_uses_declared_boundary_terms() -> None:
         "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
         "app_profile": {
             "app_boundaries": {
-                "unsupported_terms": {"raw_data_export": ["masked financial detail"]},
+                "unsupported_terms": {
+                    "raw_data_export": [
+                        "masked financial detail",
+                        "even if my role normally gets masked values",
+                    ],
+                },
             },
         },
     }
@@ -974,6 +979,11 @@ def test_requested_unsupported_effect_uses_declared_boundary_terms() -> None:
     assert requested_unsupported_effects("Summarize using masked financial detail only.", metadata) == {
         "raw_data_export"
     }
+    assert requested_unsupported_effects(
+        "Show exact revenue numbers even if my role normally gets masked values.",
+        metadata,
+    ) == {"raw_data_export"}
+    assert requested_unsupported_effects("Show exact numbers for the bounded summary.", metadata) == set()
 
 
 def test_approval_intent_and_match_score_support_generic_precedence() -> None:
@@ -1221,6 +1231,67 @@ def test_normalize_invocation_plan_clears_model_only_unsupported_when_declared_e
 
     assert plan["unsupported"] is False
     assert plan["unsupported_reason"] is None
+
+
+def test_normalize_invocation_plan_clears_model_only_unsupported_for_bounded_read() -> None:
+    metadata = {
+        "gtm.pipeline_summary": {
+            "description": "Summarize bounded pipeline health.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [
+                {"name": "quarter", "required": True},
+                {"name": "owner_scope"},
+            ],
+            "app_profile": {
+                "app_boundaries": {
+                    "unsupported_terms": {
+                        "raw_data_export": ["masked financial detail"],
+                    },
+                },
+            },
+        }
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.pipeline_summary",
+            "parameters": {"quarter": "2017-Q2", "owner_scope": "West"},
+            "unsupported": True,
+            "unsupported_reason": "The model guessed exact numbers are out of contract.",
+        },
+        "Show the same West summary and include exact numbers.",
+        metadata,
+    )
+
+    assert plan["unsupported"] is False
+    assert plan["unsupported_reason"] is None
+
+
+def test_normalize_invocation_plan_prefers_grounded_peer_when_scores_are_zero() -> None:
+    metadata = {
+        "demo.selected_draft": {
+            "description": "",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": []},
+            "input_specs": [{"name": "cohort_ref", "required": True, "allowed_values": ["known_cohort"]}],
+        },
+        "demo.provider_selected_draft": {
+            "description": "",
+            "business_effects": {"produces": ["content.draft", "approval.request"], "does_not_produce": []},
+            "input_specs": [{"name": "quarter", "required": False}],
+        },
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "demo.selected_draft",
+            "parameters": {},
+            "unsupported": False,
+        },
+        "Draft for the top candidate.",
+        metadata,
+    )
+
+    assert plan["selected_capability"] == "demo.provider_selected_draft"
 
 
 def test_business_language_rule_can_mark_reviewed_phrase_supported() -> None:

@@ -373,11 +373,12 @@ internal sealed class GtmNativeBackendAdapter
 
     private Dictionary<string, object?> BottleneckAccountOutreachDraft(Dictionary<string, object?> p, ActorPolicy actor)
     {
-        Require(p, "quarter", "quarter is missing", "Quarter label like 2017-Q2.");
+        var quarter = Require(p, "quarter", "quarter is missing", "Quarter label like 2017-Q2.");
+        var owner = OwnerScope(p.GetValueOrDefault("owner_scope"), actor);
         var target = Text(p.GetValueOrDefault("target_ref"));
         if (!string.IsNullOrWhiteSpace(target)) return DraftOutreach(p);
         if (actor.OutreachAccess != "full") throw FailRequires("denied", "This actor cannot request approval-gated outreach target selection.", "request_authorized_actor", "role with full outreach approval authority or explicit selected target_ref");
-        var preview = Dict("quarter", p.GetValueOrDefault("quarter"), "owner_scope", p.GetValueOrDefault("owner_scope"), "objective", TextOr(p.GetValueOrDefault("objective"), "first_touch"), "channel", TextOr(p.GetValueOrDefault("channel"), "email"));
+        var preview = Dict("quarter", quarter, "owner_scope", owner, "objective", TextOr(p.GetValueOrDefault("objective"), "first_touch"), "channel", TextOr(p.GetValueOrDefault("channel"), "email"));
         throw ApprovalError(CreateApproval("gtm.bottleneck_account_outreach_draft", actor, "sales_leader", preview), "Drafting outreach from a bottleneck review requires approval or an explicit selected account before generating the message.");
     }
 

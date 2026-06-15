@@ -59,7 +59,7 @@ Give your coding agent these references:
 - [CLI Reference](/docs/tooling/cli)
 - Example service definitions:
   - [`jira-fronting-showcase-0.2.3-service-definition.json`](https://github.com/anip-protocol/anip/blob/main/examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json)
-  - [`gtm-pipeline-q2-review-0.4.3-service-definition.json`](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3-service-definition.json)
+  - [`gtm-pipeline-q2-review-0.4.4-service-definition.json`](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-service-definition.json)
 
 Also give it the agent skill file:
 
@@ -97,7 +97,7 @@ References:
 - website/docs/protocol/authentication.md
 - website/docs/protocol/failures-cost-audit.md
 - examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json
-- examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3-service-definition.json
+- examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-service-definition.json
 - skills/anip-contract-drafter.md
 
 Service description:

@@ -1,4 +1,4 @@
-namespace GTMPipelineQ2Review;
+namespace {{ANIP_CSHARP_ROOT_NAMESPACE}};
 
 public readonly record struct PolicyDecision(string Decision, string? Detail);
 

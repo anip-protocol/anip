@@ -1561,12 +1561,15 @@ def select_grounded_capability(
         if len(missing) >= best_missing_count:
             continue
         score = capability_match_score(conversation, capability_id, capability_metadata)
-        if score > best_score:
+        if score > best_score or (best_capability == selected_capability and score == best_score):
             best_capability = capability_id
             best_score = score
             best_missing_count = len(missing)
 
-    if best_capability != selected_capability and best_score >= max(min_score, selected_score + margin):
+    if best_capability != selected_capability and (
+        best_score >= max(min_score, selected_score + margin)
+        or (selected_score == 0 and best_missing_count < len(selected_missing))
+    ):
         return best_capability
     return selected_capability
 
@@ -1844,6 +1847,14 @@ def normalize_invocation_plan(
         user_conversation,
         metadata[capability],
         requested_effects=unsupported_effects,
+    ):
+        normalized_plan["unsupported"] = False
+        normalized_plan["unsupported_reason"] = None
+    elif (
+        normalized_plan.get("unsupported") is True
+        and not unsupported_effects
+        and _conversation_has_read_intent(user_conversation)
+        and (capability_produces(metadata[capability]) & {"content.summary", "data.aggregate", "data.read"})
     ):
         normalized_plan["unsupported"] = False
         normalized_plan["unsupported_reason"] = None

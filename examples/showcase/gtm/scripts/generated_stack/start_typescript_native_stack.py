@@ -76,9 +76,12 @@ def _start_runtime(args: argparse.Namespace) -> subprocess.Popen[bytes]:
     env = os.environ.copy()
     env.update(
         {
-            "PYTHONPATH": str(REPO_ROOT),
+            "PYTHONPATH": os.pathsep.join([str(REPO_ROOT / "examples" / "showcase" / "gtm"), str(REPO_ROOT)]),
             "ANIP_AGENT_APP_MODULE": "gtm_agent_app",
             "OPENAI_MODEL": args.model,
+            "DATABASE_URL": args.database_url,
+            "STUDIO_DATABASE_URL": args.database_url,
+            "GTM_GENERATED_DIR": str(Path(args.generated_dir).resolve()),
             "GTM_AGENT_SERVICES_JSON": json.dumps(_service_config(args.base_port)),
         }
     )

@@ -520,7 +520,9 @@ def _capability_metadata() -> dict[str, dict[str, Any]]:
         if not isinstance(raw_value, dict):
             continue
         existing = result.get(str(capability_id), {})
-        result[str(capability_id)] = _deep_merge(existing, raw_value)
+        # Generated kit metadata is the canonical contract/profile view. App
+        # modules may add hints, but must not override regenerated fields.
+        result[str(capability_id)] = _deep_merge(raw_value, existing)
     runtime_customization = APP_PROFILE.get("runtime_customization")
     if isinstance(runtime_customization, dict) and runtime_customization:
         for capability_id, metadata in result.items():

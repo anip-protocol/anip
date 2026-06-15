@@ -584,6 +584,7 @@ final class GtmNativeBackendAdapter implements BackendAdapter {
 
     private Map<String, Object> bottleneckAccountOutreachDraft(Map<String, Object> params, ActorPolicy actor) {
         String quarter = requireString(params, "quarter", "quarter is missing", "Quarter label like 2017-Q2.");
+        String owner = ownerScope(params.get("owner_scope"), actor);
         String target = string(params.get("target_ref"));
         if (!target.isBlank() && !"<nil>".equals(target)) {
             return draftOutreach(params);
@@ -591,8 +592,7 @@ final class GtmNativeBackendAdapter implements BackendAdapter {
         if (!"full".equals(actor.outreachAccess)) {
             throw failRequires("denied", "This actor cannot request approval-gated outreach target selection.", "request_authorized_actor", "role with full outreach approval authority or explicit selected target_ref");
         }
-        Map<String, Object> preview = map("quarter", quarter, "owner_scope", null, "objective", optionalText(params.get("objective"), "first_touch"), "channel", optionalText(params.get("channel"), "email"));
-        if (!string(params.get("owner_scope")).isBlank()) preview.put("owner_scope", params.get("owner_scope"));
+        Map<String, Object> preview = map("quarter", quarter, "owner_scope", owner, "objective", optionalText(params.get("objective"), "first_touch"), "channel", optionalText(params.get("channel"), "email"));
         throw approvalError(createApprovalRequest("gtm.bottleneck_account_outreach_draft", actor, "sales_leader", preview), "Drafting outreach from a bottleneck review requires approval or an explicit selected account before generating the message.");
     }
 
