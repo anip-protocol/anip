@@ -38,6 +38,21 @@ This is the comparison we want to measure. With ANIP, the service contract owns 
 
 Early sample runs exposed exactly that pressure: the MCP-style planner needed extra consumer-side logic to deny "draft and send now", stop provider-selected target drafting at approval, avoid silently mapping vague cohorts, and avoid selecting read-only tools for compound approval-gated requests.
 
+## Baseline Guardrail Rules
+
+The MCP-style baseline should not be tuned to pass every benchmark case at any cost. It is allowed to fail when the failure reflects a realistic limit of client-side skills, recipes, prompts, and guardrails.
+
+Acceptable MCP-style guardrails are generic policy rules that an implementation team could defend outside this benchmark:
+
+- require explicit quarters instead of resolving vague phrases such as "this quarter";
+- clarify unknown cohorts instead of guessing the nearest known cohort;
+- deny raw exports, external dispatch, or unsupported financial-detail requests;
+- enforce actor scope and role boundaries;
+- stop provider-selected target flows at clarification or approval boundaries;
+- route known lead or account cohorts only when the user names a known cohort or uses an accepted synonym.
+
+Do not add benchmark-specific branches for exact question strings, fixture-only phrasing, or one-off regression failures. If a failing case only passes by adding a phrase-shaped exception, keep the failure and record it as a weakness of the MCP-style approach.
+
 ## Start The GTM Showcase Stack
 
 From the repository root:
@@ -191,7 +206,7 @@ The important observation is not only token count. The MCP-style baseline did no
 
 That is the implementation burden ANIP is designed to move from every agent consumer into the service-owned capability contract.
 
-MCP-style skill/recipe full-bank iteration:
+MCP-style skill/recipe full-bank iteration, before the generic-guardrail cleanup:
 
 - Initial `gpt-5.4-mini` full-bank run: `516/540` passed.
 - The `24` failures were not ANIP failures; they were consumer-side recipe/guardrail gaps: scope restriction classification, unknown entity handling, temporal parsing, provider-selected-target boundary handling, compound flow policy, and final-response overclaims.
@@ -206,7 +221,17 @@ MCP-style skill/recipe full-bank iteration:
 - Cached-token ratio: `0%`.
 - Average elapsed time: `2910.00ms`.
 
-This is an important benchmark artifact: making the MCP-style path reliable means building and maintaining additional agent-side execution semantics that are not provided by the raw tool schema.
+This is an important benchmark artifact, but it should be treated as a patched-to-green iteration rather than the final public baseline. It shows how much agent-side execution semantics can accumulate when the raw tool schema does not own governance.
+
+MCP-style skill/recipe generic-policy cleanup:
+
+- Removed exact benchmark-shaped branches such as one-off unknown cohorts, specific objection fixture names, and narrow continuation phrases.
+- Replaced them with generic client-side policy rules for unknown cohorts, explicit-quarter requirements, raw/unsupported financial-detail denial, dispatch denial, known objection themes, explicit target continuation, account-context requests, and lead-scoring reads.
+- Current full-bank mini run after cleanup: `536/540`.
+- Preserved run note: `results/2026-06-16-mcp-cleaned-mini.md`.
+- The current result should not be forced to `540/540` unless remaining failures expose a generic reusable policy gap. Otherwise, the failures are part of the measurement.
+
+This is the safer public framing: making the MCP-style path reliable means building and maintaining additional agent-side execution semantics that are not provided by the raw tool schema, and some edge cases may remain brittle without moving policy to the service side.
 
 The fair conclusion from this GTM suite is precise:
 

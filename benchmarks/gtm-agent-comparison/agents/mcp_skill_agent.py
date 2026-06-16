@@ -110,6 +110,10 @@ def _load_json(path: Path) -> dict[str, Any]:
 PRIORITIZATION = _load_json(PRIORITIZATION_FIXTURES)
 OUTREACH = _load_json(OUTREACH_FIXTURES)
 
+KNOWN_LEAD_COHORTS = {"inbound_last_week", "webinar_q2"}
+KNOWN_ACCOUNT_COHORTS = {"expansion_candidates_q2", "at_risk_q2"}
+KNOWN_OBJECTION_THEMES = {"pricing", "competitor", "implementation_risk"}
+
 
 MCP_TOOLS: list[dict[str, Any]] = [
     {"name": "pipeline_summary", "description": "Summarize pipeline health by stage.", "input_schema": {"quarter": "string", "owner_scope": "string optional"}},
@@ -285,6 +289,44 @@ def _normalize_cohort_ref(value: str) -> str:
     return normalized
 
 
+def _cohort_refs_in_text(question: str) -> set[str]:
+    lowered = question.lower()
+    refs: set[str] = set()
+    for cohort in KNOWN_LEAD_COHORTS | KNOWN_ACCOUNT_COHORTS:
+        if cohort in lowered:
+            refs.add(cohort)
+    if re.search(r"\binbound\b", lowered):
+        refs.add("inbound_last_week")
+    if re.search(r"\bwebinar\b", lowered):
+        refs.add("webinar_q2")
+    if re.search(r"\bexpansion(?: candidate| candidates)?\b", lowered):
+        refs.add("expansion_candidates_q2")
+    if re.search(r"\bat[- ]risk\b", lowered):
+        refs.add("at_risk_q2")
+    return refs
+
+
+def _known_lead_cohort_from_text(question: str) -> str | None:
+    refs = _cohort_refs_in_text(question)
+    for cohort in ("inbound_last_week", "webinar_q2"):
+        if cohort in refs:
+            return cohort
+    return None
+
+
+def _question_mentions_cohort_but_not_known(question: str) -> bool:
+    lowered = question.lower()
+    asks_for_cohort = bool(re.search(r"\b(cohort|lead group|lead set|candidate group|candidate set|campaign audience)\b", lowered))
+    return asks_for_cohort and not _cohort_refs_in_text(question)
+
+
+def _question_requests_unsupported_financial_detail(question: str) -> bool:
+    lowered = question.lower()
+    asks_financial_detail = bool(re.search(r"\b(financial|revenue|pipeline value|forecast value|dollar|amount)\b", lowered))
+    asks_raw_or_unbounded = bool(re.search(r"\b(raw|row[- ]?level|exact|full detail|detail|details|export|dump|spreadsheet|csv)\b", lowered))
+    return asks_financial_detail and asks_raw_or_unbounded
+
+
 def _parse_names(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(item).strip() for item in value if str(item).strip()]
@@ -295,9 +337,16 @@ def _looks_vague(value: str) -> bool:
     return any(marker in value.lower() for marker in ("best customer", "important", "selected", "the account", "target account", "our accounts", "next"))
 
 
-def _question_has_explicit_target(question: str) -> bool:
+def _explicit_target_from_text(question: str) -> str | None:
     lowered = question.lower()
-    return any(candidate.lower() in lowered for candidate in OUTREACH["targets"])
+    for candidate in OUTREACH["targets"]:
+        if candidate.lower() in lowered:
+            return candidate
+    return None
+
+
+def _question_has_explicit_target(question: str) -> bool:
+    return _explicit_target_from_text(question) is not None
 
 
 def _question_requests_send(question: str) -> bool:
@@ -305,22 +354,37 @@ def _question_requests_send(question: str) -> bool:
     return bool(re.search(r"\b(send|post|publish|dispatch)\b", lowered)) and bool(re.search(r"\b(now|immediately|directly|for me|to slack|to linkedin|email)\b", lowered))
 
 
-def _question_mentions_known_cohort(question: str) -> bool:
+def _question_requests_external_dispatch(question: str) -> bool:
     lowered = question.lower()
-    return any(
-        phrase in lowered
-        for phrase in (
-            "expansion candidate",
-            "expansion_candidates_q2",
-            "at_risk_q2",
-            "at-risk",
-            "at risk",
-            "inbound",
-            "webinar",
-            "lead cohort",
-            "account cohort",
-        )
-    )
+    explicitly_no_dispatch = bool(re.search(r"\b(do not|don't|without|no)\b.{0,24}\b(send|post|publish|dispatch)\b", lowered))
+    if explicitly_no_dispatch:
+        return False
+    return bool(re.search(r"\b(send|post|publish|dispatch)\b", lowered)) and bool(re.search(r"\b(outreach|email|message|linkedin|draft|it|this)\b", lowered))
+
+
+def _question_requests_combined_draft_and_dispatch(question: str) -> bool:
+    lowered = question.lower()
+    asks_draft = bool(re.search(r"\b(draft|write|compose|prepare)\b", lowered))
+    explicitly_no_dispatch = bool(re.search(r"\b(do not|don't|without|no)\b.{0,24}\b(send|post|publish|dispatch)\b", lowered))
+    asks_dispatch = bool(re.search(r"\b(send|post|publish|dispatch)\b", lowered))
+    if explicitly_no_dispatch:
+        return False
+    return asks_draft and asks_dispatch
+
+
+def _question_self_declares_out_of_scope(question: str) -> bool:
+    lowered = question.lower()
+    return bool(re.search(r"\b(outside|beyond|not within)\b.{0,32}\b(scope|allowed boundary|permission|territory)\b", lowered))
+
+
+def _question_has_relative_quarter_without_explicit_quarter(question: str) -> bool:
+    lowered = question.lower()
+    has_relative_quarter = bool(re.search(r"\b(this|current|next|last|previous|recent|latest)\s+quarter\b", lowered))
+    return has_relative_quarter and _infer_quarter(question) is None
+
+
+def _question_mentions_known_cohort(question: str) -> bool:
+    return bool(_cohort_refs_in_text(question))
 
 
 def _question_mentions_explicit_expansion_cohort(question: str) -> bool:
@@ -335,7 +399,27 @@ def _question_mentions_explicit_at_risk_cohort(question: str) -> bool:
 
 def _question_has_vague_candidate_cohort(question: str) -> bool:
     lowered = question.lower()
-    return "q2 candidate" in lowered and not _question_mentions_known_cohort(question)
+    asks_for_candidates = bool(re.search(r"\b(candidate|candidates|cohort|audience|segment|group)\b", lowered))
+    has_time_window = bool(re.search(r"\bq[1-4]\b|\b20\d{2}\b|\blatest\b|\brecent\b", lowered))
+    return asks_for_candidates and has_time_window and not _question_mentions_known_cohort(question)
+
+
+def _question_requests_prioritized_read_only(question: str) -> bool:
+    lowered = question.lower()
+    refs = _cohort_refs_in_text(question)
+    asks_to_score = bool(re.search(r"\b(score|rank|prioritize|priority\s+bands?|highest[- ]?priority)\b", lowered))
+    asks_leads = "inbound_last_week" in refs or "webinar_q2" in refs or bool(re.search(r"\bleads?\b", lowered))
+    explicitly_no_routing = bool(re.search(r"\b(without|do not|don't|no)\b.{0,32}\b(route|routing|assign|send|dispatch)\b", lowered))
+    return asks_to_score and asks_leads and explicitly_no_routing
+
+
+def _question_requests_lead_scoring_read(question: str) -> bool:
+    lowered = question.lower()
+    refs = _cohort_refs_in_text(question)
+    asks_to_score = bool(re.search(r"\b(score|rank|prioritize|priority\s+bands?|highest[- ]?priority)\b", lowered))
+    lead_cohort = "inbound_last_week" in refs or "webinar_q2" in refs
+    asks_to_route = bool(re.search(r"\b(route|routing|assign|assignment)\b", lowered))
+    return asks_to_score and lead_cohort and not asks_to_route
 
 
 def _question_requests_followup_approval(question: str) -> bool:
@@ -357,7 +441,7 @@ def _question_requests_routing_approval(question: str) -> bool:
 
 def _question_requests_expansion_prioritized_outreach(question: str) -> bool:
     lowered = question.lower()
-    if "priority list" in lowered:
+    if _question_refs_prioritized_selection(question):
         return False
     return (
         _question_mentions_explicit_expansion_cohort(question)
@@ -369,7 +453,7 @@ def _question_requests_expansion_prioritized_outreach(question: str) -> bool:
 
 def _question_requests_at_risk_prioritized_outreach(question: str) -> bool:
     lowered = question.lower()
-    if "priority list" in lowered:
+    if _question_refs_prioritized_selection(question):
         return False
     return (
         _question_mentions_explicit_at_risk_cohort(question)
@@ -387,6 +471,28 @@ def _question_requests_provider_selected_draft(question: str) -> bool:
     provider_selected_target = bool(re.search(r"\b(top|highest[- ]?risk|highest priority|best|leading|first)\b.*\b(one|account|candidate|target)\b", lowered))
     upstream_selection = any(term in lowered for term in ("rank", "prioritize", "find", "identify", "select", "at-risk", "at risk", "bottleneck", "enrich"))
     return asks_for_draft and provider_selected_target and upstream_selection and not _question_has_explicit_target(question)
+
+
+def _question_refs_prioritized_selection(question: str) -> bool:
+    lowered = question.lower()
+    references_prior_result = bool(re.search(r"\b(prioritized\s+(?:list|result|selection)|ranking|ranked result|selected result|selection|result|results)\b", lowered))
+    references_priority = bool(re.search(r"\b(priority|prioritized|ranked|highest[- ]?priority)\b", lowered))
+    return references_prior_result and references_priority
+
+
+def _question_requests_vague_outreach_target(question: str) -> bool:
+    lowered = question.lower()
+    asks_for_draft = bool(re.search(r"\b(draft|write|compose|create|prepare)\b", lowered)) and bool(re.search(r"\b(outreach|email|message|linkedin|follow[- ]?up)\b", lowered))
+    vague_target = bool(re.search(r"\b(top|best|first|selected|that|the)\s+(account|candidate|target|one)\b", lowered))
+    return asks_for_draft and vague_target and not _question_has_explicit_target(question) and not _question_mentions_known_cohort(question)
+
+
+def _known_objection_theme_from_text(question: str) -> str | None:
+    lowered = question.lower().replace("-", "_").replace(" ", "_")
+    for theme in KNOWN_OBJECTION_THEMES:
+        if theme in lowered:
+            return theme
+    return None
 
 
 def _infer_quarter(question: str) -> str | None:
@@ -427,10 +533,7 @@ def _question_requests_explicit_target_draft(question: str) -> str | None:
     lowered = question.lower()
     if not bool(re.search(r"\b(draft|write|compose|create)\b", lowered)) or not bool(re.search(r"\b(outreach|email|message|linkedin)\b", lowered)):
         return None
-    for candidate in OUTREACH["targets"]:
-        if candidate.lower() in lowered:
-            return candidate
-    return None
+    return _explicit_target_from_text(question)
 
 
 def _question_requests_bottleneck_enrichment(question: str) -> bool:
@@ -445,12 +548,23 @@ def _question_requests_bottleneck_with_risk_evidence(question: str) -> bool:
 
 def _question_requests_fit_explanation(question: str) -> str | None:
     lowered = question.lower()
-    if "good or weak account fit" not in lowered and "account fit" not in lowered:
+    asks_fit = "account fit" in lowered or bool(re.search(r"\b(good|weak|strong)\b.{0,24}\bfit\b", lowered))
+    if not asks_fit:
         return None
-    for candidate in OUTREACH["targets"]:
-        if candidate.lower() in lowered:
-            return candidate
-    return None
+    return _explicit_target_from_text(question)
+
+
+def _question_requests_account_context(question: str) -> str | None:
+    lowered = question.lower()
+    asks_context = bool(re.search(r"\b(firmographic|enrichment|context|account context|pipeline context)\b", lowered))
+    if not asks_context:
+        return None
+    return _explicit_target_from_text(question)
+
+
+def _conversation_requests_outreach(history: list[dict[str, Any]] | None) -> bool:
+    text = _history_text(history).lower()
+    return bool(re.search(r"\b(draft|write|compose|prepare|suggest)\b", text)) and bool(re.search(r"\b(outreach|email|message|linkedin|follow[- ]?up)\b", text))
 
 
 def _consumer_policy_guard(question: str, actor: ActorProfile, history: list[dict[str, Any]] | None = None) -> tuple[str, dict[str, Any], str] | None:
@@ -469,34 +583,39 @@ def _consumer_policy_guard(question: str, actor: ActorProfile, history: list[dic
         return "deny", {"reason": "The sales_analyst actor cannot use objection-response generation."}, "denied"
     if actor.actor_id == "sales_analyst" and ("reassignment" in lowered or "reassign" in lowered):
         return "deny", {"reason": "The sales_analyst actor cannot prepare reassignment plans."}, "denied"
-    if "outside my scope" in lowered:
+    if _question_self_declares_out_of_scope(question):
         return "deny", {"reason": "The request explicitly asks for work outside the actor's allowed scope."}, "denied"
+    if _question_has_relative_quarter_without_explicit_quarter(question):
+        return "clarify", {"missing": ["quarter"], "message": "Which explicit quarter should I use, for example 2017-Q2?"}, "clarification_required"
     if actor.pipeline_scope not in {"company", "all"}:
         requested_scope = _infer_owner_scope(question)
         if requested_scope and requested_scope != actor.pipeline_scope:
             return "restrict", {"reason": f"Actor is restricted to {actor.pipeline_scope} scope.", "allowed_scope": actor.pipeline_scope}, "restricted"
-    if "financial detail" in lowered or "financial details" in lowered:
+    if _question_requests_unsupported_financial_detail(question):
         return "deny", {"reason": "Financial detail requests are outside the bounded summary contract for this benchmark."}, "denied"
-    if "superbowl" in lowered:
+    if _question_mentions_cohort_but_not_known(question):
         return "clarify", {"missing": ["cohort_ref"], "message": "Unknown lead cohort. Use a known cohort such as inbound_last_week or webinar_q2."}, "clarification_required"
-    if "draft and send" in lowered or ("send" in lowered and _question_has_explicit_target(question)):
+    if _question_requests_external_dispatch(question) or _question_requests_combined_draft_and_dispatch(question) or ("send" in lowered and _question_has_explicit_target(question)):
         return "deny", {"reason": "Drafting is allowed, but sending or dispatching messages is outside this benchmark agent's allowed side-effect boundary."}, "denied"
-    if "raw objection" in lowered or ("export" in lowered and "objection" in lowered):
+    if "objection" in lowered and bool(re.search(r"\b(raw|export|dump|corpus|training data|source data)\b", lowered)):
         return "deny", {"reason": "Raw objection corpus export is outside the bounded objection-variant capability."}, "denied"
-    if "pricing-objection" in lowered or ("pricing" in lowered and "objection" in lowered):
-        return "objection_variants", {"objection_theme": "pricing"}, "success"
-    if "objection" in lowered and ("without saying what concern" in lowered or "without saying which concern" in lowered):
+    objection_theme = _known_objection_theme_from_text(question)
+    if "objection" in lowered and objection_theme:
+        return "objection_variants", {"objection_theme": objection_theme}, "success"
+    if "objection" in lowered and not objection_theme:
         return "clarify", {"missing": ["objection_theme"], "message": "Which objection theme should I use, for example pricing, competitor, or implementation_risk?"}, "clarification_required"
-    if "latest cohort" in lowered and "inbound_last_week" not in lowered and "webinar_q2" not in lowered:
-        return "clarify", {"missing": ["cohort_ref"], "message": "Which lead cohort should I use, for example inbound_last_week or webinar_q2?"}, "clarification_required"
-    if re.search(r"\b(use|for)\s+condax\b", lowered) and "follow" in conversation:
-        return "draft_outreach", {"target_ref": "Condax", "objective": "follow_up"}, "success"
-    if "top account" in lowered and not _question_has_explicit_target(question) and not _question_mentions_known_cohort(question) and "bottleneck" not in lowered:
+    continuation_target = _explicit_target_from_text(question)
+    if continuation_target and _conversation_requests_outreach(history):
+        return "draft_outreach", {"target_ref": continuation_target, "objective": "follow_up" if "follow" in conversation else "first_touch"}, "success"
+    if _question_requests_vague_outreach_target(question) and "bottleneck" not in lowered:
         return "clarify", {"missing": ["target_ref"], "message": "Which explicit account should I draft outreach for?"}, "clarification_required"
-    if "account we should focus on first" in lowered or "priority list" in lowered:
+    if _question_refs_prioritized_selection(question):
         if "expansion_candidates_q2" in lowered:
             return "prioritized_outreach", {"cohort_ref": "expansion_candidates_q2", **_inferred_params(question)}, "success"
         return "clarify", {"missing": ["target_ref"], "message": "Which explicit account should I draft outreach for?"}, "clarification_required"
+    context_target = _question_requests_account_context(question)
+    if context_target:
+        return "account_enrichment", {"account_names": [context_target], "limit": 1}, "success"
     explicit_target = _question_requests_explicit_target_draft(question)
     if explicit_target:
         return "draft_outreach", {"target_ref": explicit_target, "objective": "follow_up" if "follow" in lowered else "first_touch"}, "success"
@@ -517,10 +636,16 @@ def _consumer_policy_guard(question: str, actor: ActorProfile, history: list[dic
         return "at_risk_account_enrichment", _inferred_params(question), "success"
     if _question_requests_bottleneck_with_risk_evidence(question):
         return "stage_bottlenecks", _inferred_params(question), "success"
-    if "inbound_last_week" in lowered and ("priority band" in lowered or "priority bands" in lowered):
-        return "score_leads", {"cohort_ref": "inbound_last_week", **_inferred_params(question)}, "success"
-    if "inbound" in lowered and "without routing" in lowered:
-        return "score_leads", {"cohort_ref": "inbound_last_week", **_inferred_params(question)}, "success"
+    if _question_requests_prioritized_read_only(question):
+        cohort_ref = _known_lead_cohort_from_text(question)
+        if cohort_ref:
+            return "score_leads", {"cohort_ref": cohort_ref, **_inferred_params(question)}, "success"
+        return "clarify", {"missing": ["cohort_ref"], "message": "Which lead cohort should I score?"}, "clarification_required"
+    if _question_requests_lead_scoring_read(question):
+        cohort_ref = _known_lead_cohort_from_text(question)
+        if cohort_ref:
+            return "score_leads", {"cohort_ref": cohort_ref, **_inferred_params(question)}, "success"
+        return "clarify", {"missing": ["cohort_ref"], "message": "Which lead cohort should I score?"}, "clarification_required"
     if "webinar" in lowered and _question_requests_routing_approval(question):
         return "route_leads", {"cohort_ref": "webinar_q2", **_inferred_params(question)}, "approval_required"
     if "webinar" in lowered and "follow" in lowered:
@@ -535,8 +660,8 @@ def _consumer_policy_guard(question: str, actor: ActorProfile, history: list[dic
         cohort_ref = "inbound_last_week" if "inbound" in lowered else "webinar_q2" if "webinar" in lowered else None
         return "route_leads", {**_inferred_params(question), **({"cohort_ref": cohort_ref} if cohort_ref else {})}, "approval_required"
     if _question_requests_provider_selected_draft(question):
-        if "priority list" in lowered:
-            return "clarify", {"missing": ["target_ref"], "message": "Which account from the priority list should I draft outreach for?"}, "clarification_required"
+        if _question_refs_prioritized_selection(question):
+            return "clarify", {"missing": ["target_ref"], "message": "Which explicit account from the prior selection should I draft outreach for?"}, "clarification_required"
         return "bottleneck_outreach", _inferred_params(question), "approval_required"
     return None
 
