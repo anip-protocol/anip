@@ -122,7 +122,9 @@ The GTM showcase is the release-quality deep example:
 - Registry package: `gtm-pipeline-q2-review@0.4.4`.
 - Generated native services in Python, TypeScript, Go, Java, and C#.
 - Full-stack compose per language.
-- Docker images for each language stack and the shared agent UI.
+- Published Docker images for each language stack and the shared agent UI:
+  `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.4`
+  and `anipprotocol/showcase-gtm-agent-ui:0.4.4`.
 - Agent UI and approval UI.
 - 23 formalized capabilities.
 - Custom bundle catalog with digest verification.
@@ -153,8 +155,6 @@ ANIP exposes the governed way to use that access.
 Some assets are implemented but still require release-run validation:
 
 - Homebrew tap update with real release version.
-- Public Docker image push through the release workflow.
-- Manual GTM showcase image publish to Docker Hub, if we want package-version tags such as `0.4.4` before the next platform release.
 - Hosted Registry deployment.
 - Hosted read-only Studio deployment.
 - Docs site build and publishing.
