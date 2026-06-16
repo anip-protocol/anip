@@ -22,7 +22,7 @@ This page is the operational reference for Studio. If you are learning Studio as
 
 ## Version and spec posture
 
-The current Studio application version is `0.24.5`. The current public Studio Docker image tag is `0.24.6`. The protocol target is `anip/0.24`.
+The current Studio application version is `0.24.6`. The current public Studio Docker image tag is `0.24.6`. The protocol target is `anip/0.24`.
 
 Those versions are intentionally separate:
 
