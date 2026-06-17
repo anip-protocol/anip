@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_ref }}
 
@@ -56,22 +56,31 @@ jobs:
           "
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Build and push Registry image
         env:
           VERSION: ${{ inputs.version }}
           TAG_LATEST: ${{ inputs.tag_latest }}
         run: |
-          TAG_ARGS="-t anipprotocol/registry:$VERSION"
+          TAG_ARGS="-t anipprotocol/registry:$VERSION -t registry.digitalocean.com/anip/registry:$VERSION"
           if [ "$TAG_LATEST" = "true" ]; then
-            TAG_ARGS="$TAG_ARGS -t anipprotocol/registry:latest"
+            TAG_ARGS="$TAG_ARGS -t anipprotocol/registry:latest -t registry.digitalocean.com/anip/registry:latest"
           fi
           docker build $TAG_ARGS -f registry/Dockerfile .
           docker push anipprotocol/registry:"$VERSION"
+          docker push registry.digitalocean.com/anip/registry:"$VERSION"
           if [ "$TAG_LATEST" = "true" ]; then
             docker push anipprotocol/registry:latest
+            docker push registry.digitalocean.com/anip/registry:latest
           fi

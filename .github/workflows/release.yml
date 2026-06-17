@@ -691,23 +691,37 @@ jobs:
     needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: main
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Build and push Registry image
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          docker build -t anipprotocol/registry:"$VERSION" -t anipprotocol/registry:latest -f registry/Dockerfile .
+          docker build \
+            -t anipprotocol/registry:"$VERSION" \
+            -t anipprotocol/registry:latest \
+            -t registry.digitalocean.com/anip/registry:"$VERSION" \
+            -t registry.digitalocean.com/anip/registry:latest \
+            -f registry/Dockerfile .
           docker push anipprotocol/registry:"$VERSION"
           docker push anipprotocol/registry:latest
+          docker push registry.digitalocean.com/anip/registry:"$VERSION"
+          docker push registry.digitalocean.com/anip/registry:latest
 
   publish-showcase-docker:
     needs: bump-and-validate
