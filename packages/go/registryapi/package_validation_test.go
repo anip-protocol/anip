@@ -110,7 +110,8 @@ func cloneMap(input map[string]any) map[string]any {
 
 func TestPublishPackageRejectsInvalidServiceDefinition(t *testing.T) {
 	handler := NewHandlerWithOptions(NewMemoryStore(), HandlerOptions{
-		PublishToken: "test-publish-token",
+		PublishToken:                    "test-publish-token",
+		LegacyGlobalPublishTokenEnabled: true,
 	})
 	body := validTestPublishPackageRequest()
 	body.ServiceDefinition = map[string]any{

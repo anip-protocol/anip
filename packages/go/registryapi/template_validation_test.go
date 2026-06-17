@@ -187,7 +187,8 @@ func TestPublishTemplateRejectsUnknownEffectIDs(t *testing.T) {
 
 func TestTemplateHTTPPublishListDetailDownload(t *testing.T) {
 	handler := NewHandlerWithOptions(NewMemoryStore(), HandlerOptions{
-		PublishToken: "test-publish-token",
+		PublishToken:                    "test-publish-token",
+		LegacyGlobalPublishTokenEnabled: true,
 	})
 	payload, err := json.Marshal(validTestTemplateRequest(t))
 	if err != nil {

@@ -41,8 +41,13 @@ func main() {
 	} else {
 		logger.Info("registry_signing_mode", "mode", signingConfig.Mode, "key_id", signer.KeyID, "dev_key", false)
 	}
+	legacyGlobalPublishEnabled := envBoolDefault("ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED", false)
 	if strings.TrimSpace(os.Getenv("ANIP_REGISTRY_PUBLISH_TOKEN")) == "" {
 		logger.Warn("registry_publish_disabled", "reason", "missing_publish_token")
+	} else if legacyGlobalPublishEnabled {
+		logger.Warn("registry_legacy_global_publish_token_enabled", "message", "ANIP_REGISTRY_PUBLISH_TOKEN is accepted only for transition; use scoped registry publish tokens for public publishing")
+	} else {
+		logger.Info("registry_legacy_global_publish_token_disabled", "message", "ANIP_REGISTRY_PUBLISH_TOKEN is configured but ignored because ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED is not true")
 	}
 
 	extraPublicKeys, err := registryapi.ParseRegistryPublicKeyList(os.Getenv("ANIP_REGISTRY_EXTRA_PUBLIC_KEYS"))
@@ -82,12 +87,13 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", registryRootHandler())
 	mux.Handle("/registry-api/", registryapi.NewHandlerWithOptions(store, registryapi.HandlerOptions{
-		SigningMode:   signingConfig.Mode,
-		ActiveKeyID:   signer.KeyID,
-		PublishToken:  os.Getenv("ANIP_REGISTRY_PUBLISH_TOKEN"),
-		PublisherID:   firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_ID"), "studio-local"),
-		PublisherType: firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_TYPE"), "studio"),
-		Logger:        logger,
+		SigningMode:                     signingConfig.Mode,
+		ActiveKeyID:                     signer.KeyID,
+		PublishToken:                    os.Getenv("ANIP_REGISTRY_PUBLISH_TOKEN"),
+		LegacyGlobalPublishTokenEnabled: legacyGlobalPublishEnabled,
+		PublisherID:                     firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_ID"), "studio-local"),
+		PublisherType:                   firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_TYPE"), "studio"),
+		Logger:                          logger,
 	}))
 	if uiDir := resolveRegistryUIDir(); uiDir != "" {
 		logger.Info("registry_ui_enabled", "path", uiDir, "route", "/registry")

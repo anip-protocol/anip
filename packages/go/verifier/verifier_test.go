@@ -21,9 +21,10 @@ const testRegistryPublishToken = "test-publish-token"
 
 func newVerifierRegistryHandler(store registryapi.Store) http.Handler {
 	return registryapi.NewHandlerWithOptions(store, registryapi.HandlerOptions{
-		PublishToken:  testRegistryPublishToken,
-		PublisherID:   "studio-test",
-		PublisherType: "studio",
+		PublishToken:                    testRegistryPublishToken,
+		LegacyGlobalPublishTokenEnabled: true,
+		PublisherID:                     "studio-test",
+		PublisherType:                   "studio",
 	})
 }
 

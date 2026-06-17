@@ -199,3 +199,9 @@ type RegistryAuditEvent struct {
 	UserAgentHash    string         `json:"user_agent_hash,omitempty"`
 	CreatedAt        string         `json:"created_at"`
 }
+
+type PublishAuthContext struct {
+	PublisherID   string `json:"publisher_id"`
+	PublisherType string `json:"publisher_type"`
+	TokenID       string `json:"token_id,omitempty"`
+}

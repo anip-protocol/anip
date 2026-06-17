@@ -3,8 +3,10 @@ package registryapi
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +35,8 @@ type PostgresStoreOptions struct {
 }
 
 const registryMigrationAdvisoryLockID int64 = 2402402401
+
+const RegistryPublishTokenPrefix = "anip_pat_"
 
 func NewPostgresStore(dsn string) (*PostgresStore, error) {
 	return NewPostgresStoreWithSigner(dsn, NewDevRegistrySigner())
@@ -463,6 +467,9 @@ func (s *PostgresStore) PublishPackage(request PublishPackageRequest) (PublishPa
 		receipt.PublisherID, receipt.PublisherType, issuedAt); err != nil {
 		return PublishPackageResult{}, err
 	}
+	if err := s.recordArtifactOwnership(context.Background(), tx, "package", pkg.PackageID, pkg.PublisherID); err != nil {
+		return PublishPackageResult{}, err
+	}
 
 	if err := tx.Commit(context.Background()); err != nil {
 		return PublishPackageResult{}, err
@@ -626,7 +633,13 @@ func (s *PostgresStore) PublishTemplate(request PublishTemplateRequest) (Publish
 	if err != nil {
 		return PublishTemplateResult{}, err
 	}
-	if _, err := s.pool.Exec(context.Background(), `
+	tx, err := s.pool.Begin(context.Background())
+	if err != nil {
+		return PublishTemplateResult{}, err
+	}
+	defer tx.Rollback(context.Background())
+
+	if _, err := tx.Exec(context.Background(), `
 		INSERT INTO registry_templates (
 			template_id, template_version, template_kind, project_type, anip_spec_version,
 			domain, industry, systems, publisher_id, publisher_type, manifest_digest, template_digest,
@@ -638,6 +651,12 @@ func (s *PostgresStore) PublishTemplate(request PublishTemplateRequest) (Publish
 		record.ANIPSpecVersion, record.Domain, record.Industry, systemsBytes, record.PublisherID,
 		record.PublisherType, record.ManifestDigest, record.TemplateDigest, record.PackageDigest,
 		publishedAt, manifestBytes, templateBytes, packageBytes); err != nil {
+		return PublishTemplateResult{}, err
+	}
+	if err := s.recordArtifactOwnership(context.Background(), tx, "template", record.TemplateID, record.PublisherID); err != nil {
+		return PublishTemplateResult{}, err
+	}
+	if err := tx.Commit(context.Background()); err != nil {
 		return PublishTemplateResult{}, err
 	}
 	return PublishTemplateResult{Template: record}, nil
@@ -675,6 +694,57 @@ func (s *PostgresStore) CountPublishedLineages() (int, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (s *PostgresStore) recordArtifactOwnership(ctx context.Context, tx pgx.Tx, artifactKind string, artifactID string, publisherID string) error {
+	artifactKind = strings.TrimSpace(artifactKind)
+	artifactID = strings.TrimSpace(artifactID)
+	publisherID = strings.TrimSpace(publisherID)
+	if artifactKind == "" || artifactID == "" || publisherID == "" {
+		return nil
+	}
+
+	var existingPublisher string
+	var existingStatus string
+	err := tx.QueryRow(ctx, `
+		SELECT publisher_id, status
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = $1 AND artifact_id = $2
+	`, artifactKind, artifactID).Scan(&existingPublisher, &existingStatus)
+	if err == nil {
+		if existingPublisher != publisherID || existingStatus != "active" {
+			return ErrUnauthorizedPublish
+		}
+		return nil
+	}
+	if err != pgx.ErrNoRows {
+		return err
+	}
+
+	var namespace string
+	err = tx.QueryRow(ctx, `
+		SELECT namespace
+		FROM registry_namespaces
+		WHERE publisher_id = $1 AND status = 'active'
+		  AND artifact_kinds ? $2
+		  AND ($3 = namespace OR starts_with($3, namespace || '/'))
+		ORDER BY length(namespace) DESC
+		LIMIT 1
+	`, publisherID, artifactKind, artifactID).Scan(&namespace)
+	if err == pgx.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO registry_artifact_ownership (
+			artifact_kind, artifact_id, publisher_id, namespace, status
+		) VALUES (
+			$1, $2, $3, $4, 'active'
+		)
+	`, artifactKind, artifactID, publisherID, namespace)
+	return err
 }
 
 func (s *PostgresStore) GetPublisher(ctx context.Context, publisherID string) (RegistryPublisher, bool, error) {
@@ -792,6 +862,166 @@ func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAudi
 	}
 	inserted.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	return inserted, nil
+}
+
+type registryPublishTokenScopes struct {
+	Operations  []string `json:"operations"`
+	Namespaces  []string `json:"namespaces"`
+	PackageIDs  []string `json:"package_ids"`
+	TemplateIDs []string `json:"template_ids"`
+}
+
+func (s *PostgresStore) AuthorizePublish(ctx context.Context, token string, operation string, artifactID string) (PublishAuthContext, error) {
+	tokenID, tokenSecret, ok := parseRegistryPublishToken(token)
+	if !ok {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	operation = strings.TrimSpace(operation)
+	artifactID = strings.TrimSpace(artifactID)
+	if operation == "" || artifactID == "" {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+
+	var auth PublishAuthContext
+	var publisherStatus string
+	var scopesBytes []byte
+	var expiresAt sql.NullTime
+	var revokedAt sql.NullTime
+	err := s.pool.QueryRow(ctx, `
+		SELECT t.publisher_id, p.publisher_type, p.status, t.scopes, t.expires_at, t.revoked_at
+		FROM registry_publish_tokens t
+		JOIN registry_publishers p ON p.publisher_id = t.publisher_id
+		WHERE t.token_id = $1::uuid AND t.token_hash = $2
+	`, tokenID, RegistryPublishTokenSecretHash(tokenSecret)).Scan(
+		&auth.PublisherID,
+		&auth.PublisherType,
+		&publisherStatus,
+		&scopesBytes,
+		&expiresAt,
+		&revokedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	if err != nil {
+		return PublishAuthContext{}, err
+	}
+	if publisherStatus != "active" || revokedAt.Valid || (expiresAt.Valid && !expiresAt.Time.After(time.Now().UTC())) {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+
+	var scopes registryPublishTokenScopes
+	if err := json.Unmarshal(scopesBytes, &scopes); err != nil {
+		return PublishAuthContext{}, fmt.Errorf("decode publish token scopes: %w", err)
+	}
+	if !stringInSet(operation, scopes.Operations) {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	artifactKind := strings.TrimPrefix(operation, "publish:")
+	if artifactKind != "package" && artifactKind != "template" {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	if err := s.ensureArtifactPublishAllowed(ctx, auth.PublisherID, artifactKind, artifactID, scopes); err != nil {
+		return PublishAuthContext{}, err
+	}
+
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE registry_publish_tokens
+		SET last_used_at = now(), updated_at = now()
+		WHERE token_id = $1::uuid
+	`, tokenID); err != nil {
+		return PublishAuthContext{}, err
+	}
+	auth.TokenID = tokenID
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: auth.PublisherID,
+		TokenID:          tokenID,
+		EventType:        "token.used",
+		TargetType:       artifactKind,
+		TargetID:         artifactID,
+		Metadata: map[string]any{
+			"operation": operation,
+		},
+	})
+	return auth, nil
+}
+
+func (s *PostgresStore) ensureArtifactPublishAllowed(ctx context.Context, publisherID string, artifactKind string, artifactID string, scopes registryPublishTokenScopes) error {
+	var ownedPublisher sql.NullString
+	var ownershipStatus sql.NullString
+	err := s.pool.QueryRow(ctx, `
+		SELECT publisher_id, status
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = $1 AND artifact_id = $2
+	`, artifactKind, artifactID).Scan(&ownedPublisher, &ownershipStatus)
+	if err != nil && err != pgx.ErrNoRows {
+		return err
+	}
+	if ownedPublisher.Valid {
+		if ownedPublisher.String != publisherID || ownershipStatus.String != "active" {
+			return ErrUnauthorizedPublish
+		}
+		return nil
+	}
+
+	if artifactKind == "package" && stringInSet(artifactID, scopes.PackageIDs) {
+		return nil
+	}
+	if artifactKind == "template" && stringInSet(artifactID, scopes.TemplateIDs) {
+		return nil
+	}
+	for _, namespace := range scopes.Namespaces {
+		namespace = strings.TrimSpace(namespace)
+		if namespace == "" {
+			continue
+		}
+		if artifactID != namespace && !strings.HasPrefix(artifactID, namespace+"/") {
+			continue
+		}
+		var exists bool
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM registry_namespaces
+				WHERE namespace = $1 AND publisher_id = $2 AND status = 'active'
+				  AND artifact_kinds ? $3
+			)
+		`, namespace, publisherID, artifactKind).Scan(&exists); err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+	}
+	return ErrUnauthorizedPublish
+}
+
+func RegistryPublishTokenSecretHash(secret string) string {
+	sum := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(sum[:])
+}
+
+func parseRegistryPublishToken(token string) (string, string, bool) {
+	token = strings.TrimSpace(token)
+	if !strings.HasPrefix(token, RegistryPublishTokenPrefix) {
+		return "", "", false
+	}
+	remainder := strings.TrimPrefix(token, RegistryPublishTokenPrefix)
+	tokenID, secret, ok := strings.Cut(remainder, "_")
+	if !ok || strings.TrimSpace(tokenID) == "" || strings.TrimSpace(secret) == "" {
+		return "", "", false
+	}
+	return tokenID, secret, true
+}
+
+func stringInSet(value string, candidates []string) bool {
+	value = strings.TrimSpace(value)
+	for _, candidate := range candidates {
+		if value == strings.TrimSpace(candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func randomUUIDString() (string, error) {
