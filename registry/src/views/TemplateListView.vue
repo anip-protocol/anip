@@ -13,8 +13,44 @@ const domainFilter = ref('')
 const industryFilter = ref('')
 const systemFilter = ref('')
 
+interface TemplateGroup {
+  template_id: string
+  latest: TemplateSummary
+  versions: TemplateSummary[]
+  total_downloads: number
+}
+
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+}
+
+function timestampValue(value: string): number {
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function versionSort(left: TemplateSummary, right: TemplateSummary): number {
+  const publishedDelta = timestampValue(right.published_at) - timestampValue(left.published_at)
+  if (publishedDelta !== 0) return publishedDelta
+  return right.template_version.localeCompare(left.template_version, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+function groupTemplates(records: TemplateSummary[]): TemplateGroup[] {
+  const groups = new Map<string, TemplateSummary[]>()
+  for (const item of records) {
+    const versions = groups.get(item.template_id) ?? []
+    versions.push(item)
+    groups.set(item.template_id, versions)
+  }
+  return Array.from(groups.entries()).map(([template_id, versions]) => {
+    const sortedVersions = [...versions].sort(versionSort)
+    return {
+      template_id,
+      latest: sortedVersions[0],
+      versions: sortedVersions,
+      total_downloads: sortedVersions.reduce((total, item) => total + Number(item.download_count ?? 0), 0),
+    }
+  })
 }
 
 function templateTitle(item: TemplateSummary): string {
@@ -47,9 +83,9 @@ const domainOptions = computed(() => uniqueSorted(items.value.map((item) => item
 const industryOptions = computed(() => uniqueSorted(items.value.map((item) => item.industry ?? '')))
 const systemOptions = computed(() => uniqueSorted(items.value.flatMap((item) => item.systems ?? [])))
 
-const filteredItems = computed(() => {
+const filteredGroups = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return items.value.filter((item) => {
+  const matchingItems = items.value.filter((item) => {
     if (!matchesText(item, needle)) return false
     if (kindFilter.value && item.template_kind !== kindFilter.value) return false
     if (specFilter.value && item.anip_spec_version !== specFilter.value) return false
@@ -58,16 +94,15 @@ const filteredItems = computed(() => {
     if (systemFilter.value && !(item.systems ?? []).includes(systemFilter.value)) return false
     return true
   })
+  return groupTemplates(matchingItems)
 })
 
-const sortedItems = computed(() => [...filteredItems.value].sort((left, right) => {
-  const downloadDelta = Number(right.download_count ?? 0) - Number(left.download_count ?? 0)
+const sortedGroups = computed(() => [...filteredGroups.value].sort((left, right) => {
+  const downloadDelta = right.total_downloads - left.total_downloads
   if (downloadDelta !== 0) return downloadDelta
-  const publishedDelta = new Date(right.published_at).getTime() - new Date(left.published_at).getTime()
-  if (publishedDelta !== 0 && !Number.isNaN(publishedDelta)) return publishedDelta
-  const templateDelta = left.template_id.localeCompare(right.template_id)
-  if (templateDelta !== 0) return templateDelta
-  return right.template_version.localeCompare(left.template_version)
+  const publishedDelta = timestampValue(right.latest.published_at) - timestampValue(left.latest.published_at)
+  if (publishedDelta !== 0) return publishedDelta
+  return left.template_id.localeCompare(right.template_id)
 }))
 
 onMounted(async () => {
@@ -134,54 +169,79 @@ onMounted(async () => {
           </select>
         </label>
         <div class="registry-count">
-          {{ sortedItems.length }} of {{ items.length }} template{{ items.length === 1 ? '' : 's' }}
+          {{ sortedGroups.length }} template{{ sortedGroups.length === 1 ? '' : 's' }}
+          · {{ items.length }} immutable version{{ items.length === 1 ? '' : 's' }}
         </div>
       </div>
 
-      <p v-if="sortedItems.length === 0" class="empty-state">No templates match these filters.</p>
+      <p class="immutability-note">
+        Template versions are immutable records. This page groups them by template id for browsing; direct version links, package digests, publish timestamps, and download counts remain version-specific.
+      </p>
+
+      <p v-if="sortedGroups.length === 0" class="empty-state">No templates match these filters.</p>
 
       <div v-else class="card-grid">
-        <router-link
-          v-for="item in sortedItems"
-          :key="`${item.template_id}@${item.template_version}`"
+        <article
+          v-for="group in sortedGroups"
+          :key="group.template_id"
           class="card template-card"
-          :to="{ name: 'template-detail', params: { templateId: item.template_id, version: item.template_version } }"
         >
           <div class="card-heading">
-            <strong>{{ templateTitle(item) }}</strong>
+            <strong>{{ templateTitle(group.latest) }}</strong>
             <span class="authority-pill neutral">Template</span>
           </div>
-          <span class="template-id">{{ item.template_id }}@{{ item.template_version }}</span>
-          <span v-if="templateSummary(item)" class="template-summary">{{ templateSummary(item) }}</span>
+          <span class="template-id">{{ group.template_id }}</span>
+          <span v-if="templateSummary(group.latest)" class="template-summary">{{ templateSummary(group.latest) }}</span>
+          <span class="card-line">
+            <b>Latest</b>
+            <router-link
+              class="card-line-value inline-link"
+              :to="{ name: 'template-detail', params: { templateId: group.template_id, version: group.latest.template_version } }"
+            >
+              {{ group.latest.template_version }}
+            </router-link>
+          </span>
           <span class="card-line">
             <b>Kind</b>
-            <span class="card-line-value">{{ item.template_kind }}</span>
+            <span class="card-line-value">{{ group.latest.template_kind }}</span>
           </span>
           <span class="card-line">
             <b>Spec</b>
-            <span class="card-line-value">{{ item.anip_spec_version }}</span>
+            <span class="card-line-value">{{ group.latest.anip_spec_version }}</span>
           </span>
           <span class="card-line">
             <b>Domain</b>
-            <span class="card-line-value">{{ item.domain || 'not declared' }}</span>
+            <span class="card-line-value">{{ group.latest.domain || 'not declared' }}</span>
           </span>
           <span class="card-line">
             <b>Industry</b>
-            <span class="card-line-value">{{ item.industry || 'not declared' }}</span>
+            <span class="card-line-value">{{ group.latest.industry || 'not declared' }}</span>
           </span>
           <span class="card-line">
             <b>Systems</b>
-            <span class="card-line-value">{{ item.systems?.length ? item.systems.join(', ') : 'not declared' }}</span>
+            <span class="card-line-value">{{ group.latest.systems?.length ? group.latest.systems.join(', ') : 'not declared' }}</span>
           </span>
           <span class="card-line">
             <b>Published</b>
-            <span class="card-line-value">{{ formatRegistryTimestamp(item.published_at) }}</span>
+            <span class="card-line-value">{{ formatRegistryTimestamp(group.latest.published_at) }}</span>
           </span>
           <span class="card-line">
             <b>Downloads</b>
-            <span class="card-line-value">{{ item.download_count ?? 0 }}</span>
+            <span class="card-line-value">{{ group.total_downloads }} total · {{ group.latest.download_count ?? 0 }} latest</span>
           </span>
-        </router-link>
+          <div class="version-history">
+            <span class="version-history-title">Immutable versions</span>
+            <router-link
+              v-for="version in group.versions"
+              :key="`${version.template_id}@${version.template_version}`"
+              class="version-link"
+              :to="{ name: 'template-detail', params: { templateId: version.template_id, version: version.template_version } }"
+            >
+              <span>{{ version.template_version }}</span>
+              <small>{{ formatRegistryTimestamp(version.published_at) }} · {{ version.download_count ?? 0 }} downloads</small>
+            </router-link>
+          </div>
+        </article>
       </div>
     </template>
   </section>

@@ -260,6 +260,13 @@ pre {
   color: #6b5e43;
 }
 
+.immutability-note {
+  margin: -0.35rem 0 1rem;
+  color: #6b5e43;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .card-line {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -283,6 +290,11 @@ pre {
   margin-top: 0;
   overflow-wrap: anywhere;
   color: #564d40;
+}
+
+.inline-link {
+  color: #1d4ed8;
+  font-weight: 800;
 }
 
 .digest-line,
@@ -337,6 +349,44 @@ pre {
   border-color: rgba(220, 38, 38, 0.24);
   background: rgba(220, 38, 38, 0.1);
   color: #991b1b;
+}
+
+.version-history {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  border-top: 1px solid rgba(29, 29, 27, 0.08);
+  padding-top: 0.75rem;
+}
+
+.version-history-title {
+  color: #8a7651;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.version-link {
+  display: grid;
+  gap: 0.15rem;
+  border: 1px solid rgba(29, 29, 27, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 252, 246, 0.78);
+  padding: 0.55rem 0.65rem;
+}
+
+.version-link span {
+  margin: 0;
+  color: #1d4ed8;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.version-link small {
+  color: #6b5e43;
+  font-size: 0.75rem;
 }
 
 .hero-panel {
