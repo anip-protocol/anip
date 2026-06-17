@@ -22,7 +22,10 @@ func newRegistryPostgresStore(t *testing.T) *PostgresStore {
 	t.Cleanup(func() { _ = store.Close() })
 
 	if _, err := store.pool.Exec(t.Context(), `
-		TRUNCATE registry_receipts, registry_packages, published_lineages, registry_templates
+		TRUNCATE registry_audit_events, registry_artifact_ownership, registry_publish_tokens,
+		         registry_namespaces, registry_publisher_memberships, registry_publishers,
+		         registry_users, registry_receipts, registry_packages, published_lineages,
+		         registry_templates
 	`); err != nil {
 		t.Fatalf("truncate registry tables: %v", err)
 	}
@@ -138,5 +141,59 @@ func TestPostgresStorePublishesPackage(t *testing.T) {
 	keys := store.ListPublicKeys()
 	if len(keys) != 1 || keys[0].Algorithm != SignatureAlgorithmEd25519 {
 		t.Fatalf("expected Ed25519 public key, got %+v", keys)
+	}
+}
+
+func TestPostgresStorePublisherLookupAndAuditAppend(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	status, err := store.MigrationStatus(t.Context())
+	if err != nil {
+		t.Fatalf("MigrationStatus: %v", err)
+	}
+	if !status.Applied || status.ExpectedCount < 6 {
+		t.Fatalf("expected public publisher migration to be applied, got %+v", status)
+	}
+
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level
+		) VALUES (
+			'anip', 'official', 'ANIP', 'Official ANIP publisher', 'https://anip.dev', 'active', 'official'
+		)
+	`); err != nil {
+		t.Fatalf("insert publisher: %v", err)
+	}
+
+	publisher, ok, err := store.GetPublisher(t.Context(), "anip")
+	if err != nil {
+		t.Fatalf("GetPublisher: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected publisher")
+	}
+	if publisher.PublisherID != "anip" || publisher.TrustLevel != "official" {
+		t.Fatalf("unexpected publisher %+v", publisher)
+	}
+	if publisher.CreatedAt == "" || publisher.UpdatedAt == "" {
+		t.Fatalf("expected timestamps, got %+v", publisher)
+	}
+
+	event, err := store.AppendAuditEvent(t.Context(), RegistryAuditEvent{
+		ActorPublisherID: "anip",
+		EventType:        "publisher.created",
+		TargetType:       "publisher",
+		TargetID:         "anip",
+		Metadata: map[string]any{
+			"source": "test",
+		},
+	})
+	if err != nil {
+		t.Fatalf("AppendAuditEvent: %v", err)
+	}
+	if event.EventID == "" || event.CreatedAt == "" {
+		t.Fatalf("expected audit id and timestamp, got %+v", event)
+	}
+	if event.ActorPublisherID != "anip" || event.Metadata["source"] != "test" {
+		t.Fatalf("unexpected audit event %+v", event)
 	}
 }

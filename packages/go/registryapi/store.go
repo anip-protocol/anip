@@ -184,6 +184,7 @@ func DemoPublicationFixtureWithSigner(signer *RegistrySigner) (PublicationSummar
 			"capability_formalizations": []any{
 				map[string]any{
 					"id":                "cap-work-item-search",
+					"kind":              "atomic",
 					"source_kind":       "data_access",
 					"service_id":        "issue-tracker",
 					"capability_id":     "work_item.search",
