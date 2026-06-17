@@ -134,7 +134,7 @@ The bootstrap is idempotent. It creates the official `anip` publisher and namesp
 
 ## Publisher Self-Service API
 
-Scoped publisher tokens can inspect publisher state and manage additional publish tokens for the same publisher. Token management requires the `manage:tokens` operation in the caller token scopes.
+Scoped publisher tokens can inspect publisher state, owned artifacts, namespaces, and additional publish tokens for the same publisher. Token management requires the `manage:tokens` operation in the caller token scopes. Publisher profile and namespace changes require `manage:publisher`.
 
 ```bash
 curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
@@ -144,7 +144,37 @@ curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
   https://registry.anip.dev/registry-api/v1/me/artifacts
 
 curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/me/namespaces
+
+curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
   https://registry.anip.dev/registry-api/v1/me/tokens
+```
+
+Update the publisher profile:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "ANIP Protocol",
+    "description": "Canonical ANIP public publisher.",
+    "website_url": "https://anip.dev"
+  }' \
+  https://registry.anip.dev/registry-api/v1/me/publisher
+```
+
+Create an additional namespace owned by the publisher:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "anip-labs",
+    "artifact_kinds": ["package", "template"]
+  }' \
+  https://registry.anip.dev/registry-api/v1/me/namespaces
 ```
 
 Create a scoped token:

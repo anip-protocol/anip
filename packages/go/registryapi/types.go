@@ -190,6 +190,11 @@ type RegistryPublisher struct {
 	UpdatedAt       string `json:"updated_at"`
 }
 
+type PublisherSelfServiceContext struct {
+	Publisher RegistryPublisher          `json:"publisher"`
+	Scopes    RegistryPublishTokenScopes `json:"scopes"`
+}
+
 type PublisherSummary struct {
 	PublisherID   string `json:"publisher_id"`
 	PublisherType string `json:"publisher_type"`
@@ -257,4 +262,24 @@ type PublisherArtifactSummary struct {
 	Status       string `json:"status"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
+}
+
+type UpdatePublisherRequest struct {
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
+	WebsiteURL  string `json:"website_url"`
+}
+
+type RegistryNamespaceSummary struct {
+	Namespace     string   `json:"namespace"`
+	PublisherID   string   `json:"publisher_id"`
+	ArtifactKinds []string `json:"artifact_kinds"`
+	Status        string   `json:"status"`
+	CreatedAt     string   `json:"created_at"`
+	UpdatedAt     string   `json:"updated_at"`
+}
+
+type CreateNamespaceRequest struct {
+	Namespace     string   `json:"namespace"`
+	ArtifactKinds []string `json:"artifact_kinds"`
 }

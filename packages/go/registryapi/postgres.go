@@ -984,6 +984,120 @@ func (s *PostgresStore) GetPublisher(ctx context.Context, publisherID string) (R
 	return publisher, true, nil
 }
 
+func (s *PostgresStore) UpdatePublisher(ctx context.Context, publisherID string, request UpdatePublisherRequest) (RegistryPublisher, error) {
+	publisherID = strings.TrimSpace(publisherID)
+	displayName := strings.TrimSpace(request.DisplayName)
+	description := strings.TrimSpace(request.Description)
+	websiteURL := strings.TrimSpace(request.WebsiteURL)
+	if publisherID == "" || displayName == "" {
+		return RegistryPublisher{}, ErrInvalidPackage
+	}
+	var publisher RegistryPublisher
+	var createdBy sql.NullString
+	var createdAt time.Time
+	var updatedAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		UPDATE registry_publishers
+		SET display_name = $2,
+		    description = $3,
+		    website_url = $4,
+		    updated_at = now()
+		WHERE publisher_id = $1 AND status = 'active'
+		RETURNING publisher_id, publisher_type, display_name, description, website_url,
+		          status, trust_level, created_by_user_id::text, created_at, updated_at
+	`, publisherID, displayName, description, websiteURL).Scan(
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.Description,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
+		&createdBy,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		return RegistryPublisher{}, err
+	}
+	if createdBy.Valid {
+		publisher.CreatedByUserID = createdBy.String
+	}
+	publisher.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	publisher.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: publisherID,
+		EventType:        "publisher.updated",
+		TargetType:       "publisher",
+		TargetID:         publisherID,
+		Metadata: map[string]any{
+			"display_name": displayName,
+			"website_url":  websiteURL,
+		},
+	})
+	return publisher, nil
+}
+
+func (s *PostgresStore) ListPublisherNamespaces(ctx context.Context, publisherID string) ([]RegistryNamespaceSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT namespace, publisher_id, artifact_kinds, status, created_at, updated_at
+		FROM registry_namespaces
+		WHERE publisher_id = $1
+		ORDER BY namespace ASC
+	`, strings.TrimSpace(publisherID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RegistryNamespaceSummary{}
+	for rows.Next() {
+		item, err := scanRegistryNamespaceSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) CreatePublisherNamespace(ctx context.Context, publisherID string, request CreateNamespaceRequest) (RegistryNamespaceSummary, error) {
+	publisherID = strings.TrimSpace(publisherID)
+	namespace := strings.ToLower(strings.TrimSpace(request.Namespace))
+	artifactKinds := normalizeArtifactKinds(request.ArtifactKinds)
+	if publisherID == "" || !validRegistryNamespace(namespace) || len(artifactKinds) == 0 {
+		return RegistryNamespaceSummary{}, ErrInvalidPackage
+	}
+	artifactKindsBytes, err := json.Marshal(artifactKinds)
+	if err != nil {
+		return RegistryNamespaceSummary{}, err
+	}
+	item, err := scanRegistryNamespaceSummary(s.pool.QueryRow(ctx, `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			$1, $2, $3, 'active'
+		)
+		RETURNING namespace, publisher_id, artifact_kinds, status, created_at, updated_at
+	`, namespace, publisherID, artifactKindsBytes))
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return RegistryNamespaceSummary{}, ErrNamespaceExists
+		}
+		return RegistryNamespaceSummary{}, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: publisherID,
+		EventType:        "namespace.created",
+		TargetType:       "namespace",
+		TargetID:         namespace,
+		Metadata: map[string]any{
+			"artifact_kinds": artifactKinds,
+		},
+	})
+	return item, nil
+}
+
 func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
 	event.EventID = strings.TrimSpace(event.EventID)
 	if event.EventID == "" {
@@ -1437,6 +1551,59 @@ func randomTokenSecret() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes[:]), nil
+}
+
+func scanRegistryNamespaceSummary(row registryPublishTokenRowScanner) (RegistryNamespaceSummary, error) {
+	var item RegistryNamespaceSummary
+	var artifactKindsBytes []byte
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(
+		&item.Namespace,
+		&item.PublisherID,
+		&artifactKindsBytes,
+		&item.Status,
+		&createdAt,
+		&updatedAt,
+	); err != nil {
+		return RegistryNamespaceSummary{}, err
+	}
+	if len(artifactKindsBytes) > 0 {
+		if err := json.Unmarshal(artifactKindsBytes, &item.ArtifactKinds); err != nil {
+			return RegistryNamespaceSummary{}, err
+		}
+	}
+	item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return item, nil
+}
+
+func normalizeArtifactKinds(values []string) []string {
+	allowed := map[string]bool{"package": true, "template": true}
+	normalized := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if !allowed[value] || seen[value] {
+			continue
+		}
+		seen[value] = true
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func validRegistryNamespace(namespace string) bool {
+	if namespace == "" || len(namespace) > 80 {
+		return false
+	}
+	for _, r := range namespace {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '/' {
+			continue
+		}
+		return false
+	}
+	return !strings.HasPrefix(namespace, "/") && !strings.HasSuffix(namespace, "/") && !strings.Contains(namespace, "//")
 }
 
 func RegistryPublishTokenSecretHash(secret string) string {

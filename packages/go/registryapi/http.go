@@ -30,6 +30,9 @@ type PublishAuthorizer interface {
 type PublisherSelfServiceStore interface {
 	AuthenticatePublisherToken(ctx context.Context, token string) (PublishAuthContext, RegistryPublishTokenScopes, error)
 	GetPublisher(ctx context.Context, publisherID string) (RegistryPublisher, bool, error)
+	UpdatePublisher(ctx context.Context, publisherID string, request UpdatePublisherRequest) (RegistryPublisher, error)
+	ListPublisherNamespaces(ctx context.Context, publisherID string) ([]RegistryNamespaceSummary, error)
+	CreatePublisherNamespace(ctx context.Context, publisherID string, request CreateNamespaceRequest) (RegistryNamespaceSummary, error)
 	ListPublisherArtifacts(ctx context.Context, publisherID string) ([]PublisherArtifactSummary, error)
 	ListPublisherTokens(ctx context.Context, publisherID string) ([]RegistryPublishTokenSummary, error)
 	CreatePublisherToken(ctx context.Context, publisherID string, request CreatePublishTokenRequest) (CreatePublishTokenResult, error)
@@ -122,7 +125,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/me/publisher", func(w http.ResponseWriter, r *http.Request) {
-		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "")
+		selfStore, auth, scopes, ok := authenticatePublisherSelfService(w, r, store, "")
 		if !ok {
 			return
 		}
@@ -135,7 +138,71 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "publisher not found"})
 			return
 		}
+		writeJSON(w, http.StatusOK, PublisherSelfServiceContext{
+			Publisher: publisher,
+			Scopes:    scopes,
+		})
+	})
+
+	mux.HandleFunc("PATCH /registry-api/v1/me/publisher", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "manage:publisher")
+		if !ok {
+			return
+		}
+		var request UpdatePublisherRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		publisher, err := selfStore.UpdatePublisher(r.Context(), auth.PublisherID, request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "display_name is required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update publisher"})
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"publisher": publisher})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/me/namespaces", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "")
+		if !ok {
+			return
+		}
+		items, err := selfStore.ListPublisherNamespaces(r.Context(), auth.PublisherID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publisher namespaces"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/me/namespaces", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "manage:publisher")
+		if !ok {
+			return
+		}
+		var request CreateNamespaceRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		namespace, err := selfStore.CreatePublisherNamespace(r.Context(), auth.PublisherID, request)
+		if err != nil {
+			if errors.Is(err, ErrNamespaceExists) {
+				writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
+				return
+			}
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid namespace and artifact_kinds are required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create namespace"})
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"namespace": namespace})
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/me/artifacts", func(w http.ResponseWriter, r *http.Request) {
@@ -543,7 +610,7 @@ func authorizedLegacyPublishToken(token string, configuredToken string) bool {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
