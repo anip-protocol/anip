@@ -218,3 +218,43 @@ type PublishAuthContext struct {
 	PublisherType string `json:"publisher_type"`
 	TokenID       string `json:"token_id,omitempty"`
 }
+
+type RegistryPublishTokenScopes struct {
+	Operations  []string `json:"operations"`
+	Namespaces  []string `json:"namespaces"`
+	PackageIDs  []string `json:"package_ids,omitempty"`
+	TemplateIDs []string `json:"template_ids,omitempty"`
+}
+
+type RegistryPublishTokenSummary struct {
+	TokenID     string                     `json:"token_id"`
+	PublisherID string                     `json:"publisher_id"`
+	TokenHash   string                     `json:"-"`
+	Label       string                     `json:"label"`
+	Scopes      RegistryPublishTokenScopes `json:"scopes"`
+	ExpiresAt   string                     `json:"expires_at,omitempty"`
+	LastUsedAt  string                     `json:"last_used_at,omitempty"`
+	RevokedAt   string                     `json:"revoked_at,omitempty"`
+	CreatedAt   string                     `json:"created_at"`
+	UpdatedAt   string                     `json:"updated_at"`
+}
+
+type CreatePublishTokenRequest struct {
+	Label     string                     `json:"label"`
+	Scopes    RegistryPublishTokenScopes `json:"scopes"`
+	ExpiresAt string                     `json:"expires_at,omitempty"`
+}
+
+type CreatePublishTokenResult struct {
+	Token       RegistryPublishTokenSummary `json:"token"`
+	BearerToken string                      `json:"bearer_token"`
+}
+
+type PublisherArtifactSummary struct {
+	ArtifactKind string `json:"artifact_kind"`
+	ArtifactID   string `json:"artifact_id"`
+	Namespace    string `json:"namespace"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+}

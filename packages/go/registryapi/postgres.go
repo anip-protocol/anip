@@ -1065,22 +1065,43 @@ func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAudi
 	return inserted, nil
 }
 
-type registryPublishTokenScopes struct {
-	Operations  []string `json:"operations"`
-	Namespaces  []string `json:"namespaces"`
-	PackageIDs  []string `json:"package_ids"`
-	TemplateIDs []string `json:"template_ids"`
-}
-
 func (s *PostgresStore) AuthorizePublish(ctx context.Context, token string, operation string, artifactID string) (PublishAuthContext, error) {
-	tokenID, tokenSecret, ok := parseRegistryPublishToken(token)
-	if !ok {
-		return PublishAuthContext{}, ErrUnauthorizedPublish
-	}
 	operation = strings.TrimSpace(operation)
 	artifactID = strings.TrimSpace(artifactID)
 	if operation == "" || artifactID == "" {
 		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	auth, scopes, err := s.AuthenticatePublisherToken(ctx, token)
+	if err != nil {
+		return PublishAuthContext{}, err
+	}
+	if !stringInSet(operation, scopes.Operations) {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	artifactKind := strings.TrimPrefix(operation, "publish:")
+	if artifactKind != "package" && artifactKind != "template" {
+		return PublishAuthContext{}, ErrUnauthorizedPublish
+	}
+	if err := s.ensureArtifactPublishAllowed(ctx, auth.PublisherID, artifactKind, artifactID, scopes); err != nil {
+		return PublishAuthContext{}, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: auth.PublisherID,
+		TokenID:          auth.TokenID,
+		EventType:        "token.used",
+		TargetType:       artifactKind,
+		TargetID:         artifactID,
+		Metadata: map[string]any{
+			"operation": operation,
+		},
+	})
+	return auth, nil
+}
+
+func (s *PostgresStore) AuthenticatePublisherToken(ctx context.Context, token string) (PublishAuthContext, RegistryPublishTokenScopes, error) {
+	tokenID, tokenSecret, ok := parseRegistryPublishToken(token)
+	if !ok {
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, ErrUnauthorizedPublish
 	}
 
 	var auth PublishAuthContext
@@ -1102,52 +1123,197 @@ func (s *PostgresStore) AuthorizePublish(ctx context.Context, token string, oper
 		&revokedAt,
 	)
 	if err == pgx.ErrNoRows {
-		return PublishAuthContext{}, ErrUnauthorizedPublish
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, ErrUnauthorizedPublish
 	}
 	if err != nil {
-		return PublishAuthContext{}, err
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, err
 	}
 	if publisherStatus != "active" || revokedAt.Valid || (expiresAt.Valid && !expiresAt.Time.After(time.Now().UTC())) {
-		return PublishAuthContext{}, ErrUnauthorizedPublish
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, ErrUnauthorizedPublish
 	}
 
-	var scopes registryPublishTokenScopes
+	var scopes RegistryPublishTokenScopes
 	if err := json.Unmarshal(scopesBytes, &scopes); err != nil {
-		return PublishAuthContext{}, fmt.Errorf("decode publish token scopes: %w", err)
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, fmt.Errorf("decode publish token scopes: %w", err)
 	}
-	if !stringInSet(operation, scopes.Operations) {
-		return PublishAuthContext{}, ErrUnauthorizedPublish
-	}
-	artifactKind := strings.TrimPrefix(operation, "publish:")
-	if artifactKind != "package" && artifactKind != "template" {
-		return PublishAuthContext{}, ErrUnauthorizedPublish
-	}
-	if err := s.ensureArtifactPublishAllowed(ctx, auth.PublisherID, artifactKind, artifactID, scopes); err != nil {
-		return PublishAuthContext{}, err
-	}
-
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE registry_publish_tokens
 		SET last_used_at = now(), updated_at = now()
 		WHERE token_id = $1::uuid
 	`, tokenID); err != nil {
-		return PublishAuthContext{}, err
+		return PublishAuthContext{}, RegistryPublishTokenScopes{}, err
 	}
 	auth.TokenID = tokenID
-	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
-		ActorPublisherID: auth.PublisherID,
-		TokenID:          tokenID,
-		EventType:        "token.used",
-		TargetType:       artifactKind,
-		TargetID:         artifactID,
-		Metadata: map[string]any{
-			"operation": operation,
-		},
-	})
-	return auth, nil
+	return auth, scopes, nil
 }
 
-func (s *PostgresStore) ensureArtifactPublishAllowed(ctx context.Context, publisherID string, artifactKind string, artifactID string, scopes registryPublishTokenScopes) error {
+func (s *PostgresStore) ListPublisherArtifacts(ctx context.Context, publisherID string) ([]PublisherArtifactSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT artifact_kind, artifact_id, namespace, status, created_at, updated_at
+		FROM registry_artifact_ownership
+		WHERE publisher_id = $1
+		ORDER BY artifact_kind ASC, artifact_id ASC
+	`, strings.TrimSpace(publisherID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []PublisherArtifactSummary{}
+	for rows.Next() {
+		var item PublisherArtifactSummary
+		var createdAt time.Time
+		var updatedAt time.Time
+		if err := rows.Scan(&item.ArtifactKind, &item.ArtifactID, &item.Namespace, &item.Status, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+		item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) ListPublisherTokens(ctx context.Context, publisherID string) ([]RegistryPublishTokenSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT token_id::text, publisher_id, label, scopes, expires_at, last_used_at, revoked_at, created_at, updated_at
+		FROM registry_publish_tokens
+		WHERE publisher_id = $1
+		ORDER BY revoked_at NULLS FIRST, created_at DESC, label ASC
+	`, strings.TrimSpace(publisherID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []RegistryPublishTokenSummary{}
+	for rows.Next() {
+		item, err := scanRegistryPublishTokenSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) CreatePublisherToken(ctx context.Context, publisherID string, request CreatePublishTokenRequest) (CreatePublishTokenResult, error) {
+	publisherID = strings.TrimSpace(publisherID)
+	label := strings.TrimSpace(request.Label)
+	if publisherID == "" || label == "" {
+		return CreatePublishTokenResult{}, ErrInvalidPackage
+	}
+	scopes := normalizeRegistryPublishTokenScopes(request.Scopes)
+	if len(scopes.Operations) == 0 {
+		return CreatePublishTokenResult{}, ErrUnauthorizedPublish
+	}
+	if err := s.ensurePublisherScopesAllowed(ctx, publisherID, scopes); err != nil {
+		return CreatePublishTokenResult{}, err
+	}
+	tokenID, err := randomUUIDString()
+	if err != nil {
+		return CreatePublishTokenResult{}, err
+	}
+	secret, err := randomTokenSecret()
+	if err != nil {
+		return CreatePublishTokenResult{}, err
+	}
+	scopesBytes, err := json.Marshal(scopes)
+	if err != nil {
+		return CreatePublishTokenResult{}, err
+	}
+	var expiresAt sql.NullTime
+	if strings.TrimSpace(request.ExpiresAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(request.ExpiresAt))
+		if err != nil {
+			return CreatePublishTokenResult{}, ErrInvalidPackage
+		}
+		expiresAt = sql.NullTime{Time: parsed.UTC(), Valid: true}
+	}
+
+	var result RegistryPublishTokenSummary
+	result, err = scanRegistryPublishTokenSummary(s.pool.QueryRow(ctx, `
+		INSERT INTO registry_publish_tokens (
+			token_id, publisher_id, token_hash, label, scopes, expires_at
+		) VALUES (
+			$1::uuid, $2, $3, $4, $5, $6
+		)
+		RETURNING token_id::text, publisher_id, label, scopes, expires_at, last_used_at, revoked_at, created_at, updated_at
+	`, tokenID, publisherID, RegistryPublishTokenSecretHash(secret), label, scopesBytes, expiresAt))
+	if err != nil {
+		return CreatePublishTokenResult{}, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: publisherID,
+		TokenID:          tokenID,
+		EventType:        "token.created",
+		TargetType:       "token",
+		TargetID:         tokenID,
+		Metadata: map[string]any{
+			"label": label,
+		},
+	})
+	return CreatePublishTokenResult{
+		Token:       result,
+		BearerToken: RegistryPublishTokenPrefix + tokenID + "_" + secret,
+	}, nil
+}
+
+func (s *PostgresStore) RevokePublisherToken(ctx context.Context, publisherID string, tokenID string) (RegistryPublishTokenSummary, bool, error) {
+	var result RegistryPublishTokenSummary
+	result, err := scanRegistryPublishTokenSummary(s.pool.QueryRow(ctx, `
+		UPDATE registry_publish_tokens
+		SET revoked_at = COALESCE(revoked_at, now()), updated_at = now()
+		WHERE publisher_id = $1 AND token_id = $2::uuid
+		RETURNING token_id::text, publisher_id, label, scopes, expires_at, last_used_at, revoked_at, created_at, updated_at
+	`, strings.TrimSpace(publisherID), strings.TrimSpace(tokenID)))
+	if err == pgx.ErrNoRows {
+		return RegistryPublishTokenSummary{}, false, nil
+	}
+	if err != nil {
+		return RegistryPublishTokenSummary{}, false, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: strings.TrimSpace(publisherID),
+		TokenID:          tokenID,
+		EventType:        "token.revoked",
+		TargetType:       "token",
+		TargetID:         tokenID,
+		Metadata:         map[string]any{},
+	})
+	return result, true, nil
+}
+
+func (s *PostgresStore) ensurePublisherScopesAllowed(ctx context.Context, publisherID string, scopes RegistryPublishTokenScopes) error {
+	for _, namespace := range scopes.Namespaces {
+		var exists bool
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM registry_namespaces
+				WHERE publisher_id = $1 AND namespace = $2 AND status = 'active'
+			)
+		`, publisherID, namespace).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return ErrUnauthorizedPublish
+		}
+	}
+	for _, packageID := range scopes.PackageIDs {
+		if err := s.ensureArtifactPublishAllowed(ctx, publisherID, "package", packageID, scopes); err != nil {
+			return err
+		}
+	}
+	for _, templateID := range scopes.TemplateIDs {
+		if err := s.ensureArtifactPublishAllowed(ctx, publisherID, "template", templateID, scopes); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *PostgresStore) ensureArtifactPublishAllowed(ctx context.Context, publisherID string, artifactKind string, artifactID string, scopes RegistryPublishTokenScopes) error {
 	var ownedPublisher sql.NullString
 	var ownershipStatus sql.NullString
 	err := s.pool.QueryRow(ctx, `
@@ -1195,6 +1361,82 @@ func (s *PostgresStore) ensureArtifactPublishAllowed(ctx context.Context, publis
 		}
 	}
 	return ErrUnauthorizedPublish
+}
+
+type registryPublishTokenRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRegistryPublishTokenSummary(row registryPublishTokenRowScanner) (RegistryPublishTokenSummary, error) {
+	var item RegistryPublishTokenSummary
+	var scopesBytes []byte
+	var expiresAt sql.NullTime
+	var lastUsedAt sql.NullTime
+	var revokedAt sql.NullTime
+	var createdAt time.Time
+	var updatedAt time.Time
+	err := row.Scan(
+		&item.TokenID,
+		&item.PublisherID,
+		&item.Label,
+		&scopesBytes,
+		&expiresAt,
+		&lastUsedAt,
+		&revokedAt,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		return RegistryPublishTokenSummary{}, err
+	}
+	if len(scopesBytes) > 0 {
+		if err := json.Unmarshal(scopesBytes, &item.Scopes); err != nil {
+			return RegistryPublishTokenSummary{}, err
+		}
+	}
+	if expiresAt.Valid {
+		item.ExpiresAt = expiresAt.Time.UTC().Format(time.RFC3339)
+	}
+	if lastUsedAt.Valid {
+		item.LastUsedAt = lastUsedAt.Time.UTC().Format(time.RFC3339)
+	}
+	if revokedAt.Valid {
+		item.RevokedAt = revokedAt.Time.UTC().Format(time.RFC3339)
+	}
+	item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return item, nil
+}
+
+func normalizeRegistryPublishTokenScopes(scopes RegistryPublishTokenScopes) RegistryPublishTokenScopes {
+	return RegistryPublishTokenScopes{
+		Operations:  normalizeStringSet(scopes.Operations),
+		Namespaces:  normalizeStringSet(scopes.Namespaces),
+		PackageIDs:  normalizeStringSet(scopes.PackageIDs),
+		TemplateIDs: normalizeStringSet(scopes.TemplateIDs),
+	}
+}
+
+func normalizeStringSet(values []string) []string {
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func randomTokenSecret() (string, error) {
+	var bytes [32]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes[:]), nil
 }
 
 func RegistryPublishTokenSecretHash(secret string) string {

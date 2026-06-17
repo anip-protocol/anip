@@ -42,6 +42,7 @@ const (
 	MaxTemplateConnections            = 20
 	MaxTemplateDiscoveryRecords       = 200
 	MaxTemplateCapabilityMappings     = 100
+	MaxCreatePublishTokenRequestBytes = 32 * 1024
 )
 
 type Store interface {
