@@ -202,6 +202,89 @@ func TestPostgresStorePublisherLookupAndAuditAppend(t *testing.T) {
 	}
 }
 
+func TestPostgresBootstrapOfficialANIPPublisherBackfillsOwnershipWithoutDigestChanges(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+
+	packageRequest := validTestPublishPackageRequest()
+	packageRequest.PackageID = "gtm-pipeline-q2-review"
+	packageRequest.PackageVersion = "0.4.3"
+	packageRequest.ProjectRef = "studio:gtm-pipeline-q2-review"
+	packageRequest.PublisherID = "studio-local"
+	packageRequest.PublisherType = "studio"
+	packageResult, err := store.PublishPackage(packageRequest)
+	if err != nil {
+		t.Fatalf("PublishPackage: %v", err)
+	}
+	templateRequest := validTestTemplateRequest(t)
+	templateRequest.TemplateID = "jira-fronting-starter"
+	templateRequest.TemplateVersion = "0.2.3"
+	templateRequest.PublisherID = "studio-local"
+	templateRequest.PublisherType = "studio"
+	templateResult, err := store.PublishTemplate(templateRequest)
+	if err != nil {
+		t.Fatalf("PublishTemplate: %v", err)
+	}
+
+	beforePackage, ok := store.GetPackage("gtm-pipeline-q2-review", "0.4.3")
+	if !ok {
+		t.Fatal("expected package before bootstrap")
+	}
+	beforeTemplate, ok := store.GetTemplate("jira-fronting-starter", "0.2.3")
+	if !ok {
+		t.Fatal("expected template before bootstrap")
+	}
+	if beforePackage.Publisher != nil || beforeTemplate.Publisher != nil {
+		t.Fatalf("expected no ownership publisher before bootstrap, got package=%+v template=%+v", beforePackage.Publisher, beforeTemplate.Publisher)
+	}
+
+	if err := store.BootstrapOfficialANIPPublisher(t.Context(), []string{"studio-local"}); err != nil {
+		t.Fatalf("BootstrapOfficialANIPPublisher: %v", err)
+	}
+	if err := store.BootstrapOfficialANIPPublisher(t.Context(), []string{"studio-local"}); err != nil {
+		t.Fatalf("BootstrapOfficialANIPPublisher idempotent rerun: %v", err)
+	}
+
+	afterPackage, ok := store.GetPackage("gtm-pipeline-q2-review", "0.4.3")
+	if !ok {
+		t.Fatal("expected package after bootstrap")
+	}
+	afterTemplate, ok := store.GetTemplate("jira-fronting-starter", "0.2.3")
+	if !ok {
+		t.Fatal("expected template after bootstrap")
+	}
+	if afterPackage.ManifestDigest != packageResult.Package.ManifestDigest ||
+		afterPackage.DefinitionDigest != packageResult.Package.DefinitionDigest ||
+		afterPackage.LockDigest != packageResult.Package.LockDigest {
+		t.Fatalf("package digests changed: before=%+v after=%+v", packageResult.Package, afterPackage)
+	}
+	if afterTemplate.ManifestDigest != templateResult.Template.ManifestDigest ||
+		afterTemplate.TemplateDigest != templateResult.Template.TemplateDigest ||
+		afterTemplate.PackageDigest != templateResult.Template.PackageDigest {
+		t.Fatalf("template digests changed: before=%+v after=%+v", templateResult.Template, afterTemplate)
+	}
+	if afterPackage.Publisher == nil || afterPackage.Publisher.PublisherID != "anip" || afterPackage.Publisher.TrustLevel != "official" {
+		t.Fatalf("expected official package publisher summary, got %+v", afterPackage.Publisher)
+	}
+	if afterTemplate.Publisher == nil || afterTemplate.Publisher.PublisherID != "anip" || afterTemplate.Publisher.TrustLevel != "official" {
+		t.Fatalf("expected official template publisher summary, got %+v", afterTemplate.Publisher)
+	}
+	if afterPackage.PublisherID != "studio-local" || afterPackage.PublisherType != "studio" {
+		t.Fatalf("bootstrap should not rewrite package publisher fields, got %+v", afterPackage)
+	}
+	if afterTemplate.PublisherID != "studio-local" || afterTemplate.PublisherType != "studio" {
+		t.Fatalf("bootstrap should not rewrite template publisher fields, got %+v", afterTemplate)
+	}
+
+	publications := store.ListPublications()
+	if len(publications) != 1 || publications[0].Publisher == nil || publications[0].Publisher.PublisherID != "anip" {
+		t.Fatalf("expected publication publisher summary, got %+v", publications)
+	}
+	templates := store.ListTemplates()
+	if len(templates) != 1 || templates[0].Publisher == nil || templates[0].Publisher.PublisherID != "anip" {
+		t.Fatalf("expected template publisher summary, got %+v", templates)
+	}
+}
+
 func TestPostgresScopedPublishTokenPublishesPackage(t *testing.T) {
 	store := newRegistryPostgresStore(t)
 	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)

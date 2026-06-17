@@ -14,6 +14,15 @@ export interface RegistryRevisionLineage {
   }
 }
 
+export interface PublisherSummary {
+  publisher_id: string
+  publisher_type: string
+  display_name: string
+  website_url?: string
+  status: string
+  trust_level: string
+}
+
 export interface PublicationSummary {
   package_id: string
   package_version: string
@@ -21,6 +30,9 @@ export interface PublicationSummary {
   product_revision_ref: string
   developer_revision_ref: string
   contract_signature: string
+  publisher_id?: string
+  publisher_type?: string
+  publisher?: PublisherSummary
   lineage?: RegistryRevisionLineage
   published_at: string
   download_count?: number
@@ -33,6 +45,9 @@ export interface RegistryPackageRecord {
   product_revision_ref: string
   developer_revision_ref: string
   contract_signature: string
+  publisher_id?: string
+  publisher_type?: string
+  publisher?: PublisherSummary
   lineage?: RegistryRevisionLineage
   schema_version: string
   manifest_digest: string
@@ -69,6 +84,7 @@ export interface TemplateSummary {
   systems?: string[]
   publisher_id?: string
   publisher_type?: string
+  publisher?: PublisherSummary
   published_at: string
   download_count?: number
   manifest?: Record<string, unknown>

@@ -45,6 +45,20 @@ const manifestJson = computed(() => JSON.stringify(record.value?.manifest ?? {},
 const templateJson = computed(() => JSON.stringify(record.value?.template ?? {}, null, 2))
 const packageJson = computed(() => JSON.stringify(record.value?.package ?? {}, null, 2))
 const downloadHref = computed(() => templateDownloadURL(props.templateId, props.version))
+const publisherLabel = computed(() => {
+  const publisher = record.value?.publisher
+  if (publisher?.display_name) return publisher.display_name
+  return record.value?.publisher_id || 'Unknown publisher'
+})
+const publisherTrustLabel = computed(() => {
+  const publisher = record.value?.publisher
+  if (publisher?.trust_level) return publisher.trust_level.replace(/_/g, ' ')
+  return record.value?.publisher_type || 'unverified'
+})
+const publisherTrustClass = computed(() => {
+  const trust = String(record.value?.publisher?.trust_level ?? record.value?.publisher_type ?? '').toLowerCase()
+  return trust === 'official' ? 'official' : 'neutral'
+})
 
 onMounted(async () => {
   try {
@@ -73,6 +87,9 @@ onMounted(async () => {
           <p v-else>Reusable Studio project seed material. Review source documents and connection references before creating a project from this template.</p>
         </div>
         <div class="hero-badges">
+          <span :class="['authority-pill', publisherTrustClass]">
+            {{ publisherLabel }} · {{ publisherTrustLabel }}
+          </span>
           <span class="authority-pill neutral">{{ record.template_kind }}</span>
           <span class="authority-pill remote">{{ record.anip_spec_version }}</span>
         </div>

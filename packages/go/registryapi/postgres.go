@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,6 +38,29 @@ type PostgresStoreOptions struct {
 const registryMigrationAdvisoryLockID int64 = 2402402401
 
 const RegistryPublishTokenPrefix = "anip_pat_"
+
+type publisherSummaryScan struct {
+	PublisherID   sql.NullString
+	PublisherType sql.NullString
+	DisplayName   sql.NullString
+	WebsiteURL    sql.NullString
+	Status        sql.NullString
+	TrustLevel    sql.NullString
+}
+
+func (scan publisherSummaryScan) summary() *PublisherSummary {
+	if !scan.PublisherID.Valid || strings.TrimSpace(scan.PublisherID.String) == "" {
+		return nil
+	}
+	return &PublisherSummary{
+		PublisherID:   scan.PublisherID.String,
+		PublisherType: scan.PublisherType.String,
+		DisplayName:   scan.DisplayName.String,
+		WebsiteURL:    scan.WebsiteURL.String,
+		Status:        scan.Status.String,
+		TrustLevel:    scan.TrustLevel.String,
+	}
+}
 
 func NewPostgresStore(dsn string) (*PostgresStore, error) {
 	return NewPostgresStoreWithSigner(dsn, NewDevRegistrySigner())
@@ -238,9 +262,16 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 	rows, err := s.pool.Query(context.Background(), `
 		SELECT p.package_id, p.package_version, p.project_ref, p.product_revision_ref,
 		       p.developer_revision_ref, p.contract_signature, p.publisher_id, p.publisher_type,
-		       p.published_at, p.download_count
+		       p.published_at, p.download_count,
+		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
 		FROM published_lineages l
 		JOIN registry_packages p USING (package_id, package_version)
+		LEFT JOIN registry_artifact_ownership ownership
+		       ON ownership.artifact_kind = 'package'
+		      AND ownership.artifact_id = p.package_id
+		      AND ownership.status = 'active'
+		LEFT JOIN registry_publishers pub
+		       ON pub.publisher_id = ownership.publisher_id
 		WHERE l.status = 'published'
 		ORDER BY p.download_count DESC, p.published_at DESC, p.package_id ASC, p.package_version DESC
 	`)
@@ -253,6 +284,7 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 	for rows.Next() {
 		var item PublicationSummary
 		var publishedAt time.Time
+		var publisher publisherSummaryScan
 		if err := rows.Scan(
 			&item.PackageID,
 			&item.PackageVersion,
@@ -264,10 +296,17 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 			&item.PublisherType,
 			&publishedAt,
 			&item.DownloadCount,
+			&publisher.PublisherID,
+			&publisher.PublisherType,
+			&publisher.DisplayName,
+			&publisher.WebsiteURL,
+			&publisher.Status,
+			&publisher.TrustLevel,
 		); err != nil {
 			return []PublicationSummary{}
 		}
 		item.PublishedAt = publishedAt.UTC().Format(time.RFC3339)
+		item.Publisher = publisher.summary()
 		if pkg, ok := s.GetPackage(item.PackageID, item.PackageVersion); ok {
 			item.Lineage = pkg.Lineage
 		}
@@ -282,14 +321,22 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 	var manifestBytes []byte
 	var definitionBytes []byte
 	var lockBytes []byte
+	var publisher publisherSummaryScan
 
 	err := s.pool.QueryRow(context.Background(), `
-		SELECT package_id, package_version, project_ref, product_revision_ref,
-		       developer_revision_ref, contract_signature, publisher_id, publisher_type, schema_version,
-		       manifest_digest, definition_digest, lock_digest, published_at, download_count,
-		       manifest, service_definition, recommended_lock
-		FROM registry_packages
-		WHERE package_id = $1 AND package_version = $2
+		SELECT p.package_id, p.package_version, p.project_ref, p.product_revision_ref,
+		       p.developer_revision_ref, p.contract_signature, p.publisher_id, p.publisher_type, p.schema_version,
+		       p.manifest_digest, p.definition_digest, p.lock_digest, p.published_at, p.download_count,
+		       p.manifest, p.service_definition, p.recommended_lock,
+		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
+		FROM registry_packages p
+		LEFT JOIN registry_artifact_ownership ownership
+		       ON ownership.artifact_kind = 'package'
+		      AND ownership.artifact_id = p.package_id
+		      AND ownership.status = 'active'
+		LEFT JOIN registry_publishers pub
+		       ON pub.publisher_id = ownership.publisher_id
+		WHERE p.package_id = $1 AND p.package_version = $2
 	`, packageID, version).Scan(
 		&record.PackageID,
 		&record.PackageVersion,
@@ -308,6 +355,12 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 		&manifestBytes,
 		&definitionBytes,
 		&lockBytes,
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
 	)
 	if err == pgx.ErrNoRows {
 		return RegistryPackageRecord{}, false
@@ -330,6 +383,7 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 	record.Readme = stringFromAny(record.Manifest["readme"])
 	record.SourceLinks = normalizeSourceLinks(sourceLinksFromAny(record.Manifest["source_links"]))
 	record.ImplementationMaterials = normalizeImplementationMaterials(implementationMaterialsFromAny(record.Manifest["implementation_material"]))
+	record.Publisher = publisher.summary()
 
 	return record, true
 }
@@ -485,9 +539,16 @@ func (s *PostgresStore) PublishPackage(request PublishPackageRequest) (PublishPa
 func (s *PostgresStore) ListTemplates() []TemplateSummary {
 	rows, err := s.pool.Query(context.Background(), `
 		SELECT template_id, template_version, template_kind, project_type, anip_spec_version,
-		       domain, industry, systems, publisher_id, publisher_type, published_at, download_count, manifest
-		FROM registry_templates
-		ORDER BY download_count DESC, published_at DESC, template_id ASC, template_version DESC
+		       domain, industry, systems, t.publisher_id, t.publisher_type, published_at, download_count, manifest,
+		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
+		FROM registry_templates t
+		LEFT JOIN registry_artifact_ownership ownership
+		       ON ownership.artifact_kind = 'template'
+		      AND ownership.artifact_id = t.template_id
+		      AND ownership.status = 'active'
+		LEFT JOIN registry_publishers pub
+		       ON pub.publisher_id = ownership.publisher_id
+		ORDER BY t.download_count DESC, t.published_at DESC, t.template_id ASC, t.template_version DESC
 	`)
 	if err != nil {
 		return []TemplateSummary{}
@@ -500,6 +561,7 @@ func (s *PostgresStore) ListTemplates() []TemplateSummary {
 		var publishedAt time.Time
 		var systemsBytes []byte
 		var manifestBytes []byte
+		var publisher publisherSummaryScan
 		if err := rows.Scan(
 			&item.TemplateID,
 			&item.TemplateVersion,
@@ -514,10 +576,17 @@ func (s *PostgresStore) ListTemplates() []TemplateSummary {
 			&publishedAt,
 			&item.DownloadCount,
 			&manifestBytes,
+			&publisher.PublisherID,
+			&publisher.PublisherType,
+			&publisher.DisplayName,
+			&publisher.WebsiteURL,
+			&publisher.Status,
+			&publisher.TrustLevel,
 		); err != nil {
 			return []TemplateSummary{}
 		}
 		item.PublishedAt = publishedAt.UTC().Format(time.RFC3339)
+		item.Publisher = publisher.summary()
 		_ = json.Unmarshal(systemsBytes, &item.Systems)
 		_ = json.Unmarshal(manifestBytes, &item.Manifest)
 		items = append(items, item)
@@ -532,12 +601,20 @@ func (s *PostgresStore) GetTemplate(templateID, version string) (RegistryTemplat
 	var manifestBytes []byte
 	var templateBytes []byte
 	var packageBytes []byte
+	var publisher publisherSummaryScan
 	err := s.pool.QueryRow(context.Background(), `
 		SELECT template_id, template_version, template_kind, project_type, anip_spec_version,
-		       domain, industry, systems, publisher_id, publisher_type, manifest_digest, template_digest,
-		       package_digest, published_at, download_count, manifest, template, package
-		FROM registry_templates
-		WHERE template_id = $1 AND template_version = $2
+		       domain, industry, systems, t.publisher_id, t.publisher_type, manifest_digest, template_digest,
+		       package_digest, published_at, download_count, manifest, template, package,
+		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
+		FROM registry_templates t
+		LEFT JOIN registry_artifact_ownership ownership
+		       ON ownership.artifact_kind = 'template'
+		      AND ownership.artifact_id = t.template_id
+		      AND ownership.status = 'active'
+		LEFT JOIN registry_publishers pub
+		       ON pub.publisher_id = ownership.publisher_id
+		WHERE t.template_id = $1 AND t.template_version = $2
 	`, templateID, version).Scan(
 		&record.TemplateID,
 		&record.TemplateVersion,
@@ -557,6 +634,12 @@ func (s *PostgresStore) GetTemplate(templateID, version string) (RegistryTemplat
 		&manifestBytes,
 		&templateBytes,
 		&packageBytes,
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
 	)
 	if err == pgx.ErrNoRows {
 		return RegistryTemplateRecord{}, false
@@ -577,6 +660,7 @@ func (s *PostgresStore) GetTemplate(templateID, version string) (RegistryTemplat
 	if err := json.Unmarshal(packageBytes, &record.Package); err != nil {
 		return RegistryTemplateRecord{}, false
 	}
+	record.Publisher = publisher.summary()
 	return record, true
 }
 
@@ -694,6 +778,123 @@ func (s *PostgresStore) CountPublishedLineages() (int, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (s *PostgresStore) BootstrapOfficialANIPPublisher(ctx context.Context, legacyPublisherIDs []string) error {
+	publisherID := "anip"
+	legacyPublisherIDs = normalizePublisherIDList(append(legacyPublisherIDs, publisherID))
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level
+		) VALUES (
+			'anip', 'official', 'ANIP.dev',
+			'Official ANIP publisher for canonical protocol, tooling, showcase package, and starter template artifacts.',
+			'https://anip.dev', 'active', 'official'
+		)
+		ON CONFLICT (publisher_id) DO UPDATE SET
+			publisher_type = EXCLUDED.publisher_type,
+			display_name = EXCLUDED.display_name,
+			description = EXCLUDED.description,
+			website_url = EXCLUDED.website_url,
+			status = EXCLUDED.status,
+			trust_level = EXCLUDED.trust_level,
+			updated_at = now()
+	`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			'anip', 'anip', '["package", "template"]'::jsonb, 'active'
+		)
+		ON CONFLICT (namespace) DO UPDATE SET
+			publisher_id = EXCLUDED.publisher_id,
+			artifact_kinds = EXCLUDED.artifact_kinds,
+			status = EXCLUDED.status,
+			updated_at = now()
+	`); err != nil {
+		return err
+	}
+
+	packageCount, err := bootstrapOfficialOwnership(ctx, tx, "package", legacyPublisherIDs)
+	if err != nil {
+		return err
+	}
+	templateCount, err := bootstrapOfficialOwnership(ctx, tx, "template", legacyPublisherIDs)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		ActorPublisherID: publisherID,
+		EventType:        "publisher.bootstrap",
+		TargetType:       "publisher",
+		TargetID:         publisherID,
+		Metadata: map[string]any{
+			"legacy_publisher_ids": legacyPublisherIDs,
+			"package_ownership":    packageCount,
+			"template_ownership":   templateCount,
+		},
+	})
+	return nil
+}
+
+func bootstrapOfficialOwnership(ctx context.Context, tx pgx.Tx, artifactKind string, legacyPublisherIDs []string) (int64, error) {
+	var commandTag pgconn.CommandTag
+	var err error
+	switch artifactKind {
+	case "package":
+		commandTag, err = tx.Exec(ctx, `
+			INSERT INTO registry_artifact_ownership (
+				artifact_kind, artifact_id, publisher_id, namespace, status
+			)
+			SELECT 'package', p.package_id, 'anip', 'anip', 'active'
+			FROM registry_packages p
+			WHERE p.publisher_id = ANY($1)
+			ON CONFLICT (artifact_kind, artifact_id) DO NOTHING
+		`, legacyPublisherIDs)
+	case "template":
+		commandTag, err = tx.Exec(ctx, `
+			INSERT INTO registry_artifact_ownership (
+				artifact_kind, artifact_id, publisher_id, namespace, status
+			)
+			SELECT 'template', t.template_id, 'anip', 'anip', 'active'
+			FROM registry_templates t
+			WHERE t.publisher_id = ANY($1)
+			ON CONFLICT (artifact_kind, artifact_id) DO NOTHING
+		`, legacyPublisherIDs)
+	default:
+		return 0, fmt.Errorf("unsupported artifact kind %q", artifactKind)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return commandTag.RowsAffected(), nil
+}
+
+func normalizePublisherIDList(values []string) []string {
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		normalized = append(normalized, value)
+	}
+	return normalized
 }
 
 func (s *PostgresStore) recordArtifactOwnership(ctx context.Context, tx pgx.Tx, artifactKind string, artifactID string, publisherID string) error {

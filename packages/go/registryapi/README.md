@@ -121,6 +121,17 @@ ANIP_REGISTRY_PUBLISHER_TYPE=studio
 
 If scoped token validation fails, or if `ANIP_REGISTRY_PUBLISH_TOKEN` is set without `ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true`, `POST /registry-api/v1/publications` returns `401`.
 
+## Official ANIP Publisher Bootstrap
+
+For the public registry, existing pre-public package and template rows can be associated with the official `anip` publisher without rewriting package payloads, template payloads, receipts, or digests:
+
+```bash
+ANIP_REGISTRY_BOOTSTRAP_OFFICIAL_ANIP_PUBLISHER=true
+ANIP_REGISTRY_OFFICIAL_ANIP_LEGACY_PUBLISHER_IDS=anip,studio-local,studio-dev,local-registry,local-dev-registry,local-dev
+```
+
+The bootstrap is idempotent. It creates the official `anip` publisher and namespace, then backfills exact artifact ownership rows for matching legacy publisher IDs. Registry pages display that ownership as the public trust identity while preserving the original signed publication metadata.
+
 ## Run
 
 ```bash

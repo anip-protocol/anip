@@ -1,17 +1,18 @@
 package registryapi
 
 type PublicationSummary struct {
-	PackageID            string         `json:"package_id"`
-	PackageVersion       string         `json:"package_version"`
-	ProjectRef           string         `json:"project_ref"`
-	ProductRevisionRef   string         `json:"product_revision_ref"`
-	DeveloperRevisionRef string         `json:"developer_revision_ref"`
-	ContractSignature    string         `json:"contract_signature"`
-	PublisherID          string         `json:"publisher_id,omitempty"`
-	PublisherType        string         `json:"publisher_type,omitempty"`
-	Lineage              map[string]any `json:"lineage,omitempty"`
-	PublishedAt          string         `json:"published_at"`
-	DownloadCount        int64          `json:"download_count"`
+	PackageID            string            `json:"package_id"`
+	PackageVersion       string            `json:"package_version"`
+	ProjectRef           string            `json:"project_ref"`
+	ProductRevisionRef   string            `json:"product_revision_ref"`
+	DeveloperRevisionRef string            `json:"developer_revision_ref"`
+	ContractSignature    string            `json:"contract_signature"`
+	PublisherID          string            `json:"publisher_id,omitempty"`
+	PublisherType        string            `json:"publisher_type,omitempty"`
+	Publisher            *PublisherSummary `json:"publisher,omitempty"`
+	Lineage              map[string]any    `json:"lineage,omitempty"`
+	PublishedAt          string            `json:"published_at"`
+	DownloadCount        int64             `json:"download_count"`
 }
 
 type PackageSourceLink struct {
@@ -26,19 +27,20 @@ type PackageImplementationMaterial struct {
 }
 
 type TemplateSummary struct {
-	TemplateID      string         `json:"template_id"`
-	TemplateVersion string         `json:"template_version"`
-	TemplateKind    string         `json:"template_kind"`
-	ProjectType     string         `json:"project_type"`
-	ANIPSpecVersion string         `json:"anip_spec_version"`
-	Domain          string         `json:"domain,omitempty"`
-	Industry        string         `json:"industry,omitempty"`
-	Systems         []string       `json:"systems,omitempty"`
-	PublisherID     string         `json:"publisher_id,omitempty"`
-	PublisherType   string         `json:"publisher_type,omitempty"`
-	PublishedAt     string         `json:"published_at"`
-	DownloadCount   int64          `json:"download_count"`
-	Manifest        map[string]any `json:"manifest,omitempty"`
+	TemplateID      string            `json:"template_id"`
+	TemplateVersion string            `json:"template_version"`
+	TemplateKind    string            `json:"template_kind"`
+	ProjectType     string            `json:"project_type"`
+	ANIPSpecVersion string            `json:"anip_spec_version"`
+	Domain          string            `json:"domain,omitempty"`
+	Industry        string            `json:"industry,omitempty"`
+	Systems         []string          `json:"systems,omitempty"`
+	PublisherID     string            `json:"publisher_id,omitempty"`
+	PublisherType   string            `json:"publisher_type,omitempty"`
+	Publisher       *PublisherSummary `json:"publisher,omitempty"`
+	PublishedAt     string            `json:"published_at"`
+	DownloadCount   int64             `json:"download_count"`
+	Manifest        map[string]any    `json:"manifest,omitempty"`
 }
 
 type PublishPackageRequest struct {
@@ -69,6 +71,7 @@ type RegistryPackageRecord struct {
 	ContractSignature       string                          `json:"contract_signature"`
 	PublisherID             string                          `json:"publisher_id,omitempty"`
 	PublisherType           string                          `json:"publisher_type,omitempty"`
+	Publisher               *PublisherSummary               `json:"publisher,omitempty"`
 	Lineage                 map[string]any                  `json:"lineage,omitempty"`
 	SchemaVersion           string                          `json:"schema_version"`
 	ManifestDigest          string                          `json:"manifest_digest"`
@@ -142,24 +145,25 @@ type PublishTemplateRequest struct {
 }
 
 type RegistryTemplateRecord struct {
-	TemplateID      string         `json:"template_id"`
-	TemplateVersion string         `json:"template_version"`
-	TemplateKind    string         `json:"template_kind"`
-	ProjectType     string         `json:"project_type"`
-	ANIPSpecVersion string         `json:"anip_spec_version"`
-	Domain          string         `json:"domain,omitempty"`
-	Industry        string         `json:"industry,omitempty"`
-	Systems         []string       `json:"systems,omitempty"`
-	PublisherID     string         `json:"publisher_id,omitempty"`
-	PublisherType   string         `json:"publisher_type,omitempty"`
-	PublishedAt     string         `json:"published_at"`
-	DownloadCount   int64          `json:"download_count"`
-	ManifestDigest  string         `json:"manifest_digest"`
-	TemplateDigest  string         `json:"template_digest"`
-	PackageDigest   string         `json:"package_digest"`
-	Manifest        map[string]any `json:"manifest"`
-	Template        map[string]any `json:"template"`
-	Package         map[string]any `json:"package"`
+	TemplateID      string            `json:"template_id"`
+	TemplateVersion string            `json:"template_version"`
+	TemplateKind    string            `json:"template_kind"`
+	ProjectType     string            `json:"project_type"`
+	ANIPSpecVersion string            `json:"anip_spec_version"`
+	Domain          string            `json:"domain,omitempty"`
+	Industry        string            `json:"industry,omitempty"`
+	Systems         []string          `json:"systems,omitempty"`
+	PublisherID     string            `json:"publisher_id,omitempty"`
+	PublisherType   string            `json:"publisher_type,omitempty"`
+	Publisher       *PublisherSummary `json:"publisher,omitempty"`
+	PublishedAt     string            `json:"published_at"`
+	DownloadCount   int64             `json:"download_count"`
+	ManifestDigest  string            `json:"manifest_digest"`
+	TemplateDigest  string            `json:"template_digest"`
+	PackageDigest   string            `json:"package_digest"`
+	Manifest        map[string]any    `json:"manifest"`
+	Template        map[string]any    `json:"template"`
+	Package         map[string]any    `json:"package"`
 }
 
 type PublishTemplateResult struct {
@@ -184,6 +188,15 @@ type RegistryPublisher struct {
 	CreatedByUserID string `json:"created_by_user_id,omitempty"`
 	CreatedAt       string `json:"created_at"`
 	UpdatedAt       string `json:"updated_at"`
+}
+
+type PublisherSummary struct {
+	PublisherID   string `json:"publisher_id"`
+	PublisherType string `json:"publisher_type"`
+	DisplayName   string `json:"display_name"`
+	WebsiteURL    string `json:"website_url,omitempty"`
+	Status        string `json:"status"`
+	TrustLevel    string `json:"trust_level"`
 }
 
 type RegistryAuditEvent struct {

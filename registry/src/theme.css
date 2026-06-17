@@ -332,6 +332,12 @@ pre {
   color: #5c5649;
 }
 
+.authority-pill.official {
+  border-color: rgba(22, 101, 52, 0.24);
+  background: rgba(22, 101, 52, 0.1);
+  color: #14532d;
+}
+
 .authority-pill.readiness-ready {
   border-color: rgba(22, 163, 74, 0.24);
   background: rgba(22, 163, 74, 0.1);
