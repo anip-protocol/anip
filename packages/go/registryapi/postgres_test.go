@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"testing"
 )
 
@@ -485,6 +486,103 @@ func TestPostgresPublisherSelfServiceRejectsTokenWithoutManagementScope(t *testi
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 for publish-only token management request, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPostgresPublisherSelfServiceProfileAndNamespaceManagement(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package", "manage:tokens", "manage:publisher"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{})
+	bearer := "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret"
+
+	contextReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/publisher", nil)
+	contextReq.Header.Set("Authorization", bearer)
+	contextRec := httptest.NewRecorder()
+	handler.ServeHTTP(contextRec, contextReq)
+	if contextRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher context 200, got %d body=%s", contextRec.Code, contextRec.Body.String())
+	}
+	var contextResult PublisherSelfServiceContext
+	if err := json.Unmarshal(contextRec.Body.Bytes(), &contextResult); err != nil {
+		t.Fatalf("decode publisher context: %v", err)
+	}
+	if contextResult.Publisher.PublisherID != "anip" || !slices.Contains(contextResult.Scopes.Operations, "manage:publisher") {
+		t.Fatalf("unexpected publisher context %+v", contextResult)
+	}
+
+	updatePayload, err := json.Marshal(UpdatePublisherRequest{
+		DisplayName: "ANIP Protocol",
+		Description: "Canonical ANIP public publisher.",
+		WebsiteURL:  "https://anip.dev",
+	})
+	if err != nil {
+		t.Fatalf("marshal publisher update: %v", err)
+	}
+	updateReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/me/publisher", bytes.NewReader(updatePayload))
+	updateReq.Header.Set("Authorization", bearer)
+	updateRec := httptest.NewRecorder()
+	handler.ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher update 200, got %d body=%s", updateRec.Code, updateRec.Body.String())
+	}
+	var updateResult struct {
+		Publisher RegistryPublisher `json:"publisher"`
+	}
+	if err := json.Unmarshal(updateRec.Body.Bytes(), &updateResult); err != nil {
+		t.Fatalf("decode publisher update: %v", err)
+	}
+	if updateResult.Publisher.DisplayName != "ANIP Protocol" || updateResult.Publisher.Description != "Canonical ANIP public publisher." {
+		t.Fatalf("unexpected updated publisher %+v", updateResult.Publisher)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/namespaces", nil)
+	listReq.Header.Set("Authorization", bearer)
+	listRec := httptest.NewRecorder()
+	handler.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected namespace list 200, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	var listResult struct {
+		Items []RegistryNamespaceSummary `json:"items"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listResult); err != nil {
+		t.Fatalf("decode namespace list: %v", err)
+	}
+	if len(listResult.Items) != 1 || listResult.Items[0].Namespace != "anip" {
+		t.Fatalf("unexpected initial namespaces %+v", listResult.Items)
+	}
+
+	createPayload, err := json.Marshal(CreateNamespaceRequest{
+		Namespace:     "anip-labs",
+		ArtifactKinds: []string{"package", "template"},
+	})
+	if err != nil {
+		t.Fatalf("marshal namespace create: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/me/namespaces", bytes.NewReader(createPayload))
+	createReq.Header.Set("Authorization", bearer)
+	createRec := httptest.NewRecorder()
+	handler.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected namespace create 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var createResult struct {
+		Namespace RegistryNamespaceSummary `json:"namespace"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &createResult); err != nil {
+		t.Fatalf("decode namespace create: %v", err)
+	}
+	if createResult.Namespace.Namespace != "anip-labs" || createResult.Namespace.PublisherID != "anip" {
+		t.Fatalf("unexpected created namespace %+v", createResult.Namespace)
+	}
+
+	conflictReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/me/namespaces", bytes.NewReader(createPayload))
+	conflictReq.Header.Set("Authorization", bearer)
+	conflictRec := httptest.NewRecorder()
+	handler.ServeHTTP(conflictRec, conflictReq)
+	if conflictRec.Code != http.StatusConflict {
+		t.Fatalf("expected namespace conflict 409, got %d body=%s", conflictRec.Code, conflictRec.Body.String())
 	}
 }
 

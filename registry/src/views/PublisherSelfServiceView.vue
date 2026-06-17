@@ -2,12 +2,17 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   createMyToken,
-  getMyPublisher,
+  getMyPublisherContext,
+  listMyNamespaces,
   listMyArtifacts,
   listMyTokens,
+  createMyNamespace,
   revokeMyToken,
+  updateMyPublisher,
   type CreatePublishTokenResult,
   type PublisherArtifactSummary,
+  type RegistryNamespaceSummary,
+  type RegistryPublishTokenScopes,
   type RegistryPublisher,
   type RegistryPublishTokenSummary,
 } from '../api'
@@ -23,9 +28,20 @@ const createdToken = ref<CreatePublishTokenResult | null>(null)
 const copied = ref(false)
 const tokenManagementAllowed = ref(false)
 const tokenManagementError = ref<string | null>(null)
+const publisherManagementAllowed = ref(false)
 const publisher = ref<RegistryPublisher | null>(null)
 const artifacts = ref<PublisherArtifactSummary[]>([])
+const namespaces = ref<RegistryNamespaceSummary[]>([])
 const tokens = ref<RegistryPublishTokenSummary[]>([])
+const profileForm = reactive({
+  displayName: '',
+  description: '',
+  websiteUrl: '',
+})
+const namespaceForm = reactive({
+  namespace: '',
+  artifactKinds: ['package', 'template'],
+})
 const createForm = reactive({
   label: '',
   operations: ['publish:package'],
@@ -37,9 +53,15 @@ const createForm = reactive({
 
 const hasActiveToken = computed(() => activeToken.value.trim() !== '')
 const canManageTokens = computed(() => tokenManagementAllowed.value)
+const canManagePublisher = computed(() => publisherManagementAllowed.value)
 const activeArtifacts = computed(() => artifacts.value.filter((artifact) => artifact.status === 'active'))
+const activeNamespaces = computed(() => namespaces.value.filter((namespace) => namespace.status === 'active'))
 const revokedTokens = computed(() => tokens.value.filter((token) => token.revoked_at))
 const liveTokens = computed(() => tokens.value.filter((token) => !token.revoked_at))
+
+function hasOperation(scopes: RegistryPublishTokenScopes, operation: string): boolean {
+  return scopes.operations.includes(operation)
+}
 
 function commaList(value: string): string[] {
   return value
@@ -52,6 +74,10 @@ function operationSelected(operation: string): boolean {
   return createForm.operations.includes(operation)
 }
 
+function namespaceKindSelected(kind: string): boolean {
+  return namespaceForm.artifactKinds.includes(kind)
+}
+
 function setOperation(operation: string, enabled: boolean): void {
   const current = new Set(createForm.operations)
   if (enabled) {
@@ -62,8 +88,28 @@ function setOperation(operation: string, enabled: boolean): void {
   createForm.operations = Array.from(current)
 }
 
+function setNamespaceKind(kind: string, enabled: boolean): void {
+  const current = new Set(namespaceForm.artifactKinds)
+  if (enabled) {
+    current.add(kind)
+  } else {
+    current.delete(kind)
+  }
+  namespaceForm.artifactKinds = Array.from(current)
+}
+
 function toggleOperation(operation: string, event: Event): void {
   setOperation(operation, Boolean((event.target as HTMLInputElement | null)?.checked))
+}
+
+function toggleNamespaceKind(kind: string, event: Event): void {
+  setNamespaceKind(kind, Boolean((event.target as HTMLInputElement | null)?.checked))
+}
+
+function syncProfileForm(value: RegistryPublisher): void {
+  profileForm.displayName = value.display_name
+  profileForm.description = value.description
+  profileForm.websiteUrl = value.website_url
 }
 
 async function loadPublisherState(token: string): Promise<void> {
@@ -72,18 +118,30 @@ async function loadPublisherState(token: string): Promise<void> {
   createdToken.value = null
   tokenManagementError.value = null
   try {
-    const [publisherResult, artifactResult] = await Promise.all([
-      getMyPublisher(token),
+    const [publisherContext, artifactResult] = await Promise.all([
+      getMyPublisherContext(token),
       listMyArtifacts(token),
     ])
     activeToken.value = token
     tokenInput.value = token
-    publisher.value = publisherResult
+    publisher.value = publisherContext.publisher
+    syncProfileForm(publisherContext.publisher)
     artifacts.value = artifactResult
+    tokenManagementAllowed.value = hasOperation(publisherContext.scopes, 'manage:tokens')
+    publisherManagementAllowed.value = hasOperation(publisherContext.scopes, 'manage:publisher')
     localStorage.setItem(STORAGE_KEY, token)
     try {
+      namespaces.value = await listMyNamespaces(token)
+    } catch {
+      namespaces.value = []
+    }
+    if (!tokenManagementAllowed.value) {
+      tokens.value = []
+      tokenManagementError.value = null
+      return
+    }
+    try {
       tokens.value = await listMyTokens(token)
-      tokenManagementAllowed.value = true
     } catch (err) {
       tokens.value = []
       tokenManagementAllowed.value = false
@@ -110,10 +168,12 @@ function disconnect(): void {
   tokenInput.value = ''
   publisher.value = null
   artifacts.value = []
+  namespaces.value = []
   tokens.value = []
   createdToken.value = null
   error.value = null
   tokenManagementAllowed.value = false
+  publisherManagementAllowed.value = false
   tokenManagementError.value = null
   localStorage.removeItem(STORAGE_KEY)
 }
@@ -121,6 +181,37 @@ function disconnect(): void {
 async function refresh(): Promise<void> {
   if (!hasActiveToken.value) return
   await loadPublisherState(activeToken.value)
+}
+
+async function updatePublisherProfile(): Promise<void> {
+  if (!activeToken.value) return
+  error.value = null
+  try {
+    const updated = await updateMyPublisher(activeToken.value, {
+      display_name: profileForm.displayName.trim(),
+      description: profileForm.description.trim(),
+      website_url: profileForm.websiteUrl.trim(),
+    })
+    publisher.value = updated
+    syncProfileForm(updated)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function createNamespace(): Promise<void> {
+  if (!activeToken.value) return
+  error.value = null
+  try {
+    await createMyNamespace(activeToken.value, {
+      namespace: namespaceForm.namespace.trim(),
+      artifact_kinds: [...namespaceForm.artifactKinds],
+    })
+    namespaceForm.namespace = ''
+    namespaces.value = await listMyNamespaces(activeToken.value)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
 }
 
 async function createToken(): Promise<void> {
@@ -231,6 +322,10 @@ onMounted(() => {
           <strong>{{ activeArtifacts.length }}</strong>
         </div>
         <div class="metric-card">
+          <span>Namespaces</span>
+          <strong>{{ activeNamespaces.length }}</strong>
+        </div>
+        <div class="metric-card">
           <span>Live Tokens</span>
           <strong>{{ liveTokens.length }}</strong>
         </div>
@@ -253,6 +348,22 @@ onMounted(() => {
             </dd>
           </dl>
           <p>{{ publisher.description }}</p>
+          <form class="publisher-form profile-edit-form" @submit.prevent="updatePublisherProfile">
+            <label class="form-field">
+              <span>Display name</span>
+              <input v-model="profileForm.displayName" required />
+            </label>
+            <label class="form-field">
+              <span>Description</span>
+              <input v-model="profileForm.description" />
+            </label>
+            <label class="form-field">
+              <span>Website URL</span>
+              <input v-model="profileForm.websiteUrl" />
+            </label>
+            <button class="artifact-action" type="submit" :disabled="!canManagePublisher">Update profile</button>
+          </form>
+          <p v-if="!canManagePublisher" class="warning-note">Profile and namespace changes require <code>manage:publisher</code>.</p>
         </article>
 
         <article class="panel">
@@ -276,6 +387,10 @@ onMounted(() => {
               <label>
                 <input type="checkbox" :checked="operationSelected('manage:tokens')" @change="toggleOperation('manage:tokens', $event)" />
                 manage:tokens
+              </label>
+              <label>
+                <input type="checkbox" :checked="operationSelected('manage:publisher')" @change="toggleOperation('manage:publisher', $event)" />
+                manage:publisher
               </label>
             </fieldset>
             <label class="form-field">
@@ -311,6 +426,37 @@ onMounted(() => {
       </article>
 
       <section class="detail-grid">
+        <article class="panel full-width-panel">
+          <h2>Namespaces</h2>
+          <p class="tooling-note">Namespaces define where this publisher can publish package and template artifacts.</p>
+          <form class="publisher-form namespace-create-form" @submit.prevent="createNamespace">
+            <label class="form-field">
+              <span>Namespace</span>
+              <input v-model="namespaceForm.namespace" required placeholder="anip-labs" />
+            </label>
+            <fieldset class="scope-fieldset">
+              <legend>Artifact kinds</legend>
+              <label>
+                <input type="checkbox" :checked="namespaceKindSelected('package')" @change="toggleNamespaceKind('package', $event)" />
+                package
+              </label>
+              <label>
+                <input type="checkbox" :checked="namespaceKindSelected('template')" @change="toggleNamespaceKind('template', $event)" />
+                template
+              </label>
+            </fieldset>
+            <button class="artifact-action" type="submit" :disabled="!canManagePublisher">Create namespace</button>
+          </form>
+          <p v-if="namespaces.length === 0" class="empty-state">No namespaces are assigned to this publisher.</p>
+          <div v-else class="resource-section">
+            <div v-for="namespace in namespaces" :key="namespace.namespace" class="material-card">
+              <strong>{{ namespace.namespace }}</strong>
+              <span>{{ namespace.status }} · {{ namespace.artifact_kinds.join(', ') }}</span>
+              <span>Updated {{ formatRegistryTimestamp(namespace.updated_at) }}</span>
+            </div>
+          </div>
+        </article>
+
         <article class="panel full-width-panel">
           <h2>Owned Artifacts</h2>
           <p v-if="artifacts.length === 0" class="empty-state">No package or template ownership records for this publisher.</p>

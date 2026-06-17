@@ -43,6 +43,11 @@ export interface RegistryPublishTokenScopes {
   template_ids?: string[]
 }
 
+export interface PublisherSelfServiceContext {
+  publisher: RegistryPublisher
+  scopes: RegistryPublishTokenScopes
+}
+
 export interface RegistryPublishTokenSummary {
   token_id: string
   publisher_id: string
@@ -73,6 +78,26 @@ export interface PublisherArtifactSummary {
   status: string
   created_at: string
   updated_at: string
+}
+
+export interface UpdatePublisherRequest {
+  display_name: string
+  description: string
+  website_url: string
+}
+
+export interface RegistryNamespaceSummary {
+  namespace: string
+  publisher_id: string
+  artifact_kinds: string[]
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateNamespaceRequest {
+  namespace: string
+  artifact_kinds: string[]
 }
 
 export interface PublicationSummary {
@@ -200,10 +225,39 @@ export function templateDownloadURL(templateId: string, version: string): string
 }
 
 export async function getMyPublisher(token: string): Promise<RegistryPublisher> {
-  const payload = await api<{ publisher: RegistryPublisher }>('/me/publisher', {
+  const payload = await getMyPublisherContext(token)
+  return payload.publisher
+}
+
+export function getMyPublisherContext(token: string): Promise<PublisherSelfServiceContext> {
+  return api<PublisherSelfServiceContext>('/me/publisher', {
     headers: authHeaders(token),
   })
+}
+
+export async function updateMyPublisher(token: string, request: UpdatePublisherRequest): Promise<RegistryPublisher> {
+  const payload = await api<{ publisher: RegistryPublisher }>('/me/publisher', {
+    method: 'PATCH',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
   return payload.publisher
+}
+
+export async function listMyNamespaces(token: string): Promise<RegistryNamespaceSummary[]> {
+  const payload = await api<{ items: RegistryNamespaceSummary[] }>('/me/namespaces', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function createMyNamespace(token: string, request: CreateNamespaceRequest): Promise<RegistryNamespaceSummary> {
+  const payload = await api<{ namespace: RegistryNamespaceSummary }>('/me/namespaces', {
+    method: 'POST',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.namespace
 }
 
 export async function listMyArtifacts(token: string): Promise<PublisherArtifactSummary[]> {

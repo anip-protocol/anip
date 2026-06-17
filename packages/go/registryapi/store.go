@@ -21,6 +21,7 @@ import (
 var ErrPackageVersionExists = errors.New("package version already exists")
 var ErrInvalidPackage = errors.New("invalid package")
 var ErrUnauthorizedPublish = errors.New("unauthorized registry publish")
+var ErrNamespaceExists = errors.New("registry namespace already exists")
 
 const (
 	MaxPublishRequestBytes            = 5 * 1024 * 1024
