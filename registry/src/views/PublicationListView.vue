@@ -81,6 +81,17 @@ function lineageLabel(item: PublicationSummary): string {
   return `${product} -> ${developer}`
 }
 
+function publisherBadgeLabel(item: PublicationSummary): string {
+  const name = item.publisher?.display_name || item.publisher_id || 'Unknown publisher'
+  const trust = item.publisher?.trust_level || item.publisher_type || 'unverified'
+  return `${name} · ${trust.replace(/_/g, ' ')}`
+}
+
+function publisherBadgeClass(item: PublicationSummary): string {
+  const trust = String(item.publisher?.trust_level ?? item.publisher_type ?? '').toLowerCase()
+  return trust === 'official' ? 'official' : 'neutral'
+}
+
 onMounted(async () => {
   try {
     items.value = await listPublications()
@@ -129,7 +140,7 @@ onMounted(async () => {
         >
           <div class="card-heading">
             <strong>{{ group.package_id }}</strong>
-            <span class="authority-pill remote">Registry</span>
+            <span :class="['authority-pill', publisherBadgeClass(group.latest)]">{{ publisherBadgeLabel(group.latest) }}</span>
           </div>
           <span class="card-line">
             <b>Latest</b>

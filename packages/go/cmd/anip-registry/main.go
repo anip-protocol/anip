@@ -78,6 +78,17 @@ func main() {
 		return
 	}
 
+	if envBoolDefault("ANIP_REGISTRY_BOOTSTRAP_OFFICIAL_ANIP_PUBLISHER", false) {
+		legacyPublisherIDs := envCSVDefault(
+			"ANIP_REGISTRY_OFFICIAL_ANIP_LEGACY_PUBLISHER_IDS",
+			[]string{"anip", "studio-local", "studio-dev", "local-registry", "local-dev-registry", "local-dev"},
+		)
+		if err := store.BootstrapOfficialANIPPublisher(context.Background(), legacyPublisherIDs); err != nil {
+			log.Fatalf("bootstrap official ANIP publisher: %v", err)
+		}
+		logger.Info("registry_official_anip_publisher_bootstrapped", "legacy_publisher_ids", legacyPublisherIDs)
+	}
+
 	if os.Getenv("ANIP_REGISTRY_SEED_DEMO") == "1" {
 		if err := store.SeedDemoData(); err != nil {
 			log.Fatalf("seed demo data: %v", err)
@@ -122,6 +133,25 @@ func envBoolDefault(name string, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func envCSVDefault(name string, fallback []string) []string {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	if len(result) == 0 {
+		return fallback
+	}
+	return result
 }
 
 func firstNonEmpty(values ...string) string {

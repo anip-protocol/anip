@@ -207,6 +207,20 @@ const packageVersion = computed(() =>
   String(record.value?.manifest?.version ?? record.value?.package_version ?? props.version),
 )
 const schemaLabel = computed(() => record.value?.schema_version || 'Unknown schema')
+const publisherLabel = computed(() => {
+  const publisher = record.value?.publisher
+  if (publisher?.display_name) return publisher.display_name
+  return record.value?.publisher_id || 'Unknown publisher'
+})
+const publisherTrustLabel = computed(() => {
+  const publisher = record.value?.publisher
+  if (publisher?.trust_level) return publisher.trust_level.replace(/_/g, ' ')
+  return record.value?.publisher_type || 'unverified'
+})
+const publisherTrustClass = computed(() => {
+  const trust = String(record.value?.publisher?.trust_level ?? record.value?.publisher_type ?? '').toLowerCase()
+  return trust === 'official' ? 'official' : 'neutral'
+})
 const productRevisionLabel = computed(() => {
   const product = record.value?.lineage?.product_revision
   if (!product) return formatTimestampRef(record.value?.product_revision_ref)
@@ -460,6 +474,9 @@ onMounted(async () => {
         </div>
         <div class="hero-badges">
           <span class="authority-pill remote">Remote Registry</span>
+          <span :class="['authority-pill', publisherTrustClass]">
+            {{ publisherLabel }} · {{ publisherTrustLabel }}
+          </span>
           <span class="authority-pill neutral">{{ schemaLabel }}</span>
           <span :class="['authority-pill', `readiness-${agentReadinessStatus}`]">
             Readiness {{ agentReadinessStatus.replace(/_/g, ' ') }}

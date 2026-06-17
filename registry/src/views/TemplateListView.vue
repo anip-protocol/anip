@@ -61,6 +61,17 @@ function templateSummary(item: TemplateSummary): string {
   return String(item.manifest?.template_summary ?? item.manifest?.summary ?? '')
 }
 
+function publisherBadgeLabel(item: TemplateSummary): string {
+  const name = item.publisher?.display_name || item.publisher_id || 'Unknown publisher'
+  const trust = item.publisher?.trust_level || item.publisher_type || 'unverified'
+  return `${name} · ${trust.replace(/_/g, ' ')}`
+}
+
+function publisherBadgeClass(item: TemplateSummary): string {
+  const trust = String(item.publisher?.trust_level ?? item.publisher_type ?? '').toLowerCase()
+  return trust === 'official' ? 'official' : 'neutral'
+}
+
 function matchesText(item: TemplateSummary, needle: string): boolean {
   if (!needle) return true
   return [
@@ -188,7 +199,7 @@ onMounted(async () => {
         >
           <div class="card-heading">
             <strong>{{ templateTitle(group.latest) }}</strong>
-            <span class="authority-pill neutral">Template</span>
+            <span :class="['authority-pill', publisherBadgeClass(group.latest)]">{{ publisherBadgeLabel(group.latest) }}</span>
           </div>
           <span class="template-id">{{ group.template_id }}</span>
           <span v-if="templateSummary(group.latest)" class="template-summary">{{ templateSummary(group.latest) }}</span>
