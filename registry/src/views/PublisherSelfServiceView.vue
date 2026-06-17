@@ -428,7 +428,7 @@ onMounted(() => {
       <section class="detail-grid">
         <article class="panel full-width-panel">
           <h2>Namespaces</h2>
-          <p class="tooling-note">Namespaces define where this publisher can publish package and template artifacts.</p>
+          <p class="tooling-note">Namespaces define where this publisher can publish package and template artifacts. Newly requested namespaces start pending verification and must be approved before publication is allowed.</p>
           <form class="publisher-form namespace-create-form" @submit.prevent="createNamespace">
             <label class="form-field">
               <span>Namespace</span>

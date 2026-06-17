@@ -177,6 +177,21 @@ curl -X POST \
   https://registry.anip.dev/registry-api/v1/me/namespaces
 ```
 
+Self-service namespace requests start as `pending_verification`. They are visible to the publisher, but publication into that namespace is blocked until a registry administrator verifies and activates the namespace. Admin namespace status changes require `ANIP_REGISTRY_ADMIN_TOKEN`:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "active",
+    "reason": "verified namespace owner"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/namespaces/anip-labs
+```
+
+Supported namespace statuses are `pending_verification`, `active`, `reserved`, `suspended`, and `rejected`. Only `active` namespaces authorize scoped publish tokens and new package/template publication.
+
 Create a scoped token:
 
 ```bash
@@ -207,6 +222,7 @@ curl -X DELETE \
 cd packages/go
 ANIP_REGISTRY_DATABASE_URL=postgres://localhost:5432/anip_registry?sslmode=disable \
 ANIP_REGISTRY_PUBLISH_TOKEN=<strong-token> \
+ANIP_REGISTRY_ADMIN_TOKEN=<strong-admin-token> \
 ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true \
 go run ./cmd/anip-registry
 ```

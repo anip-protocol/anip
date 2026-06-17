@@ -1075,7 +1075,7 @@ func (s *PostgresStore) CreatePublisherNamespace(ctx context.Context, publisherI
 		INSERT INTO registry_namespaces (
 			namespace, publisher_id, artifact_kinds, status
 		) VALUES (
-			$1, $2, $3, 'active'
+			$1, $2, $3, 'pending_verification'
 		)
 		RETURNING namespace, publisher_id, artifact_kinds, status, created_at, updated_at
 	`, namespace, publisherID, artifactKindsBytes))
@@ -1096,6 +1096,37 @@ func (s *PostgresStore) CreatePublisherNamespace(ctx context.Context, publisherI
 		},
 	})
 	return item, nil
+}
+
+func (s *PostgresStore) UpdateNamespaceStatus(ctx context.Context, namespace string, request UpdateNamespaceStatusRequest) (RegistryNamespaceSummary, bool, error) {
+	namespace = strings.ToLower(strings.TrimSpace(namespace))
+	status := strings.ToLower(strings.TrimSpace(request.Status))
+	reason := strings.TrimSpace(request.Reason)
+	if !validRegistryNamespace(namespace) || !validRegistryNamespaceStatus(status) {
+		return RegistryNamespaceSummary{}, false, ErrInvalidPackage
+	}
+	item, err := scanRegistryNamespaceSummary(s.pool.QueryRow(ctx, `
+		UPDATE registry_namespaces
+		SET status = $2, updated_at = now()
+		WHERE namespace = $1
+		RETURNING namespace, publisher_id, artifact_kinds, status, created_at, updated_at
+	`, namespace, status))
+	if err == pgx.ErrNoRows {
+		return RegistryNamespaceSummary{}, false, nil
+	}
+	if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		EventType:  "namespace.status.updated",
+		TargetType: "namespace",
+		TargetID:   namespace,
+		Metadata: map[string]any{
+			"status": status,
+			"reason": reason,
+		},
+	})
+	return item, true, nil
 }
 
 func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
@@ -1604,6 +1635,15 @@ func validRegistryNamespace(namespace string) bool {
 		return false
 	}
 	return !strings.HasPrefix(namespace, "/") && !strings.HasSuffix(namespace, "/") && !strings.Contains(namespace, "//")
+}
+
+func validRegistryNamespaceStatus(status string) bool {
+	switch status {
+	case "pending_verification", "active", "reserved", "suspended", "rejected":
+		return true
+	default:
+		return false
+	}
 }
 
 func RegistryPublishTokenSecretHash(secret string) string {

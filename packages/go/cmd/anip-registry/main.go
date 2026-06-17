@@ -101,6 +101,7 @@ func main() {
 		SigningMode:                     signingConfig.Mode,
 		ActiveKeyID:                     signer.KeyID,
 		PublishToken:                    os.Getenv("ANIP_REGISTRY_PUBLISH_TOKEN"),
+		AdminToken:                      os.Getenv("ANIP_REGISTRY_ADMIN_TOKEN"),
 		LegacyGlobalPublishTokenEnabled: legacyGlobalPublishEnabled,
 		PublisherID:                     firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_ID"), "studio-local"),
 		PublisherType:                   firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_TYPE"), "studio"),
