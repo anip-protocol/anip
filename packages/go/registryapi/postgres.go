@@ -2,6 +2,8 @@ package registryapi
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -673,4 +675,137 @@ func (s *PostgresStore) CountPublishedLineages() (int, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (s *PostgresStore) GetPublisher(ctx context.Context, publisherID string) (RegistryPublisher, bool, error) {
+	var publisher RegistryPublisher
+	var createdBy sql.NullString
+	var createdAt time.Time
+	var updatedAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT publisher_id, publisher_type, display_name, description, website_url,
+		       status, trust_level, created_by_user_id::text, created_at, updated_at
+		FROM registry_publishers
+		WHERE publisher_id = $1
+	`, strings.TrimSpace(publisherID)).Scan(
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.Description,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
+		&createdBy,
+		&createdAt,
+		&updatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return RegistryPublisher{}, false, nil
+	}
+	if err != nil {
+		return RegistryPublisher{}, false, err
+	}
+	if createdBy.Valid {
+		publisher.CreatedByUserID = createdBy.String
+	}
+	publisher.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	publisher.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return publisher, true, nil
+}
+
+func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
+	event.EventID = strings.TrimSpace(event.EventID)
+	if event.EventID == "" {
+		id, err := randomUUIDString()
+		if err != nil {
+			return RegistryAuditEvent{}, fmt.Errorf("generate audit event id: %w", err)
+		}
+		event.EventID = id
+	}
+	event.EventType = strings.TrimSpace(event.EventType)
+	event.TargetType = strings.TrimSpace(event.TargetType)
+	event.TargetID = strings.TrimSpace(event.TargetID)
+	if event.EventType == "" || event.TargetType == "" || event.TargetID == "" {
+		return RegistryAuditEvent{}, errors.New("event_type, target_type, and target_id are required")
+	}
+	if event.Metadata == nil {
+		event.Metadata = map[string]any{}
+	}
+	metadataBytes, err := json.Marshal(event.Metadata)
+	if err != nil {
+		return RegistryAuditEvent{}, fmt.Errorf("marshal audit metadata: %w", err)
+	}
+
+	var inserted RegistryAuditEvent
+	var actorUser sql.NullString
+	var actorPublisher sql.NullString
+	var tokenID sql.NullString
+	var ipHash sql.NullString
+	var userAgentHash sql.NullString
+	var returnedMetadata []byte
+	var createdAt time.Time
+	err = s.pool.QueryRow(ctx, `
+		INSERT INTO registry_audit_events (
+			event_id, actor_user_id, actor_publisher_id, token_id, event_type,
+			target_type, target_id, metadata, ip_hash, user_agent_hash
+		) VALUES (
+			$1::uuid, NULLIF($2, '')::uuid, NULLIF($3, ''), NULLIF($4, '')::uuid, $5,
+			$6, $7, $8, NULLIF($9, ''), NULLIF($10, '')
+		)
+		RETURNING event_id::text, actor_user_id::text, actor_publisher_id, token_id::text,
+		          event_type, target_type, target_id, metadata, ip_hash, user_agent_hash, created_at
+	`, event.EventID, strings.TrimSpace(event.ActorUserID), strings.TrimSpace(event.ActorPublisherID),
+		strings.TrimSpace(event.TokenID), event.EventType, event.TargetType, event.TargetID,
+		metadataBytes, strings.TrimSpace(event.IPHash), strings.TrimSpace(event.UserAgentHash)).Scan(
+		&inserted.EventID,
+		&actorUser,
+		&actorPublisher,
+		&tokenID,
+		&inserted.EventType,
+		&inserted.TargetType,
+		&inserted.TargetID,
+		&returnedMetadata,
+		&ipHash,
+		&userAgentHash,
+		&createdAt,
+	)
+	if err != nil {
+		return RegistryAuditEvent{}, err
+	}
+	if actorUser.Valid {
+		inserted.ActorUserID = actorUser.String
+	}
+	if actorPublisher.Valid {
+		inserted.ActorPublisherID = actorPublisher.String
+	}
+	if tokenID.Valid {
+		inserted.TokenID = tokenID.String
+	}
+	if ipHash.Valid {
+		inserted.IPHash = ipHash.String
+	}
+	if userAgentHash.Valid {
+		inserted.UserAgentHash = userAgentHash.String
+	}
+	if err := json.Unmarshal(returnedMetadata, &inserted.Metadata); err != nil {
+		return RegistryAuditEvent{}, fmt.Errorf("decode audit metadata: %w", err)
+	}
+	inserted.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	return inserted, nil
+}
+
+func randomUUIDString() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4],
+		b[4:6],
+		b[6:8],
+		b[8:10],
+		b[10:16],
+	), nil
 }

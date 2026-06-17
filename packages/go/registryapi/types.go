@@ -172,3 +172,30 @@ type MigrationStatus struct {
 	ExpectedCount int      `json:"expected_count"`
 	Pending       []string `json:"pending,omitempty"`
 }
+
+type RegistryPublisher struct {
+	PublisherID     string `json:"publisher_id"`
+	PublisherType   string `json:"publisher_type"`
+	DisplayName     string `json:"display_name"`
+	Description     string `json:"description"`
+	WebsiteURL      string `json:"website_url"`
+	Status          string `json:"status"`
+	TrustLevel      string `json:"trust_level"`
+	CreatedByUserID string `json:"created_by_user_id,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
+type RegistryAuditEvent struct {
+	EventID          string         `json:"event_id"`
+	ActorUserID      string         `json:"actor_user_id,omitempty"`
+	ActorPublisherID string         `json:"actor_publisher_id,omitempty"`
+	TokenID          string         `json:"token_id,omitempty"`
+	EventType        string         `json:"event_type"`
+	TargetType       string         `json:"target_type"`
+	TargetID         string         `json:"target_id"`
+	Metadata         map[string]any `json:"metadata"`
+	IPHash           string         `json:"ip_hash,omitempty"`
+	UserAgentHash    string         `json:"user_agent_hash,omitempty"`
+	CreatedAt        string         `json:"created_at"`
+}
