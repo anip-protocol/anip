@@ -586,6 +586,86 @@ func TestPostgresPublisherSelfServiceProfileAndNamespaceManagement(t *testing.T)
 	}
 }
 
+func TestPostgresPublisherNamespaceVerificationGatesPublishing(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package", "manage:publisher"}, []string{"anip-labs"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+	bearer := "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret"
+
+	createPayload, err := json.Marshal(CreateNamespaceRequest{
+		Namespace:     "anip-labs",
+		ArtifactKinds: []string{"package"},
+	})
+	if err != nil {
+		t.Fatalf("marshal namespace request: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/me/namespaces", bytes.NewReader(createPayload))
+	createReq.Header.Set("Authorization", bearer)
+	createRec := httptest.NewRecorder()
+	handler.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected namespace request 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var createResult struct {
+		Namespace RegistryNamespaceSummary `json:"namespace"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &createResult); err != nil {
+		t.Fatalf("decode namespace request: %v", err)
+	}
+	if createResult.Namespace.Status != "pending_verification" {
+		t.Fatalf("expected pending namespace, got %+v", createResult.Namespace)
+	}
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip-labs/example"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip-labs/example"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	blockedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	blockedReq.Header.Set("Authorization", bearer)
+	blockedRec := httptest.NewRecorder()
+	handler.ServeHTTP(blockedRec, blockedReq)
+	if blockedRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unverified namespace publish 401, got %d body=%s", blockedRec.Code, blockedRec.Body.String())
+	}
+
+	approvePayload, err := json.Marshal(UpdateNamespaceStatusRequest{
+		Status: "active",
+		Reason: "verified namespace owner",
+	})
+	if err != nil {
+		t.Fatalf("marshal namespace approval: %v", err)
+	}
+	approveReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/admin/namespaces/anip-labs", bytes.NewReader(approvePayload))
+	approveReq.Header.Set("Authorization", "Bearer admin-secret")
+	approveRec := httptest.NewRecorder()
+	handler.ServeHTTP(approveRec, approveReq)
+	if approveRec.Code != http.StatusOK {
+		t.Fatalf("expected namespace approval 200, got %d body=%s", approveRec.Code, approveRec.Body.String())
+	}
+	var approveResult struct {
+		Namespace RegistryNamespaceSummary `json:"namespace"`
+	}
+	if err := json.Unmarshal(approveRec.Body.Bytes(), &approveResult); err != nil {
+		t.Fatalf("decode namespace approval: %v", err)
+	}
+	if approveResult.Namespace.Status != "active" {
+		t.Fatalf("expected active namespace, got %+v", approveResult.Namespace)
+	}
+
+	allowedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	allowedReq.Header.Set("Authorization", bearer)
+	allowedRec := httptest.NewRecorder()
+	handler.ServeHTTP(allowedRec, allowedReq)
+	if allowedRec.Code != http.StatusCreated {
+		t.Fatalf("expected verified namespace publish 201, got %d body=%s", allowedRec.Code, allowedRec.Body.String())
+	}
+}
+
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
 	t.Helper()
 	scopes := map[string]any{

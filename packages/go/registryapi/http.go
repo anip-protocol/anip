@@ -16,6 +16,7 @@ type HandlerOptions struct {
 	SigningMode                     string
 	ActiveKeyID                     string
 	PublishToken                    string
+	AdminToken                      string
 	LegacyGlobalPublishTokenEnabled bool
 	PublisherID                     string
 	PublisherType                   string
@@ -37,6 +38,10 @@ type PublisherSelfServiceStore interface {
 	ListPublisherTokens(ctx context.Context, publisherID string) ([]RegistryPublishTokenSummary, error)
 	CreatePublisherToken(ctx context.Context, publisherID string, request CreatePublishTokenRequest) (CreatePublishTokenResult, error)
 	RevokePublisherToken(ctx context.Context, publisherID string, tokenID string) (RegistryPublishTokenSummary, bool, error)
+}
+
+type NamespaceAdminStore interface {
+	UpdateNamespaceStatus(ctx context.Context, namespace string, request UpdateNamespaceStatusRequest) (RegistryNamespaceSummary, bool, error)
 }
 
 func NewHandler(store Store) http.Handler {
@@ -203,6 +208,36 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"namespace": namespace})
+	})
+
+	mux.HandleFunc("PATCH /registry-api/v1/admin/namespaces/{namespace...}", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry namespace administration is not supported by this store"})
+			return
+		}
+		var request UpdateNamespaceStatusRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		namespace, exists, err := adminStore.UpdateNamespaceStatus(r.Context(), r.PathValue("namespace"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid namespace status is required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update namespace"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "namespace not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"namespace": namespace})
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/me/artifacts", func(w http.ResponseWriter, r *http.Request) {
@@ -605,6 +640,20 @@ func authorizedLegacyPublishToken(token string, configuredToken string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) == 1
+}
+
+func authorizeRegistryAdminRequest(w http.ResponseWriter, r *http.Request, configuredToken string) bool {
+	configuredToken = strings.TrimSpace(configuredToken)
+	if configuredToken == "" {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "registry admin token is not configured"})
+		return false
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) != 1 {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "valid registry admin bearer token is required"})
+		return false
+	}
+	return true
 }
 
 func withCORS(next http.Handler) http.Handler {

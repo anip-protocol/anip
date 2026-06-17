@@ -283,3 +283,8 @@ type CreateNamespaceRequest struct {
 	Namespace     string   `json:"namespace"`
 	ArtifactKinds []string `json:"artifact_kinds"`
 }
+
+type UpdateNamespaceStatusRequest struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
