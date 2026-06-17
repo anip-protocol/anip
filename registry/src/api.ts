@@ -23,6 +23,58 @@ export interface PublisherSummary {
   trust_level: string
 }
 
+export interface RegistryPublisher {
+  publisher_id: string
+  publisher_type: string
+  display_name: string
+  description: string
+  website_url: string
+  status: string
+  trust_level: string
+  created_by_user_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RegistryPublishTokenScopes {
+  operations: string[]
+  namespaces: string[]
+  package_ids?: string[]
+  template_ids?: string[]
+}
+
+export interface RegistryPublishTokenSummary {
+  token_id: string
+  publisher_id: string
+  label: string
+  scopes: RegistryPublishTokenScopes
+  expires_at?: string
+  last_used_at?: string
+  revoked_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePublishTokenRequest {
+  label: string
+  scopes: RegistryPublishTokenScopes
+  expires_at?: string
+}
+
+export interface CreatePublishTokenResult {
+  token: RegistryPublishTokenSummary
+  bearer_token: string
+}
+
+export interface PublisherArtifactSummary {
+  artifact_kind: 'package' | 'template'
+  artifact_id: string
+  namespace: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export interface PublicationSummary {
   package_id: string
   package_version: string
@@ -101,13 +153,20 @@ export interface RegistryTemplateRecord extends TemplateSummary {
 
 const API_BASE = `${(import.meta.env.VITE_REGISTRY_API_BASE || '/registry-api/v1').replace(/\/$/, '')}`
 
-async function api<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`)
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, init)
   if (!response.ok) {
     const detail = await response.text().catch(() => response.statusText)
     throw new Error(`Registry request failed (${response.status}): ${detail || response.statusText}`)
   }
   return response.json() as Promise<T>
+}
+
+function authHeaders(token: string, extra: HeadersInit = {}): HeadersInit {
+  return {
+    ...extra,
+    Authorization: `Bearer ${token}`,
+  }
 }
 
 export async function listPublications(): Promise<PublicationSummary[]> {
@@ -138,4 +197,41 @@ export function getTemplate(templateId: string, version: string): Promise<Regist
 
 export function templateDownloadURL(templateId: string, version: string): string {
   return `${API_BASE}/templates/${encodeURIComponent(templateId)}/${encodeURIComponent(version)}/download`
+}
+
+export async function getMyPublisher(token: string): Promise<RegistryPublisher> {
+  const payload = await api<{ publisher: RegistryPublisher }>('/me/publisher', {
+    headers: authHeaders(token),
+  })
+  return payload.publisher
+}
+
+export async function listMyArtifacts(token: string): Promise<PublisherArtifactSummary[]> {
+  const payload = await api<{ items: PublisherArtifactSummary[] }>('/me/artifacts', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function listMyTokens(token: string): Promise<RegistryPublishTokenSummary[]> {
+  const payload = await api<{ items: RegistryPublishTokenSummary[] }>('/me/tokens', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export function createMyToken(token: string, request: CreatePublishTokenRequest): Promise<CreatePublishTokenResult> {
+  return api<CreatePublishTokenResult>('/me/tokens', {
+    method: 'POST',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+}
+
+export async function revokeMyToken(token: string, tokenId: string): Promise<RegistryPublishTokenSummary> {
+  const payload = await api<{ token: RegistryPublishTokenSummary }>(`/me/tokens/${encodeURIComponent(tokenId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+  return payload.token
 }

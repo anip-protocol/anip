@@ -38,6 +38,8 @@ Then open `http://127.0.0.1:8200/registry`.
 
 The receipt panel displays the Registry signature algorithm and key id returned by the trusted Go backend. The browser UI does not validate signatures; verifier clients should use the verifier, which resolves `GET /registry-api/v1/keys`.
 
+The `/publisher` page provides token-based publisher self-service for registries backed by Postgres. Paste a scoped publisher token to inspect publisher identity, owned artifacts, and publish tokens. Token creation and revocation require the `manage:tokens` operation in the connected token.
+
 ## Local Docker Compose
 
 Run a clean local Registry with Postgres and the built Registry UI:
