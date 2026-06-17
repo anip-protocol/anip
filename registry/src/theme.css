@@ -455,16 +455,30 @@ pre {
 }
 
 .artifact-action {
+  border: 0;
+  background: transparent;
   color: #665121;
+  cursor: pointer;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  padding: 0;
   text-transform: uppercase;
   text-decoration: none;
 }
 
 .artifact-action:hover {
   text-decoration: underline;
+}
+
+.artifact-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  text-decoration: none;
+}
+
+.artifact-action.secondary {
+  color: #6b5e43;
 }
 
 .metric-card strong {
@@ -817,6 +831,125 @@ pre {
 
 .tooling-note {
   line-height: 1.45;
+}
+
+.warning-note {
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-radius: 12px;
+  background: rgba(217, 119, 6, 0.08);
+  color: #7c2d12;
+  line-height: 1.45;
+  padding: 0.7rem;
+}
+
+.publisher-auth-panel {
+  margin-bottom: 1rem;
+}
+
+.publisher-token-form,
+.publisher-form,
+.form-field {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.publisher-token-form {
+  min-width: min(100%, 22rem);
+}
+
+.form-field span,
+.scope-fieldset legend {
+  color: #8a7651;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.form-field input {
+  width: 100%;
+  border: 1px solid rgba(29, 29, 27, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.9);
+  color: #1d1d1b;
+  font: inherit;
+  padding: 0.72rem 0.85rem;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.scope-fieldset {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  border: 1px solid rgba(29, 29, 27, 0.1);
+  border-radius: 12px;
+  padding: 0.7rem;
+}
+
+.scope-fieldset label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: #3d362d;
+  font-size: 0.88rem;
+}
+
+.one-time-token-panel {
+  position: relative;
+  margin-bottom: 1rem;
+  border-color: rgba(22, 101, 52, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(22, 101, 52, 0.1), transparent 36%),
+    rgba(255, 253, 248, 0.95);
+}
+
+.one-time-token-panel code {
+  display: block;
+  margin-top: 0.65rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.token-table {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.token-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid rgba(29, 29, 27, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 252, 246, 0.78);
+  padding: 0.75rem;
+}
+
+.token-row > div {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.token-row code {
+  overflow-wrap: anywhere;
+}
+
+.token-row span {
+  color: #5c5649;
+  font-size: 0.86rem;
+}
+
+.danger-text {
+  color: #991b1b !important;
 }
 
 .tooling-details {
