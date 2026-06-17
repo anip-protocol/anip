@@ -27,6 +27,15 @@ type PublishAuthorizer interface {
 	AuthorizePublish(ctx context.Context, token string, operation string, artifactID string) (PublishAuthContext, error)
 }
 
+type PublisherSelfServiceStore interface {
+	AuthenticatePublisherToken(ctx context.Context, token string) (PublishAuthContext, RegistryPublishTokenScopes, error)
+	GetPublisher(ctx context.Context, publisherID string) (RegistryPublisher, bool, error)
+	ListPublisherArtifacts(ctx context.Context, publisherID string) ([]PublisherArtifactSummary, error)
+	ListPublisherTokens(ctx context.Context, publisherID string) ([]RegistryPublishTokenSummary, error)
+	CreatePublisherToken(ctx context.Context, publisherID string, request CreatePublishTokenRequest) (CreatePublishTokenResult, error)
+	RevokePublisherToken(ctx context.Context, publisherID string, tokenID string) (RegistryPublishTokenSummary, bool, error)
+}
+
 func NewHandler(store Store) http.Handler {
 	return NewHandlerWithOptions(store, HandlerOptions{SigningMode: "dev"})
 }
@@ -110,6 +119,94 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"items": store.ListTemplates(),
 		})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/me/publisher", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "")
+		if !ok {
+			return
+		}
+		publisher, exists, err := selfStore.GetPublisher(r.Context(), auth.PublisherID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load publisher"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "publisher not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"publisher": publisher})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/me/artifacts", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "")
+		if !ok {
+			return
+		}
+		items, err := selfStore.ListPublisherArtifacts(r.Context(), auth.PublisherID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publisher artifacts"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/me/tokens", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "manage:tokens")
+		if !ok {
+			return
+		}
+		items, err := selfStore.ListPublisherTokens(r.Context(), auth.PublisherID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publish tokens"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/me/tokens", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "manage:tokens")
+		if !ok {
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, MaxCreatePublishTokenRequestBytes)
+		var request CreatePublishTokenRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		result, err := selfStore.CreatePublisherToken(r.Context(), auth.PublisherID, request)
+		if err != nil {
+			if errors.Is(err, ErrUnauthorizedPublish) {
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "publisher is not authorized for requested token scopes"})
+				return
+			}
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create publish token"})
+			return
+		}
+		writeJSON(w, http.StatusCreated, result)
+	})
+
+	mux.HandleFunc("DELETE /registry-api/v1/me/tokens/{tokenID}", func(w http.ResponseWriter, r *http.Request) {
+		selfStore, auth, _, ok := authenticatePublisherSelfService(w, r, store, "manage:tokens")
+		if !ok {
+			return
+		}
+		tokenID := r.PathValue("tokenID")
+		token, exists, err := selfStore.RevokePublisherToken(r.Context(), auth.PublisherID, tokenID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to revoke publish token"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "publish token not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"token": token})
 	})
 
 	mux.HandleFunc("POST /registry-api/v1/templates", func(w http.ResponseWriter, r *http.Request) {
@@ -402,6 +499,30 @@ func authorizePublishRequest(ctx context.Context, r *http.Request, store Store, 
 	return PublishAuthContext{}, false
 }
 
+func authenticatePublisherSelfService(w http.ResponseWriter, r *http.Request, store Store, requiredOperation string) (PublisherSelfServiceStore, PublishAuthContext, RegistryPublishTokenScopes, bool) {
+	selfStore, ok := store.(PublisherSelfServiceStore)
+	if !ok {
+		writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "publisher self-service is not available for this registry store"})
+		return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+	}
+	token, ok := bearerToken(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publisher bearer token is required"})
+		return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+	}
+	auth, scopes, err := selfStore.AuthenticatePublisherToken(r.Context(), token)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publisher bearer token is required"})
+		return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+	}
+	requiredOperation = strings.TrimSpace(requiredOperation)
+	if requiredOperation != "" && !stringInSet(requiredOperation, scopes.Operations) {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "publisher token does not include required management scope"})
+		return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+	}
+	return selfStore, auth, scopes, true
+}
+
 func bearerToken(r *http.Request) (string, bool) {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
 	const prefix = "Bearer "
@@ -422,7 +543,7 @@ func authorizedLegacyPublishToken(token string, configuredToken string) bool {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

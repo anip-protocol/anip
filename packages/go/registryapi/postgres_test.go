@@ -350,6 +350,144 @@ func TestPostgresScopedPublishTokenRejectsWrongScope(t *testing.T) {
 	}
 }
 
+func TestPostgresPublisherSelfServiceTokenLifecycle(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package", "manage:tokens"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{})
+	bearer := "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret"
+
+	publisherReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/publisher", nil)
+	publisherReq.Header.Set("Authorization", bearer)
+	publisherRec := httptest.NewRecorder()
+	handler.ServeHTTP(publisherRec, publisherReq)
+	if publisherRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher introspection 200, got %d body=%s", publisherRec.Code, publisherRec.Body.String())
+	}
+	var publisherPayload struct {
+		Publisher RegistryPublisher `json:"publisher"`
+	}
+	if err := json.Unmarshal(publisherRec.Body.Bytes(), &publisherPayload); err != nil {
+		t.Fatalf("decode publisher payload: %v", err)
+	}
+	if publisherPayload.Publisher.PublisherID != "anip" || publisherPayload.Publisher.TrustLevel != "official" {
+		t.Fatalf("unexpected publisher payload %+v", publisherPayload)
+	}
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/work-item-fronting"
+	body.PackageVersion = "0.2.0"
+	body.ProjectRef = "anip/work-item-fronting"
+	publishPayload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal publish request: %v", err)
+	}
+	publishReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(publishPayload))
+	publishReq.Header.Set("Authorization", bearer)
+	publishRec := httptest.NewRecorder()
+	handler.ServeHTTP(publishRec, publishReq)
+	if publishRec.Code != http.StatusCreated {
+		t.Fatalf("expected publish 201, got %d body=%s", publishRec.Code, publishRec.Body.String())
+	}
+
+	artifactsReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/artifacts", nil)
+	artifactsReq.Header.Set("Authorization", bearer)
+	artifactsRec := httptest.NewRecorder()
+	handler.ServeHTTP(artifactsRec, artifactsReq)
+	if artifactsRec.Code != http.StatusOK {
+		t.Fatalf("expected artifacts 200, got %d body=%s", artifactsRec.Code, artifactsRec.Body.String())
+	}
+	var artifactsPayload struct {
+		Items []PublisherArtifactSummary `json:"items"`
+	}
+	if err := json.Unmarshal(artifactsRec.Body.Bytes(), &artifactsPayload); err != nil {
+		t.Fatalf("decode artifacts payload: %v", err)
+	}
+	if len(artifactsPayload.Items) != 1 ||
+		artifactsPayload.Items[0].ArtifactKind != "package" ||
+		artifactsPayload.Items[0].ArtifactID != "anip/work-item-fronting" {
+		t.Fatalf("unexpected artifacts %+v", artifactsPayload.Items)
+	}
+
+	createPayload, err := json.Marshal(CreatePublishTokenRequest{
+		Label: "release bot",
+		Scopes: RegistryPublishTokenScopes{
+			Operations: []string{"publish:package"},
+			Namespaces: []string{"anip"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal create token request: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/me/tokens", bytes.NewReader(createPayload))
+	createReq.Header.Set("Authorization", bearer)
+	createRec := httptest.NewRecorder()
+	handler.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected create token 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var createResult CreatePublishTokenResult
+	if err := json.Unmarshal(createRec.Body.Bytes(), &createResult); err != nil {
+		t.Fatalf("decode create token result: %v", err)
+	}
+	if createResult.BearerToken == "" || createResult.Token.TokenID == "" || createResult.Token.Label != "release bot" {
+		t.Fatalf("unexpected create token result %+v", createResult)
+	}
+	if createResult.Token.TokenHash != "" {
+		t.Fatalf("token hash must not be exposed: %+v", createResult.Token)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/tokens", nil)
+	listReq.Header.Set("Authorization", bearer)
+	listRec := httptest.NewRecorder()
+	handler.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected token list 200, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	var listPayload struct {
+		Items []RegistryPublishTokenSummary `json:"items"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listPayload); err != nil {
+		t.Fatalf("decode token list: %v", err)
+	}
+	if len(listPayload.Items) != 2 {
+		t.Fatalf("expected original and created tokens, got %+v", listPayload.Items)
+	}
+
+	revokeReq := httptest.NewRequest(http.MethodDelete, "/registry-api/v1/me/tokens/"+createResult.Token.TokenID, nil)
+	revokeReq.Header.Set("Authorization", bearer)
+	revokeRec := httptest.NewRecorder()
+	handler.ServeHTTP(revokeRec, revokeReq)
+	if revokeRec.Code != http.StatusOK {
+		t.Fatalf("expected revoke 200, got %d body=%s", revokeRec.Code, revokeRec.Body.String())
+	}
+	var revokePayload struct {
+		Token RegistryPublishTokenSummary `json:"token"`
+	}
+	if err := json.Unmarshal(revokeRec.Body.Bytes(), &revokePayload); err != nil {
+		t.Fatalf("decode revoke payload: %v", err)
+	}
+	if revokePayload.Token.RevokedAt == "" {
+		t.Fatalf("expected revoked_at after revocation, got %+v", revokePayload.Token)
+	}
+}
+
+func TestPostgresPublisherSelfServiceRejectsTokenWithoutManagementScope(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{})
+	req := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/tokens", nil)
+	req.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for publish-only token management request, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
 	t.Helper()
 	scopes := map[string]any{

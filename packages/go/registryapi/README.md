@@ -132,6 +132,45 @@ ANIP_REGISTRY_OFFICIAL_ANIP_LEGACY_PUBLISHER_IDS=anip,studio-local,studio-dev,lo
 
 The bootstrap is idempotent. It creates the official `anip` publisher and namespace, then backfills exact artifact ownership rows for matching legacy publisher IDs. Registry pages display that ownership as the public trust identity while preserving the original signed publication metadata.
 
+## Publisher Self-Service API
+
+Scoped publisher tokens can inspect publisher state and manage additional publish tokens for the same publisher. Token management requires the `manage:tokens` operation in the caller token scopes.
+
+```bash
+curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/me/publisher
+
+curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/me/artifacts
+
+curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/me/tokens
+```
+
+Create a scoped token:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "release bot",
+    "scopes": {
+      "operations": ["publish:package"],
+      "namespaces": ["anip"]
+    }
+  }' \
+  https://registry.anip.dev/registry-api/v1/me/tokens
+```
+
+The response returns `bearer_token` once. Registry stores only the token hash and never returns token secrets in list responses. Revoke a token with:
+
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/me/tokens/<token-id>
+```
+
 ## Run
 
 ```bash
