@@ -301,9 +301,10 @@ func TestListPublicKeysIncludesRotationKeys(t *testing.T) {
 
 func TestPublishPackage(t *testing.T) {
 	handler := NewHandlerWithOptions(NewMemoryStore(), HandlerOptions{
-		PublishToken:  "test-publish-token",
-		PublisherID:   "studio-dev",
-		PublisherType: "studio",
+		PublishToken:                    "test-publish-token",
+		LegacyGlobalPublishTokenEnabled: true,
+		PublisherID:                     "studio-dev",
+		PublisherType:                   "studio",
 	})
 	body := validTestPublishPackageRequest()
 	payload, err := json.Marshal(body)
@@ -365,7 +366,8 @@ func TestPublishPackage(t *testing.T) {
 
 func TestPublishPackageRequiresBearerToken(t *testing.T) {
 	handler := NewHandlerWithOptions(NewMemoryStore(), HandlerOptions{
-		PublishToken: "test-publish-token",
+		PublishToken:                    "test-publish-token",
+		LegacyGlobalPublishTokenEnabled: true,
 	})
 	payload, err := json.Marshal(PublishPackageRequest{
 		PackageID:            "work-item-fronting",
@@ -388,5 +390,25 @@ func TestPublishPackageRequiresBearerToken(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 without token, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPublishPackageRejectsLegacyTokenWhenTransitionFlagDisabled(t *testing.T) {
+	handler := NewHandlerWithOptions(NewMemoryStore(), HandlerOptions{
+		PublishToken: "test-publish-token",
+	})
+	body := validTestPublishPackageRequest()
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	req.Header.Set("Authorization", "Bearer test-publish-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 when legacy token is disabled, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }

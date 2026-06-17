@@ -78,6 +78,7 @@ The compose stack defaults to development signing mode and a local publish token
 
 ```bash
 ANIP_REGISTRY_PUBLISH_TOKEN=local-dev-registry-token
+ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true
 ```
 
 Override ports or seed demo data with:

@@ -105,10 +105,11 @@ Old private keys do not need to remain online for verification.
 
 ## Publish Authorization
 
-Read APIs are public. Publication writes require a bearer token:
+Read APIs are public. Publication writes should use scoped publisher tokens. During the transition to the public multi-publisher registry, the legacy deployment-wide publish token can be enabled explicitly:
 
 ```bash
 ANIP_REGISTRY_PUBLISH_TOKEN=<strong-token>
+ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true
 ```
 
 Optional publisher identity labels are stamped into publication, package, and receipt records and are included in the signed receipt payload:
@@ -118,7 +119,7 @@ ANIP_REGISTRY_PUBLISHER_ID=studio-local
 ANIP_REGISTRY_PUBLISHER_TYPE=studio
 ```
 
-If `ANIP_REGISTRY_PUBLISH_TOKEN` is not set, `POST /registry-api/v1/publications` returns `401`.
+If scoped token validation fails, or if `ANIP_REGISTRY_PUBLISH_TOKEN` is set without `ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true`, `POST /registry-api/v1/publications` returns `401`.
 
 ## Run
 
@@ -126,6 +127,7 @@ If `ANIP_REGISTRY_PUBLISH_TOKEN` is not set, `POST /registry-api/v1/publications
 cd packages/go
 ANIP_REGISTRY_DATABASE_URL=postgres://localhost:5432/anip_registry?sslmode=disable \
 ANIP_REGISTRY_PUBLISH_TOKEN=<strong-token> \
+ANIP_REGISTRY_LEGACY_GLOBAL_PUBLISH_TOKEN_ENABLED=true \
 go run ./cmd/anip-registry
 ```
 

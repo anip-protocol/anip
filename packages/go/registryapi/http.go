@@ -13,13 +13,18 @@ import (
 )
 
 type HandlerOptions struct {
-	SigningMode   string
-	ActiveKeyID   string
-	PublishToken  string
-	PublisherID   string
-	PublisherType string
-	Logger        *slog.Logger
-	Metrics       *RegistryMetrics
+	SigningMode                     string
+	ActiveKeyID                     string
+	PublishToken                    string
+	LegacyGlobalPublishTokenEnabled bool
+	PublisherID                     string
+	PublisherType                   string
+	Logger                          *slog.Logger
+	Metrics                         *RegistryMetrics
+}
+
+type PublishAuthorizer interface {
+	AuthorizePublish(ctx context.Context, token string, operation string, artifactID string) (PublishAuthContext, error)
 }
 
 func NewHandler(store Store) http.Handler {
@@ -108,12 +113,6 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("POST /registry-api/v1/templates", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizedPublish(r, publishToken) {
-			metrics.RecordPublish("template", "unauthorized")
-			logger.Warn("registry_publish_rejected", "kind", "template", "reason", "unauthorized")
-			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid publish bearer token is required"})
-			return
-		}
 		r.Body = http.MaxBytesReader(w, r.Body, MaxTemplatePublishRequestBytes)
 		var request PublishTemplateRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -122,8 +121,15 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
 			return
 		}
-		request.PublisherID = publisherID
-		request.PublisherType = publisherType
+		auth, ok := authorizePublishRequest(r.Context(), r, store, options, publishToken, publisherID, publisherType, "publish:template", request.TemplateID)
+		if !ok {
+			metrics.RecordPublish("template", "unauthorized")
+			logger.Warn("registry_publish_rejected", "kind", "template", "template_id", request.TemplateID, "reason", "unauthorized")
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publish bearer token is required"})
+			return
+		}
+		request.PublisherID = auth.PublisherID
+		request.PublisherType = auth.PublisherType
 		result, err := store.PublishTemplate(request)
 		if err != nil {
 			if errors.Is(err, ErrPackageVersionExists) {
@@ -138,6 +144,12 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 				return
 			}
+			if errors.Is(err, ErrUnauthorizedPublish) {
+				metrics.RecordPublish("template", "unauthorized")
+				logger.Warn("registry_publish_rejected", "kind", "template", "template_id", request.TemplateID, "template_version", request.TemplateVersion, "reason", "unauthorized")
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "publisher is not authorized for this template"})
+				return
+			}
 			metrics.RecordPublish("template", "error")
 			logger.Error("registry_publish_failed", "kind", "template", "template_id", request.TemplateID, "template_version", request.TemplateVersion, "error", err.Error())
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to publish template"})
@@ -149,12 +161,6 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("POST /registry-api/v1/publications", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizedPublish(r, publishToken) {
-			metrics.RecordPublish("package", "unauthorized")
-			logger.Warn("registry_publish_rejected", "kind", "package", "reason", "unauthorized")
-			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid publish bearer token is required"})
-			return
-		}
 		r.Body = http.MaxBytesReader(w, r.Body, MaxPublishRequestBytes)
 		var request PublishPackageRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -175,8 +181,15 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "product_revision_ref, developer_revision_ref, and contract_signature are required"})
 			return
 		}
-		request.PublisherID = publisherID
-		request.PublisherType = publisherType
+		auth, ok := authorizePublishRequest(r.Context(), r, store, options, publishToken, publisherID, publisherType, "publish:package", request.PackageID)
+		if !ok {
+			metrics.RecordPublish("package", "unauthorized")
+			logger.Warn("registry_publish_rejected", "kind", "package", "package_id", request.PackageID, "package_version", request.PackageVersion, "reason", "unauthorized")
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publish bearer token is required"})
+			return
+		}
+		request.PublisherID = auth.PublisherID
+		request.PublisherType = auth.PublisherType
 
 		result, err := store.PublishPackage(request)
 		if err != nil {
@@ -190,6 +203,12 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 				metrics.RecordPublish("package", "invalid")
 				logger.Warn("registry_publish_rejected", "kind", "package", "package_id", request.PackageID, "package_version", request.PackageVersion, "reason", err.Error())
 				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+			if errors.Is(err, ErrUnauthorizedPublish) {
+				metrics.RecordPublish("package", "unauthorized")
+				logger.Warn("registry_publish_rejected", "kind", "package", "package_id", request.PackageID, "package_version", request.PackageVersion, "reason", "unauthorized")
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "publisher is not authorized for this package"})
 				return
 			}
 			metrics.RecordPublish("package", "error")
@@ -363,16 +382,40 @@ func sanitizeDownloadFilename(value string) string {
 	return builder.String()
 }
 
-func authorizedPublish(r *http.Request, configuredToken string) bool {
-	if configuredToken == "" {
-		return false
+func authorizePublishRequest(ctx context.Context, r *http.Request, store Store, options HandlerOptions, legacyToken string, legacyPublisherID string, legacyPublisherType string, operation string, artifactID string) (PublishAuthContext, bool) {
+	token, ok := bearerToken(r)
+	if !ok {
+		return PublishAuthContext{}, false
 	}
+	if authorizer, ok := store.(PublishAuthorizer); ok {
+		auth, err := authorizer.AuthorizePublish(ctx, token, operation, artifactID)
+		if err == nil {
+			return auth, true
+		}
+	}
+	if options.LegacyGlobalPublishTokenEnabled && authorizedLegacyPublishToken(token, legacyToken) {
+		return PublishAuthContext{
+			PublisherID:   legacyPublisherID,
+			PublisherType: legacyPublisherType,
+		}, true
+	}
+	return PublishAuthContext{}, false
+}
+
+func bearerToken(r *http.Request) (string, bool) {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) {
-		return false
+		return "", false
 	}
 	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	return token, token != ""
+}
+
+func authorizedLegacyPublishToken(token string, configuredToken string) bool {
+	if configuredToken == "" {
+		return false
+	}
 	return subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) == 1
 }
 

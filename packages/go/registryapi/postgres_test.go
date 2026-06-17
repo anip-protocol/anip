@@ -1,6 +1,10 @@
 package registryapi
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 )
@@ -195,5 +199,111 @@ func TestPostgresStorePublisherLookupAndAuditAppend(t *testing.T) {
 	}
 	if event.ActorPublisherID != "anip" || event.Metadata["source"] != "test" {
 		t.Fatalf("unexpected audit event %+v", event)
+	}
+}
+
+func TestPostgresScopedPublishTokenPublishesPackage(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/work-item-fronting"
+	body.PackageVersion = "0.2.0"
+	body.ProjectRef = "anip/work-item-fronting"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{})
+	req := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	req.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var result PublishPackageResult
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result.Package.PublisherID != "anip" || result.Package.PublisherType != "official" {
+		t.Fatalf("expected scoped publisher identity, got %+v", result.Package)
+	}
+	var owner string
+	if err := store.pool.QueryRow(t.Context(), `
+		SELECT publisher_id
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = 'package' AND artifact_id = 'anip/work-item-fronting'
+	`).Scan(&owner); err != nil {
+		t.Fatalf("read ownership: %v", err)
+	}
+	if owner != "anip" {
+		t.Fatalf("expected anip ownership, got %q", owner)
+	}
+}
+
+func TestPostgresScopedPublishTokenRejectsWrongScope(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:template"}, []string{"anip"}, nil, nil)
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/work-item-fronting"
+	body.PackageVersion = "0.2.0"
+	body.ProjectRef = "anip/work-item-fronting"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{})
+	req := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	req.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
+	t.Helper()
+	scopes := map[string]any{
+		"operations":   operations,
+		"namespaces":   namespaces,
+		"package_ids":  packageIDs,
+		"template_ids": templateIDs,
+	}
+	scopesBytes, err := json.Marshal(scopes)
+	if err != nil {
+		t.Fatalf("marshal token scopes: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level
+		) VALUES (
+			$1, 'official', 'ANIP', 'Official ANIP publisher', 'https://anip.dev', 'active', 'official'
+		)
+	`, publisherID); err != nil {
+		t.Fatalf("insert publisher: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			'anip', $1, '["package","template"]'::jsonb, 'active'
+		)
+	`, publisherID); err != nil {
+		t.Fatalf("insert namespace: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publish_tokens (
+			token_id, publisher_id, token_hash, label, scopes
+		) VALUES (
+			'11111111-1111-4111-8111-111111111111', $1, $2, 'test token', $3
+		)
+	`, publisherID, RegistryPublishTokenSecretHash(secret), scopesBytes); err != nil {
+		t.Fatalf("insert token: %v", err)
 	}
 }
