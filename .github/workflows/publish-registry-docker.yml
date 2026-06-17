@@ -61,6 +61,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Validate DigitalOcean token secret
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
+            echo "::error::DIGITALOCEAN_ACCESS_TOKEN is required to push registry.digitalocean.com/anip/registry. Add it under repository Actions secrets before running this workflow."
+            exit 1
+          fi
+
       - name: Log in to DigitalOcean Container Registry
         uses: docker/login-action@v4
         with:
