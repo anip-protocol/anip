@@ -100,6 +100,22 @@ export interface CreateNamespaceRequest {
   artifact_kinds: string[]
 }
 
+export interface UpdateNamespaceStatusRequest {
+  status: string
+  reason?: string
+}
+
+export interface UpdatePublisherStatusRequest {
+  status: string
+  trust_level?: string
+  reason?: string
+}
+
+export interface UpdateArtifactOwnershipStatusRequest {
+  status: string
+  reason?: string
+}
+
 export interface PublicationSummary {
   package_id: string
   package_version: string
@@ -288,4 +304,68 @@ export async function revokeMyToken(token: string, tokenId: string): Promise<Reg
     headers: authHeaders(token),
   })
   return payload.token
+}
+
+export async function listAdminNamespaces(token: string): Promise<RegistryNamespaceSummary[]> {
+  const payload = await api<{ items: RegistryNamespaceSummary[] }>('/admin/namespaces', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function listAdminPublishers(token: string): Promise<RegistryPublisher[]> {
+  const payload = await api<{ items: RegistryPublisher[] }>('/admin/publishers', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function listAdminArtifacts(token: string): Promise<PublisherArtifactSummary[]> {
+  const payload = await api<{ items: PublisherArtifactSummary[] }>('/admin/artifacts', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function updateAdminNamespaceStatus(
+  token: string,
+  namespace: string,
+  request: UpdateNamespaceStatusRequest,
+): Promise<RegistryNamespaceSummary> {
+  const payload = await api<{ namespace: RegistryNamespaceSummary }>(`/admin/namespaces/${encodeURIComponent(namespace)}`, {
+    method: 'PATCH',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.namespace
+}
+
+export async function updateAdminPublisherStatus(
+  token: string,
+  publisherId: string,
+  request: UpdatePublisherStatusRequest,
+): Promise<RegistryPublisher> {
+  const payload = await api<{ publisher: RegistryPublisher }>(`/admin/publishers/${encodeURIComponent(publisherId)}/status`, {
+    method: 'PATCH',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.publisher
+}
+
+export async function updateAdminArtifactStatus(
+  token: string,
+  artifactKind: string,
+  artifactId: string,
+  request: UpdateArtifactOwnershipStatusRequest,
+): Promise<PublisherArtifactSummary> {
+  const payload = await api<{ artifact: PublisherArtifactSummary }>(
+    `/admin/artifact-status/${encodeURIComponent(artifactKind)}/${encodeURIComponent(artifactId)}`,
+    {
+      method: 'PATCH',
+      headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+    },
+  )
+  return payload.artifact
 }

@@ -41,6 +41,9 @@ type PublisherSelfServiceStore interface {
 }
 
 type NamespaceAdminStore interface {
+	ListNamespaces(ctx context.Context) ([]RegistryNamespaceSummary, error)
+	ListPublishers(ctx context.Context) ([]RegistryPublisher, error)
+	ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error)
 	UpdateNamespaceStatus(ctx context.Context, namespace string, request UpdateNamespaceStatusRequest) (RegistryNamespaceSummary, bool, error)
 	UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error)
 	UpdateArtifactOwnershipStatus(ctx context.Context, artifactKind string, artifactID string, request UpdateArtifactOwnershipStatusRequest) (PublisherArtifactSummary, bool, error)
@@ -210,6 +213,57 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"namespace": namespace})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/admin/namespaces", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry namespace administration is not supported by this store"})
+			return
+		}
+		items, err := adminStore.ListNamespaces(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list namespaces"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/admin/publishers", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry publisher administration is not supported by this store"})
+			return
+		}
+		items, err := adminStore.ListPublishers(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publishers"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/admin/artifacts", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry artifact administration is not supported by this store"})
+			return
+		}
+		items, err := adminStore.ListArtifactOwnership(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list artifacts"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
 	})
 
 	mux.HandleFunc("PATCH /registry-api/v1/admin/namespaces/{namespace...}", func(w http.ResponseWriter, r *http.Request) {

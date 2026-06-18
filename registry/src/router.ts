@@ -4,6 +4,7 @@ import PackageDetailView from './views/PackageDetailView.vue'
 import TemplateDetailView from './views/TemplateDetailView.vue'
 import TemplateListView from './views/TemplateListView.vue'
 import PublisherSelfServiceView from './views/PublisherSelfServiceView.vue'
+import AdminModerationView from './views/AdminModerationView.vue'
 
 function normalizeBase(base: string): string {
   return base.endsWith('/') ? base : `${base}/`
@@ -30,6 +31,11 @@ export const router = createRouter({
       path: '/publisher',
       name: 'publisher-self-service',
       component: PublisherSelfServiceView,
+    },
+    {
+      path: '/admin',
+      name: 'admin-moderation',
+      component: AdminModerationView,
     },
     {
       path: '/templates/:templateId/:version',
