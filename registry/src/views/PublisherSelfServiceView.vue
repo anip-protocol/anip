@@ -301,7 +301,7 @@ onMounted(async () => {
         <p>GitHub sign-in creates or links an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
       </div>
       <div class="publisher-token-form">
-        <a class="artifact-action github-login-link" :href="githubAuthStartURL()">Sign in with GitHub</a>
+        <a class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/publisher')">Sign in with GitHub</a>
         <p v-if="browserSession?.user" class="tooling-note">
           Signed in as {{ browserSession.user.display_name }}
           <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>

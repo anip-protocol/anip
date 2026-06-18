@@ -241,8 +241,13 @@ function authHeaders(token: string | null, extra: HeadersInit = {}): HeadersInit
   }
 }
 
-export function githubAuthStartURL(): string {
-  return `${API_BASE}/auth/github/start`
+export function githubAuthStartURL(returnTo?: string): string {
+  const path = `${API_BASE}/auth/github/start`
+  const safeReturnTo = returnTo?.trim()
+  if (!safeReturnTo) {
+    return path
+  }
+  return `${path}?return_to=${encodeURIComponent(safeReturnTo)}`
 }
 
 export async function getRegistryAuthSession(): Promise<RegistryBrowserSessionContext | null> {
@@ -365,6 +370,13 @@ export async function listAdminNamespaces(token: string | null): Promise<Registr
 
 export async function listAdminPublishers(token: string | null): Promise<RegistryPublisher[]> {
   const payload = await api<{ items: RegistryPublisher[] }>('/admin/publishers', {
+    headers: authHeaders(token),
+  })
+  return payload.items
+}
+
+export async function listAdminUsers(token: string | null): Promise<RegistryUser[]> {
+  const payload = await api<{ items: RegistryUser[] }>('/admin/users', {
     headers: authHeaders(token),
   })
   return payload.items

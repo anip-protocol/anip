@@ -64,6 +64,10 @@ type NamespaceAdminStore interface {
 	TransferArtifactOwnership(ctx context.Context, artifactKind string, artifactID string, request TransferArtifactOwnershipRequest) (PublisherArtifactSummary, bool, error)
 }
 
+type RegistryUserAdminStore interface {
+	ListRegistryUsers(ctx context.Context) ([]RegistryUser, error)
+}
+
 func NewHandler(store Store) http.Handler {
 	return NewHandlerWithOptions(store, HandlerOptions{SigningMode: "dev"})
 }
@@ -148,6 +152,9 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		}
 		secure := registrySecureCookie(r, options.SessionCookieSecure)
 		http.SetCookie(w, oauthStateCookie(state, secure))
+		if returnTo := safeRegistryReturnTo(r.URL.Query().Get("return_to")); returnTo != "" {
+			http.SetCookie(w, oauthReturnToCookie(returnTo, secure))
+		}
 		redirectURI := registryOAuthRedirectURI(r, publicBaseURL)
 		params := url.Values{}
 		params.Set("client_id", clientID)
@@ -191,9 +198,16 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create registry session"})
 			return
 		}
+		returnTo := "/registry/publisher"
+		if returnToCookie, err := r.Cookie(registryOAuthReturnToCookieName); err == nil {
+			if safeReturnTo := safeRegistryReturnTo(returnToCookie.Value); safeReturnTo != "" {
+				returnTo = safeReturnTo
+			}
+		}
 		http.SetCookie(w, expiredCookie(registryOAuthStateCookieName, "/registry-api/v1/auth/github", secure))
+		http.SetCookie(w, expiredCookie(registryOAuthReturnToCookieName, "/registry-api/v1/auth/github", secure))
 		http.SetCookie(w, browserSessionCookie(sessionToken, secure, int(sessionTTL.Seconds())))
-		http.Redirect(w, r, "/registry/publisher", http.StatusFound)
+		http.Redirect(w, r, returnTo, http.StatusFound)
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/auth/session", func(w http.ResponseWriter, r *http.Request) {
@@ -360,6 +374,23 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		items, err := adminStore.ListPublishers(r.Context())
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publishers"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(RegistryUserAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry user administration is not supported by this store"})
+			return
+		}
+		items, err := adminStore.ListRegistryUsers(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list users"})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"items": items})
