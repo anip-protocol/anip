@@ -132,6 +132,15 @@ async function nextPage(): Promise<void> {
   await refresh()
 }
 
+async function changePageSize(event: Event): Promise<void> {
+  const value = Number((event.target as HTMLSelectElement).value)
+  if (!Number.isFinite(value) || value <= 0) return
+  const state = pageState[activeSection.value]
+  state.limit = value
+  state.offset = 0
+  await refresh()
+}
+
 function ensureNamespaceAction(namespace: RegistryNamespaceSummary): { status: string; reason: string } {
   if (!namespaceActions[namespace.namespace]) {
     namespaceActions[namespace.namespace] = {
@@ -466,11 +475,12 @@ onMounted(async () => {
     <section class="hero-panel publisher-auth-panel">
       <div>
         <span class="eyebrow">Admin Console</span>
-        <h2>Sign in with GitHub</h2>
-        <p>Use a GitHub account with registry admin access to review moderation queues, publisher status, namespace requests, and artifact ownership.</p>
+        <h2>{{ hasActiveToken ? 'Connected' : 'Sign in with GitHub' }}</h2>
+        <p v-if="!hasActiveToken">Use a GitHub account with registry admin access to review moderation queues, publisher status, namespace requests, and artifact ownership.</p>
+        <p v-else>Registry admin access is active for this browser session.</p>
       </div>
       <div class="publisher-token-form">
-        <a class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/admin')">Sign in with GitHub</a>
+        <a v-if="!hasActiveToken" class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/admin')">Sign in with GitHub</a>
         <p v-if="browserSession?.user" class="tooling-note">
           Signed in as {{ browserSession.user.display_name }}
           <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
@@ -482,7 +492,7 @@ onMounted(async () => {
         <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
           {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
         </button>
-        <details class="advanced-auth-panel">
+        <details v-if="!hasActiveToken" class="advanced-auth-panel">
           <summary>Advanced: connect with bootstrap admin token</summary>
           <p class="tooling-note">Use this only for initial setup or emergency recovery. Tokens are not stored by the browser UI.</p>
           <label class="form-field">
@@ -597,13 +607,7 @@ onMounted(async () => {
               <option value="rejected">rejected</option>
             </select>
           </label>
-
-          <div class="action-row admin-pager-actions">
-            <button class="artifact-action" type="button" :disabled="loading" @click="applyFilters">Apply</button>
-            <button class="artifact-action secondary" type="button" :disabled="loading || pageState[activeSection].offset === 0" @click="previousPage">Prev</button>
-            <span class="tooling-note">{{ currentPageLabel() }}</span>
-            <button class="artifact-action secondary" type="button" :disabled="loading || pageState[activeSection].offset + pageState[activeSection].limit >= pageState[activeSection].total" @click="nextPage">Next</button>
-          </div>
+          <button class="artifact-action admin-filter-action" type="button" :disabled="loading" @click="applyFilters">Apply filters</button>
         </div>
 
         <div v-if="activeSection === 'users'" class="admin-grid-scroll">
@@ -880,6 +884,23 @@ onMounted(async () => {
               </tbody>
             </table>
             <p v-if="reports.length === 0" class="empty-state">No reports match the current filters.</p>
+          </div>
+        </div>
+
+        <div class="admin-pagination-footer">
+          <label class="form-field compact-field">
+            <span>Rows per page</span>
+            <select :value="pageState[activeSection].limit" @change="changePageSize">
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+          </label>
+          <div class="action-row admin-pager-actions">
+            <button class="artifact-action secondary" type="button" :disabled="loading || pageState[activeSection].offset === 0" @click="previousPage">Prev</button>
+            <span class="tooling-note">{{ currentPageLabel() }}</span>
+            <button class="artifact-action secondary" type="button" :disabled="loading || pageState[activeSection].offset + pageState[activeSection].limit >= pageState[activeSection].total" @click="nextPage">Next</button>
           </div>
         </div>
       </section>
