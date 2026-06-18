@@ -192,6 +192,30 @@ curl -X PATCH \
 
 Supported namespace statuses are `pending_verification`, `active`, `reserved`, `suspended`, and `rejected`. Only `active` namespaces authorize scoped publish tokens and new package/template publication.
 
+The same admin token can moderate publishers and already-owned package/template artifacts:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "suspended",
+    "reason": "abuse report under review"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/publishers/anip/status
+
+curl -X PATCH \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "suspended",
+    "reason": "malware report"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/artifact-status/package/anip/some-package
+```
+
+Supported publisher statuses are `active`, `pending_review`, and `suspended`; suspended publishers cannot use scoped publisher tokens. Supported artifact ownership statuses are `active`, `transferred`, and `suspended`; suspended ownership blocks publishing new package/template versions for that artifact id.
+
 Create a scoped token:
 
 ```bash
