@@ -288,3 +288,14 @@ type UpdateNamespaceStatusRequest struct {
 	Status string `json:"status"`
 	Reason string `json:"reason,omitempty"`
 }
+
+type UpdatePublisherStatusRequest struct {
+	Status     string `json:"status"`
+	TrustLevel string `json:"trust_level,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type UpdateArtifactOwnershipStatusRequest struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}

@@ -666,6 +666,142 @@ func TestPostgresPublisherNamespaceVerificationGatesPublishing(t *testing.T) {
 	}
 }
 
+func TestPostgresAdminPublisherSuspensionBlocksPublishing(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+	bearer := "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret"
+
+	suspendPayload, err := json.Marshal(UpdatePublisherStatusRequest{
+		Status: "suspended",
+		Reason: "abuse report under review",
+	})
+	if err != nil {
+		t.Fatalf("marshal publisher suspension: %v", err)
+	}
+	suspendReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/admin/publishers/anip/status", bytes.NewReader(suspendPayload))
+	suspendReq.Header.Set("Authorization", "Bearer admin-secret")
+	suspendRec := httptest.NewRecorder()
+	handler.ServeHTTP(suspendRec, suspendReq)
+	if suspendRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher suspension 200, got %d body=%s", suspendRec.Code, suspendRec.Body.String())
+	}
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/suspended-publisher-test"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/suspended-publisher-test"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	blockedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	blockedReq.Header.Set("Authorization", bearer)
+	blockedRec := httptest.NewRecorder()
+	handler.ServeHTTP(blockedRec, blockedReq)
+	if blockedRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected suspended publisher publish 401, got %d body=%s", blockedRec.Code, blockedRec.Body.String())
+	}
+
+	activatePayload, err := json.Marshal(UpdatePublisherStatusRequest{
+		Status: "active",
+		Reason: "review cleared",
+	})
+	if err != nil {
+		t.Fatalf("marshal publisher activation: %v", err)
+	}
+	activateReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/admin/publishers/anip/status", bytes.NewReader(activatePayload))
+	activateReq.Header.Set("Authorization", "Bearer admin-secret")
+	activateRec := httptest.NewRecorder()
+	handler.ServeHTTP(activateRec, activateReq)
+	if activateRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher activation 200, got %d body=%s", activateRec.Code, activateRec.Body.String())
+	}
+
+	allowedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	allowedReq.Header.Set("Authorization", bearer)
+	allowedRec := httptest.NewRecorder()
+	handler.ServeHTTP(allowedRec, allowedReq)
+	if allowedRec.Code != http.StatusCreated {
+		t.Fatalf("expected reactivated publisher publish 201, got %d body=%s", allowedRec.Code, allowedRec.Body.String())
+	}
+}
+
+func TestPostgresAdminArtifactSuspensionBlocksNewVersions(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+	bearer := "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret"
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/moderated-artifact"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/moderated-artifact"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal first package request: %v", err)
+	}
+	firstReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	firstReq.Header.Set("Authorization", bearer)
+	firstRec := httptest.NewRecorder()
+	handler.ServeHTTP(firstRec, firstReq)
+	if firstRec.Code != http.StatusCreated {
+		t.Fatalf("expected first publish 201, got %d body=%s", firstRec.Code, firstRec.Body.String())
+	}
+
+	suspendPayload, err := json.Marshal(UpdateArtifactOwnershipStatusRequest{
+		Status: "suspended",
+		Reason: "malware report",
+	})
+	if err != nil {
+		t.Fatalf("marshal artifact suspension: %v", err)
+	}
+	suspendReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/admin/artifact-status/package/anip/moderated-artifact", bytes.NewReader(suspendPayload))
+	suspendReq.Header.Set("Authorization", "Bearer admin-secret")
+	suspendRec := httptest.NewRecorder()
+	handler.ServeHTTP(suspendRec, suspendReq)
+	if suspendRec.Code != http.StatusOK {
+		t.Fatalf("expected artifact suspension 200, got %d body=%s", suspendRec.Code, suspendRec.Body.String())
+	}
+
+	body.PackageVersion = "0.1.1"
+	nextPayload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal second package request: %v", err)
+	}
+	blockedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(nextPayload))
+	blockedReq.Header.Set("Authorization", bearer)
+	blockedRec := httptest.NewRecorder()
+	handler.ServeHTTP(blockedRec, blockedReq)
+	if blockedRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected suspended artifact publish 401, got %d body=%s", blockedRec.Code, blockedRec.Body.String())
+	}
+
+	activatePayload, err := json.Marshal(UpdateArtifactOwnershipStatusRequest{
+		Status: "active",
+		Reason: "false positive",
+	})
+	if err != nil {
+		t.Fatalf("marshal artifact reactivation: %v", err)
+	}
+	activateReq := httptest.NewRequest(http.MethodPatch, "/registry-api/v1/admin/artifact-status/package/anip/moderated-artifact", bytes.NewReader(activatePayload))
+	activateReq.Header.Set("Authorization", "Bearer admin-secret")
+	activateRec := httptest.NewRecorder()
+	handler.ServeHTTP(activateRec, activateReq)
+	if activateRec.Code != http.StatusOK {
+		t.Fatalf("expected artifact reactivation 200, got %d body=%s", activateRec.Code, activateRec.Body.String())
+	}
+
+	allowedReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(nextPayload))
+	allowedReq.Header.Set("Authorization", bearer)
+	allowedRec := httptest.NewRecorder()
+	handler.ServeHTTP(allowedRec, allowedReq)
+	if allowedRec.Code != http.StatusCreated {
+		t.Fatalf("expected reactivated artifact publish 201, got %d body=%s", allowedRec.Code, allowedRec.Body.String())
+	}
+}
+
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
 	t.Helper()
 	scopes := map[string]any{

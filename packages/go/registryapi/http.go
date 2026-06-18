@@ -42,6 +42,8 @@ type PublisherSelfServiceStore interface {
 
 type NamespaceAdminStore interface {
 	UpdateNamespaceStatus(ctx context.Context, namespace string, request UpdateNamespaceStatusRequest) (RegistryNamespaceSummary, bool, error)
+	UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error)
+	UpdateArtifactOwnershipStatus(ctx context.Context, artifactKind string, artifactID string, request UpdateArtifactOwnershipStatusRequest) (PublisherArtifactSummary, bool, error)
 }
 
 func NewHandler(store Store) http.Handler {
@@ -238,6 +240,66 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"namespace": namespace})
+	})
+
+	mux.HandleFunc("PATCH /registry-api/v1/admin/publishers/{publisherID}/status", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry publisher administration is not supported by this store"})
+			return
+		}
+		var request UpdatePublisherStatusRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		publisher, exists, err := adminStore.UpdatePublisherStatus(r.Context(), r.PathValue("publisherID"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid publisher status is required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update publisher status"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "publisher not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"publisher": publisher})
+	})
+
+	mux.HandleFunc("PATCH /registry-api/v1/admin/artifact-status/{artifactKind}/{artifactID...}", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry artifact administration is not supported by this store"})
+			return
+		}
+		var request UpdateArtifactOwnershipStatusRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+			return
+		}
+		artifact, exists, err := adminStore.UpdateArtifactOwnershipStatus(r.Context(), r.PathValue("artifactKind"), r.PathValue("artifactID"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid artifact kind and status are required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update artifact status"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "artifact ownership not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"artifact": artifact})
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/me/artifacts", func(w http.ResponseWriter, r *http.Request) {

@@ -1129,6 +1129,94 @@ func (s *PostgresStore) UpdateNamespaceStatus(ctx context.Context, namespace str
 	return item, true, nil
 }
 
+func (s *PostgresStore) UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error) {
+	publisherID = strings.TrimSpace(publisherID)
+	status := strings.ToLower(strings.TrimSpace(request.Status))
+	trustLevel := strings.ToLower(strings.TrimSpace(request.TrustLevel))
+	reason := strings.TrimSpace(request.Reason)
+	if publisherID == "" || !validRegistryPublisherStatus(status) || (trustLevel != "" && !validRegistryTrustLevel(trustLevel)) {
+		return RegistryPublisher{}, false, ErrInvalidPackage
+	}
+	var publisher RegistryPublisher
+	var createdBy sql.NullString
+	var createdAt time.Time
+	var updatedAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		UPDATE registry_publishers
+		SET status = $2,
+		    trust_level = CASE WHEN $3 = '' THEN trust_level ELSE $3 END,
+		    updated_at = now()
+		WHERE publisher_id = $1
+		RETURNING publisher_id, publisher_type, display_name, description, website_url,
+		          status, trust_level, created_by_user_id::text, created_at, updated_at
+	`, publisherID, status, trustLevel).Scan(
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.Description,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
+		&createdBy,
+		&createdAt,
+		&updatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return RegistryPublisher{}, false, nil
+	}
+	if err != nil {
+		return RegistryPublisher{}, false, err
+	}
+	if createdBy.Valid {
+		publisher.CreatedByUserID = createdBy.String
+	}
+	publisher.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	publisher.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		EventType:  "publisher.status.updated",
+		TargetType: "publisher",
+		TargetID:   publisherID,
+		Metadata: map[string]any{
+			"status":      status,
+			"trust_level": trustLevel,
+			"reason":      reason,
+		},
+	})
+	return publisher, true, nil
+}
+
+func (s *PostgresStore) UpdateArtifactOwnershipStatus(ctx context.Context, artifactKind string, artifactID string, request UpdateArtifactOwnershipStatusRequest) (PublisherArtifactSummary, bool, error) {
+	artifactKind = strings.TrimSpace(artifactKind)
+	artifactID = strings.TrimSpace(artifactID)
+	status := strings.ToLower(strings.TrimSpace(request.Status))
+	reason := strings.TrimSpace(request.Reason)
+	if (artifactKind != "package" && artifactKind != "template") || artifactID == "" || !validRegistryArtifactOwnershipStatus(status) {
+		return PublisherArtifactSummary{}, false, ErrInvalidPackage
+	}
+	item, err := scanPublisherArtifactSummary(s.pool.QueryRow(ctx, `
+		UPDATE registry_artifact_ownership
+		SET status = $3, updated_at = now()
+		WHERE artifact_kind = $1 AND artifact_id = $2
+		RETURNING artifact_kind, artifact_id, namespace, status, created_at, updated_at
+	`, artifactKind, artifactID, status))
+	if err == pgx.ErrNoRows {
+		return PublisherArtifactSummary{}, false, nil
+	}
+	if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		EventType:  "artifact.status.updated",
+		TargetType: artifactKind,
+		TargetID:   artifactID,
+		Metadata: map[string]any{
+			"status": status,
+			"reason": reason,
+		},
+	})
+	return item, true, nil
+}
+
 func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
 	event.EventID = strings.TrimSpace(event.EventID)
 	if event.EventID == "" {
@@ -1306,14 +1394,10 @@ func (s *PostgresStore) ListPublisherArtifacts(ctx context.Context, publisherID 
 
 	items := []PublisherArtifactSummary{}
 	for rows.Next() {
-		var item PublisherArtifactSummary
-		var createdAt time.Time
-		var updatedAt time.Time
-		if err := rows.Scan(&item.ArtifactKind, &item.ArtifactID, &item.Namespace, &item.Status, &createdAt, &updatedAt); err != nil {
+		item, err := scanPublisherArtifactSummary(rows)
+		if err != nil {
 			return nil, err
 		}
-		item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -1512,6 +1596,18 @@ type registryPublishTokenRowScanner interface {
 	Scan(dest ...any) error
 }
 
+func scanPublisherArtifactSummary(row registryPublishTokenRowScanner) (PublisherArtifactSummary, error) {
+	var item PublisherArtifactSummary
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(&item.ArtifactKind, &item.ArtifactID, &item.Namespace, &item.Status, &createdAt, &updatedAt); err != nil {
+		return PublisherArtifactSummary{}, err
+	}
+	item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return item, nil
+}
+
 func scanRegistryPublishTokenSummary(row registryPublishTokenRowScanner) (RegistryPublishTokenSummary, error) {
 	var item RegistryPublishTokenSummary
 	var scopesBytes []byte
@@ -1640,6 +1736,33 @@ func validRegistryNamespace(namespace string) bool {
 func validRegistryNamespaceStatus(status string) bool {
 	switch status {
 	case "pending_verification", "active", "reserved", "suspended", "rejected":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRegistryPublisherStatus(status string) bool {
+	switch status {
+	case "active", "pending_review", "suspended":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRegistryTrustLevel(trustLevel string) bool {
+	switch trustLevel {
+	case "unverified", "verified", "official":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRegistryArtifactOwnershipStatus(status string) bool {
+	switch status {
+	case "active", "transferred", "suspended":
 		return true
 	default:
 		return false
