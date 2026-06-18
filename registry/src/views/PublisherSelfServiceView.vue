@@ -297,19 +297,21 @@ onMounted(async () => {
     <section class="hero-panel publisher-auth-panel">
       <div>
         <span class="eyebrow">Publisher Access</span>
-        <h2>Sign in with GitHub</h2>
-        <p>GitHub sign-in creates or links an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
+        <h2>{{ hasActiveToken ? 'Connected' : 'Sign in with GitHub' }}</h2>
+        <p v-if="!hasActiveToken">GitHub sign-in creates or links an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
+        <p v-else>Publisher console access is active for this browser session.</p>
       </div>
       <div class="publisher-token-form">
-        <a class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/publisher')">Sign in with GitHub</a>
+        <a v-if="!hasActiveToken" class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/publisher')">Sign in with GitHub</a>
         <p v-if="browserSession?.user" class="tooling-note">
           Signed in as {{ browserSession.user.display_name }}
           <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
         </p>
+        <p v-else-if="hasActiveToken" class="tooling-note">Connected with a scoped publisher token.</p>
         <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
           {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
         </button>
-        <details class="advanced-auth-panel">
+        <details v-if="!hasActiveToken" class="advanced-auth-panel">
           <summary>Advanced: connect with a scoped publisher token</summary>
           <p class="tooling-note">Use this only for short-lived troubleshooting. Tokens are not stored by the browser UI.</p>
           <label class="form-field">
