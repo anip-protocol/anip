@@ -22,7 +22,6 @@ import {
 } from '../api'
 import { formatRegistryTimestamp } from '../datetime'
 
-const STORAGE_KEY = 'anip_registry_publisher_token'
 const SESSION_SENTINEL = '__browser_session__'
 
 const tokenInput = ref('')
@@ -133,7 +132,6 @@ async function loadPublisherState(token: string | null, source: 'token' | 'sessi
     activeToken.value = source === 'session' ? SESSION_SENTINEL : token || ''
     if (source === 'token') {
       tokenInput.value = token || ''
-      localStorage.setItem(STORAGE_KEY, token || '')
     }
     publisher.value = publisherContext.publisher
     syncProfileForm(publisherContext.publisher)
@@ -190,7 +188,6 @@ async function disconnect(): Promise<void> {
   tokenManagementAllowed.value = false
   publisherManagementAllowed.value = false
   tokenManagementError.value = null
-  localStorage.removeItem(STORAGE_KEY)
 }
 
 async function refresh(): Promise<void> {
@@ -286,12 +283,6 @@ onMounted(async () => {
   browserSession.value = await getRegistryAuthSession()
   if (browserSession.value?.publisher) {
     await loadPublisherState(null, 'session')
-    return
-  }
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved) {
-    tokenInput.value = saved
-    await loadPublisherState(saved, 'token')
   }
 })
 </script>
@@ -300,14 +291,14 @@ onMounted(async () => {
   <section class="page">
     <div class="page-header">
       <h1>Publisher Console</h1>
-      <p>Manage publisher-owned artifacts, namespaces, and scoped publish tokens. Sign in with GitHub for browser management, or paste a scoped token for automation-oriented access.</p>
+      <p>Manage publisher-owned artifacts, namespaces, and scoped publish tokens. Sign in with GitHub for browser management; use scoped tokens for CLI publishing and release automation.</p>
     </div>
 
     <section class="hero-panel publisher-auth-panel">
       <div>
         <span class="eyebrow">Publisher Access</span>
-        <h2>Sign in or connect with a publisher token</h2>
-        <p>GitHub sign-in creates an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
+        <h2>Sign in with GitHub</h2>
+        <p>GitHub sign-in creates or links an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
       </div>
       <div class="publisher-token-form">
         <a class="artifact-action github-login-link" :href="githubAuthStartURL()">Sign in with GitHub</a>
@@ -315,18 +306,22 @@ onMounted(async () => {
           Signed in as {{ browserSession.user.display_name }}
           <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
         </p>
-        <label class="form-field">
-          <span>Bearer token</span>
-          <input v-model="tokenInput" type="password" autocomplete="off" placeholder="anip_pat_…" :disabled="usingBrowserSession" />
-        </label>
-        <div class="action-row">
-          <button class="artifact-action" type="button" :disabled="loading || usingBrowserSession" @click="connect">
-            {{ loading ? 'Connecting…' : 'Connect' }}
-          </button>
-          <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
-            {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
-          </button>
-        </div>
+        <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
+          {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
+        </button>
+        <details class="advanced-auth-panel">
+          <summary>Advanced: connect with a scoped publisher token</summary>
+          <p class="tooling-note">Use this only for short-lived troubleshooting. Tokens are not stored by the browser UI.</p>
+          <label class="form-field">
+            <span>Bearer token</span>
+            <input v-model="tokenInput" type="password" autocomplete="off" placeholder="anip_pat_…" :disabled="usingBrowserSession" />
+          </label>
+          <div class="action-row">
+            <button class="artifact-action" type="button" :disabled="loading || usingBrowserSession" @click="connect">
+              {{ loading ? 'Connecting…' : 'Connect token' }}
+            </button>
+          </div>
+        </details>
       </div>
     </section>
 

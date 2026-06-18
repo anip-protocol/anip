@@ -54,9 +54,11 @@ ANIP_REGISTRY_PUBLIC_BASE_URL=https://registry.example.com
 ANIP_REGISTRY_GITHUB_CLIENT_ID=<github-oauth-client-id>
 ANIP_REGISTRY_GITHUB_CLIENT_SECRET=<github-oauth-client-secret>
 ANIP_REGISTRY_SESSION_COOKIE_SECURE=true
+ANIP_REGISTRY_ADMIN_GITHUB_LOGINS=samir-latifi,another-admin
 ```
 
 GitHub login creates or links an individual, unverified publisher account for browser management. Publishing package/template artifacts still requires explicit scoped publish tokens.
+Admin browser access is only granted to GitHub logins listed in `ANIP_REGISTRY_ADMIN_GITHUB_LOGINS`; `ANIP_REGISTRY_ADMIN_TOKEN` remains a bootstrap or emergency fallback and should not be used as the normal browser path.
 
 ## Local Docker Compose
 

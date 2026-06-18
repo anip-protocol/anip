@@ -29,6 +29,7 @@ type HandlerOptions struct {
 	GitHubOAuthExchange             GitHubOAuthExchangeFunc
 	SessionCookieSecure             bool
 	BrowserSessionTTL               time.Duration
+	AdminGitHubLogins               []string
 }
 
 type PublishAuthorizer interface {
@@ -102,6 +103,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	if sessionTTL <= 0 {
 		sessionTTL = 30 * 24 * time.Hour
 	}
+	adminGitHubLogins := normalizedStringSet(options.AdminGitHubLogins)
 
 	mux.HandleFunc("GET /registry-api/v1/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -210,6 +212,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid registry browser session is required"})
 			return
 		}
+		sessionContext.Admin = browserSessionIsRegistryAdmin(sessionContext, adminGitHubLogins)
 		writeJSON(w, http.StatusOK, map[string]any{"session": sessionContext})
 	})
 
@@ -329,7 +332,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/namespaces", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -346,7 +349,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/publishers", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -363,7 +366,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/artifacts", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -380,7 +383,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("PATCH /registry-api/v1/admin/namespaces/{namespace...}", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -410,7 +413,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("PATCH /registry-api/v1/admin/publishers/{publisherID}/status", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -440,7 +443,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("PATCH /registry-api/v1/admin/artifact-status/{artifactKind}/{artifactID...}", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -470,7 +473,7 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	})
 
 	mux.HandleFunc("POST /registry-api/v1/admin/artifact-transfer/{artifactKind}/{artifactID...}", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRegistryAdminRequest(w, r, options.AdminToken) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
 		}
 		adminStore, ok := store.(NamespaceAdminStore)
@@ -950,18 +953,42 @@ func authorizedLegacyPublishToken(token string, configuredToken string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) == 1
 }
 
-func authorizeRegistryAdminRequest(w http.ResponseWriter, r *http.Request, configuredToken string) bool {
+func authorizeRegistryAdminRequest(w http.ResponseWriter, r *http.Request, store Store, configuredToken string, adminGitHubLogins map[string]bool) bool {
 	configuredToken = strings.TrimSpace(configuredToken)
-	if configuredToken == "" {
-		writeJSON(w, http.StatusForbidden, map[string]any{"error": "registry admin token is not configured"})
-		return false
-	}
 	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) != 1 {
-		writeJSON(w, http.StatusForbidden, map[string]any{"error": "valid registry admin bearer token is required"})
+	if configuredToken != "" && token != "" && subtle.ConstantTimeCompare([]byte(token), []byte(configuredToken)) == 1 {
+		return true
+	}
+	sessionStore, sessionStoreOK := store.(BrowserSessionStore)
+	sessionToken, sessionTokenOK := browserSessionToken(r)
+	if sessionStoreOK && sessionTokenOK {
+		sessionContext, err := sessionStore.AuthenticateBrowserSession(r.Context(), sessionToken)
+		if err == nil && browserSessionIsRegistryAdmin(sessionContext, adminGitHubLogins) {
+			return true
+		}
+	}
+	if len(adminGitHubLogins) == 0 && configuredToken == "" {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "registry admin auth is not configured"})
 		return false
 	}
-	return true
+	writeJSON(w, http.StatusForbidden, map[string]any{"error": "valid registry admin session or bearer token is required"})
+	return false
+}
+
+func browserSessionIsRegistryAdmin(sessionContext RegistryBrowserSessionContext, adminGitHubLogins map[string]bool) bool {
+	login := strings.ToLower(strings.TrimSpace(sessionContext.User.GitHubLogin))
+	return login != "" && adminGitHubLogins[login]
+}
+
+func normalizedStringSet(values []string) map[string]bool {
+	result := map[string]bool{}
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			result[value] = true
+		}
+	}
+	return result
 }
 
 func withCORS(next http.Handler) http.Handler {

@@ -209,6 +209,16 @@ pre {
   justify-content: space-between;
 }
 
+.card-heading {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.card-heading > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .toolbar {
   align-items: flex-end;
   margin-bottom: 1rem;
@@ -314,7 +324,9 @@ pre {
   border: 1px solid rgba(29, 29, 27, 0.12);
   border-radius: 999px;
   padding: 0.2rem 0.55rem;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -855,6 +867,26 @@ pre {
 
 .publisher-token-form {
   min-width: min(100%, 22rem);
+}
+
+.advanced-auth-panel {
+  border-top: 1px solid rgba(29, 29, 27, 0.08);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.advanced-auth-panel summary {
+  cursor: pointer;
+  color: #5c5649;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.advanced-auth-panel[open] {
+  display: grid;
+  gap: 0.65rem;
 }
 
 .form-field span,

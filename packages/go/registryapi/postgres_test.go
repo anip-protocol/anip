@@ -1126,6 +1126,95 @@ func TestPostgresGitHubOAuthRejectsStateMismatch(t *testing.T) {
 	}
 }
 
+func TestPostgresGitHubSessionCanAuthorizeAdminAllowlist(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		AdminGitHubLogins:   []string{"samir-labs"},
+		GitHubOAuthExchange: func(_ context.Context, _ string) (GitHubOAuthIdentity, error) {
+			return GitHubOAuthIdentity{
+				GitHubUserID: "12345",
+				Login:        "samir-labs",
+				DisplayName:  "Samir Labs",
+				Email:        "samir@example.com",
+			}, nil
+		},
+	})
+
+	sessionCookie := createGitHubSessionCookie(t, handler)
+
+	sessionReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/session", nil)
+	sessionReq.AddCookie(sessionCookie)
+	sessionRec := httptest.NewRecorder()
+	handler.ServeHTTP(sessionRec, sessionReq)
+	if sessionRec.Code != http.StatusOK {
+		t.Fatalf("expected session 200, got %d body=%s", sessionRec.Code, sessionRec.Body.String())
+	}
+	var sessionPayload struct {
+		Session RegistryBrowserSessionContext `json:"session"`
+	}
+	if err := json.Unmarshal(sessionRec.Body.Bytes(), &sessionPayload); err != nil {
+		t.Fatalf("decode session payload: %v", err)
+	}
+	if !sessionPayload.Session.Admin {
+		t.Fatalf("expected allowlisted session to include admin=true, got %+v", sessionPayload.Session)
+	}
+
+	adminReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/publishers", nil)
+	adminReq.AddCookie(sessionCookie)
+	adminRec := httptest.NewRecorder()
+	handler.ServeHTTP(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK {
+		t.Fatalf("expected allowlisted github session admin 200, got %d body=%s", adminRec.Code, adminRec.Body.String())
+	}
+}
+
+func TestPostgresGitHubSessionRejectsAdminWhenNotAllowlisted(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		AdminGitHubLogins:   []string{"other-admin"},
+		GitHubOAuthExchange: func(_ context.Context, _ string) (GitHubOAuthIdentity, error) {
+			return GitHubOAuthIdentity{
+				GitHubUserID: "12345",
+				Login:        "samir-labs",
+				DisplayName:  "Samir Labs",
+				Email:        "samir@example.com",
+			}, nil
+		},
+	})
+
+	sessionCookie := createGitHubSessionCookie(t, handler)
+
+	adminReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/publishers", nil)
+	adminReq.AddCookie(sessionCookie)
+	adminRec := httptest.NewRecorder()
+	handler.ServeHTTP(adminRec, adminReq)
+	if adminRec.Code != http.StatusForbidden {
+		t.Fatalf("expected non-allowlisted github session admin 403, got %d body=%s", adminRec.Code, adminRec.Body.String())
+	}
+}
+
+func createGitHubSessionCookie(t *testing.T, handler http.Handler) *http.Cookie {
+	t.Helper()
+	startReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/start", nil)
+	startRec := httptest.NewRecorder()
+	handler.ServeHTTP(startRec, startReq)
+	if startRec.Code != http.StatusFound {
+		t.Fatalf("expected github start redirect 302, got %d body=%s", startRec.Code, startRec.Body.String())
+	}
+	stateCookie := findCookie(t, startRec.Result().Cookies(), registryOAuthStateCookieName)
+
+	callbackReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/callback?code=valid-code&state="+url.QueryEscape(stateCookie.Value), nil)
+	callbackReq.AddCookie(stateCookie)
+	callbackRec := httptest.NewRecorder()
+	handler.ServeHTTP(callbackRec, callbackReq)
+	if callbackRec.Code != http.StatusFound {
+		t.Fatalf("expected callback redirect 302, got %d body=%s", callbackRec.Code, callbackRec.Body.String())
+	}
+	return findCookie(t, callbackRec.Result().Cookies(), registrySessionCookieName)
+}
+
 func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie {
 	t.Helper()
 	for _, cookie := range cookies {

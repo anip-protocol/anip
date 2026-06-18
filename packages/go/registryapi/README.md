@@ -143,6 +143,7 @@ ANIP_REGISTRY_PUBLIC_BASE_URL=https://registry.example.com
 ANIP_REGISTRY_GITHUB_CLIENT_ID=<github-oauth-client-id>
 ANIP_REGISTRY_GITHUB_CLIENT_SECRET=<github-oauth-client-secret>
 ANIP_REGISTRY_SESSION_COOKIE_SECURE=true
+ANIP_REGISTRY_ADMIN_GITHUB_LOGINS=samir-latifi,another-admin
 ```
 
 The GitHub OAuth callback must be registered as:
@@ -152,6 +153,7 @@ https://registry.example.com/registry-api/v1/auth/github/callback
 ```
 
 OAuth sessions create or link an individual unverified publisher account and can use the `/me/*` publisher-management APIs from the browser. Package/template publication still requires explicit scoped publish tokens.
+Registry admin APIs accept an OAuth browser session only when the signed-in GitHub login is listed in `ANIP_REGISTRY_ADMIN_GITHUB_LOGINS`. The configured `ANIP_REGISTRY_ADMIN_TOKEN` remains supported as a bootstrap or emergency fallback.
 
 ```bash
 curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \

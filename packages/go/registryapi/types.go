@@ -25,6 +25,7 @@ type RegistryBrowserSessionContext struct {
 	User      RegistryUser               `json:"user"`
 	Publisher *RegistryPublisher         `json:"publisher,omitempty"`
 	Scopes    RegistryPublishTokenScopes `json:"scopes"`
+	Admin     bool                       `json:"admin,omitempty"`
 }
 
 type PublicationSummary struct {

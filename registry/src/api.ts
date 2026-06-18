@@ -64,6 +64,7 @@ export interface RegistryBrowserSessionContext {
   user: RegistryUser
   publisher?: RegistryPublisher
   scopes: RegistryPublishTokenScopes
+  admin?: boolean
 }
 
 export interface RegistryPublishTokenSummary {
@@ -355,21 +356,21 @@ export async function revokeMyToken(token: string | null, tokenId: string): Prom
   return payload.token
 }
 
-export async function listAdminNamespaces(token: string): Promise<RegistryNamespaceSummary[]> {
+export async function listAdminNamespaces(token: string | null): Promise<RegistryNamespaceSummary[]> {
   const payload = await api<{ items: RegistryNamespaceSummary[] }>('/admin/namespaces', {
     headers: authHeaders(token),
   })
   return payload.items
 }
 
-export async function listAdminPublishers(token: string): Promise<RegistryPublisher[]> {
+export async function listAdminPublishers(token: string | null): Promise<RegistryPublisher[]> {
   const payload = await api<{ items: RegistryPublisher[] }>('/admin/publishers', {
     headers: authHeaders(token),
   })
   return payload.items
 }
 
-export async function listAdminArtifacts(token: string): Promise<PublisherArtifactSummary[]> {
+export async function listAdminArtifacts(token: string | null): Promise<PublisherArtifactSummary[]> {
   const payload = await api<{ items: PublisherArtifactSummary[] }>('/admin/artifacts', {
     headers: authHeaders(token),
   })
@@ -377,7 +378,7 @@ export async function listAdminArtifacts(token: string): Promise<PublisherArtifa
 }
 
 export async function updateAdminNamespaceStatus(
-  token: string,
+  token: string | null,
   namespace: string,
   request: UpdateNamespaceStatusRequest,
 ): Promise<RegistryNamespaceSummary> {
@@ -390,7 +391,7 @@ export async function updateAdminNamespaceStatus(
 }
 
 export async function updateAdminPublisherStatus(
-  token: string,
+  token: string | null,
   publisherId: string,
   request: UpdatePublisherStatusRequest,
 ): Promise<RegistryPublisher> {
@@ -403,7 +404,7 @@ export async function updateAdminPublisherStatus(
 }
 
 export async function updateAdminArtifactStatus(
-  token: string,
+  token: string | null,
   artifactKind: string,
   artifactId: string,
   request: UpdateArtifactOwnershipStatusRequest,
@@ -420,7 +421,7 @@ export async function updateAdminArtifactStatus(
 }
 
 export async function transferAdminArtifactOwnership(
-  token: string,
+  token: string | null,
   artifactKind: string,
   artifactId: string,
   request: TransferArtifactOwnershipRequest,
