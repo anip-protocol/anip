@@ -109,6 +109,7 @@ func main() {
 		GitHubOAuthClientID:             os.Getenv("ANIP_REGISTRY_GITHUB_CLIENT_ID"),
 		GitHubOAuthClientSecret:         os.Getenv("ANIP_REGISTRY_GITHUB_CLIENT_SECRET"),
 		SessionCookieSecure:             envBoolDefault("ANIP_REGISTRY_SESSION_COOKIE_SECURE", false),
+		AdminGitHubLogins:               envCSVDefault("ANIP_REGISTRY_ADMIN_GITHUB_LOGINS", nil),
 		Logger:                          logger,
 	}))
 	if uiDir := resolveRegistryUIDir(); uiDir != "" {

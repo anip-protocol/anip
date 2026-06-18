@@ -1,23 +1,28 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
+  getRegistryAuthSession,
+  githubAuthStartURL,
   listAdminArtifacts,
   listAdminNamespaces,
   listAdminPublishers,
+  logoutRegistryAuthSession,
   transferAdminArtifactOwnership,
   updateAdminArtifactStatus,
   updateAdminNamespaceStatus,
   updateAdminPublisherStatus,
   type PublisherArtifactSummary,
+  type RegistryBrowserSessionContext,
   type RegistryNamespaceSummary,
   type RegistryPublisher,
 } from '../api'
 import { formatRegistryTimestamp } from '../datetime'
 
-const STORAGE_KEY = 'anip_registry_admin_token'
+const SESSION_SENTINEL = '__browser_session__'
 
 const tokenInput = ref('')
 const activeToken = ref('')
+const browserSession = ref<RegistryBrowserSessionContext | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const success = ref<string | null>(null)
@@ -31,6 +36,9 @@ const artifactActions = reactive<Record<string, { status: string; reason: string
 const artifactTransferActions = reactive<Record<string, { targetPublisherId: string; targetNamespace: string; reason: string }>>({})
 
 const hasActiveToken = computed(() => activeToken.value.trim() !== '')
+const usingBrowserSession = computed(() => activeToken.value === SESSION_SENTINEL)
+const activeCredential = computed(() => (usingBrowserSession.value ? null : activeToken.value))
+const signedInButNotAdmin = computed(() => Boolean(browserSession.value?.user && !browserSession.value.admin && !hasActiveToken.value))
 const pendingNamespaces = computed(() => namespaces.value.filter((namespace) => namespace.status === 'pending_verification'))
 const suspendedPublishers = computed(() => publishers.value.filter((publisher) => publisher.status === 'suspended'))
 const suspendedArtifacts = computed(() => artifacts.value.filter((artifact) => artifact.status === 'suspended'))
@@ -102,7 +110,7 @@ function syncActionDefaults(): void {
   })
 }
 
-async function loadAdminState(token: string): Promise<void> {
+async function loadAdminState(token: string | null, source: 'token' | 'session'): Promise<void> {
   loading.value = true
   error.value = null
   success.value = null
@@ -112,13 +120,14 @@ async function loadAdminState(token: string): Promise<void> {
       listAdminPublishers(token),
       listAdminArtifacts(token),
     ])
-    activeToken.value = token
-    tokenInput.value = token
+    activeToken.value = source === 'session' ? SESSION_SENTINEL : token || ''
+    if (source === 'token') {
+      tokenInput.value = token || ''
+    }
     namespaces.value = namespaceResult
     publishers.value = publisherResult
     artifacts.value = artifactResult
     syncActionDefaults()
-    localStorage.setItem(STORAGE_KEY, token)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -132,23 +141,27 @@ async function connect(): Promise<void> {
     error.value = 'Paste the Registry admin token first.'
     return
   }
-  await loadAdminState(token)
+  browserSession.value = null
+  await loadAdminState(token, 'token')
 }
 
-function disconnect(): void {
+async function disconnect(): Promise<void> {
+  if (usingBrowserSession.value) {
+    await logoutRegistryAuthSession().catch(() => undefined)
+  }
   activeToken.value = ''
   tokenInput.value = ''
+  browserSession.value = null
   namespaces.value = []
   publishers.value = []
   artifacts.value = []
   error.value = null
   success.value = null
-  localStorage.removeItem(STORAGE_KEY)
 }
 
 async function refresh(): Promise<void> {
   if (!hasActiveToken.value) return
-  await loadAdminState(activeToken.value)
+  await loadAdminState(activeCredential.value, usingBrowserSession.value ? 'session' : 'token')
 }
 
 async function updateNamespace(namespace: RegistryNamespaceSummary): Promise<void> {
@@ -157,7 +170,7 @@ async function updateNamespace(namespace: RegistryNamespaceSummary): Promise<voi
   success.value = null
   const action = ensureNamespaceAction(namespace)
   try {
-    await updateAdminNamespaceStatus(activeToken.value, namespace.namespace, {
+    await updateAdminNamespaceStatus(activeCredential.value, namespace.namespace, {
       status: action.status,
       reason: action.reason.trim() || undefined,
     })
@@ -175,7 +188,7 @@ async function updatePublisher(publisher: RegistryPublisher): Promise<void> {
   success.value = null
   const action = ensurePublisherAction(publisher)
   try {
-    await updateAdminPublisherStatus(activeToken.value, publisher.publisher_id, {
+    await updateAdminPublisherStatus(activeCredential.value, publisher.publisher_id, {
       status: action.status,
       trust_level: action.trustLevel,
       reason: action.reason.trim() || undefined,
@@ -194,7 +207,7 @@ async function updateArtifact(artifact: PublisherArtifactSummary): Promise<void>
   success.value = null
   const action = ensureArtifactAction(artifact)
   try {
-    await updateAdminArtifactStatus(activeToken.value, artifact.artifact_kind, artifact.artifact_id, {
+    await updateAdminArtifactStatus(activeCredential.value, artifact.artifact_kind, artifact.artifact_id, {
       status: action.status,
       reason: action.reason.trim() || undefined,
     })
@@ -212,7 +225,7 @@ async function transferArtifact(artifact: PublisherArtifactSummary): Promise<voi
   success.value = null
   const action = ensureArtifactTransferAction(artifact)
   try {
-    await transferAdminArtifactOwnership(activeToken.value, artifact.artifact_kind, artifact.artifact_id, {
+    await transferAdminArtifactOwnership(activeCredential.value, artifact.artifact_kind, artifact.artifact_id, {
       target_publisher_id: action.targetPublisherId.trim(),
       target_namespace: action.targetNamespace.trim(),
       reason: action.reason.trim() || undefined,
@@ -227,11 +240,10 @@ async function transferArtifact(artifact: PublisherArtifactSummary): Promise<voi
   }
 }
 
-onMounted(() => {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved) {
-    tokenInput.value = saved
-    void loadAdminState(saved)
+onMounted(async () => {
+  browserSession.value = await getRegistryAuthSession()
+  if (browserSession.value?.admin) {
+    await loadAdminState(null, 'session')
   }
 })
 </script>
@@ -240,31 +252,41 @@ onMounted(() => {
   <section class="page">
     <div class="page-header">
       <h1>Registry Admin</h1>
-      <p>Moderate namespace verification, publisher status, and package or template ownership. This page uses the configured Registry admin bearer token locally in your browser.</p>
+      <p>Moderate namespace verification, publisher status, and package or template ownership. GitHub admin sessions are the primary browser path; bearer tokens are only a bootstrap fallback.</p>
     </div>
 
     <section class="hero-panel publisher-auth-panel">
       <div>
         <span class="eyebrow">Admin Moderation</span>
-        <h2>Connect with the admin token</h2>
-        <p>The admin token is configured server-side through <code>ANIP_REGISTRY_ADMIN_TOKEN</code>. The UI never creates an admin session.</p>
+        <h2>Sign in with GitHub</h2>
+        <p>Admin access requires the signed-in GitHub login to be listed in <code>ANIP_REGISTRY_ADMIN_GITHUB_LOGINS</code>.</p>
       </div>
       <div class="publisher-token-form">
-        <label class="form-field">
-          <span>Admin bearer token</span>
-          <input v-model="tokenInput" type="password" autocomplete="off" placeholder="admin token" />
-        </label>
-        <div class="action-row">
-          <button class="artifact-action" type="button" :disabled="loading" @click="connect">
-            {{ loading ? 'Connecting…' : 'Connect' }}
-          </button>
-          <button v-if="hasActiveToken" class="artifact-action secondary" type="button" :disabled="loading" @click="refresh">
-            Refresh
-          </button>
-          <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
-            Disconnect
-          </button>
-        </div>
+        <a class="artifact-action github-login-link" :href="githubAuthStartURL()">Sign in with GitHub</a>
+        <p v-if="browserSession?.user" class="tooling-note">
+          Signed in as {{ browserSession.user.display_name }}
+          <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
+        </p>
+        <p v-if="signedInButNotAdmin" class="warning-note">This GitHub account is signed in but is not configured as a Registry admin.</p>
+        <button v-if="hasActiveToken" class="artifact-action secondary" type="button" :disabled="loading" @click="refresh">
+          Refresh
+        </button>
+        <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
+          {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
+        </button>
+        <details class="advanced-auth-panel">
+          <summary>Advanced: connect with bootstrap admin token</summary>
+          <p class="tooling-note">Use this only for initial setup or emergency recovery. Tokens are not stored by the browser UI.</p>
+          <label class="form-field">
+            <span>Admin bearer token</span>
+            <input v-model="tokenInput" type="password" autocomplete="off" placeholder="admin token" :disabled="usingBrowserSession" />
+          </label>
+          <div class="action-row">
+            <button class="artifact-action" type="button" :disabled="loading || usingBrowserSession" @click="connect">
+              {{ loading ? 'Connecting…' : 'Connect token' }}
+            </button>
+          </div>
+        </details>
       </div>
     </section>
 
