@@ -229,6 +229,22 @@ curl -X PATCH \
   https://registry.anip.dev/registry-api/v1/admin/artifact-status/package/anip/some-package
 ```
 
+Transfer current package/template ownership to another active publisher namespace:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_publisher_id": "anip-labs",
+    "target_namespace": "anip-labs",
+    "reason": "maintainer handoff"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/artifact-transfer/package/anip/some-package
+```
+
+Transfer requires an existing artifact ownership row, an active target publisher, and an active target namespace owned by that publisher that supports the artifact kind. The Registry keeps a single current ownership row per artifact and records the previous owner, previous namespace, target owner, target namespace, and reason in the audit log.
+
 Supported publisher statuses are `active`, `pending_review`, and `suspended`; suspended publishers cannot use scoped publisher tokens. Supported artifact ownership statuses are `active`, `transferred`, and `suspended`; suspended ownership blocks publishing new package/template versions for that artifact id.
 
 Create a scoped token:

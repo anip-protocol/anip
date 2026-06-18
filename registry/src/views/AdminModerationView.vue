@@ -4,6 +4,7 @@ import {
   listAdminArtifacts,
   listAdminNamespaces,
   listAdminPublishers,
+  transferAdminArtifactOwnership,
   updateAdminArtifactStatus,
   updateAdminNamespaceStatus,
   updateAdminPublisherStatus,
@@ -27,11 +28,14 @@ const artifacts = ref<PublisherArtifactSummary[]>([])
 const namespaceActions = reactive<Record<string, { status: string; reason: string }>>({})
 const publisherActions = reactive<Record<string, { status: string; trustLevel: string; reason: string }>>({})
 const artifactActions = reactive<Record<string, { status: string; reason: string }>>({})
+const artifactTransferActions = reactive<Record<string, { targetPublisherId: string; targetNamespace: string; reason: string }>>({})
 
 const hasActiveToken = computed(() => activeToken.value.trim() !== '')
 const pendingNamespaces = computed(() => namespaces.value.filter((namespace) => namespace.status === 'pending_verification'))
 const suspendedPublishers = computed(() => publishers.value.filter((publisher) => publisher.status === 'suspended'))
 const suspendedArtifacts = computed(() => artifacts.value.filter((artifact) => artifact.status === 'suspended'))
+const activePublishers = computed(() => publishers.value.filter((publisher) => publisher.status === 'active'))
+const activeNamespaces = computed(() => namespaces.value.filter((namespace) => namespace.status === 'active'))
 
 function artifactKey(artifact: PublisherArtifactSummary): string {
   return `${artifact.artifact_kind}:${artifact.artifact_id}`
@@ -69,6 +73,18 @@ function ensureArtifactAction(artifact: PublisherArtifactSummary): { status: str
   return artifactActions[key]
 }
 
+function ensureArtifactTransferAction(artifact: PublisherArtifactSummary): { targetPublisherId: string; targetNamespace: string; reason: string } {
+  const key = artifactKey(artifact)
+  if (!artifactTransferActions[key]) {
+    artifactTransferActions[key] = {
+      targetPublisherId: '',
+      targetNamespace: '',
+      reason: '',
+    }
+  }
+  return artifactTransferActions[key]
+}
+
 function syncActionDefaults(): void {
   namespaces.value.forEach((namespace) => {
     const action = ensureNamespaceAction(namespace)
@@ -82,6 +98,7 @@ function syncActionDefaults(): void {
   artifacts.value.forEach((artifact) => {
     const action = ensureArtifactAction(artifact)
     action.status = artifact.status
+    ensureArtifactTransferAction(artifact)
   })
 }
 
@@ -183,6 +200,27 @@ async function updateArtifact(artifact: PublisherArtifactSummary): Promise<void>
     })
     action.reason = ''
     success.value = `${artifact.artifact_kind} ${artifact.artifact_id} updated.`
+    await refresh()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function transferArtifact(artifact: PublisherArtifactSummary): Promise<void> {
+  if (!activeToken.value) return
+  error.value = null
+  success.value = null
+  const action = ensureArtifactTransferAction(artifact)
+  try {
+    await transferAdminArtifactOwnership(activeToken.value, artifact.artifact_kind, artifact.artifact_id, {
+      target_publisher_id: action.targetPublisherId.trim(),
+      target_namespace: action.targetNamespace.trim(),
+      reason: action.reason.trim() || undefined,
+    })
+    action.targetPublisherId = ''
+    action.targetNamespace = ''
+    action.reason = ''
+    success.value = `${artifact.artifact_kind} ${artifact.artifact_id} transferred.`
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -327,7 +365,7 @@ onMounted(() => {
 
         <article class="panel full-width-panel">
           <h2>Artifact Ownership Moderation</h2>
-          <p class="tooling-note">Suspend package or template ownership to block new versions while keeping the audit trail explicit.</p>
+          <p class="tooling-note">Suspend package or template ownership to block new versions, or transfer current ownership to another active publisher namespace while keeping the audit trail explicit.</p>
           <p v-if="artifacts.length === 0" class="empty-state">No package or template ownership records found.</p>
           <div v-else class="admin-table">
             <div v-for="artifact in artifacts" :key="artifactKey(artifact)" class="admin-row">
@@ -350,6 +388,39 @@ onMounted(() => {
                   <input v-model="ensureArtifactAction(artifact).reason" placeholder="audit reason" />
                 </label>
                 <button class="artifact-action" type="submit" :disabled="loading">Update</button>
+              </form>
+              <form class="admin-action-form transfer-form" @submit.prevent="transferArtifact(artifact)">
+                <label class="form-field">
+                  <span>Transfer to publisher</span>
+                  <select v-model="ensureArtifactTransferAction(artifact).targetPublisherId" required>
+                    <option value="" disabled>Select publisher</option>
+                    <option
+                      v-for="publisher in activePublishers"
+                      :key="publisher.publisher_id"
+                      :value="publisher.publisher_id"
+                    >
+                      {{ publisher.publisher_id }} · {{ publisher.trust_level }}
+                    </option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Target namespace</span>
+                  <select v-model="ensureArtifactTransferAction(artifact).targetNamespace" required>
+                    <option value="" disabled>Select namespace</option>
+                    <option
+                      v-for="namespace in activeNamespaces"
+                      :key="namespace.namespace"
+                      :value="namespace.namespace"
+                    >
+                      {{ namespace.namespace }} · {{ namespace.publisher_id }} · {{ namespace.artifact_kinds.join(', ') }}
+                    </option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Transfer reason</span>
+                  <input v-model="ensureArtifactTransferAction(artifact).reason" required placeholder="audit reason" />
+                </label>
+                <button class="artifact-action secondary" type="submit" :disabled="loading">Transfer</button>
               </form>
             </div>
           </div>
