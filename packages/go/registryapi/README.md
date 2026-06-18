@@ -136,6 +136,23 @@ The bootstrap is idempotent. It creates the official `anip` publisher and namesp
 
 Scoped publisher tokens can inspect publisher state, owned artifacts, namespaces, and additional publish tokens for the same publisher. Token management requires the `manage:tokens` operation in the caller token scopes. Publisher profile and namespace changes require `manage:publisher`.
 
+Browser users can also sign in through GitHub OAuth when the registry is configured with:
+
+```bash
+ANIP_REGISTRY_PUBLIC_BASE_URL=https://registry.example.com
+ANIP_REGISTRY_GITHUB_CLIENT_ID=<github-oauth-client-id>
+ANIP_REGISTRY_GITHUB_CLIENT_SECRET=<github-oauth-client-secret>
+ANIP_REGISTRY_SESSION_COOKIE_SECURE=true
+```
+
+The GitHub OAuth callback must be registered as:
+
+```text
+https://registry.example.com/registry-api/v1/auth/github/callback
+```
+
+OAuth sessions create or link an individual unverified publisher account and can use the `/me/*` publisher-management APIs from the browser. Package/template publication still requires explicit scoped publish tokens.
+
 ```bash
 curl -H "Authorization: Bearer $ANIP_REGISTRY_TOKEN" \
   https://registry.anip.dev/registry-api/v1/me/publisher

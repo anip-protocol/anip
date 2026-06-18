@@ -105,6 +105,10 @@ func main() {
 		LegacyGlobalPublishTokenEnabled: legacyGlobalPublishEnabled,
 		PublisherID:                     firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_ID"), "studio-local"),
 		PublisherType:                   firstNonEmpty(os.Getenv("ANIP_REGISTRY_PUBLISHER_TYPE"), "studio"),
+		PublicBaseURL:                   os.Getenv("ANIP_REGISTRY_PUBLIC_BASE_URL"),
+		GitHubOAuthClientID:             os.Getenv("ANIP_REGISTRY_GITHUB_CLIENT_ID"),
+		GitHubOAuthClientSecret:         os.Getenv("ANIP_REGISTRY_GITHUB_CLIENT_SECRET"),
+		SessionCookieSecure:             envBoolDefault("ANIP_REGISTRY_SESSION_COOKIE_SECURE", false),
 		Logger:                          logger,
 	}))
 	if uiDir := resolveRegistryUIDir(); uiDir != "" {

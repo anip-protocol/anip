@@ -2,9 +2,11 @@ package registryapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"testing"
@@ -28,7 +30,7 @@ func newRegistryPostgresStore(t *testing.T) *PostgresStore {
 
 	if _, err := store.pool.Exec(t.Context(), `
 		TRUNCATE registry_audit_events, registry_artifact_ownership, registry_publish_tokens,
-		         registry_namespaces, registry_publisher_memberships, registry_publishers,
+		         registry_browser_sessions, registry_namespaces, registry_publisher_memberships, registry_publishers,
 		         registry_users, registry_receipts, registry_packages, published_lineages,
 		         registry_templates
 	`); err != nil {
@@ -1020,6 +1022,119 @@ func TestPostgresAdminArtifactOwnershipTransferRejectsInvalidTargetNamespace(t *
 	if transferRec.Code != http.StatusBadRequest {
 		t.Fatalf("expected invalid namespace transfer 400, got %d body=%s", transferRec.Code, transferRec.Body.String())
 	}
+}
+
+func TestPostgresGitHubOAuthCreatesPublisherSession(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		GitHubOAuthExchange: func(_ context.Context, code string) (GitHubOAuthIdentity, error) {
+			if code != "valid-code" {
+				t.Fatalf("unexpected oauth code %q", code)
+			}
+			return GitHubOAuthIdentity{
+				GitHubUserID: "12345",
+				Login:        "samir-labs",
+				DisplayName:  "Samir Labs",
+				Email:        "samir@example.com",
+				AvatarURL:    "https://avatars.example.com/samir.png",
+				ProfileURL:   "https://github.com/samir-labs",
+			}, nil
+		},
+	})
+
+	startReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/start", nil)
+	startRec := httptest.NewRecorder()
+	handler.ServeHTTP(startRec, startReq)
+	if startRec.Code != http.StatusFound {
+		t.Fatalf("expected github start redirect 302, got %d body=%s", startRec.Code, startRec.Body.String())
+	}
+	stateCookie := findCookie(t, startRec.Result().Cookies(), registryOAuthStateCookieName)
+	redirectURL, err := url.Parse(startRec.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse github redirect: %v", err)
+	}
+	if redirectURL.Host != "github.com" || redirectURL.Query().Get("client_id") != "test-client" {
+		t.Fatalf("unexpected github redirect %q", redirectURL.String())
+	}
+	if redirectURL.Query().Get("state") != stateCookie.Value {
+		t.Fatalf("redirect state does not match state cookie")
+	}
+
+	callbackReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/callback?code=valid-code&state="+url.QueryEscape(stateCookie.Value), nil)
+	callbackReq.AddCookie(stateCookie)
+	callbackRec := httptest.NewRecorder()
+	handler.ServeHTTP(callbackRec, callbackReq)
+	if callbackRec.Code != http.StatusFound {
+		t.Fatalf("expected callback redirect 302, got %d body=%s", callbackRec.Code, callbackRec.Body.String())
+	}
+	sessionCookie := findCookie(t, callbackRec.Result().Cookies(), registrySessionCookieName)
+	if sessionCookie.Value == "" || !sessionCookie.HttpOnly {
+		t.Fatalf("expected non-empty HttpOnly session cookie, got %+v", sessionCookie)
+	}
+
+	sessionReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/session", nil)
+	sessionReq.AddCookie(sessionCookie)
+	sessionRec := httptest.NewRecorder()
+	handler.ServeHTTP(sessionRec, sessionReq)
+	if sessionRec.Code != http.StatusOK {
+		t.Fatalf("expected session 200, got %d body=%s", sessionRec.Code, sessionRec.Body.String())
+	}
+	var sessionPayload struct {
+		Session RegistryBrowserSessionContext `json:"session"`
+	}
+	if err := json.Unmarshal(sessionRec.Body.Bytes(), &sessionPayload); err != nil {
+		t.Fatalf("decode session payload: %v", err)
+	}
+	if sessionPayload.Session.User.GitHubLogin != "samir-labs" {
+		t.Fatalf("unexpected session user %+v", sessionPayload.Session.User)
+	}
+	if sessionPayload.Session.Publisher == nil || sessionPayload.Session.Publisher.PublisherID != "samir-labs" {
+		t.Fatalf("expected auto-created publisher membership, got %+v", sessionPayload.Session.Publisher)
+	}
+
+	publisherReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/me/publisher", nil)
+	publisherReq.AddCookie(sessionCookie)
+	publisherRec := httptest.NewRecorder()
+	handler.ServeHTTP(publisherRec, publisherReq)
+	if publisherRec.Code != http.StatusOK {
+		t.Fatalf("expected session-backed publisher console 200, got %d body=%s", publisherRec.Code, publisherRec.Body.String())
+	}
+}
+
+func TestPostgresGitHubOAuthRejectsStateMismatch(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		GitHubOAuthExchange: func(_ context.Context, _ string) (GitHubOAuthIdentity, error) {
+			t.Fatal("oauth exchange should not run on state mismatch")
+			return GitHubOAuthIdentity{}, nil
+		},
+	})
+
+	startReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/start", nil)
+	startRec := httptest.NewRecorder()
+	handler.ServeHTTP(startRec, startReq)
+	stateCookie := findCookie(t, startRec.Result().Cookies(), registryOAuthStateCookieName)
+
+	callbackReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/callback?code=valid-code&state=wrong-state", nil)
+	callbackReq.AddCookie(stateCookie)
+	callbackRec := httptest.NewRecorder()
+	handler.ServeHTTP(callbackRec, callbackReq)
+	if callbackRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected state mismatch 400, got %d body=%s", callbackRec.Code, callbackRec.Body.String())
+	}
+}
+
+func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie {
+	t.Helper()
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	t.Fatalf("cookie %q not found in %+v", name, cookies)
+	return nil
 }
 
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {

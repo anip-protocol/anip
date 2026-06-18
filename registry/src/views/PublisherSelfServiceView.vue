@@ -2,14 +2,18 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   createMyToken,
+  getRegistryAuthSession,
+  githubAuthStartURL,
   getMyPublisherContext,
   listMyNamespaces,
   listMyArtifacts,
   listMyTokens,
+  logoutRegistryAuthSession,
   createMyNamespace,
   revokeMyToken,
   updateMyPublisher,
   type CreatePublishTokenResult,
+  type RegistryBrowserSessionContext,
   type PublisherArtifactSummary,
   type RegistryNamespaceSummary,
   type RegistryPublishTokenScopes,
@@ -19,9 +23,11 @@ import {
 import { formatRegistryTimestamp } from '../datetime'
 
 const STORAGE_KEY = 'anip_registry_publisher_token'
+const SESSION_SENTINEL = '__browser_session__'
 
 const tokenInput = ref('')
 const activeToken = ref('')
+const browserSession = ref<RegistryBrowserSessionContext | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const createdToken = ref<CreatePublishTokenResult | null>(null)
@@ -52,6 +58,8 @@ const createForm = reactive({
 })
 
 const hasActiveToken = computed(() => activeToken.value.trim() !== '')
+const usingBrowserSession = computed(() => activeToken.value === SESSION_SENTINEL)
+const activeCredential = computed(() => (usingBrowserSession.value ? null : activeToken.value))
 const canManageTokens = computed(() => tokenManagementAllowed.value)
 const canManagePublisher = computed(() => publisherManagementAllowed.value)
 const activeArtifacts = computed(() => artifacts.value.filter((artifact) => artifact.status === 'active'))
@@ -112,7 +120,7 @@ function syncProfileForm(value: RegistryPublisher): void {
   profileForm.websiteUrl = value.website_url
 }
 
-async function loadPublisherState(token: string): Promise<void> {
+async function loadPublisherState(token: string | null, source: 'token' | 'session'): Promise<void> {
   loading.value = true
   error.value = null
   createdToken.value = null
@@ -122,14 +130,16 @@ async function loadPublisherState(token: string): Promise<void> {
       getMyPublisherContext(token),
       listMyArtifacts(token),
     ])
-    activeToken.value = token
-    tokenInput.value = token
+    activeToken.value = source === 'session' ? SESSION_SENTINEL : token || ''
+    if (source === 'token') {
+      tokenInput.value = token || ''
+      localStorage.setItem(STORAGE_KEY, token || '')
+    }
     publisher.value = publisherContext.publisher
     syncProfileForm(publisherContext.publisher)
     artifacts.value = artifactResult
     tokenManagementAllowed.value = hasOperation(publisherContext.scopes, 'manage:tokens')
     publisherManagementAllowed.value = hasOperation(publisherContext.scopes, 'manage:publisher')
-    localStorage.setItem(STORAGE_KEY, token)
     try {
       namespaces.value = await listMyNamespaces(token)
     } catch {
@@ -160,12 +170,17 @@ async function connect(): Promise<void> {
     error.value = 'Paste a scoped publisher token first.'
     return
   }
-  await loadPublisherState(token)
+  browserSession.value = null
+  await loadPublisherState(token, 'token')
 }
 
-function disconnect(): void {
+async function disconnect(): Promise<void> {
+  if (usingBrowserSession.value) {
+    await logoutRegistryAuthSession().catch(() => undefined)
+  }
   activeToken.value = ''
   tokenInput.value = ''
+  browserSession.value = null
   publisher.value = null
   artifacts.value = []
   namespaces.value = []
@@ -180,14 +195,14 @@ function disconnect(): void {
 
 async function refresh(): Promise<void> {
   if (!hasActiveToken.value) return
-  await loadPublisherState(activeToken.value)
+  await loadPublisherState(activeCredential.value, usingBrowserSession.value ? 'session' : 'token')
 }
 
 async function updatePublisherProfile(): Promise<void> {
   if (!activeToken.value) return
   error.value = null
   try {
-    const updated = await updateMyPublisher(activeToken.value, {
+    const updated = await updateMyPublisher(activeCredential.value, {
       display_name: profileForm.displayName.trim(),
       description: profileForm.description.trim(),
       website_url: profileForm.websiteUrl.trim(),
@@ -203,12 +218,12 @@ async function createNamespace(): Promise<void> {
   if (!activeToken.value) return
   error.value = null
   try {
-    await createMyNamespace(activeToken.value, {
+    await createMyNamespace(activeCredential.value, {
       namespace: namespaceForm.namespace.trim(),
       artifact_kinds: [...namespaceForm.artifactKinds],
     })
     namespaceForm.namespace = ''
-    namespaces.value = await listMyNamespaces(activeToken.value)
+    namespaces.value = await listMyNamespaces(activeCredential.value)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -219,7 +234,7 @@ async function createToken(): Promise<void> {
   error.value = null
   createdToken.value = null
   try {
-    const result = await createMyToken(activeToken.value, {
+    const result = await createMyToken(activeCredential.value, {
       label: createForm.label.trim(),
       scopes: {
         operations: [...createForm.operations],
@@ -241,7 +256,7 @@ async function revokeToken(tokenId: string): Promise<void> {
   if (!activeToken.value || !tokenId) return
   error.value = null
   try {
-    await revokeMyToken(activeToken.value, tokenId)
+    await revokeMyToken(activeCredential.value, tokenId)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -267,11 +282,16 @@ function scopeText(token: RegistryPublishTokenSummary): string {
   return parts.join(' · ') || 'no scopes'
 }
 
-onMounted(() => {
+onMounted(async () => {
+  browserSession.value = await getRegistryAuthSession()
+  if (browserSession.value?.publisher) {
+    await loadPublisherState(null, 'session')
+    return
+  }
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved) {
     tokenInput.value = saved
-    void loadPublisherState(saved)
+    await loadPublisherState(saved, 'token')
   }
 })
 </script>
@@ -280,26 +300,31 @@ onMounted(() => {
   <section class="page">
     <div class="page-header">
       <h1>Publisher Console</h1>
-      <p>Manage publisher-owned artifacts and scoped publish tokens. This console uses a bearer token locally in your browser; it does not create a Registry account session.</p>
+      <p>Manage publisher-owned artifacts, namespaces, and scoped publish tokens. Sign in with GitHub for browser management, or paste a scoped token for automation-oriented access.</p>
     </div>
 
     <section class="hero-panel publisher-auth-panel">
       <div>
-        <span class="eyebrow">Scoped Publisher Access</span>
-        <h2>Connect with a publisher token</h2>
-        <p>Use a token that belongs to the publisher you want to manage. Token creation and revocation require the <code>manage:tokens</code> operation.</p>
+        <span class="eyebrow">Publisher Access</span>
+        <h2>Sign in or connect with a publisher token</h2>
+        <p>GitHub sign-in creates an individual unverified publisher account for browser management. Scoped tokens remain the right path for CLI publishing and release automation.</p>
       </div>
       <div class="publisher-token-form">
+        <a class="artifact-action github-login-link" :href="githubAuthStartURL()">Sign in with GitHub</a>
+        <p v-if="browserSession?.user" class="tooling-note">
+          Signed in as {{ browserSession.user.display_name }}
+          <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
+        </p>
         <label class="form-field">
           <span>Bearer token</span>
-          <input v-model="tokenInput" type="password" autocomplete="off" placeholder="anip_pat_…" />
+          <input v-model="tokenInput" type="password" autocomplete="off" placeholder="anip_pat_…" :disabled="usingBrowserSession" />
         </label>
         <div class="action-row">
-          <button class="artifact-action" type="button" :disabled="loading" @click="connect">
+          <button class="artifact-action" type="button" :disabled="loading || usingBrowserSession" @click="connect">
             {{ loading ? 'Connecting…' : 'Connect' }}
           </button>
           <button v-if="hasActiveToken" class="artifact-action secondary" type="button" @click="disconnect">
-            Disconnect
+            {{ usingBrowserSession ? 'Sign out' : 'Disconnect' }}
           </button>
         </div>
       </div>
