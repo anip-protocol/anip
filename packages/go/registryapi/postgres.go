@@ -1515,6 +1515,257 @@ func (s *PostgresStore) AuthorizePublish(ctx context.Context, token string, oper
 	return auth, nil
 }
 
+func (s *PostgresStore) CreateOrUpdateGitHubBrowserSession(ctx context.Context, identity GitHubOAuthIdentity, ttl time.Duration) (RegistryBrowserSessionContext, string, error) {
+	githubUserID := strings.TrimSpace(identity.GitHubUserID)
+	login := strings.TrimSpace(identity.Login)
+	displayName := strings.TrimSpace(identity.DisplayName)
+	if displayName == "" {
+		displayName = login
+	}
+	if githubUserID == "" || login == "" || displayName == "" {
+		return RegistryBrowserSessionContext{}, "", ErrInvalidPackage
+	}
+	if ttl <= 0 {
+		ttl = 30 * 24 * time.Hour
+	}
+	sessionID, err := randomUUIDString()
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	sessionSecret, err := randomTokenSecret()
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	userID, err := randomUUIDString()
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	user, err := scanRegistryUser(tx.QueryRow(ctx, `
+		INSERT INTO registry_users (
+			user_id, github_user_id, github_login, display_name, email, last_login_at
+		) VALUES (
+			$1::uuid, $2, $3, $4, $5, now()
+		)
+		ON CONFLICT (github_user_id) DO UPDATE
+		SET github_login = EXCLUDED.github_login,
+		    display_name = EXCLUDED.display_name,
+		    email = EXCLUDED.email,
+		    updated_at = now(),
+		    last_login_at = now()
+		RETURNING user_id::text, github_user_id, github_login, display_name, email, status, created_at, updated_at, last_login_at
+	`, userID, githubUserID, login, displayName, strings.TrimSpace(identity.Email)))
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	if user.Status != "active" {
+		return RegistryBrowserSessionContext{}, "", ErrUnauthorizedPublish
+	}
+
+	publisherID, err := s.ensureGitHubUserPublisher(ctx, tx, user, identity)
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_publisher_memberships (
+			publisher_id, user_id, role
+		) VALUES (
+			$1, $2::uuid, 'owner'
+		)
+		ON CONFLICT (publisher_id, user_id) DO UPDATE
+		SET role = 'owner',
+		    updated_at = now()
+	`, publisherID, user.UserID); err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_browser_sessions (
+			session_id, user_id, session_hash, expires_at
+		) VALUES (
+			$1::uuid, $2::uuid, $3, $4
+		)
+	`, sessionID, user.UserID, registrySessionSecretHash(sessionSecret), time.Now().UTC().Add(ttl)); err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+
+	sessionToken := registrySessionTokenPrefix + sessionID + "_" + sessionSecret
+	sessionContext, err := s.AuthenticateBrowserSession(ctx, sessionToken)
+	if err != nil {
+		return RegistryBrowserSessionContext{}, "", err
+	}
+	return sessionContext, sessionToken, nil
+}
+
+func (s *PostgresStore) ensureGitHubUserPublisher(ctx context.Context, tx pgx.Tx, user RegistryUser, identity GitHubOAuthIdentity) (string, error) {
+	publisherID := sanitizePublisherIDFromGitHubLogin(identity.Login, identity.GitHubUserID)
+	for attempt := 0; attempt < 2; attempt++ {
+		var existingCreatedBy sql.NullString
+		err := tx.QueryRow(ctx, `
+			SELECT created_by_user_id::text
+			FROM registry_publishers
+			WHERE publisher_id = $1
+		`, publisherID).Scan(&existingCreatedBy)
+		if err == pgx.ErrNoRows {
+			return publisherID, s.createGitHubUserPublisher(ctx, tx, publisherID, user, identity)
+		}
+		if err != nil {
+			return "", err
+		}
+		var membershipExists bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM registry_publisher_memberships
+				WHERE publisher_id = $1 AND user_id = $2::uuid
+			)
+		`, publisherID, user.UserID).Scan(&membershipExists); err != nil {
+			return "", err
+		}
+		if membershipExists || (existingCreatedBy.Valid && existingCreatedBy.String == user.UserID) {
+			return publisherID, nil
+		}
+		publisherID = sanitizePublisherIDFromGitHubLogin("", identity.GitHubUserID)
+	}
+	return "", ErrUnauthorizedPublish
+}
+
+func (s *PostgresStore) createGitHubUserPublisher(ctx context.Context, tx pgx.Tx, publisherID string, user RegistryUser, identity GitHubOAuthIdentity) error {
+	description := "Individual publisher created from GitHub login."
+	if strings.TrimSpace(identity.ProfileURL) != "" {
+		description = "Individual publisher linked to GitHub profile " + strings.TrimSpace(identity.ProfileURL) + "."
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level, created_by_user_id
+		) VALUES (
+			$1, 'individual', $2, $3, $4, 'active', 'unverified', $5::uuid
+		)
+	`, publisherID, user.DisplayName, description, strings.TrimSpace(identity.ProfileURL), user.UserID)
+	return err
+}
+
+func (s *PostgresStore) AuthenticateBrowserSession(ctx context.Context, token string) (RegistryBrowserSessionContext, error) {
+	sessionID, sessionSecret, ok := parseRegistrySessionToken(token)
+	if !ok {
+		return RegistryBrowserSessionContext{}, ErrUnauthorizedPublish
+	}
+	var user RegistryUser
+	var publisherID sql.NullString
+	var publisherType sql.NullString
+	var publisherDisplayName sql.NullString
+	var publisherDescription sql.NullString
+	var publisherWebsiteURL sql.NullString
+	var publisherStatus sql.NullString
+	var publisherTrustLevel sql.NullString
+	var publisherCreatedBy sql.NullString
+	var publisherCreatedAt sql.NullTime
+	var publisherUpdatedAt sql.NullTime
+	var createdAt time.Time
+	var updatedAt time.Time
+	var lastLoginAt sql.NullTime
+	err := s.pool.QueryRow(ctx, `
+		SELECT
+			u.user_id::text, u.github_user_id, u.github_login, u.display_name, u.email, u.status, u.created_at, u.updated_at, u.last_login_at,
+			p.publisher_id, p.publisher_type, p.display_name, p.description, p.website_url, p.status, p.trust_level, p.created_by_user_id::text, p.created_at, p.updated_at
+		FROM registry_browser_sessions s
+		JOIN registry_users u ON u.user_id = s.user_id
+		LEFT JOIN registry_publisher_memberships m ON m.user_id = u.user_id
+		LEFT JOIN registry_publishers p ON p.publisher_id = m.publisher_id AND p.status = 'active'
+		WHERE s.session_id = $1::uuid
+		  AND s.session_hash = $2
+		  AND s.revoked_at IS NULL
+		  AND s.expires_at > now()
+		  AND u.status = 'active'
+		ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'maintainer' THEN 2 WHEN 'publisher' THEN 3 ELSE 4 END ASC, p.publisher_id ASC
+		LIMIT 1
+	`, sessionID, registrySessionSecretHash(sessionSecret)).Scan(
+		&user.UserID,
+		&user.GitHubUserID,
+		&user.GitHubLogin,
+		&user.DisplayName,
+		&user.Email,
+		&user.Status,
+		&createdAt,
+		&updatedAt,
+		&lastLoginAt,
+		&publisherID,
+		&publisherType,
+		&publisherDisplayName,
+		&publisherDescription,
+		&publisherWebsiteURL,
+		&publisherStatus,
+		&publisherTrustLevel,
+		&publisherCreatedBy,
+		&publisherCreatedAt,
+		&publisherUpdatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return RegistryBrowserSessionContext{}, ErrUnauthorizedPublish
+	}
+	if err != nil {
+		return RegistryBrowserSessionContext{}, err
+	}
+	user.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	user.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	if lastLoginAt.Valid {
+		user.LastLoginAt = lastLoginAt.Time.UTC().Format(time.RFC3339)
+	}
+	sessionContext := RegistryBrowserSessionContext{
+		User:   user,
+		Scopes: registryBrowserSessionScopes(),
+	}
+	if publisherID.Valid && strings.TrimSpace(publisherID.String) != "" {
+		publisher := RegistryPublisher{
+			PublisherID:   publisherID.String,
+			PublisherType: publisherType.String,
+			DisplayName:   publisherDisplayName.String,
+			Description:   publisherDescription.String,
+			WebsiteURL:    publisherWebsiteURL.String,
+			Status:        publisherStatus.String,
+			TrustLevel:    publisherTrustLevel.String,
+			CreatedAt:     publisherCreatedAt.Time.UTC().Format(time.RFC3339),
+			UpdatedAt:     publisherUpdatedAt.Time.UTC().Format(time.RFC3339),
+		}
+		if publisherCreatedBy.Valid {
+			publisher.CreatedByUserID = publisherCreatedBy.String
+		}
+		sessionContext.Publisher = &publisher
+	}
+	return sessionContext, nil
+}
+
+func (s *PostgresStore) RevokeBrowserSession(ctx context.Context, token string) error {
+	sessionID, sessionSecret, ok := parseRegistrySessionToken(token)
+	if !ok {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `
+		UPDATE registry_browser_sessions
+		SET revoked_at = COALESCE(revoked_at, now()),
+		    updated_at = now()
+		WHERE session_id = $1::uuid AND session_hash = $2
+	`, sessionID, registrySessionSecretHash(sessionSecret))
+	return err
+}
+
+func registryBrowserSessionScopes() RegistryPublishTokenScopes {
+	return RegistryPublishTokenScopes{
+		Operations:  []string{"manage:publisher", "manage:tokens"},
+		Namespaces:  nil,
+		PackageIDs:  nil,
+		TemplateIDs: nil,
+	}
+}
+
 func (s *PostgresStore) AuthenticatePublisherToken(ctx context.Context, token string) (PublishAuthContext, RegistryPublishTokenScopes, error) {
 	tokenID, tokenSecret, ok := parseRegistryPublishToken(token)
 	if !ok {
@@ -1817,6 +2068,44 @@ func scanRegistryPublisher(row registryPublishTokenRowScanner) (RegistryPublishe
 	publisher.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	publisher.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
 	return publisher, nil
+}
+
+func scanRegistryUser(row registryPublishTokenRowScanner) (RegistryUser, error) {
+	var user RegistryUser
+	var githubUserID sql.NullString
+	var githubLogin sql.NullString
+	var email sql.NullString
+	var lastLoginAt sql.NullTime
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(
+		&user.UserID,
+		&githubUserID,
+		&githubLogin,
+		&user.DisplayName,
+		&email,
+		&user.Status,
+		&createdAt,
+		&updatedAt,
+		&lastLoginAt,
+	); err != nil {
+		return RegistryUser{}, err
+	}
+	if githubUserID.Valid {
+		user.GitHubUserID = githubUserID.String
+	}
+	if githubLogin.Valid {
+		user.GitHubLogin = githubLogin.String
+	}
+	if email.Valid {
+		user.Email = email.String
+	}
+	user.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	user.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	if lastLoginAt.Valid {
+		user.LastLoginAt = lastLoginAt.Time.UTC().Format(time.RFC3339)
+	}
+	return user, nil
 }
 
 func scanRegistryPublishTokenSummary(row registryPublishTokenRowScanner) (RegistryPublishTokenSummary, error) {

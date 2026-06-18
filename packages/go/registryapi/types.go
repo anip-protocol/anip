@@ -1,5 +1,32 @@
 package registryapi
 
+type GitHubOAuthIdentity struct {
+	GitHubUserID string `json:"github_user_id"`
+	Login        string `json:"login"`
+	DisplayName  string `json:"display_name"`
+	Email        string `json:"email,omitempty"`
+	AvatarURL    string `json:"avatar_url,omitempty"`
+	ProfileURL   string `json:"profile_url,omitempty"`
+}
+
+type RegistryUser struct {
+	UserID       string `json:"user_id"`
+	GitHubUserID string `json:"github_user_id,omitempty"`
+	GitHubLogin  string `json:"github_login,omitempty"`
+	DisplayName  string `json:"display_name"`
+	Email        string `json:"email,omitempty"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	LastLoginAt  string `json:"last_login_at,omitempty"`
+}
+
+type RegistryBrowserSessionContext struct {
+	User      RegistryUser               `json:"user"`
+	Publisher *RegistryPublisher         `json:"publisher,omitempty"`
+	Scopes    RegistryPublishTokenScopes `json:"scopes"`
+}
+
 type PublicationSummary struct {
 	PackageID            string            `json:"package_id"`
 	PackageVersion       string            `json:"package_version"`

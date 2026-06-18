@@ -11,12 +11,12 @@ npm install
 npm run dev
 ```
 
-By default the UI expects the registry backend at `http://127.0.0.1:8200`.
+By default the UI expects the registry API at `/registry-api/v1`.
 
 Override with:
 
 ```bash
-VITE_REGISTRY_BACKEND_URL=http://127.0.0.1:8200 npm run dev
+VITE_REGISTRY_API_BASE=http://127.0.0.1:8200/registry-api/v1 npm run dev
 ```
 
 To serve the built UI from the Go Registry backend at `/registry`:
@@ -28,6 +28,7 @@ npm run build
 cd ../packages/go
 ANIP_REGISTRY_DATABASE_URL=postgres://localhost:5432/anip_registry?sslmode=disable \
 ANIP_REGISTRY_PUBLISH_TOKEN=<strong-token> \
+ANIP_REGISTRY_PUBLIC_BASE_URL=http://127.0.0.1:8200 \
 ANIP_REGISTRY_UI_DIR=../../registry/dist \
 go run ./cmd/anip-registry
 ```
@@ -38,7 +39,24 @@ Then open `http://127.0.0.1:8200/registry`.
 
 The receipt panel displays the Registry signature algorithm and key id returned by the trusted Go backend. The browser UI does not validate signatures; verifier clients should use the verifier, which resolves `GET /registry-api/v1/keys`.
 
-The `/publisher` page provides token-based publisher self-service for registries backed by Postgres. Paste a scoped publisher token to inspect publisher identity, namespaces, owned artifacts, and publish tokens. Token creation and revocation require `manage:tokens`; publisher profile edits and namespace creation require `manage:publisher`. Newly created namespaces are `pending_verification` until approved through the registry admin namespace API.
+The `/publisher` page provides publisher self-service for registries backed by Postgres. Browser users can sign in with GitHub when OAuth is configured; release automation should still use scoped publisher tokens. Token creation and revocation require `manage:tokens`; publisher profile edits and namespace creation require `manage:publisher`. Newly created namespaces are `pending_verification` until approved through the registry admin namespace API.
+
+To enable GitHub login, create a GitHub OAuth app whose callback URL points to:
+
+```text
+https://<registry-host>/registry-api/v1/auth/github/callback
+```
+
+Then configure:
+
+```bash
+ANIP_REGISTRY_PUBLIC_BASE_URL=https://registry.example.com
+ANIP_REGISTRY_GITHUB_CLIENT_ID=<github-oauth-client-id>
+ANIP_REGISTRY_GITHUB_CLIENT_SECRET=<github-oauth-client-secret>
+ANIP_REGISTRY_SESSION_COOKIE_SECURE=true
+```
+
+GitHub login creates or links an individual, unverified publisher account for browser management. Publishing package/template artifacts still requires explicit scoped publish tokens.
 
 ## Local Docker Compose
 

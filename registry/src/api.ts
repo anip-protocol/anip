@@ -48,6 +48,24 @@ export interface PublisherSelfServiceContext {
   scopes: RegistryPublishTokenScopes
 }
 
+export interface RegistryUser {
+  user_id: string
+  github_user_id?: string
+  github_login?: string
+  display_name: string
+  email?: string
+  status: string
+  created_at: string
+  updated_at: string
+  last_login_at?: string
+}
+
+export interface RegistryBrowserSessionContext {
+  user: RegistryUser
+  publisher?: RegistryPublisher
+  scopes: RegistryPublishTokenScopes
+}
+
 export interface RegistryPublishTokenSummary {
   token_id: string
   publisher_id: string
@@ -201,7 +219,10 @@ export interface RegistryTemplateRecord extends TemplateSummary {
 const API_BASE = `${(import.meta.env.VITE_REGISTRY_API_BASE || '/registry-api/v1').replace(/\/$/, '')}`
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init)
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    ...init,
+  })
   if (!response.ok) {
     const detail = await response.text().catch(() => response.statusText)
     throw new Error(`Registry request failed (${response.status}): ${detail || response.statusText}`)
@@ -209,11 +230,33 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-function authHeaders(token: string, extra: HeadersInit = {}): HeadersInit {
+function authHeaders(token: string | null, extra: HeadersInit = {}): HeadersInit {
+  if (!token) {
+    return extra
+  }
   return {
     ...extra,
     Authorization: `Bearer ${token}`,
   }
+}
+
+export function githubAuthStartURL(): string {
+  return `${API_BASE}/auth/github/start`
+}
+
+export async function getRegistryAuthSession(): Promise<RegistryBrowserSessionContext | null> {
+  try {
+    const payload = await api<{ session: RegistryBrowserSessionContext }>('/auth/session')
+    return payload.session
+  } catch {
+    return null
+  }
+}
+
+export function logoutRegistryAuthSession(): Promise<{ status: string }> {
+  return api<{ status: string }>('/auth/logout', {
+    method: 'POST',
+  })
 }
 
 export async function listPublications(): Promise<PublicationSummary[]> {
@@ -246,18 +289,18 @@ export function templateDownloadURL(templateId: string, version: string): string
   return `${API_BASE}/templates/${encodeURIComponent(templateId)}/${encodeURIComponent(version)}/download`
 }
 
-export async function getMyPublisher(token: string): Promise<RegistryPublisher> {
+export async function getMyPublisher(token: string | null): Promise<RegistryPublisher> {
   const payload = await getMyPublisherContext(token)
   return payload.publisher
 }
 
-export function getMyPublisherContext(token: string): Promise<PublisherSelfServiceContext> {
+export function getMyPublisherContext(token: string | null): Promise<PublisherSelfServiceContext> {
   return api<PublisherSelfServiceContext>('/me/publisher', {
     headers: authHeaders(token),
   })
 }
 
-export async function updateMyPublisher(token: string, request: UpdatePublisherRequest): Promise<RegistryPublisher> {
+export async function updateMyPublisher(token: string | null, request: UpdatePublisherRequest): Promise<RegistryPublisher> {
   const payload = await api<{ publisher: RegistryPublisher }>('/me/publisher', {
     method: 'PATCH',
     headers: authHeaders(token, { 'Content-Type': 'application/json' }),
@@ -266,14 +309,14 @@ export async function updateMyPublisher(token: string, request: UpdatePublisherR
   return payload.publisher
 }
 
-export async function listMyNamespaces(token: string): Promise<RegistryNamespaceSummary[]> {
+export async function listMyNamespaces(token: string | null): Promise<RegistryNamespaceSummary[]> {
   const payload = await api<{ items: RegistryNamespaceSummary[] }>('/me/namespaces', {
     headers: authHeaders(token),
   })
   return payload.items
 }
 
-export async function createMyNamespace(token: string, request: CreateNamespaceRequest): Promise<RegistryNamespaceSummary> {
+export async function createMyNamespace(token: string | null, request: CreateNamespaceRequest): Promise<RegistryNamespaceSummary> {
   const payload = await api<{ namespace: RegistryNamespaceSummary }>('/me/namespaces', {
     method: 'POST',
     headers: authHeaders(token, { 'Content-Type': 'application/json' }),
@@ -282,21 +325,21 @@ export async function createMyNamespace(token: string, request: CreateNamespaceR
   return payload.namespace
 }
 
-export async function listMyArtifacts(token: string): Promise<PublisherArtifactSummary[]> {
+export async function listMyArtifacts(token: string | null): Promise<PublisherArtifactSummary[]> {
   const payload = await api<{ items: PublisherArtifactSummary[] }>('/me/artifacts', {
     headers: authHeaders(token),
   })
   return payload.items
 }
 
-export async function listMyTokens(token: string): Promise<RegistryPublishTokenSummary[]> {
+export async function listMyTokens(token: string | null): Promise<RegistryPublishTokenSummary[]> {
   const payload = await api<{ items: RegistryPublishTokenSummary[] }>('/me/tokens', {
     headers: authHeaders(token),
   })
   return payload.items
 }
 
-export function createMyToken(token: string, request: CreatePublishTokenRequest): Promise<CreatePublishTokenResult> {
+export function createMyToken(token: string | null, request: CreatePublishTokenRequest): Promise<CreatePublishTokenResult> {
   return api<CreatePublishTokenResult>('/me/tokens', {
     method: 'POST',
     headers: authHeaders(token, { 'Content-Type': 'application/json' }),
@@ -304,7 +347,7 @@ export function createMyToken(token: string, request: CreatePublishTokenRequest)
   })
 }
 
-export async function revokeMyToken(token: string, tokenId: string): Promise<RegistryPublishTokenSummary> {
+export async function revokeMyToken(token: string | null, tokenId: string): Promise<RegistryPublishTokenSummary> {
   const payload = await api<{ token: RegistryPublishTokenSummary }>(`/me/tokens/${encodeURIComponent(tokenId)}`, {
     method: 'DELETE',
     headers: authHeaders(token),

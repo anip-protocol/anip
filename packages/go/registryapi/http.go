@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -22,6 +23,12 @@ type HandlerOptions struct {
 	PublisherType                   string
 	Logger                          *slog.Logger
 	Metrics                         *RegistryMetrics
+	PublicBaseURL                   string
+	GitHubOAuthClientID             string
+	GitHubOAuthClientSecret         string
+	GitHubOAuthExchange             GitHubOAuthExchangeFunc
+	SessionCookieSecure             bool
+	BrowserSessionTTL               time.Duration
 }
 
 type PublishAuthorizer interface {
@@ -38,6 +45,12 @@ type PublisherSelfServiceStore interface {
 	ListPublisherTokens(ctx context.Context, publisherID string) ([]RegistryPublishTokenSummary, error)
 	CreatePublisherToken(ctx context.Context, publisherID string, request CreatePublishTokenRequest) (CreatePublishTokenResult, error)
 	RevokePublisherToken(ctx context.Context, publisherID string, tokenID string) (RegistryPublishTokenSummary, bool, error)
+}
+
+type BrowserSessionStore interface {
+	CreateOrUpdateGitHubBrowserSession(ctx context.Context, identity GitHubOAuthIdentity, ttl time.Duration) (RegistryBrowserSessionContext, string, error)
+	AuthenticateBrowserSession(ctx context.Context, token string) (RegistryBrowserSessionContext, error)
+	RevokeBrowserSession(ctx context.Context, token string) error
 }
 
 type NamespaceAdminStore interface {
@@ -84,6 +97,11 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 	if publisherType == "" {
 		publisherType = "studio"
 	}
+	publicBaseURL := strings.TrimRight(strings.TrimSpace(options.PublicBaseURL), "/")
+	sessionTTL := options.BrowserSessionTTL
+	if sessionTTL <= 0 {
+		sessionTTL = 30 * 24 * time.Hour
+	}
 
 	mux.HandleFunc("GET /registry-api/v1/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -113,6 +131,100 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(metrics.PrometheusText()))
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/auth/github/start", func(w http.ResponseWriter, r *http.Request) {
+		clientID := strings.TrimSpace(options.GitHubOAuthClientID)
+		if clientID == "" {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "github oauth is not configured"})
+			return
+		}
+		state, err := randomTokenSecret()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create oauth state"})
+			return
+		}
+		secure := registrySecureCookie(r, options.SessionCookieSecure)
+		http.SetCookie(w, oauthStateCookie(state, secure))
+		redirectURI := registryOAuthRedirectURI(r, publicBaseURL)
+		params := url.Values{}
+		params.Set("client_id", clientID)
+		params.Set("redirect_uri", redirectURI)
+		params.Set("state", state)
+		params.Set("scope", "read:user user:email")
+		http.Redirect(w, r, "https://github.com/login/oauth/authorize?"+params.Encode(), http.StatusFound)
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/auth/github/callback", func(w http.ResponseWriter, r *http.Request) {
+		sessionStore, ok := store.(BrowserSessionStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "browser sessions are not available for this registry store"})
+			return
+		}
+		expectedState, err := r.Cookie(registryOAuthStateCookieName)
+		if err != nil || expectedState.Value == "" || r.URL.Query().Get("state") != expectedState.Value {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid github oauth state"})
+			return
+		}
+		code := strings.TrimSpace(r.URL.Query().Get("code"))
+		if code == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "missing github oauth code"})
+			return
+		}
+		secure := registrySecureCookie(r, options.SessionCookieSecure)
+		redirectURI := registryOAuthRedirectURI(r, publicBaseURL)
+		exchange := options.GitHubOAuthExchange
+		if exchange == nil {
+			exchange = defaultGitHubOAuthExchange(options.GitHubOAuthClientID, options.GitHubOAuthClientSecret, redirectURI)
+		}
+		identity, err := exchange(r.Context(), code)
+		if err != nil {
+			logger.Warn("github_oauth_exchange_failed", "error", err)
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "github oauth exchange failed"})
+			return
+		}
+		_, sessionToken, err := sessionStore.CreateOrUpdateGitHubBrowserSession(r.Context(), identity, sessionTTL)
+		if err != nil {
+			logger.Warn("github_oauth_session_failed", "error", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create registry session"})
+			return
+		}
+		http.SetCookie(w, expiredCookie(registryOAuthStateCookieName, "/registry-api/v1/auth/github", secure))
+		http.SetCookie(w, browserSessionCookie(sessionToken, secure, int(sessionTTL.Seconds())))
+		http.Redirect(w, r, "/registry/publisher", http.StatusFound)
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/auth/session", func(w http.ResponseWriter, r *http.Request) {
+		sessionStore, ok := store.(BrowserSessionStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "browser sessions are not available for this registry store"})
+			return
+		}
+		session, ok := browserSessionToken(r)
+		if !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid registry browser session is required"})
+			return
+		}
+		sessionContext, err := sessionStore.AuthenticateBrowserSession(r.Context(), session)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid registry browser session is required"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"session": sessionContext})
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		sessionStore, ok := store.(BrowserSessionStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "browser sessions are not available for this registry store"})
+			return
+		}
+		if session, ok := browserSessionToken(r); ok {
+			_ = sessionStore.RevokeBrowserSession(r.Context(), session)
+		}
+		secure := registrySecureCookie(r, options.SessionCookieSecure)
+		http.SetCookie(w, expiredCookie(registrySessionCookieName, "/", secure))
+		writeJSON(w, http.StatusOK, map[string]any{"status": "logged_out"})
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/publications", func(w http.ResponseWriter, r *http.Request) {
@@ -756,8 +868,26 @@ func authenticatePublisherSelfService(w http.ResponseWriter, r *http.Request, st
 	}
 	token, ok := bearerToken(r)
 	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publisher bearer token is required"})
-		return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+		sessionStore, sessionOK := store.(BrowserSessionStore)
+		sessionToken, cookieOK := browserSessionToken(r)
+		if !sessionOK || !cookieOK {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publisher bearer token or browser session is required"})
+			return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+		}
+		sessionContext, err := sessionStore.AuthenticateBrowserSession(r.Context(), sessionToken)
+		if err != nil || sessionContext.Publisher == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "valid scoped publisher bearer token or browser session is required"})
+			return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+		}
+		requiredOperation = strings.TrimSpace(requiredOperation)
+		if requiredOperation != "" && !stringInSet(requiredOperation, sessionContext.Scopes.Operations) {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "browser session does not include required publisher management scope"})
+			return nil, PublishAuthContext{}, RegistryPublishTokenScopes{}, false
+		}
+		return selfStore, PublishAuthContext{
+			PublisherID:   sessionContext.Publisher.PublisherID,
+			PublisherType: sessionContext.Publisher.PublisherType,
+		}, sessionContext.Scopes, true
 	}
 	auth, scopes, err := selfStore.AuthenticatePublisherToken(r.Context(), token)
 	if err != nil {
@@ -772,6 +902,15 @@ func authenticatePublisherSelfService(w http.ResponseWriter, r *http.Request, st
 	return selfStore, auth, scopes, true
 }
 
+func browserSessionToken(r *http.Request) (string, bool) {
+	cookie, err := r.Cookie(registrySessionCookieName)
+	if err != nil {
+		return "", false
+	}
+	token := strings.TrimSpace(cookie.Value)
+	return token, token != ""
+}
+
 func bearerToken(r *http.Request) (string, bool) {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
 	const prefix = "Bearer "
@@ -780,6 +919,28 @@ func bearerToken(r *http.Request) (string, bool) {
 	}
 	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
 	return token, token != ""
+}
+
+func registrySecureCookie(r *http.Request, configured bool) bool {
+	if configured || r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+func registryOAuthRedirectURI(r *http.Request, publicBaseURL string) string {
+	if publicBaseURL == "" {
+		scheme := "http"
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			scheme = "https"
+		}
+		host := r.Host
+		if forwardedHost := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwardedHost != "" {
+			host = forwardedHost
+		}
+		publicBaseURL = scheme + "://" + host
+	}
+	return strings.TrimRight(publicBaseURL, "/") + "/registry-api/v1/auth/github/callback"
 }
 
 func authorizedLegacyPublishToken(token string, configuredToken string) bool {
@@ -805,7 +966,14 @@ func authorizeRegistryAdminRequest(w http.ResponseWriter, r *http.Request, confi
 
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if localDevelopmentOrigin(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Vary", "Origin")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
@@ -814,6 +982,13 @@ func withCORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func localDevelopmentOrigin(origin string) bool {
+	origin = strings.TrimSpace(origin)
+	return strings.HasPrefix(origin, "http://localhost:") ||
+		strings.HasPrefix(origin, "http://127.0.0.1:") ||
+		strings.HasPrefix(origin, "http://[::1]:")
 }
 
 type responseRecorder struct {
