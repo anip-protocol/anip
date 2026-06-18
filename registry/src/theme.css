@@ -1098,6 +1098,21 @@ pre {
   justify-content: flex-end;
 }
 
+.admin-filter-action {
+  align-self: end;
+}
+
+.admin-pagination-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-top: 1rem;
+  border-top: 1px solid rgba(29, 29, 27, 0.08);
+  padding-top: 1rem;
+}
+
 .admin-report-form {
   display: grid;
   grid-template-columns: minmax(9rem, 0.8fr) minmax(14rem, 1.2fr) minmax(10rem, 1fr) minmax(12rem, 1fr) auto;
@@ -1326,6 +1341,11 @@ pre {
   .admin-inline-form,
   .admin-report-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-pagination-footer,
+  .admin-pager-actions {
+    justify-content: flex-start;
   }
 
   .report-reason-field {
