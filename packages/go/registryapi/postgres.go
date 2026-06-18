@@ -1371,6 +1371,31 @@ func (s *PostgresStore) TransferArtifactOwnership(ctx context.Context, artifactK
 	return item, true, nil
 }
 
+func (s *PostgresStore) ListRegistryUsers(ctx context.Context) ([]RegistryUser, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT user_id::text, github_user_id, github_login, display_name, email,
+		       status, created_at, updated_at, last_login_at
+		FROM registry_users
+		ORDER BY
+			COALESCE(last_login_at, updated_at, created_at) DESC,
+			github_login ASC NULLS LAST,
+			user_id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RegistryUser{}
+	for rows.Next() {
+		item, err := scanRegistryUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s *PostgresStore) ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT artifact_kind, artifact_id, namespace, status, created_at, updated_at

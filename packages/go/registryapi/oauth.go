@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	registryOAuthStateCookieName = "anip_registry_oauth_state"
-	registrySessionCookieName    = "anip_registry_session"
-	registrySessionTokenPrefix   = "anip_sid_"
+	registryOAuthStateCookieName    = "anip_registry_oauth_state"
+	registryOAuthReturnToCookieName = "anip_registry_oauth_return_to"
+	registrySessionCookieName       = "anip_registry_session"
+	registrySessionTokenPrefix      = "anip_sid_"
 )
 
 type GitHubOAuthExchangeFunc func(ctx context.Context, code string) (GitHubOAuthIdentity, error)
@@ -125,6 +126,18 @@ func oauthStateCookie(state string, secure bool) *http.Cookie {
 	}
 }
 
+func oauthReturnToCookie(returnTo string, secure bool) *http.Cookie {
+	return &http.Cookie{
+		Name:     registryOAuthReturnToCookieName,
+		Value:    returnTo,
+		Path:     "/registry-api/v1/auth/github",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		MaxAge:   int((10 * time.Minute).Seconds()),
+	}
+}
+
 func expiredCookie(name string, path string, secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     name,
@@ -135,6 +148,21 @@ func expiredCookie(name string, path string, secure bool) *http.Cookie {
 		Secure:   secure,
 		MaxAge:   -1,
 	}
+}
+
+func safeRegistryReturnTo(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.HasPrefix(value, "//") {
+		return ""
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return ""
+	}
+	if value == "/registry" || strings.HasPrefix(value, "/registry/") {
+		return value
+	}
+	return ""
 }
 
 func registrySessionSecretHash(secret string) string {

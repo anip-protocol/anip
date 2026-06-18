@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -1062,7 +1063,9 @@ func TestPostgresGitHubOAuthCreatesPublisherSession(t *testing.T) {
 	}
 
 	callbackReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/callback?code=valid-code&state="+url.QueryEscape(stateCookie.Value), nil)
-	callbackReq.AddCookie(stateCookie)
+	for _, cookie := range startRec.Result().Cookies() {
+		callbackReq.AddCookie(cookie)
+	}
 	callbackRec := httptest.NewRecorder()
 	handler.ServeHTTP(callbackRec, callbackReq)
 	if callbackRec.Code != http.StatusFound {
@@ -1167,6 +1170,23 @@ func TestPostgresGitHubSessionCanAuthorizeAdminAllowlist(t *testing.T) {
 	if adminRec.Code != http.StatusOK {
 		t.Fatalf("expected allowlisted github session admin 200, got %d body=%s", adminRec.Code, adminRec.Body.String())
 	}
+
+	usersReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/users", nil)
+	usersReq.AddCookie(sessionCookie)
+	usersRec := httptest.NewRecorder()
+	handler.ServeHTTP(usersRec, usersReq)
+	if usersRec.Code != http.StatusOK {
+		t.Fatalf("expected allowlisted github session users 200, got %d body=%s", usersRec.Code, usersRec.Body.String())
+	}
+	var usersPayload struct {
+		Items []RegistryUser `json:"items"`
+	}
+	if err := json.Unmarshal(usersRec.Body.Bytes(), &usersPayload); err != nil {
+		t.Fatalf("decode admin users payload: %v", err)
+	}
+	if len(usersPayload.Items) != 1 || usersPayload.Items[0].GitHubLogin != "samir-labs" {
+		t.Fatalf("expected signed-in registry user in admin users payload, got %+v", usersPayload.Items)
+	}
 }
 
 func TestPostgresGitHubSessionRejectsAdminWhenNotAllowlisted(t *testing.T) {
@@ -1197,7 +1217,49 @@ func TestPostgresGitHubSessionRejectsAdminWhenNotAllowlisted(t *testing.T) {
 
 func createGitHubSessionCookie(t *testing.T, handler http.Handler) *http.Cookie {
 	t.Helper()
-	startReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/start", nil)
+	return createGitHubSessionCookieWithStartPath(t, handler, "/registry-api/v1/auth/github/start", http.StatusFound)
+}
+
+func TestPostgresGitHubOAuthReturnToRedirectsBackToRequestedRegistryPath(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		GitHubOAuthExchange: func(_ context.Context, _ string) (GitHubOAuthIdentity, error) {
+			return GitHubOAuthIdentity{
+				GitHubUserID: "12345",
+				Login:        "samir-labs",
+				DisplayName:  "Samir Labs",
+				Email:        "samir@example.com",
+			}, nil
+		},
+	})
+
+	createGitHubSessionCookieWithStartPath(t, handler, "/registry-api/v1/auth/github/start?return_to=/registry/admin", http.StatusFound)
+}
+
+func TestPostgresGitHubOAuthReturnToRejectsExternalRedirect(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	handler := NewHandlerWithOptions(store, HandlerOptions{
+		GitHubOAuthClientID: "test-client",
+		GitHubOAuthExchange: func(_ context.Context, _ string) (GitHubOAuthIdentity, error) {
+			return GitHubOAuthIdentity{
+				GitHubUserID: "12345",
+				Login:        "samir-labs",
+				DisplayName:  "Samir Labs",
+				Email:        "samir@example.com",
+			}, nil
+		},
+	})
+
+	sessionCookie := createGitHubSessionCookieWithStartPath(t, handler, "/registry-api/v1/auth/github/start?return_to=https%3A%2F%2Fevil.example", http.StatusFound)
+	if sessionCookie.Value == "" {
+		t.Fatal("expected browser session cookie after safe fallback redirect")
+	}
+}
+
+func createGitHubSessionCookieWithStartPath(t *testing.T, handler http.Handler, startPath string, expectedCallbackStatus int) *http.Cookie {
+	t.Helper()
+	startReq := httptest.NewRequest(http.MethodGet, startPath, nil)
 	startRec := httptest.NewRecorder()
 	handler.ServeHTTP(startRec, startReq)
 	if startRec.Code != http.StatusFound {
@@ -1206,11 +1268,21 @@ func createGitHubSessionCookie(t *testing.T, handler http.Handler) *http.Cookie 
 	stateCookie := findCookie(t, startRec.Result().Cookies(), registryOAuthStateCookieName)
 
 	callbackReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/auth/github/callback?code=valid-code&state="+url.QueryEscape(stateCookie.Value), nil)
-	callbackReq.AddCookie(stateCookie)
+	for _, cookie := range startRec.Result().Cookies() {
+		callbackReq.AddCookie(cookie)
+	}
 	callbackRec := httptest.NewRecorder()
 	handler.ServeHTTP(callbackRec, callbackReq)
-	if callbackRec.Code != http.StatusFound {
-		t.Fatalf("expected callback redirect 302, got %d body=%s", callbackRec.Code, callbackRec.Body.String())
+	if callbackRec.Code != expectedCallbackStatus {
+		t.Fatalf("expected callback redirect %d, got %d body=%s", expectedCallbackStatus, callbackRec.Code, callbackRec.Body.String())
+	}
+	if strings.Contains(startPath, "return_to=%2Fregistry%2Fadmin") || strings.Contains(startPath, "return_to=/registry/admin") {
+		if callbackRec.Header().Get("Location") != "/registry/admin" {
+			t.Fatalf("expected callback to redirect to /registry/admin, got %q", callbackRec.Header().Get("Location"))
+		}
+	}
+	if strings.Contains(startPath, "evil.example") && callbackRec.Header().Get("Location") != "/registry/publisher" {
+		t.Fatalf("expected external return_to to fall back to /registry/publisher, got %q", callbackRec.Header().Get("Location"))
 	}
 	return findCookie(t, callbackRec.Result().Cookies(), registrySessionCookieName)
 }

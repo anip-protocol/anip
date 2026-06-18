@@ -6,6 +6,7 @@ import {
   listAdminArtifacts,
   listAdminNamespaces,
   listAdminPublishers,
+  listAdminUsers,
   logoutRegistryAuthSession,
   transferAdminArtifactOwnership,
   updateAdminArtifactStatus,
@@ -15,8 +16,11 @@ import {
   type RegistryBrowserSessionContext,
   type RegistryNamespaceSummary,
   type RegistryPublisher,
+  type RegistryUser,
 } from '../api'
 import { formatRegistryTimestamp } from '../datetime'
+
+type AdminSection = 'users' | 'publishers' | 'namespaces' | 'artifacts'
 
 const SESSION_SENTINEL = '__browser_session__'
 
@@ -26,6 +30,16 @@ const browserSession = ref<RegistryBrowserSessionContext | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const success = ref<string | null>(null)
+const activeSection = ref<AdminSection>('users')
+const searchQuery = ref('')
+const statusFilters = reactive<Record<AdminSection, string>>({
+  users: '',
+  publishers: '',
+  namespaces: '',
+  artifacts: '',
+})
+
+const users = ref<RegistryUser[]>([])
 const namespaces = ref<RegistryNamespaceSummary[]>([])
 const publishers = ref<RegistryPublisher[]>([])
 const artifacts = ref<PublisherArtifactSummary[]>([])
@@ -45,8 +59,82 @@ const suspendedArtifacts = computed(() => artifacts.value.filter((artifact) => a
 const activePublishers = computed(() => publishers.value.filter((publisher) => publisher.status === 'active'))
 const activeNamespaces = computed(() => namespaces.value.filter((namespace) => namespace.status === 'active'))
 
+const filteredUsers = computed(() =>
+  users.value.filter((user) =>
+    matchesStatus(user.status, statusFilters.users) &&
+    matchesSearch([
+      user.display_name,
+      user.github_login,
+      user.email,
+      user.status,
+      user.user_id,
+    ]),
+  ),
+)
+
+const filteredPublishers = computed(() =>
+  publishers.value.filter((publisher) =>
+    matchesStatus(publisher.status, statusFilters.publishers) &&
+    matchesSearch([
+      publisher.publisher_id,
+      publisher.publisher_type,
+      publisher.display_name,
+      publisher.website_url,
+      publisher.status,
+      publisher.trust_level,
+    ]),
+  ),
+)
+
+const filteredNamespaces = computed(() =>
+  namespaces.value.filter((namespace) =>
+    matchesStatus(namespace.status, statusFilters.namespaces) &&
+    matchesSearch([
+      namespace.namespace,
+      namespace.publisher_id,
+      namespace.status,
+      namespace.artifact_kinds.join(' '),
+    ]),
+  ),
+)
+
+const filteredArtifacts = computed(() =>
+  artifacts.value.filter((artifact) =>
+    matchesStatus(artifact.status, statusFilters.artifacts) &&
+    matchesSearch([
+      artifact.artifact_kind,
+      artifact.artifact_id,
+      artifact.namespace,
+      artifact.status,
+    ]),
+  ),
+)
+
 function artifactKey(artifact: PublisherArtifactSummary): string {
   return `${artifact.artifact_kind}:${artifact.artifact_id}`
+}
+
+function matchesStatus(value: string, filter: string): boolean {
+  return !filter || value === filter
+}
+
+function matchesSearch(values: Array<string | undefined | null>): boolean {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) {
+    return true
+  }
+  return values.some((value) => String(value || '').toLowerCase().includes(query))
+}
+
+function sectionCount(section: AdminSection): number {
+  if (section === 'users') return users.value.length
+  if (section === 'publishers') return publishers.value.length
+  if (section === 'namespaces') return namespaces.value.length
+  return artifacts.value.length
+}
+
+function setSection(section: AdminSection): void {
+  activeSection.value = section
 }
 
 function ensureNamespaceAction(namespace: RegistryNamespaceSummary): { status: string; reason: string } {
@@ -95,8 +183,7 @@ function ensureArtifactTransferAction(artifact: PublisherArtifactSummary): { tar
 
 function syncActionDefaults(): void {
   namespaces.value.forEach((namespace) => {
-    const action = ensureNamespaceAction(namespace)
-    action.status = namespace.status
+    ensureNamespaceAction(namespace).status = namespace.status
   })
   publishers.value.forEach((publisher) => {
     const action = ensurePublisherAction(publisher)
@@ -104,8 +191,7 @@ function syncActionDefaults(): void {
     action.trustLevel = publisher.trust_level
   })
   artifacts.value.forEach((artifact) => {
-    const action = ensureArtifactAction(artifact)
-    action.status = artifact.status
+    ensureArtifactAction(artifact).status = artifact.status
     ensureArtifactTransferAction(artifact)
   })
 }
@@ -115,7 +201,8 @@ async function loadAdminState(token: string | null, source: 'token' | 'session')
   error.value = null
   success.value = null
   try {
-    const [namespaceResult, publisherResult, artifactResult] = await Promise.all([
+    const [userResult, namespaceResult, publisherResult, artifactResult] = await Promise.all([
+      listAdminUsers(token),
       listAdminNamespaces(token),
       listAdminPublishers(token),
       listAdminArtifacts(token),
@@ -124,6 +211,7 @@ async function loadAdminState(token: string | null, source: 'token' | 'session')
     if (source === 'token') {
       tokenInput.value = token || ''
     }
+    users.value = userResult
     namespaces.value = namespaceResult
     publishers.value = publisherResult
     artifacts.value = artifactResult
@@ -152,6 +240,7 @@ async function disconnect(): Promise<void> {
   activeToken.value = ''
   tokenInput.value = ''
   browserSession.value = null
+  users.value = []
   namespaces.value = []
   publishers.value = []
   artifacts.value = []
@@ -252,22 +341,22 @@ onMounted(async () => {
   <section class="page">
     <div class="page-header">
       <h1>Registry Admin</h1>
-      <p>Moderate namespace verification, publisher status, and package or template ownership. GitHub admin sessions are the primary browser path; bearer tokens are only a bootstrap fallback.</p>
+      <p>Moderate users, publishers, namespace verification, and package or template ownership. GitHub admin sessions are the primary browser path; bearer tokens are only a bootstrap fallback.</p>
     </div>
 
     <section class="hero-panel publisher-auth-panel">
       <div>
-        <span class="eyebrow">Admin Moderation</span>
+        <span class="eyebrow">Admin Console</span>
         <h2>Sign in with GitHub</h2>
-        <p>Admin access requires the signed-in GitHub login to be listed in <code>ANIP_REGISTRY_ADMIN_GITHUB_LOGINS</code>.</p>
+        <p>Use a GitHub account with registry admin access to review moderation queues, publisher status, namespace requests, and artifact ownership.</p>
       </div>
       <div class="publisher-token-form">
-        <a class="artifact-action github-login-link" :href="githubAuthStartURL()">Sign in with GitHub</a>
+        <a class="artifact-action github-login-link" :href="githubAuthStartURL('/registry/admin')">Sign in with GitHub</a>
         <p v-if="browserSession?.user" class="tooling-note">
           Signed in as {{ browserSession.user.display_name }}
           <template v-if="browserSession.user.github_login">(@{{ browserSession.user.github_login }})</template>
         </p>
-        <p v-if="signedInButNotAdmin" class="warning-note">This GitHub account is signed in but is not configured as a Registry admin.</p>
+        <p v-if="signedInButNotAdmin" class="warning-note">This GitHub account is signed in, but it does not have Registry admin access.</p>
         <button v-if="hasActiveToken" class="artifact-action secondary" type="button" :disabled="loading" @click="refresh">
           Refresh
         </button>
@@ -283,7 +372,7 @@ onMounted(async () => {
           </label>
           <div class="action-row">
             <button class="artifact-action" type="button" :disabled="loading || usingBrowserSession" @click="connect">
-              {{ loading ? 'Connecting…' : 'Connect token' }}
+              {{ loading ? 'Connecting...' : 'Connect token' }}
             </button>
           </div>
         </details>
@@ -296,12 +385,12 @@ onMounted(async () => {
     <template v-if="hasActiveToken">
       <section class="metric-grid">
         <div class="metric-card">
-          <span>Pending Namespaces</span>
-          <strong>{{ pendingNamespaces.length }}</strong>
+          <span>Users</span>
+          <strong>{{ users.length }}</strong>
         </div>
         <div class="metric-card">
-          <span>Publishers</span>
-          <strong>{{ publishers.length }}</strong>
+          <span>Pending Namespaces</span>
+          <strong>{{ pendingNamespaces.length }}</strong>
         </div>
         <div class="metric-card">
           <span>Suspended Publishers</span>
@@ -313,140 +402,244 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="detail-grid">
-        <article class="panel full-width-panel">
-          <h2>Namespace Verification</h2>
-          <p class="tooling-note">Approve, reject, reserve, or suspend namespaces. Pending verification entries are sorted first by the backend.</p>
-          <p v-if="namespaces.length === 0" class="empty-state">No namespaces found.</p>
-          <div v-else class="admin-table">
-            <div v-for="namespace in namespaces" :key="namespace.namespace" class="admin-row">
-              <div>
-                <strong>{{ namespace.namespace }}</strong>
-                <span>{{ namespace.status }} · publisher <code>{{ namespace.publisher_id }}</code> · {{ namespace.artifact_kinds.join(', ') }}</span>
-                <span>Updated {{ formatRegistryTimestamp(namespace.updated_at) }}</span>
-              </div>
-              <form class="admin-action-form" @submit.prevent="updateNamespace(namespace)">
-                <label class="form-field">
-                  <span>Status</span>
-                  <select v-model="ensureNamespaceAction(namespace).status">
-                    <option value="pending_verification">pending_verification</option>
-                    <option value="active">active</option>
-                    <option value="reserved">reserved</option>
-                    <option value="suspended">suspended</option>
-                    <option value="rejected">rejected</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Reason</span>
-                  <input v-model="ensureNamespaceAction(namespace).reason" placeholder="audit reason" />
-                </label>
-                <button class="artifact-action" type="submit" :disabled="loading">Update</button>
-              </form>
-            </div>
-          </div>
-        </article>
+      <section class="panel full-width-panel">
+        <div class="admin-section-tabs" role="tablist" aria-label="Registry admin sections">
+          <button
+            v-for="section in (['users', 'publishers', 'namespaces', 'artifacts'] as AdminSection[])"
+            :key="section"
+            class="admin-section-tab"
+            :class="{ active: activeSection === section }"
+            type="button"
+            @click="setSection(section)"
+          >
+            {{ section }}
+            <span>{{ sectionCount(section) }}</span>
+          </button>
+        </div>
 
-        <article class="panel full-width-panel">
-          <h2>Publisher Moderation</h2>
-          <p class="tooling-note">Suspend compromised or abusive publishers, reactivate cleared publishers, or adjust trust level after review.</p>
-          <p v-if="publishers.length === 0" class="empty-state">No publishers found.</p>
-          <div v-else class="admin-table">
-            <div v-for="publisher in publishers" :key="publisher.publisher_id" class="admin-row">
-              <div>
-                <strong>{{ publisher.display_name }}</strong>
-                <span><code>{{ publisher.publisher_id }}</code> · {{ publisher.status }} · {{ publisher.trust_level }}</span>
-                <span>{{ publisher.website_url || 'no website declared' }}</span>
-                <span>Updated {{ formatRegistryTimestamp(publisher.updated_at) }}</span>
-              </div>
-              <form class="admin-action-form" @submit.prevent="updatePublisher(publisher)">
-                <label class="form-field">
-                  <span>Status</span>
-                  <select v-model="ensurePublisherAction(publisher).status">
-                    <option value="active">active</option>
-                    <option value="pending_review">pending_review</option>
-                    <option value="suspended">suspended</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Trust</span>
-                  <select v-model="ensurePublisherAction(publisher).trustLevel">
-                    <option value="unverified">unverified</option>
-                    <option value="verified">verified</option>
-                    <option value="official">official</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Reason</span>
-                  <input v-model="ensurePublisherAction(publisher).reason" placeholder="audit reason" />
-                </label>
-                <button class="artifact-action" type="submit" :disabled="loading">Update</button>
-              </form>
-            </div>
-          </div>
-        </article>
+        <div class="admin-grid-toolbar">
+          <label class="form-field">
+            <span>Search</span>
+            <input v-model="searchQuery" placeholder="Search by id, login, namespace, status..." />
+          </label>
 
-        <article class="panel full-width-panel">
-          <h2>Artifact Ownership Moderation</h2>
-          <p class="tooling-note">Suspend package or template ownership to block new versions, or transfer current ownership to another active publisher namespace while keeping the audit trail explicit.</p>
-          <p v-if="artifacts.length === 0" class="empty-state">No package or template ownership records found.</p>
-          <div v-else class="admin-table">
-            <div v-for="artifact in artifacts" :key="artifactKey(artifact)" class="admin-row">
-              <div>
-                <strong>{{ artifact.artifact_id }}</strong>
-                <span>{{ artifact.artifact_kind }} · {{ artifact.status }} · namespace {{ artifact.namespace }}</span>
-                <span>Updated {{ formatRegistryTimestamp(artifact.updated_at) }}</span>
-              </div>
-              <form class="admin-action-form" @submit.prevent="updateArtifact(artifact)">
-                <label class="form-field">
-                  <span>Status</span>
-                  <select v-model="ensureArtifactAction(artifact).status">
-                    <option value="active">active</option>
-                    <option value="suspended">suspended</option>
-                    <option value="transferred">transferred</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Reason</span>
-                  <input v-model="ensureArtifactAction(artifact).reason" placeholder="audit reason" />
-                </label>
-                <button class="artifact-action" type="submit" :disabled="loading">Update</button>
-              </form>
-              <form class="admin-action-form transfer-form" @submit.prevent="transferArtifact(artifact)">
-                <label class="form-field">
-                  <span>Transfer to publisher</span>
-                  <select v-model="ensureArtifactTransferAction(artifact).targetPublisherId" required>
-                    <option value="" disabled>Select publisher</option>
-                    <option
-                      v-for="publisher in activePublishers"
-                      :key="publisher.publisher_id"
-                      :value="publisher.publisher_id"
-                    >
-                      {{ publisher.publisher_id }} · {{ publisher.trust_level }}
-                    </option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Target namespace</span>
-                  <select v-model="ensureArtifactTransferAction(artifact).targetNamespace" required>
-                    <option value="" disabled>Select namespace</option>
-                    <option
-                      v-for="namespace in activeNamespaces"
-                      :key="namespace.namespace"
-                      :value="namespace.namespace"
-                    >
-                      {{ namespace.namespace }} · {{ namespace.publisher_id }} · {{ namespace.artifact_kinds.join(', ') }}
-                    </option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Transfer reason</span>
-                  <input v-model="ensureArtifactTransferAction(artifact).reason" required placeholder="audit reason" />
-                </label>
-                <button class="artifact-action secondary" type="submit" :disabled="loading">Transfer</button>
-              </form>
-            </div>
-          </div>
-        </article>
+          <label v-if="activeSection === 'users'" class="form-field compact-field">
+            <span>Status</span>
+            <select v-model="statusFilters.users">
+              <option value="">All statuses</option>
+              <option value="active">active</option>
+              <option value="suspended">suspended</option>
+            </select>
+          </label>
+
+          <label v-if="activeSection === 'publishers'" class="form-field compact-field">
+            <span>Status</span>
+            <select v-model="statusFilters.publishers">
+              <option value="">All statuses</option>
+              <option value="active">active</option>
+              <option value="pending_review">pending_review</option>
+              <option value="suspended">suspended</option>
+            </select>
+          </label>
+
+          <label v-if="activeSection === 'namespaces'" class="form-field compact-field">
+            <span>Status</span>
+            <select v-model="statusFilters.namespaces">
+              <option value="">All statuses</option>
+              <option value="pending_verification">pending_verification</option>
+              <option value="active">active</option>
+              <option value="reserved">reserved</option>
+              <option value="suspended">suspended</option>
+              <option value="rejected">rejected</option>
+            </select>
+          </label>
+
+          <label v-if="activeSection === 'artifacts'" class="form-field compact-field">
+            <span>Status</span>
+            <select v-model="statusFilters.artifacts">
+              <option value="">All statuses</option>
+              <option value="active">active</option>
+              <option value="suspended">suspended</option>
+              <option value="transferred">transferred</option>
+            </select>
+          </label>
+        </div>
+
+        <div v-if="activeSection === 'users'" class="admin-grid-scroll">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>GitHub</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Last login</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in filteredUsers" :key="user.user_id">
+                <td>
+                  <strong>{{ user.display_name }}</strong>
+                  <span><code>{{ user.user_id }}</code></span>
+                </td>
+                <td>{{ user.github_login ? `@${user.github_login}` : 'not linked' }}</td>
+                <td>{{ user.email || 'not shared' }}</td>
+                <td><span class="status-pill">{{ user.status }}</span></td>
+                <td>{{ user.last_login_at ? formatRegistryTimestamp(user.last_login_at) : 'never' }}</td>
+                <td>{{ formatRegistryTimestamp(user.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="filteredUsers.length === 0" class="empty-state">No users match the current filters.</p>
+        </div>
+
+        <div v-if="activeSection === 'publishers'" class="admin-grid-scroll">
+          <table class="admin-data-table admin-action-table">
+            <thead>
+              <tr>
+                <th>Publisher</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Trust</th>
+                <th>Website</th>
+                <th>Updated</th>
+                <th>Moderation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="publisher in filteredPublishers" :key="publisher.publisher_id">
+                <td>
+                  <strong>{{ publisher.display_name }}</strong>
+                  <span><code>{{ publisher.publisher_id }}</code></span>
+                </td>
+                <td>{{ publisher.publisher_type }}</td>
+                <td><span class="status-pill">{{ publisher.status }}</span></td>
+                <td>{{ publisher.trust_level }}</td>
+                <td>{{ publisher.website_url || 'not declared' }}</td>
+                <td>{{ formatRegistryTimestamp(publisher.updated_at) }}</td>
+                <td>
+                  <form class="admin-inline-form" @submit.prevent="updatePublisher(publisher)">
+                    <select v-model="ensurePublisherAction(publisher).status">
+                      <option value="active">active</option>
+                      <option value="pending_review">pending_review</option>
+                      <option value="suspended">suspended</option>
+                    </select>
+                    <select v-model="ensurePublisherAction(publisher).trustLevel">
+                      <option value="unverified">unverified</option>
+                      <option value="verified">verified</option>
+                      <option value="official">official</option>
+                    </select>
+                    <input v-model="ensurePublisherAction(publisher).reason" placeholder="audit reason" />
+                    <button class="artifact-action" type="submit" :disabled="loading">Update</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="filteredPublishers.length === 0" class="empty-state">No publishers match the current filters.</p>
+        </div>
+
+        <div v-if="activeSection === 'namespaces'" class="admin-grid-scroll">
+          <table class="admin-data-table admin-action-table">
+            <thead>
+              <tr>
+                <th>Namespace</th>
+                <th>Publisher</th>
+                <th>Status</th>
+                <th>Kinds</th>
+                <th>Updated</th>
+                <th>Moderation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="namespace in filteredNamespaces" :key="namespace.namespace">
+                <td><strong>{{ namespace.namespace }}</strong></td>
+                <td><code>{{ namespace.publisher_id }}</code></td>
+                <td><span class="status-pill">{{ namespace.status }}</span></td>
+                <td>{{ namespace.artifact_kinds.join(', ') }}</td>
+                <td>{{ formatRegistryTimestamp(namespace.updated_at) }}</td>
+                <td>
+                  <form class="admin-inline-form" @submit.prevent="updateNamespace(namespace)">
+                    <select v-model="ensureNamespaceAction(namespace).status">
+                      <option value="pending_verification">pending_verification</option>
+                      <option value="active">active</option>
+                      <option value="reserved">reserved</option>
+                      <option value="suspended">suspended</option>
+                      <option value="rejected">rejected</option>
+                    </select>
+                    <input v-model="ensureNamespaceAction(namespace).reason" placeholder="audit reason" />
+                    <button class="artifact-action" type="submit" :disabled="loading">Update</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="filteredNamespaces.length === 0" class="empty-state">No namespaces match the current filters.</p>
+        </div>
+
+        <div v-if="activeSection === 'artifacts'" class="admin-grid-scroll">
+          <table class="admin-data-table admin-action-table">
+            <thead>
+              <tr>
+                <th>Artifact</th>
+                <th>Kind</th>
+                <th>Namespace</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Moderation</th>
+                <th>Transfer</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="artifact in filteredArtifacts" :key="artifactKey(artifact)">
+                <td><strong>{{ artifact.artifact_id }}</strong></td>
+                <td>{{ artifact.artifact_kind }}</td>
+                <td>{{ artifact.namespace }}</td>
+                <td><span class="status-pill">{{ artifact.status }}</span></td>
+                <td>{{ formatRegistryTimestamp(artifact.updated_at) }}</td>
+                <td>
+                  <form class="admin-inline-form" @submit.prevent="updateArtifact(artifact)">
+                    <select v-model="ensureArtifactAction(artifact).status">
+                      <option value="active">active</option>
+                      <option value="suspended">suspended</option>
+                      <option value="transferred">transferred</option>
+                    </select>
+                    <input v-model="ensureArtifactAction(artifact).reason" placeholder="audit reason" />
+                    <button class="artifact-action" type="submit" :disabled="loading">Update</button>
+                  </form>
+                </td>
+                <td>
+                  <form class="admin-inline-form transfer-form" @submit.prevent="transferArtifact(artifact)">
+                    <select v-model="ensureArtifactTransferAction(artifact).targetPublisherId" required>
+                      <option value="" disabled>Select publisher</option>
+                      <option
+                        v-for="publisher in activePublishers"
+                        :key="publisher.publisher_id"
+                        :value="publisher.publisher_id"
+                      >
+                        {{ publisher.publisher_id }} · {{ publisher.trust_level }}
+                      </option>
+                    </select>
+                    <select v-model="ensureArtifactTransferAction(artifact).targetNamespace" required>
+                      <option value="" disabled>Select namespace</option>
+                      <option
+                        v-for="namespace in activeNamespaces"
+                        :key="namespace.namespace"
+                        :value="namespace.namespace"
+                      >
+                        {{ namespace.namespace }} · {{ namespace.publisher_id }}
+                      </option>
+                    </select>
+                    <input v-model="ensureArtifactTransferAction(artifact).reason" required placeholder="audit reason" />
+                    <button class="artifact-action secondary" type="submit" :disabled="loading">Transfer</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="filteredArtifacts.length === 0" class="empty-state">No artifact ownership records match the current filters.</p>
+        </div>
       </section>
     </template>
   </section>
