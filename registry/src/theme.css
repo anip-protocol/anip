@@ -1074,7 +1074,7 @@ pre {
 
 .admin-grid-toolbar {
   display: grid;
-  grid-template-columns: minmax(16rem, 1fr) minmax(12rem, 16rem);
+  grid-template-columns: minmax(16rem, 1fr) minmax(12rem, 16rem) auto;
   gap: 0.85rem;
   align-items: end;
   margin-bottom: 1rem;
@@ -1087,6 +1087,30 @@ pre {
 .admin-grid-scroll {
   max-width: 100%;
   overflow-x: auto;
+}
+
+.admin-grid-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-pager-actions {
+  justify-content: flex-end;
+}
+
+.admin-report-form {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) minmax(14rem, 1.2fr) minmax(10rem, 1fr) minmax(12rem, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  border: 1px solid rgba(29, 29, 27, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 252, 246, 0.72);
+  padding: 0.9rem;
+}
+
+.report-reason-field {
+  grid-column: span 2;
 }
 
 .admin-data-table {
@@ -1174,6 +1198,15 @@ pre {
   color: #1d1d1b;
   font: inherit;
   padding: 0.55rem 0.65rem;
+}
+
+.danger-action {
+  border-color: rgba(153, 27, 27, 0.28);
+  background: #991b1b;
+}
+
+.danger-action:hover {
+  background: #7f1d1d;
 }
 
 .tooling-details {
@@ -1290,8 +1323,13 @@ pre {
   }
 
   .admin-grid-toolbar,
-  .admin-inline-form {
+  .admin-inline-form,
+  .admin-report-form {
     grid-template-columns: 1fr;
+  }
+
+  .report-reason-field {
+    grid-column: auto;
   }
 
   .compact-field {

@@ -60,6 +60,20 @@ export interface RegistryUser {
   last_login_at?: string
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface AdminListQuery {
+  search?: string
+  status?: string
+  limit?: number
+  offset?: number
+}
+
 export interface RegistryBrowserSessionContext {
   user: RegistryUser
   publisher?: RegistryPublisher
@@ -138,6 +152,41 @@ export interface UpdateArtifactOwnershipStatusRequest {
 export interface TransferArtifactOwnershipRequest {
   target_publisher_id: string
   target_namespace: string
+  reason?: string
+}
+
+export interface TransferNamespaceRequest {
+  target_publisher_id: string
+  reason?: string
+}
+
+export interface RegistryAbuseReport {
+  report_id: string
+  target_kind: 'package' | 'template' | 'publisher' | 'namespace'
+  target_id: string
+  category: string
+  reason: string
+  reporter_contact?: string
+  status: 'open' | 'reviewing' | 'resolved' | 'rejected'
+  resolution?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateAbuseReportRequest {
+  target_kind: string
+  target_id: string
+  category: string
+  reason: string
+  reporter_contact?: string
+}
+
+export interface UpdateAbuseReportStatusRequest {
+  status: string
+  resolution?: string
+}
+
+export interface ApplyAbuseTakedownRequest {
   reason?: string
 }
 
@@ -239,6 +288,16 @@ function authHeaders(token: string | null, extra: HeadersInit = {}): HeadersInit
     ...extra,
     Authorization: `Bearer ${token}`,
   }
+}
+
+function adminListQuery(query: AdminListQuery = {}): string {
+  const params = new URLSearchParams()
+  if (query.search?.trim()) params.set('search', query.search.trim())
+  if (query.status?.trim()) params.set('status', query.status.trim())
+  if (query.limit) params.set('limit', String(query.limit))
+  if (query.offset) params.set('offset', String(query.offset))
+  const suffix = params.toString()
+  return suffix ? `?${suffix}` : ''
 }
 
 export function githubAuthStartURL(returnTo?: string): string {
@@ -361,32 +420,69 @@ export async function revokeMyToken(token: string | null, tokenId: string): Prom
   return payload.token
 }
 
-export async function listAdminNamespaces(token: string | null): Promise<RegistryNamespaceSummary[]> {
-  const payload = await api<{ items: RegistryNamespaceSummary[] }>('/admin/namespaces', {
+export async function listAdminNamespaces(token: string | null, query: AdminListQuery = {}): Promise<PaginatedResponse<RegistryNamespaceSummary>> {
+  return api<PaginatedResponse<RegistryNamespaceSummary>>(`/admin/namespaces${adminListQuery(query)}`, {
     headers: authHeaders(token),
   })
-  return payload.items
 }
 
-export async function listAdminPublishers(token: string | null): Promise<RegistryPublisher[]> {
-  const payload = await api<{ items: RegistryPublisher[] }>('/admin/publishers', {
+export async function listAdminPublishers(token: string | null, query: AdminListQuery = {}): Promise<PaginatedResponse<RegistryPublisher>> {
+  return api<PaginatedResponse<RegistryPublisher>>(`/admin/publishers${adminListQuery(query)}`, {
     headers: authHeaders(token),
   })
-  return payload.items
 }
 
-export async function listAdminUsers(token: string | null): Promise<RegistryUser[]> {
-  const payload = await api<{ items: RegistryUser[] }>('/admin/users', {
+export async function listAdminUsers(token: string | null, query: AdminListQuery = {}): Promise<PaginatedResponse<RegistryUser>> {
+  return api<PaginatedResponse<RegistryUser>>(`/admin/users${adminListQuery(query)}`, {
     headers: authHeaders(token),
   })
-  return payload.items
 }
 
-export async function listAdminArtifacts(token: string | null): Promise<PublisherArtifactSummary[]> {
-  const payload = await api<{ items: PublisherArtifactSummary[] }>('/admin/artifacts', {
+export async function listAdminArtifacts(token: string | null, query: AdminListQuery = {}): Promise<PaginatedResponse<PublisherArtifactSummary>> {
+  return api<PaginatedResponse<PublisherArtifactSummary>>(`/admin/artifacts${adminListQuery(query)}`, {
     headers: authHeaders(token),
   })
-  return payload.items
+}
+
+export async function listAdminAbuseReports(token: string | null, query: AdminListQuery = {}): Promise<PaginatedResponse<RegistryAbuseReport>> {
+  return api<PaginatedResponse<RegistryAbuseReport>>(`/admin/abuse-reports${adminListQuery(query)}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export async function createAdminAbuseReport(token: string | null, request: CreateAbuseReportRequest): Promise<RegistryAbuseReport> {
+  const payload = await api<{ report: RegistryAbuseReport }>('/admin/abuse-reports', {
+    method: 'POST',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.report
+}
+
+export async function updateAdminAbuseReportStatus(
+  token: string | null,
+  reportId: string,
+  request: UpdateAbuseReportStatusRequest,
+): Promise<RegistryAbuseReport> {
+  const payload = await api<{ report: RegistryAbuseReport }>(`/admin/abuse-reports/${encodeURIComponent(reportId)}/status`, {
+    method: 'PATCH',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.report
+}
+
+export async function applyAdminAbuseTakedown(
+  token: string | null,
+  reportId: string,
+  request: ApplyAbuseTakedownRequest,
+): Promise<RegistryAbuseReport> {
+  const payload = await api<{ report: RegistryAbuseReport }>(`/admin/abuse-reports/${encodeURIComponent(reportId)}/takedown`, {
+    method: 'POST',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.report
 }
 
 export async function updateAdminNamespaceStatus(
@@ -396,6 +492,19 @@ export async function updateAdminNamespaceStatus(
 ): Promise<RegistryNamespaceSummary> {
   const payload = await api<{ namespace: RegistryNamespaceSummary }>(`/admin/namespaces/${encodeURIComponent(namespace)}`, {
     method: 'PATCH',
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(request),
+  })
+  return payload.namespace
+}
+
+export async function transferAdminNamespace(
+  token: string | null,
+  namespace: string,
+  request: TransferNamespaceRequest,
+): Promise<RegistryNamespaceSummary> {
+  const payload = await api<{ namespace: RegistryNamespaceSummary }>(`/admin/namespace-transfer/${encodeURIComponent(namespace)}`, {
+    method: 'POST',
     headers: authHeaders(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(request),
   })

@@ -196,21 +196,21 @@ curl -X POST \
   https://registry.anip.dev/registry-api/v1/me/namespaces
 ```
 
-Self-service namespace requests start as `pending_verification`. They are visible to the publisher, but publication into that namespace is blocked until a registry administrator verifies and activates the namespace. Admin namespace status changes require `ANIP_REGISTRY_ADMIN_TOKEN`:
+Self-service namespace requests start as `pending_verification`. They are visible to the publisher, but publication into that namespace is blocked until a registry administrator verifies and activates the namespace.
 
-The hosted registry UI exposes the same admin controls at `/admin`. Paste the configured admin token to list namespaces, publishers, and artifact ownership rows, then update moderation status with an audit reason.
+The hosted registry UI exposes admin controls at `/registry/admin`. The primary browser flow is GitHub OAuth with `ANIP_REGISTRY_ADMIN_GITHUB_LOGINS`; `ANIP_REGISTRY_ADMIN_TOKEN` remains available as an advanced bootstrap or emergency recovery fallback.
 
-Admin list APIs:
+Admin list APIs support `limit`, `offset`, `search`, and `status` query parameters and return `{items,total,limit,offset}`:
 
 ```bash
 curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
-  https://registry.anip.dev/registry-api/v1/admin/namespaces
+  "https://registry.anip.dev/registry-api/v1/admin/namespaces?status=pending_verification&limit=25&offset=0"
 
 curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
-  https://registry.anip.dev/registry-api/v1/admin/publishers
+  "https://registry.anip.dev/registry-api/v1/admin/publishers?search=anip&limit=25"
 
 curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
-  https://registry.anip.dev/registry-api/v1/admin/artifacts
+  "https://registry.anip.dev/registry-api/v1/admin/artifacts?status=suspended"
 ```
 
 ```bash
@@ -263,6 +263,45 @@ curl -X POST \
 ```
 
 Transfer requires an existing artifact ownership row, an active target publisher, and an active target namespace owned by that publisher that supports the artifact kind. The Registry keeps a single current ownership row per artifact and records the previous owner, previous namespace, target owner, target namespace, and reason in the audit log.
+
+Transfer namespace ownership to another active publisher:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_publisher_id": "anip-labs",
+    "reason": "organization ownership migration"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/namespace-transfer/anip
+```
+
+Namespace transfer moves the namespace and all current artifact ownership rows under that namespace to the target publisher, then records an audit event with the previous and target publisher ids. Reserved and rejected namespaces cannot be transferred.
+
+Abuse reports provide a tracked takedown workflow:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_kind": "package",
+    "target_id": "anip/some-package",
+    "category": "malware",
+    "reason": "suspicious generated bundle",
+    "reporter_contact": "security@example.com"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/abuse-reports
+
+curl -X POST \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "confirmed policy violation"}' \
+  https://registry.anip.dev/registry-api/v1/admin/abuse-reports/<report-id>/takedown
+```
+
+Applying a takedown suspends the report target (`package`, `template`, `publisher`, or `namespace`), moves the report to `reviewing`, and records audit evidence. Reports can then be resolved or rejected through `/registry-api/v1/admin/abuse-reports/{reportID}/status`.
 
 Supported publisher statuses are `active`, `pending_review`, and `suspended`; suspended publishers cannot use scoped publisher tokens. Supported artifact ownership statuses are `active`, `transferred`, and `suspended`; suspended ownership blocks publishing new package/template versions for that artifact id.
 
