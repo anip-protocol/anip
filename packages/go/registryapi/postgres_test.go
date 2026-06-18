@@ -30,7 +30,7 @@ func newRegistryPostgresStore(t *testing.T) *PostgresStore {
 	t.Cleanup(func() { _ = store.Close() })
 
 	if _, err := store.pool.Exec(t.Context(), `
-		TRUNCATE registry_audit_events, registry_artifact_ownership, registry_publish_tokens,
+		TRUNCATE registry_abuse_reports, registry_audit_events, registry_artifact_ownership, registry_publish_tokens,
 		         registry_browser_sessions, registry_namespaces, registry_publisher_memberships, registry_publishers,
 		         registry_users, registry_receipts, registry_packages, published_lineages,
 		         registry_templates
@@ -896,6 +896,56 @@ func TestPostgresAdminModerationLists(t *testing.T) {
 	}
 }
 
+func TestPostgresAdminModerationListsSupportPaginationAndSearch(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertPublisherNamespaceFixture(t, store, "alpha", "alpha", "active")
+	insertPublisherNamespaceFixture(t, store, "bravo-labs", "bravo-labs", "active")
+	insertPublisherNamespaceFixture(t, store, "charlie-labs", "charlie-labs", "active")
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	publisherReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/publishers?search=labs&limit=1&offset=1", nil)
+	publisherReq.Header.Set("Authorization", "Bearer admin-secret")
+	publisherRec := httptest.NewRecorder()
+	handler.ServeHTTP(publisherRec, publisherReq)
+	if publisherRec.Code != http.StatusOK {
+		t.Fatalf("expected paginated publisher list 200, got %d body=%s", publisherRec.Code, publisherRec.Body.String())
+	}
+	var publisherPayload struct {
+		Items  []RegistryPublisher `json:"items"`
+		Total  int                 `json:"total"`
+		Limit  int                 `json:"limit"`
+		Offset int                 `json:"offset"`
+	}
+	if err := json.Unmarshal(publisherRec.Body.Bytes(), &publisherPayload); err != nil {
+		t.Fatalf("decode paginated publishers: %v", err)
+	}
+	if publisherPayload.Total != 2 || publisherPayload.Limit != 1 || publisherPayload.Offset != 1 || len(publisherPayload.Items) != 1 {
+		t.Fatalf("unexpected paginated publisher payload %+v", publisherPayload)
+	}
+	if publisherPayload.Items[0].PublisherID != "bravo-labs" {
+		t.Fatalf("expected second matching publisher, got %+v", publisherPayload.Items)
+	}
+
+	namespaceReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/namespaces?search=bravo&limit=10", nil)
+	namespaceReq.Header.Set("Authorization", "Bearer admin-secret")
+	namespaceRec := httptest.NewRecorder()
+	handler.ServeHTTP(namespaceRec, namespaceReq)
+	if namespaceRec.Code != http.StatusOK {
+		t.Fatalf("expected searchable namespace list 200, got %d body=%s", namespaceRec.Code, namespaceRec.Body.String())
+	}
+	var namespacePayload struct {
+		Items []RegistryNamespaceSummary `json:"items"`
+		Total int                        `json:"total"`
+	}
+	if err := json.Unmarshal(namespaceRec.Body.Bytes(), &namespacePayload); err != nil {
+		t.Fatalf("decode searched namespaces: %v", err)
+	}
+	if namespacePayload.Total != 1 || len(namespacePayload.Items) != 1 || namespacePayload.Items[0].Namespace != "bravo-labs" {
+		t.Fatalf("unexpected namespace search payload %+v", namespacePayload)
+	}
+}
+
 func TestPostgresAdminArtifactOwnershipTransferMovesCurrentOwner(t *testing.T) {
 	store := newRegistryPostgresStore(t)
 	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
@@ -1022,6 +1072,174 @@ func TestPostgresAdminArtifactOwnershipTransferRejectsInvalidTargetNamespace(t *
 	handler.ServeHTTP(transferRec, transferReq)
 	if transferRec.Code != http.StatusBadRequest {
 		t.Fatalf("expected invalid namespace transfer 400, got %d body=%s", transferRec.Code, transferRec.Body.String())
+	}
+}
+
+func TestPostgresAdminNamespaceTransferMovesNamespaceAndArtifacts(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+	insertPublisherWithNamespaceAndTokenFixture(t, store, "new-owner", "new-owner-token-secret", "new-owner", []string{"publish:package"})
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/namespace-transfer-test"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/namespace-transfer-test"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	publishReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	publishReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	publishRec := httptest.NewRecorder()
+	handler.ServeHTTP(publishRec, publishReq)
+	if publishRec.Code != http.StatusCreated {
+		t.Fatalf("expected publish 201, got %d body=%s", publishRec.Code, publishRec.Body.String())
+	}
+
+	transferPayload, err := json.Marshal(TransferNamespaceRequest{
+		TargetPublisherID: "new-owner",
+		Reason:            "organization ownership migration",
+	})
+	if err != nil {
+		t.Fatalf("marshal namespace transfer: %v", err)
+	}
+	transferReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/admin/namespace-transfer/anip", bytes.NewReader(transferPayload))
+	transferReq.Header.Set("Authorization", "Bearer admin-secret")
+	transferRec := httptest.NewRecorder()
+	handler.ServeHTTP(transferRec, transferReq)
+	if transferRec.Code != http.StatusOK {
+		t.Fatalf("expected namespace transfer 200, got %d body=%s", transferRec.Code, transferRec.Body.String())
+	}
+	var transferResult struct {
+		Namespace RegistryNamespaceSummary `json:"namespace"`
+	}
+	if err := json.Unmarshal(transferRec.Body.Bytes(), &transferResult); err != nil {
+		t.Fatalf("decode namespace transfer: %v", err)
+	}
+	if transferResult.Namespace.Namespace != "anip" || transferResult.Namespace.PublisherID != "new-owner" {
+		t.Fatalf("unexpected namespace transfer result %+v", transferResult.Namespace)
+	}
+
+	var artifactPublisher string
+	if err := store.pool.QueryRow(t.Context(), `
+		SELECT publisher_id
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = 'package' AND artifact_id = 'anip/namespace-transfer-test'
+	`).Scan(&artifactPublisher); err != nil {
+		t.Fatalf("read artifact ownership publisher: %v", err)
+	}
+	if artifactPublisher != "new-owner" {
+		t.Fatalf("expected artifact ownership to move with namespace, got %q", artifactPublisher)
+	}
+
+	var auditCount int
+	if err := store.pool.QueryRow(t.Context(), `
+		SELECT count(*)
+		FROM registry_audit_events
+		WHERE event_type = 'namespace.ownership.transferred'
+		  AND target_type = 'namespace'
+		  AND target_id = 'anip'
+		  AND metadata->>'previous_publisher_id' = 'anip'
+		  AND metadata->>'target_publisher_id' = 'new-owner'
+	`).Scan(&auditCount); err != nil {
+		t.Fatalf("read namespace transfer audit: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("expected namespace transfer audit event, got %d", auditCount)
+	}
+}
+
+func TestPostgresAdminAbuseReportLifecycleAndTakedown(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/abuse-report-target"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/abuse-report-target"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	publishReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	publishReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	publishRec := httptest.NewRecorder()
+	handler.ServeHTTP(publishRec, publishReq)
+	if publishRec.Code != http.StatusCreated {
+		t.Fatalf("expected publish 201, got %d body=%s", publishRec.Code, publishRec.Body.String())
+	}
+
+	reportPayload, err := json.Marshal(CreateAbuseReportRequest{
+		TargetKind:      "package",
+		TargetID:        "anip/abuse-report-target",
+		Category:        "malware",
+		Reason:          "suspicious generated code bundle",
+		ReporterContact: "security@example.com",
+	})
+	if err != nil {
+		t.Fatalf("marshal abuse report: %v", err)
+	}
+	reportReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/admin/abuse-reports", bytes.NewReader(reportPayload))
+	reportReq.Header.Set("Authorization", "Bearer admin-secret")
+	reportRec := httptest.NewRecorder()
+	handler.ServeHTTP(reportRec, reportReq)
+	if reportRec.Code != http.StatusCreated {
+		t.Fatalf("expected abuse report 201, got %d body=%s", reportRec.Code, reportRec.Body.String())
+	}
+	var reportResult struct {
+		Report RegistryAbuseReport `json:"report"`
+	}
+	if err := json.Unmarshal(reportRec.Body.Bytes(), &reportResult); err != nil {
+		t.Fatalf("decode abuse report: %v", err)
+	}
+	if reportResult.Report.ReportID == "" || reportResult.Report.Status != "open" {
+		t.Fatalf("unexpected abuse report %+v", reportResult.Report)
+	}
+
+	takedownPayload, err := json.Marshal(ApplyAbuseTakedownRequest{Reason: "confirmed policy violation"})
+	if err != nil {
+		t.Fatalf("marshal takedown request: %v", err)
+	}
+	takedownReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/admin/abuse-reports/"+reportResult.Report.ReportID+"/takedown", bytes.NewReader(takedownPayload))
+	takedownReq.Header.Set("Authorization", "Bearer admin-secret")
+	takedownRec := httptest.NewRecorder()
+	handler.ServeHTTP(takedownRec, takedownReq)
+	if takedownRec.Code != http.StatusOK {
+		t.Fatalf("expected takedown 200, got %d body=%s", takedownRec.Code, takedownRec.Body.String())
+	}
+
+	var artifactStatus string
+	if err := store.pool.QueryRow(t.Context(), `
+		SELECT status
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = 'package' AND artifact_id = 'anip/abuse-report-target'
+	`).Scan(&artifactStatus); err != nil {
+		t.Fatalf("read artifact status: %v", err)
+	}
+	if artifactStatus != "suspended" {
+		t.Fatalf("expected abuse takedown to suspend artifact, got %q", artifactStatus)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/abuse-reports?status=reviewing&search=malware", nil)
+	listReq.Header.Set("Authorization", "Bearer admin-secret")
+	listRec := httptest.NewRecorder()
+	handler.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected abuse report list 200, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	var listPayload struct {
+		Items []RegistryAbuseReport `json:"items"`
+		Total int                   `json:"total"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listPayload); err != nil {
+		t.Fatalf("decode abuse report list: %v", err)
+	}
+	if listPayload.Total != 1 || len(listPayload.Items) != 1 || listPayload.Items[0].Status != "reviewing" {
+		t.Fatalf("unexpected abuse report list %+v", listPayload)
 	}
 }
 
@@ -1336,6 +1554,28 @@ func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherI
 		)
 	`, publisherID, RegistryPublishTokenSecretHash(secret), scopesBytes); err != nil {
 		t.Fatalf("insert token: %v", err)
+	}
+}
+
+func insertPublisherNamespaceFixture(t *testing.T, store *PostgresStore, publisherID string, namespace string, status string) {
+	t.Helper()
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level
+		) VALUES (
+			$1, 'organization', $2, 'Test publisher', 'https://example.com/' || $1, $3, 'unverified'
+		)
+	`, publisherID, publisherID, status); err != nil {
+		t.Fatalf("insert publisher namespace fixture publisher: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			$1, $2, '["package","template"]'::jsonb, 'active'
+		)
+	`, namespace, publisherID); err != nil {
+		t.Fatalf("insert publisher namespace fixture namespace: %v", err)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -55,17 +56,22 @@ type BrowserSessionStore interface {
 }
 
 type NamespaceAdminStore interface {
-	ListNamespaces(ctx context.Context) ([]RegistryNamespaceSummary, error)
-	ListPublishers(ctx context.Context) ([]RegistryPublisher, error)
-	ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error)
+	ListNamespaces(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryNamespaces, error)
+	ListPublishers(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryPublishers, error)
+	ListArtifactOwnership(ctx context.Context, query RegistryAdminListQuery) (PaginatedPublisherArtifacts, error)
 	UpdateNamespaceStatus(ctx context.Context, namespace string, request UpdateNamespaceStatusRequest) (RegistryNamespaceSummary, bool, error)
 	UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error)
 	UpdateArtifactOwnershipStatus(ctx context.Context, artifactKind string, artifactID string, request UpdateArtifactOwnershipStatusRequest) (PublisherArtifactSummary, bool, error)
 	TransferArtifactOwnership(ctx context.Context, artifactKind string, artifactID string, request TransferArtifactOwnershipRequest) (PublisherArtifactSummary, bool, error)
+	TransferNamespaceOwnership(ctx context.Context, namespace string, request TransferNamespaceRequest) (RegistryNamespaceSummary, bool, error)
+	ListAbuseReports(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryAbuseReports, error)
+	CreateAbuseReport(ctx context.Context, request CreateAbuseReportRequest) (RegistryAbuseReport, error)
+	UpdateAbuseReportStatus(ctx context.Context, reportID string, request UpdateAbuseReportStatusRequest) (RegistryAbuseReport, bool, error)
+	ApplyAbuseTakedown(ctx context.Context, reportID string, request ApplyAbuseTakedownRequest) (RegistryAbuseReport, bool, error)
 }
 
 type RegistryUserAdminStore interface {
-	ListRegistryUsers(ctx context.Context) ([]RegistryUser, error)
+	ListRegistryUsers(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryUsers, error)
 }
 
 func NewHandler(store Store) http.Handler {
@@ -354,12 +360,12 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry namespace administration is not supported by this store"})
 			return
 		}
-		items, err := adminStore.ListNamespaces(r.Context())
+		items, err := adminStore.ListNamespaces(r.Context(), parseRegistryAdminListQuery(r))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list namespaces"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		writeJSON(w, http.StatusOK, items)
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/publishers", func(w http.ResponseWriter, r *http.Request) {
@@ -371,12 +377,12 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry publisher administration is not supported by this store"})
 			return
 		}
-		items, err := adminStore.ListPublishers(r.Context())
+		items, err := adminStore.ListPublishers(r.Context(), parseRegistryAdminListQuery(r))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list publishers"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		writeJSON(w, http.StatusOK, items)
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/users", func(w http.ResponseWriter, r *http.Request) {
@@ -388,12 +394,12 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry user administration is not supported by this store"})
 			return
 		}
-		items, err := adminStore.ListRegistryUsers(r.Context())
+		items, err := adminStore.ListRegistryUsers(r.Context(), parseRegistryAdminListQuery(r))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list users"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		writeJSON(w, http.StatusOK, items)
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/admin/artifacts", func(w http.ResponseWriter, r *http.Request) {
@@ -405,12 +411,55 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry artifact administration is not supported by this store"})
 			return
 		}
-		items, err := adminStore.ListArtifactOwnership(r.Context())
+		items, err := adminStore.ListArtifactOwnership(r.Context(), parseRegistryAdminListQuery(r))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list artifacts"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		writeJSON(w, http.StatusOK, items)
+	})
+
+	mux.HandleFunc("GET /registry-api/v1/admin/abuse-reports", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry abuse report administration is not supported by this store"})
+			return
+		}
+		items, err := adminStore.ListAbuseReports(r.Context(), parseRegistryAdminListQuery(r))
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to list abuse reports"})
+			return
+		}
+		writeJSON(w, http.StatusOK, items)
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/admin/abuse-reports", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry abuse report administration is not supported by this store"})
+			return
+		}
+		var request CreateAbuseReportRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid abuse report request"})
+			return
+		}
+		report, err := adminStore.CreateAbuseReport(r.Context(), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid target, category, and reason are required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create abuse report"})
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"report": report})
 	})
 
 	mux.HandleFunc("PATCH /registry-api/v1/admin/namespaces/{namespace...}", func(w http.ResponseWriter, r *http.Request) {
@@ -434,6 +483,36 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 				return
 			}
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update namespace"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "namespace not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"namespace": namespace})
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/admin/namespace-transfer/{namespace...}", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry namespace transfer is not supported by this store"})
+			return
+		}
+		var request TransferNamespaceRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid namespace transfer request"})
+			return
+		}
+		namespace, exists, err := adminStore.TransferNamespaceOwnership(r.Context(), r.PathValue("namespace"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid active target publisher and transferable namespace are required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to transfer namespace"})
 			return
 		}
 		if !exists {
@@ -501,6 +580,66 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"artifact": artifact})
+	})
+
+	mux.HandleFunc("PATCH /registry-api/v1/admin/abuse-reports/{reportID}/status", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry abuse report administration is not supported by this store"})
+			return
+		}
+		var request UpdateAbuseReportStatusRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid abuse report status request"})
+			return
+		}
+		report, exists, err := adminStore.UpdateAbuseReportStatus(r.Context(), r.PathValue("reportID"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "valid abuse report status is required"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to update abuse report"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "abuse report not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"report": report})
+	})
+
+	mux.HandleFunc("POST /registry-api/v1/admin/abuse-reports/{reportID}/takedown", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(NamespaceAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry abuse takedown is not supported by this store"})
+			return
+		}
+		var request ApplyAbuseTakedownRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid abuse takedown request"})
+			return
+		}
+		report, exists, err := adminStore.ApplyAbuseTakedown(r.Context(), r.PathValue("reportID"), request)
+		if err != nil {
+			if errors.Is(err, ErrInvalidPackage) {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "abuse report target cannot be suspended"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to apply abuse takedown"})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "abuse report not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"report": report})
 	})
 
 	mux.HandleFunc("POST /registry-api/v1/admin/artifact-transfer/{artifactKind}/{artifactID...}", func(w http.ResponseWriter, r *http.Request) {
@@ -1020,6 +1159,27 @@ func normalizedStringSet(values []string) map[string]bool {
 		}
 	}
 	return result
+}
+
+func parseRegistryAdminListQuery(r *http.Request) RegistryAdminListQuery {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(strings.TrimSpace(query.Get("limit")))
+	offset, _ := strconv.Atoi(strings.TrimSpace(query.Get("offset")))
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return RegistryAdminListQuery{
+		Search: strings.TrimSpace(query.Get("search")),
+		Status: strings.TrimSpace(query.Get("status")),
+		Limit:  limit,
+		Offset: offset,
+	}
 }
 
 func withCORS(next http.Handler) http.Handler {

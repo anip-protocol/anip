@@ -307,6 +307,41 @@ type RegistryNamespaceSummary struct {
 	UpdatedAt     string   `json:"updated_at"`
 }
 
+type PaginatedRegistryUsers struct {
+	Items  []RegistryUser `json:"items"`
+	Total  int            `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+}
+
+type PaginatedRegistryPublishers struct {
+	Items  []RegistryPublisher `json:"items"`
+	Total  int                 `json:"total"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+}
+
+type PaginatedRegistryNamespaces struct {
+	Items  []RegistryNamespaceSummary `json:"items"`
+	Total  int                        `json:"total"`
+	Limit  int                        `json:"limit"`
+	Offset int                        `json:"offset"`
+}
+
+type PaginatedPublisherArtifacts struct {
+	Items  []PublisherArtifactSummary `json:"items"`
+	Total  int                        `json:"total"`
+	Limit  int                        `json:"limit"`
+	Offset int                        `json:"offset"`
+}
+
+type RegistryAdminListQuery struct {
+	Search string
+	Status string
+	Limit  int
+	Offset int
+}
+
 type CreateNamespaceRequest struct {
 	Namespace     string   `json:"namespace"`
 	ArtifactKinds []string `json:"artifact_kinds"`
@@ -332,4 +367,46 @@ type TransferArtifactOwnershipRequest struct {
 	TargetPublisherID string `json:"target_publisher_id"`
 	TargetNamespace   string `json:"target_namespace"`
 	Reason            string `json:"reason,omitempty"`
+}
+
+type TransferNamespaceRequest struct {
+	TargetPublisherID string `json:"target_publisher_id"`
+	Reason            string `json:"reason,omitempty"`
+}
+
+type RegistryAbuseReport struct {
+	ReportID        string `json:"report_id"`
+	TargetKind      string `json:"target_kind"`
+	TargetID        string `json:"target_id"`
+	Category        string `json:"category"`
+	Reason          string `json:"reason"`
+	ReporterContact string `json:"reporter_contact,omitempty"`
+	Status          string `json:"status"`
+	Resolution      string `json:"resolution,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
+type PaginatedRegistryAbuseReports struct {
+	Items  []RegistryAbuseReport `json:"items"`
+	Total  int                   `json:"total"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+}
+
+type CreateAbuseReportRequest struct {
+	TargetKind      string `json:"target_kind"`
+	TargetID        string `json:"target_id"`
+	Category        string `json:"category"`
+	Reason          string `json:"reason"`
+	ReporterContact string `json:"reporter_contact,omitempty"`
+}
+
+type UpdateAbuseReportStatusRequest struct {
+	Status     string `json:"status"`
+	Resolution string `json:"resolution,omitempty"`
+}
+
+type ApplyAbuseTakedownRequest struct {
+	Reason string `json:"reason,omitempty"`
 }

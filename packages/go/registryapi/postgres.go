@@ -1060,10 +1060,22 @@ func (s *PostgresStore) ListPublisherNamespaces(ctx context.Context, publisherID
 	return items, rows.Err()
 }
 
-func (s *PostgresStore) ListNamespaces(ctx context.Context) ([]RegistryNamespaceSummary, error) {
+func (s *PostgresStore) ListNamespaces(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryNamespaces, error) {
+	query = normalizeRegistryAdminListQuery(query)
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM registry_namespaces
+		WHERE ($1 = '' OR namespace ILIKE '%' || $1 || '%' OR publisher_id ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+	`, query.Search, query.Status).Scan(&total); err != nil {
+		return PaginatedRegistryNamespaces{}, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT namespace, publisher_id, artifact_kinds, status, created_at, updated_at
 		FROM registry_namespaces
+		WHERE ($1 = '' OR namespace ILIKE '%' || $1 || '%' OR publisher_id ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
 		ORDER BY
 			CASE status
 				WHEN 'pending_verification' THEN 0
@@ -1075,20 +1087,24 @@ func (s *PostgresStore) ListNamespaces(ctx context.Context) ([]RegistryNamespace
 			END,
 			updated_at DESC,
 			namespace ASC
-	`)
+		LIMIT $3 OFFSET $4
+	`, query.Search, query.Status, query.Limit, query.Offset)
 	if err != nil {
-		return nil, err
+		return PaginatedRegistryNamespaces{}, err
 	}
 	defer rows.Close()
 	items := []RegistryNamespaceSummary{}
 	for rows.Next() {
 		item, err := scanRegistryNamespaceSummary(rows)
 		if err != nil {
-			return nil, err
+			return PaginatedRegistryNamespaces{}, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return PaginatedRegistryNamespaces{}, err
+	}
+	return PaginatedRegistryNamespaces{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 func (s *PostgresStore) CreatePublisherNamespace(ctx context.Context, publisherID string, request CreateNamespaceRequest) (RegistryNamespaceSummary, error) {
@@ -1160,11 +1176,23 @@ func (s *PostgresStore) UpdateNamespaceStatus(ctx context.Context, namespace str
 	return item, true, nil
 }
 
-func (s *PostgresStore) ListPublishers(ctx context.Context) ([]RegistryPublisher, error) {
+func (s *PostgresStore) ListPublishers(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryPublishers, error) {
+	query = normalizeRegistryAdminListQuery(query)
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM registry_publishers
+		WHERE ($1 = '' OR publisher_id ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%' OR website_url ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+	`, query.Search, query.Status).Scan(&total); err != nil {
+		return PaginatedRegistryPublishers{}, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT publisher_id, publisher_type, display_name, description, website_url,
 		       status, trust_level, created_by_user_id::text, created_at, updated_at
 		FROM registry_publishers
+		WHERE ($1 = '' OR publisher_id ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%' OR website_url ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
 		ORDER BY
 			CASE status
 				WHEN 'pending_review' THEN 0
@@ -1174,20 +1202,24 @@ func (s *PostgresStore) ListPublishers(ctx context.Context) ([]RegistryPublisher
 			END,
 			updated_at DESC,
 			publisher_id ASC
-	`)
+		LIMIT $3 OFFSET $4
+	`, query.Search, query.Status, query.Limit, query.Offset)
 	if err != nil {
-		return nil, err
+		return PaginatedRegistryPublishers{}, err
 	}
 	defer rows.Close()
 	items := []RegistryPublisher{}
 	for rows.Next() {
 		item, err := scanRegistryPublisher(rows)
 		if err != nil {
-			return nil, err
+			return PaginatedRegistryPublishers{}, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return PaginatedRegistryPublishers{}, err
+	}
+	return PaginatedRegistryPublishers{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 func (s *PostgresStore) UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error) {
@@ -1371,35 +1403,153 @@ func (s *PostgresStore) TransferArtifactOwnership(ctx context.Context, artifactK
 	return item, true, nil
 }
 
-func (s *PostgresStore) ListRegistryUsers(ctx context.Context) ([]RegistryUser, error) {
+func (s *PostgresStore) TransferNamespaceOwnership(ctx context.Context, namespace string, request TransferNamespaceRequest) (RegistryNamespaceSummary, bool, error) {
+	namespace = strings.ToLower(strings.TrimSpace(namespace))
+	targetPublisherID := strings.TrimSpace(request.TargetPublisherID)
+	reason := strings.TrimSpace(request.Reason)
+	if !validRegistryNamespace(namespace) || targetPublisherID == "" {
+		return RegistryNamespaceSummary{}, false, ErrInvalidPackage
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	var previousPublisherID string
+	var previousStatus string
+	if err := tx.QueryRow(ctx, `
+		SELECT publisher_id, status
+		FROM registry_namespaces
+		WHERE namespace = $1
+	`, namespace).Scan(&previousPublisherID, &previousStatus); err == pgx.ErrNoRows {
+		return RegistryNamespaceSummary{}, false, nil
+	} else if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	if previousStatus == "reserved" || previousStatus == "rejected" {
+		return RegistryNamespaceSummary{}, false, ErrInvalidPackage
+	}
+
+	var targetPublisherActive bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM registry_publishers
+			WHERE publisher_id = $1 AND status = 'active'
+		)
+	`, targetPublisherID).Scan(&targetPublisherActive); err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	if !targetPublisherActive {
+		return RegistryNamespaceSummary{}, false, ErrInvalidPackage
+	}
+
+	item, err := scanRegistryNamespaceSummary(tx.QueryRow(ctx, `
+		UPDATE registry_namespaces
+		SET publisher_id = $2, updated_at = now()
+		WHERE namespace = $1
+		RETURNING namespace, publisher_id, artifact_kinds, status, created_at, updated_at
+	`, namespace, targetPublisherID))
+	if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE registry_artifact_ownership
+		SET publisher_id = $2, updated_at = now()
+		WHERE namespace = $1
+	`, namespace, targetPublisherID); err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+
+	metadata := map[string]any{
+		"previous_publisher_id": previousPublisherID,
+		"target_publisher_id":   targetPublisherID,
+		"previous_status":       previousStatus,
+		"reason":                reason,
+	}
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	eventID, err := randomUUIDString()
+	if err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_audit_events (
+			event_id, event_type, target_type, target_id, metadata
+		) VALUES (
+			$1::uuid, 'namespace.ownership.transferred', 'namespace', $2, $3
+		)
+	`, eventID, namespace, metadataBytes); err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return RegistryNamespaceSummary{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *PostgresStore) ListRegistryUsers(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryUsers, error) {
+	query = normalizeRegistryAdminListQuery(query)
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM registry_users
+		WHERE ($1 = '' OR github_login ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%' OR user_id::text ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+	`, query.Search, query.Status).Scan(&total); err != nil {
+		return PaginatedRegistryUsers{}, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT user_id::text, github_user_id, github_login, display_name, email,
 		       status, created_at, updated_at, last_login_at
 		FROM registry_users
+		WHERE ($1 = '' OR github_login ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%' OR user_id::text ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
 		ORDER BY
 			COALESCE(last_login_at, updated_at, created_at) DESC,
 			github_login ASC NULLS LAST,
 			user_id ASC
-	`)
+		LIMIT $3 OFFSET $4
+	`, query.Search, query.Status, query.Limit, query.Offset)
 	if err != nil {
-		return nil, err
+		return PaginatedRegistryUsers{}, err
 	}
 	defer rows.Close()
 	items := []RegistryUser{}
 	for rows.Next() {
 		item, err := scanRegistryUser(rows)
 		if err != nil {
-			return nil, err
+			return PaginatedRegistryUsers{}, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return PaginatedRegistryUsers{}, err
+	}
+	return PaginatedRegistryUsers{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
-func (s *PostgresStore) ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error) {
+func (s *PostgresStore) ListArtifactOwnership(ctx context.Context, query RegistryAdminListQuery) (PaginatedPublisherArtifacts, error) {
+	query = normalizeRegistryAdminListQuery(query)
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM registry_artifact_ownership
+		WHERE ($1 = '' OR artifact_kind ILIKE '%' || $1 || '%' OR artifact_id ILIKE '%' || $1 || '%' OR namespace ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+	`, query.Search, query.Status).Scan(&total); err != nil {
+		return PaginatedPublisherArtifacts{}, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT artifact_kind, artifact_id, namespace, status, created_at, updated_at
 		FROM registry_artifact_ownership
+		WHERE ($1 = '' OR artifact_kind ILIKE '%' || $1 || '%' OR artifact_id ILIKE '%' || $1 || '%' OR namespace ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
 		ORDER BY
 			CASE status
 				WHEN 'suspended' THEN 0
@@ -1410,20 +1560,245 @@ func (s *PostgresStore) ListArtifactOwnership(ctx context.Context) ([]PublisherA
 			updated_at DESC,
 			artifact_kind ASC,
 			artifact_id ASC
-	`)
+		LIMIT $3 OFFSET $4
+	`, query.Search, query.Status, query.Limit, query.Offset)
 	if err != nil {
-		return nil, err
+		return PaginatedPublisherArtifacts{}, err
 	}
 	defer rows.Close()
 	items := []PublisherArtifactSummary{}
 	for rows.Next() {
 		item, err := scanPublisherArtifactSummary(rows)
 		if err != nil {
-			return nil, err
+			return PaginatedPublisherArtifacts{}, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return PaginatedPublisherArtifacts{}, err
+	}
+	return PaginatedPublisherArtifacts{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+}
+
+func (s *PostgresStore) ListAbuseReports(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryAbuseReports, error) {
+	query = normalizeRegistryAdminListQuery(query)
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM registry_abuse_reports
+		WHERE ($1 = '' OR target_kind ILIKE '%' || $1 || '%' OR target_id ILIKE '%' || $1 || '%' OR category ILIKE '%' || $1 || '%' OR reason ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+	`, query.Search, query.Status).Scan(&total); err != nil {
+		return PaginatedRegistryAbuseReports{}, err
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT report_id::text, target_kind, target_id, category, reason, reporter_contact, status, resolution, created_at, updated_at
+		FROM registry_abuse_reports
+		WHERE ($1 = '' OR target_kind ILIKE '%' || $1 || '%' OR target_id ILIKE '%' || $1 || '%' OR category ILIKE '%' || $1 || '%' OR reason ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR status = $2)
+		ORDER BY
+			CASE status
+				WHEN 'open' THEN 0
+				WHEN 'reviewing' THEN 1
+				WHEN 'resolved' THEN 2
+				WHEN 'rejected' THEN 3
+				ELSE 4
+			END,
+			updated_at DESC,
+			target_kind ASC,
+			target_id ASC
+		LIMIT $3 OFFSET $4
+	`, query.Search, query.Status, query.Limit, query.Offset)
+	if err != nil {
+		return PaginatedRegistryAbuseReports{}, err
+	}
+	defer rows.Close()
+	items := []RegistryAbuseReport{}
+	for rows.Next() {
+		item, err := scanRegistryAbuseReport(rows)
+		if err != nil {
+			return PaginatedRegistryAbuseReports{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return PaginatedRegistryAbuseReports{}, err
+	}
+	return PaginatedRegistryAbuseReports{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+}
+
+func (s *PostgresStore) CreateAbuseReport(ctx context.Context, request CreateAbuseReportRequest) (RegistryAbuseReport, error) {
+	targetKind := strings.ToLower(strings.TrimSpace(request.TargetKind))
+	targetID := strings.TrimSpace(request.TargetID)
+	category := strings.ToLower(strings.TrimSpace(request.Category))
+	reason := strings.TrimSpace(request.Reason)
+	reporterContact := strings.TrimSpace(request.ReporterContact)
+	if !validRegistryAbuseTargetKind(targetKind) || targetID == "" || category == "" || reason == "" {
+		return RegistryAbuseReport{}, ErrInvalidPackage
+	}
+	reportID, err := randomUUIDString()
+	if err != nil {
+		return RegistryAbuseReport{}, err
+	}
+	report, err := scanRegistryAbuseReport(s.pool.QueryRow(ctx, `
+		INSERT INTO registry_abuse_reports (
+			report_id, target_kind, target_id, category, reason, reporter_contact, status
+		) VALUES (
+			$1::uuid, $2, $3, $4, $5, $6, 'open'
+		)
+		RETURNING report_id::text, target_kind, target_id, category, reason, reporter_contact, status, resolution, created_at, updated_at
+	`, reportID, targetKind, targetID, category, reason, reporterContact))
+	if err != nil {
+		return RegistryAbuseReport{}, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		EventType:  "abuse.report.created",
+		TargetType: targetKind,
+		TargetID:   targetID,
+		Metadata: map[string]any{
+			"report_id": report.ReportID,
+			"category":  category,
+		},
+	})
+	return report, nil
+}
+
+func (s *PostgresStore) UpdateAbuseReportStatus(ctx context.Context, reportID string, request UpdateAbuseReportStatusRequest) (RegistryAbuseReport, bool, error) {
+	reportID = strings.TrimSpace(reportID)
+	status := strings.ToLower(strings.TrimSpace(request.Status))
+	resolution := strings.TrimSpace(request.Resolution)
+	if reportID == "" || !validRegistryAbuseStatus(status) {
+		return RegistryAbuseReport{}, false, ErrInvalidPackage
+	}
+	report, err := scanRegistryAbuseReport(s.pool.QueryRow(ctx, `
+		UPDATE registry_abuse_reports
+		SET status = $2,
+		    resolution = CASE WHEN $3 = '' THEN resolution ELSE $3 END,
+		    updated_at = now()
+		WHERE report_id = $1::uuid
+		RETURNING report_id::text, target_kind, target_id, category, reason, reporter_contact, status, resolution, created_at, updated_at
+	`, reportID, status, resolution))
+	if err == pgx.ErrNoRows {
+		return RegistryAbuseReport{}, false, nil
+	}
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	_, _ = s.AppendAuditEvent(ctx, RegistryAuditEvent{
+		EventType:  "abuse.report.status.updated",
+		TargetType: report.TargetKind,
+		TargetID:   report.TargetID,
+		Metadata: map[string]any{
+			"report_id":  report.ReportID,
+			"status":     status,
+			"resolution": resolution,
+		},
+	})
+	return report, true, nil
+}
+
+func (s *PostgresStore) ApplyAbuseTakedown(ctx context.Context, reportID string, request ApplyAbuseTakedownRequest) (RegistryAbuseReport, bool, error) {
+	reportID = strings.TrimSpace(reportID)
+	reason := strings.TrimSpace(request.Reason)
+	if reportID == "" {
+		return RegistryAbuseReport{}, false, ErrInvalidPackage
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	report, err := scanRegistryAbuseReport(tx.QueryRow(ctx, `
+		SELECT report_id::text, target_kind, target_id, category, reason, reporter_contact, status, resolution, created_at, updated_at
+		FROM registry_abuse_reports
+		WHERE report_id = $1::uuid
+	`, reportID))
+	if err == pgx.ErrNoRows {
+		return RegistryAbuseReport{}, false, nil
+	}
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+
+	switch report.TargetKind {
+	case "publisher":
+		tag, err := tx.Exec(ctx, `
+			UPDATE registry_publishers
+			SET status = 'suspended', updated_at = now()
+			WHERE publisher_id = $1
+		`, report.TargetID)
+		if err != nil {
+			return RegistryAbuseReport{}, false, err
+		}
+		if tag.RowsAffected() == 0 {
+			return RegistryAbuseReport{}, false, ErrInvalidPackage
+		}
+	case "namespace":
+		tag, err := tx.Exec(ctx, `
+			UPDATE registry_namespaces
+			SET status = 'suspended', updated_at = now()
+			WHERE namespace = $1
+		`, report.TargetID)
+		if err != nil {
+			return RegistryAbuseReport{}, false, err
+		}
+		if tag.RowsAffected() == 0 {
+			return RegistryAbuseReport{}, false, ErrInvalidPackage
+		}
+	case "package", "template":
+		tag, err := tx.Exec(ctx, `
+			UPDATE registry_artifact_ownership
+			SET status = 'suspended', updated_at = now()
+			WHERE artifact_kind = $1 AND artifact_id = $2
+		`, report.TargetKind, report.TargetID)
+		if err != nil {
+			return RegistryAbuseReport{}, false, err
+		}
+		if tag.RowsAffected() == 0 {
+			return RegistryAbuseReport{}, false, ErrInvalidPackage
+		}
+	default:
+		return RegistryAbuseReport{}, false, ErrInvalidPackage
+	}
+
+	report, err = scanRegistryAbuseReport(tx.QueryRow(ctx, `
+		UPDATE registry_abuse_reports
+		SET status = 'reviewing',
+		    resolution = CASE WHEN $2 = '' THEN resolution ELSE $2 END,
+		    updated_at = now()
+		WHERE report_id = $1::uuid
+		RETURNING report_id::text, target_kind, target_id, category, reason, reporter_contact, status, resolution, created_at, updated_at
+	`, reportID, reason))
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+
+	metadata := map[string]any{
+		"report_id": report.ReportID,
+		"reason":    reason,
+	}
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	eventID, err := randomUUIDString()
+	if err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_audit_events (
+			event_id, event_type, target_type, target_id, metadata
+		) VALUES (
+			$1::uuid, 'abuse.takedown.applied', $2, $3, $4
+		)
+	`, eventID, report.TargetKind, report.TargetID, metadataBytes); err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return RegistryAbuseReport{}, false, err
+	}
+	return report, true, nil
 }
 
 func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
@@ -2133,6 +2508,29 @@ func scanRegistryUser(row registryPublishTokenRowScanner) (RegistryUser, error) 
 	return user, nil
 }
 
+func scanRegistryAbuseReport(row registryPublishTokenRowScanner) (RegistryAbuseReport, error) {
+	var report RegistryAbuseReport
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(
+		&report.ReportID,
+		&report.TargetKind,
+		&report.TargetID,
+		&report.Category,
+		&report.Reason,
+		&report.ReporterContact,
+		&report.Status,
+		&report.Resolution,
+		&createdAt,
+		&updatedAt,
+	); err != nil {
+		return RegistryAbuseReport{}, err
+	}
+	report.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	report.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return report, nil
+}
+
 func scanRegistryPublishTokenSummary(row registryPublishTokenRowScanner) (RegistryPublishTokenSummary, error) {
 	var item RegistryPublishTokenSummary
 	var scopesBytes []byte
@@ -2292,6 +2690,39 @@ func validRegistryArtifactOwnershipStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func validRegistryAbuseTargetKind(targetKind string) bool {
+	switch targetKind {
+	case "package", "template", "publisher", "namespace":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRegistryAbuseStatus(status string) bool {
+	switch status {
+	case "open", "reviewing", "resolved", "rejected":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeRegistryAdminListQuery(query RegistryAdminListQuery) RegistryAdminListQuery {
+	query.Search = strings.TrimSpace(query.Search)
+	query.Status = strings.ToLower(strings.TrimSpace(query.Status))
+	if query.Limit <= 0 {
+		query.Limit = 25
+	}
+	if query.Limit > 100 {
+		query.Limit = 100
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+	return query
 }
 
 func RegistryPublishTokenSecretHash(secret string) string {
