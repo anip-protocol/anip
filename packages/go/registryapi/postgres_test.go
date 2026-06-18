@@ -893,6 +893,135 @@ func TestPostgresAdminModerationLists(t *testing.T) {
 	}
 }
 
+func TestPostgresAdminArtifactOwnershipTransferMovesCurrentOwner(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+	insertPublisherWithNamespaceAndTokenFixture(t, store, "anip-labs", "anip-labs-token-secret", "anip-labs", []string{"publish:package"})
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/transfer-test"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/transfer-test"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal first package request: %v", err)
+	}
+	firstReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	firstReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	firstRec := httptest.NewRecorder()
+	handler.ServeHTTP(firstRec, firstReq)
+	if firstRec.Code != http.StatusCreated {
+		t.Fatalf("expected first publish 201, got %d body=%s", firstRec.Code, firstRec.Body.String())
+	}
+
+	transferPayload, err := json.Marshal(TransferArtifactOwnershipRequest{
+		TargetPublisherID: "anip-labs",
+		TargetNamespace:   "anip-labs",
+		Reason:            "maintainer handoff",
+	})
+	if err != nil {
+		t.Fatalf("marshal transfer request: %v", err)
+	}
+	transferReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/admin/artifact-transfer/package/anip/transfer-test", bytes.NewReader(transferPayload))
+	transferReq.Header.Set("Authorization", "Bearer admin-secret")
+	transferRec := httptest.NewRecorder()
+	handler.ServeHTTP(transferRec, transferReq)
+	if transferRec.Code != http.StatusOK {
+		t.Fatalf("expected transfer 200, got %d body=%s", transferRec.Code, transferRec.Body.String())
+	}
+	var transferResult struct {
+		Artifact PublisherArtifactSummary `json:"artifact"`
+	}
+	if err := json.Unmarshal(transferRec.Body.Bytes(), &transferResult); err != nil {
+		t.Fatalf("decode transfer payload: %v", err)
+	}
+	if transferResult.Artifact.ArtifactID != "anip/transfer-test" ||
+		transferResult.Artifact.Namespace != "anip-labs" ||
+		transferResult.Artifact.Status != "active" {
+		t.Fatalf("unexpected transferred artifact %+v", transferResult.Artifact)
+	}
+
+	body.PackageVersion = "0.1.1"
+	nextPayload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal second package request: %v", err)
+	}
+	oldOwnerReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(nextPayload))
+	oldOwnerReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	oldOwnerRec := httptest.NewRecorder()
+	handler.ServeHTTP(oldOwnerRec, oldOwnerReq)
+	if oldOwnerRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected previous owner publish 401, got %d body=%s", oldOwnerRec.Code, oldOwnerRec.Body.String())
+	}
+
+	newOwnerReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(nextPayload))
+	newOwnerReq.Header.Set("Authorization", "Bearer anip_pat_22222222-2222-4222-8222-222222222222_anip-labs-token-secret")
+	newOwnerRec := httptest.NewRecorder()
+	handler.ServeHTTP(newOwnerRec, newOwnerReq)
+	if newOwnerRec.Code != http.StatusCreated {
+		t.Fatalf("expected new owner publish 201, got %d body=%s", newOwnerRec.Code, newOwnerRec.Body.String())
+	}
+
+	var auditCount int
+	if err := store.pool.QueryRow(t.Context(), `
+		SELECT count(*)
+		FROM registry_audit_events
+		WHERE event_type = 'artifact.ownership.transferred'
+		  AND target_type = 'package'
+		  AND target_id = 'anip/transfer-test'
+		  AND metadata->>'previous_publisher_id' = 'anip'
+		  AND metadata->>'target_publisher_id' = 'anip-labs'
+		  AND metadata->>'target_namespace' = 'anip-labs'
+	`).Scan(&auditCount); err != nil {
+		t.Fatalf("read transfer audit: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("expected one transfer audit event, got %d", auditCount)
+	}
+}
+
+func TestPostgresAdminArtifactOwnershipTransferRejectsInvalidTargetNamespace(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package"}, []string{"anip"}, nil, nil)
+	insertPublisherWithNamespaceAndTokenFixture(t, store, "anip-labs", "anip-labs-token-secret", "anip-labs", []string{"publish:package"})
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	body := validTestPublishPackageRequest()
+	body.PackageID = "anip/invalid-transfer-target"
+	body.PackageVersion = "0.1.0"
+	body.ProjectRef = "anip/invalid-transfer-target"
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	publishReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(payload))
+	publishReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	publishRec := httptest.NewRecorder()
+	handler.ServeHTTP(publishRec, publishReq)
+	if publishRec.Code != http.StatusCreated {
+		t.Fatalf("expected publish 201, got %d body=%s", publishRec.Code, publishRec.Body.String())
+	}
+
+	transferPayload, err := json.Marshal(TransferArtifactOwnershipRequest{
+		TargetPublisherID: "anip-labs",
+		TargetNamespace:   "anip",
+		Reason:            "invalid namespace ownership",
+	})
+	if err != nil {
+		t.Fatalf("marshal transfer request: %v", err)
+	}
+	transferReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/admin/artifact-transfer/package/anip/invalid-transfer-target", bytes.NewReader(transferPayload))
+	transferReq.Header.Set("Authorization", "Bearer admin-secret")
+	transferRec := httptest.NewRecorder()
+	handler.ServeHTTP(transferRec, transferReq)
+	if transferRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid namespace transfer 400, got %d body=%s", transferRec.Code, transferRec.Body.String())
+	}
+}
+
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
 	t.Helper()
 	scopes := map[string]any{
@@ -931,5 +1060,46 @@ func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherI
 		)
 	`, publisherID, RegistryPublishTokenSecretHash(secret), scopesBytes); err != nil {
 		t.Fatalf("insert token: %v", err)
+	}
+}
+
+func insertPublisherWithNamespaceAndTokenFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, namespace string, operations []string) {
+	t.Helper()
+	scopes := map[string]any{
+		"operations":   operations,
+		"namespaces":   []string{namespace},
+		"package_ids":  nil,
+		"template_ids": nil,
+	}
+	scopesBytes, err := json.Marshal(scopes)
+	if err != nil {
+		t.Fatalf("marshal token scopes: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publishers (
+			publisher_id, publisher_type, display_name, description, website_url, status, trust_level
+		) VALUES (
+			$1, 'organization', 'ANIP Labs', 'Community ANIP publisher', 'https://anip.dev/labs', 'active', 'verified'
+		)
+	`, publisherID); err != nil {
+		t.Fatalf("insert target publisher: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			$1, $2, '["package","template"]'::jsonb, 'active'
+		)
+	`, namespace, publisherID); err != nil {
+		t.Fatalf("insert target namespace: %v", err)
+	}
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_publish_tokens (
+			token_id, publisher_id, token_hash, label, scopes
+		) VALUES (
+			'22222222-2222-4222-8222-222222222222', $1, $2, 'target token', $3
+		)
+	`, publisherID, RegistryPublishTokenSecretHash(secret), scopesBytes); err != nil {
+		t.Fatalf("insert target token: %v", err)
 	}
 }

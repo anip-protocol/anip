@@ -116,6 +116,12 @@ export interface UpdateArtifactOwnershipStatusRequest {
   reason?: string
 }
 
+export interface TransferArtifactOwnershipRequest {
+  target_publisher_id: string
+  target_namespace: string
+  reason?: string
+}
+
 export interface PublicationSummary {
   package_id: string
   package_version: string
@@ -363,6 +369,23 @@ export async function updateAdminArtifactStatus(
     `/admin/artifact-status/${encodeURIComponent(artifactKind)}/${encodeURIComponent(artifactId)}`,
     {
       method: 'PATCH',
+      headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+    },
+  )
+  return payload.artifact
+}
+
+export async function transferAdminArtifactOwnership(
+  token: string,
+  artifactKind: string,
+  artifactId: string,
+  request: TransferArtifactOwnershipRequest,
+): Promise<PublisherArtifactSummary> {
+  const payload = await api<{ artifact: PublisherArtifactSummary }>(
+    `/admin/artifact-transfer/${encodeURIComponent(artifactKind)}/${encodeURIComponent(artifactId)}`,
+    {
+      method: 'POST',
       headers: authHeaders(token, { 'Content-Type': 'application/json' }),
       body: JSON.stringify(request),
     },

@@ -1278,6 +1278,99 @@ func (s *PostgresStore) UpdateArtifactOwnershipStatus(ctx context.Context, artif
 	return item, true, nil
 }
 
+func (s *PostgresStore) TransferArtifactOwnership(ctx context.Context, artifactKind string, artifactID string, request TransferArtifactOwnershipRequest) (PublisherArtifactSummary, bool, error) {
+	artifactKind = strings.TrimSpace(artifactKind)
+	artifactID = strings.TrimSpace(artifactID)
+	targetPublisherID := strings.TrimSpace(request.TargetPublisherID)
+	targetNamespace := strings.ToLower(strings.TrimSpace(request.TargetNamespace))
+	reason := strings.TrimSpace(request.Reason)
+	if (artifactKind != "package" && artifactKind != "template") || artifactID == "" || targetPublisherID == "" || !validRegistryNamespace(targetNamespace) {
+		return PublisherArtifactSummary{}, false, ErrInvalidPackage
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	var previousPublisherID string
+	var previousNamespace string
+	var previousStatus string
+	if err := tx.QueryRow(ctx, `
+		SELECT publisher_id, namespace, status
+		FROM registry_artifact_ownership
+		WHERE artifact_kind = $1 AND artifact_id = $2
+	`, artifactKind, artifactID).Scan(&previousPublisherID, &previousNamespace, &previousStatus); err == pgx.ErrNoRows {
+		return PublisherArtifactSummary{}, false, nil
+	} else if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+
+	var targetNamespaceSupportsKind bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM registry_namespaces n
+			JOIN registry_publishers p ON p.publisher_id = n.publisher_id
+			WHERE n.namespace = $1
+			  AND n.publisher_id = $2
+			  AND n.status = 'active'
+			  AND n.artifact_kinds ? $3
+			  AND p.status = 'active'
+		)
+	`, targetNamespace, targetPublisherID, artifactKind).Scan(&targetNamespaceSupportsKind); err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	if !targetNamespaceSupportsKind {
+		return PublisherArtifactSummary{}, false, ErrInvalidPackage
+	}
+
+	item, err := scanPublisherArtifactSummary(tx.QueryRow(ctx, `
+		UPDATE registry_artifact_ownership
+		SET publisher_id = $3,
+		    namespace = $4,
+		    status = 'active',
+		    updated_at = now()
+		WHERE artifact_kind = $1 AND artifact_id = $2
+		RETURNING artifact_kind, artifact_id, namespace, status, created_at, updated_at
+	`, artifactKind, artifactID, targetPublisherID, targetNamespace))
+	if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+
+	metadata := map[string]any{
+		"previous_publisher_id": previousPublisherID,
+		"previous_namespace":    previousNamespace,
+		"previous_status":       previousStatus,
+		"target_publisher_id":   targetPublisherID,
+		"target_namespace":      targetNamespace,
+		"reason":                reason,
+	}
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	eventID, err := randomUUIDString()
+	if err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO registry_audit_events (
+			event_id, event_type, target_type, target_id, metadata
+		) VALUES (
+			$1::uuid, 'artifact.ownership.transferred', $2, $3, $4
+		)
+	`, eventID, artifactKind, artifactID, metadataBytes); err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return PublisherArtifactSummary{}, false, err
+	}
+	return item, true, nil
+}
+
 func (s *PostgresStore) ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT artifact_kind, artifact_id, namespace, status, created_at, updated_at

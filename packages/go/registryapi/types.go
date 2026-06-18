@@ -299,3 +299,9 @@ type UpdateArtifactOwnershipStatusRequest struct {
 	Status string `json:"status"`
 	Reason string `json:"reason,omitempty"`
 }
+
+type TransferArtifactOwnershipRequest struct {
+	TargetPublisherID string `json:"target_publisher_id"`
+	TargetNamespace   string `json:"target_namespace"`
+	Reason            string `json:"reason,omitempty"`
+}

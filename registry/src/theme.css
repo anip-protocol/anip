@@ -995,6 +995,12 @@ pre {
   font-size: 0.86rem;
 }
 
+.transfer-form {
+  grid-column: 2;
+  border-top: 1px solid rgba(29, 29, 27, 0.08);
+  padding-top: 0.65rem;
+}
+
 .tooling-details {
   margin-top: 1rem;
   min-width: 0;
@@ -1098,6 +1104,10 @@ pre {
 
   .admin-row {
     grid-template-columns: 1fr;
+  }
+
+  .transfer-form {
+    grid-column: auto;
   }
 
   .filter-field {
