@@ -1060,6 +1060,37 @@ func (s *PostgresStore) ListPublisherNamespaces(ctx context.Context, publisherID
 	return items, rows.Err()
 }
 
+func (s *PostgresStore) ListNamespaces(ctx context.Context) ([]RegistryNamespaceSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT namespace, publisher_id, artifact_kinds, status, created_at, updated_at
+		FROM registry_namespaces
+		ORDER BY
+			CASE status
+				WHEN 'pending_verification' THEN 0
+				WHEN 'suspended' THEN 1
+				WHEN 'rejected' THEN 2
+				WHEN 'reserved' THEN 3
+				WHEN 'active' THEN 4
+				ELSE 5
+			END,
+			updated_at DESC,
+			namespace ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RegistryNamespaceSummary{}
+	for rows.Next() {
+		item, err := scanRegistryNamespaceSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s *PostgresStore) CreatePublisherNamespace(ctx context.Context, publisherID string, request CreateNamespaceRequest) (RegistryNamespaceSummary, error) {
 	publisherID = strings.TrimSpace(publisherID)
 	namespace := strings.ToLower(strings.TrimSpace(request.Namespace))
@@ -1127,6 +1158,36 @@ func (s *PostgresStore) UpdateNamespaceStatus(ctx context.Context, namespace str
 		},
 	})
 	return item, true, nil
+}
+
+func (s *PostgresStore) ListPublishers(ctx context.Context) ([]RegistryPublisher, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT publisher_id, publisher_type, display_name, description, website_url,
+		       status, trust_level, created_by_user_id::text, created_at, updated_at
+		FROM registry_publishers
+		ORDER BY
+			CASE status
+				WHEN 'pending_review' THEN 0
+				WHEN 'suspended' THEN 1
+				WHEN 'active' THEN 2
+				ELSE 3
+			END,
+			updated_at DESC,
+			publisher_id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RegistryPublisher{}
+	for rows.Next() {
+		item, err := scanRegistryPublisher(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (s *PostgresStore) UpdatePublisherStatus(ctx context.Context, publisherID string, request UpdatePublisherStatusRequest) (RegistryPublisher, bool, error) {
@@ -1215,6 +1276,36 @@ func (s *PostgresStore) UpdateArtifactOwnershipStatus(ctx context.Context, artif
 		},
 	})
 	return item, true, nil
+}
+
+func (s *PostgresStore) ListArtifactOwnership(ctx context.Context) ([]PublisherArtifactSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT artifact_kind, artifact_id, namespace, status, created_at, updated_at
+		FROM registry_artifact_ownership
+		ORDER BY
+			CASE status
+				WHEN 'suspended' THEN 0
+				WHEN 'transferred' THEN 1
+				WHEN 'active' THEN 2
+				ELSE 3
+			END,
+			updated_at DESC,
+			artifact_kind ASC,
+			artifact_id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PublisherArtifactSummary{}
+	for rows.Next() {
+		item, err := scanPublisherArtifactSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (s *PostgresStore) AppendAuditEvent(ctx context.Context, event RegistryAuditEvent) (RegistryAuditEvent, error) {
@@ -1606,6 +1697,33 @@ func scanPublisherArtifactSummary(row registryPublishTokenRowScanner) (Publisher
 	item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
 	return item, nil
+}
+
+func scanRegistryPublisher(row registryPublishTokenRowScanner) (RegistryPublisher, error) {
+	var publisher RegistryPublisher
+	var createdBy sql.NullString
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(
+		&publisher.PublisherID,
+		&publisher.PublisherType,
+		&publisher.DisplayName,
+		&publisher.Description,
+		&publisher.WebsiteURL,
+		&publisher.Status,
+		&publisher.TrustLevel,
+		&createdBy,
+		&createdAt,
+		&updatedAt,
+	); err != nil {
+		return RegistryPublisher{}, err
+	}
+	if createdBy.Valid {
+		publisher.CreatedByUserID = createdBy.String
+	}
+	publisher.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	publisher.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return publisher, nil
 }
 
 func scanRegistryPublishTokenSummary(row registryPublishTokenRowScanner) (RegistryPublishTokenSummary, error) {

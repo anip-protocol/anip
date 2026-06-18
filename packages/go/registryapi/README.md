@@ -179,6 +179,21 @@ curl -X POST \
 
 Self-service namespace requests start as `pending_verification`. They are visible to the publisher, but publication into that namespace is blocked until a registry administrator verifies and activates the namespace. Admin namespace status changes require `ANIP_REGISTRY_ADMIN_TOKEN`:
 
+The hosted registry UI exposes the same admin controls at `/admin`. Paste the configured admin token to list namespaces, publishers, and artifact ownership rows, then update moderation status with an audit reason.
+
+Admin list APIs:
+
+```bash
+curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/admin/namespaces
+
+curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/admin/publishers
+
+curl -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  https://registry.anip.dev/registry-api/v1/admin/artifacts
+```
+
 ```bash
 curl -X PATCH \
   -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \

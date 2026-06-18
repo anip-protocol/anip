@@ -15,6 +15,7 @@ import { ANIP_SPEC_VERSION, REGISTRY_VERSION } from './version'
         <router-link to="/packages">Packages</router-link>
         <router-link to="/templates">Templates</router-link>
         <router-link to="/publisher">Publisher</router-link>
+        <router-link to="/admin">Admin</router-link>
       </nav>
       <span class="subtitle">Portable package records, receipts, and provenance</span>
       <label class="datetime-selector">

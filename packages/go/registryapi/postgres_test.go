@@ -802,6 +802,97 @@ func TestPostgresAdminArtifactSuspensionBlocksNewVersions(t *testing.T) {
 	}
 }
 
+func TestPostgresAdminModerationLists(t *testing.T) {
+	store := newRegistryPostgresStore(t)
+	insertScopedPublisherFixture(t, store, "anip", "anip-token-secret", []string{"publish:package", "manage:publisher"}, []string{"anip"}, nil, nil)
+
+	if _, err := store.pool.Exec(t.Context(), `
+		INSERT INTO registry_namespaces (
+			namespace, publisher_id, artifact_kinds, status
+		) VALUES (
+			'anip-labs', 'anip', '["package"]'::jsonb, 'pending_verification'
+		)
+	`); err != nil {
+		t.Fatalf("insert pending namespace: %v", err)
+	}
+
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "admin-secret"})
+
+	unauthorizedReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/publishers", nil)
+	unauthorizedRec := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorizedRec, unauthorizedReq)
+	if unauthorizedRec.Code != http.StatusForbidden {
+		t.Fatalf("expected publisher admin list without token to be forbidden, got %d body=%s", unauthorizedRec.Code, unauthorizedRec.Body.String())
+	}
+
+	publishBody := validTestPublishPackageRequest()
+	publishBody.PackageID = "anip/moderation-list"
+	publishBody.PackageVersion = "0.1.0"
+	publishBody.ProjectRef = "anip/moderation-list"
+	publishPayload, err := json.Marshal(publishBody)
+	if err != nil {
+		t.Fatalf("marshal package request: %v", err)
+	}
+	publishReq := httptest.NewRequest(http.MethodPost, "/registry-api/v1/publications", bytes.NewReader(publishPayload))
+	publishReq.Header.Set("Authorization", "Bearer anip_pat_11111111-1111-4111-8111-111111111111_anip-token-secret")
+	publishRec := httptest.NewRecorder()
+	handler.ServeHTTP(publishRec, publishReq)
+	if publishRec.Code != http.StatusCreated {
+		t.Fatalf("expected publish 201, got %d body=%s", publishRec.Code, publishRec.Body.String())
+	}
+
+	namespaceReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/namespaces", nil)
+	namespaceReq.Header.Set("Authorization", "Bearer admin-secret")
+	namespaceRec := httptest.NewRecorder()
+	handler.ServeHTTP(namespaceRec, namespaceReq)
+	if namespaceRec.Code != http.StatusOK {
+		t.Fatalf("expected namespace admin list 200, got %d body=%s", namespaceRec.Code, namespaceRec.Body.String())
+	}
+	var namespacePayload struct {
+		Items []RegistryNamespaceSummary `json:"items"`
+	}
+	if err := json.Unmarshal(namespaceRec.Body.Bytes(), &namespacePayload); err != nil {
+		t.Fatalf("decode namespace payload: %v", err)
+	}
+	if len(namespacePayload.Items) != 2 || namespacePayload.Items[0].Namespace != "anip-labs" || namespacePayload.Items[0].Status != "pending_verification" {
+		t.Fatalf("expected pending namespace first, got %+v", namespacePayload.Items)
+	}
+
+	publisherReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/publishers", nil)
+	publisherReq.Header.Set("Authorization", "Bearer admin-secret")
+	publisherRec := httptest.NewRecorder()
+	handler.ServeHTTP(publisherRec, publisherReq)
+	if publisherRec.Code != http.StatusOK {
+		t.Fatalf("expected publisher admin list 200, got %d body=%s", publisherRec.Code, publisherRec.Body.String())
+	}
+	var publisherPayload struct {
+		Items []RegistryPublisher `json:"items"`
+	}
+	if err := json.Unmarshal(publisherRec.Body.Bytes(), &publisherPayload); err != nil {
+		t.Fatalf("decode publisher payload: %v", err)
+	}
+	if len(publisherPayload.Items) != 1 || publisherPayload.Items[0].PublisherID != "anip" {
+		t.Fatalf("unexpected publisher list %+v", publisherPayload.Items)
+	}
+
+	artifactReq := httptest.NewRequest(http.MethodGet, "/registry-api/v1/admin/artifacts", nil)
+	artifactReq.Header.Set("Authorization", "Bearer admin-secret")
+	artifactRec := httptest.NewRecorder()
+	handler.ServeHTTP(artifactRec, artifactReq)
+	if artifactRec.Code != http.StatusOK {
+		t.Fatalf("expected artifact admin list 200, got %d body=%s", artifactRec.Code, artifactRec.Body.String())
+	}
+	var artifactPayload struct {
+		Items []PublisherArtifactSummary `json:"items"`
+	}
+	if err := json.Unmarshal(artifactRec.Body.Bytes(), &artifactPayload); err != nil {
+		t.Fatalf("decode artifact payload: %v", err)
+	}
+	if len(artifactPayload.Items) != 1 || artifactPayload.Items[0].ArtifactID != "anip/moderation-list" {
+		t.Fatalf("unexpected artifact list %+v", artifactPayload.Items)
+	}
+}
+
 func insertScopedPublisherFixture(t *testing.T, store *PostgresStore, publisherID string, secret string, operations []string, namespaces []string, packageIDs []string, templateIDs []string) {
 	t.Helper()
 	scopes := map[string]any{
