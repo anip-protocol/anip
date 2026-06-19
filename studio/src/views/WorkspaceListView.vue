@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { checkDbAvailable, loadWorkspaces, projectStore } from '../design/project-store'
 import { cloneWorkspace, createWorkspace, deleteWorkspace } from '../design/project-api'
 import { requestConfirmation } from '../design/confirm'
+import { studioApiUnavailableMessage } from '../design/desktop-mode'
 
 const router = useRouter()
 
@@ -30,6 +31,7 @@ const pageDescription = computed(() =>
     ? 'Organize multiple design projects under a shared workspace, then move into service shaping and evaluation inside each project.'
     : 'Studio cannot reach its API right now, so you are looking at read-only example packs instead of real workspaces and projects.',
 )
+const apiUnavailableMessage = computed(() => studioApiUnavailableMessage())
 const junkWorkspaces = computed(() =>
   workspaces.value.filter(workspace =>
     workspace.id.startsWith('ws-') &&
@@ -149,7 +151,7 @@ async function handleCleanWorkspaces() {
     <p class="page-desc">{{ pageDescription }}</p>
 
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">Studio API unavailable</div>
+      <div class="banner banner-warning">{{ apiUnavailableMessage }}</div>
       <p class="fallback-note">
         Workspaces, projects, service shaping, and evaluation require the Studio API. Bring the backend back up to keep working in Studio.
       </p>

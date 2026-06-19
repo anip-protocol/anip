@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { checkApiAvailability } from './design/store'
 import { projectStore } from './design/project-store'
 
@@ -7,6 +7,7 @@ function normalizeBase(base: string): string {
 }
 
 const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
+const desktopMode = !!import.meta.env.VITE_STUDIO_DESKTOP
 
 // Only include Design routes in standalone builds (not embedded runtime packages)
 const designRoutes = inspectOnly ? [] : [
@@ -366,7 +367,9 @@ const routes = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory(normalizeBase(import.meta.env.VITE_BASE_PATH || '/studio/')),
+  history: desktopMode
+    ? createWebHashHistory()
+    : createWebHistory(normalizeBase(import.meta.env.VITE_BASE_PATH || '/studio/')),
   routes,
 })
 

@@ -17,6 +17,7 @@ import { requestConfirmation } from '../design/confirm'
 import { createInitialFrontingSetup } from '../design/fronting-initial-setup'
 import { getStarterTemplate, starterTemplatesForProjectType, type StarterTemplate } from '../design/starter-templates'
 import { validateStarterTemplatePackage, type StarterTemplatePackage } from '../design/starter-template-package'
+import { studioApiUnavailableMessage } from '../design/desktop-mode'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,6 +43,7 @@ const deletingProjectId = ref<string | null>(null)
 const cleaningJunk = ref(false)
 
 const dbAvailable = computed(() => projectStore.dbAvailable)
+const apiUnavailableMessage = computed(() => studioApiUnavailableMessage())
 const projects = computed(() => projectStore.projects)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
@@ -445,7 +447,7 @@ async function handleCleanJunkProjects() {
 <template>
   <div class="project-list">
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">Studio API unavailable — design workspaces are unavailable.</div>
+      <div class="banner banner-warning">{{ apiUnavailableMessage }}</div>
     </template>
     <template v-else>
       <button class="back-link" @click="router.push('/design')">&larr; Workspaces</button>

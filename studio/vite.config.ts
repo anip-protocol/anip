@@ -9,6 +9,7 @@ function normalizeBase(base: string): string {
 
 const backendTarget = process.env.VITE_STUDIO_BACKEND_URL ?? 'http://127.0.0.1:8100'
 const registryTarget = process.env.VITE_REGISTRY_BACKEND_URL ?? 'http://127.0.0.1:8200'
+const desktopMode = !!process.env.VITE_STUDIO_DESKTOP
 
 export default defineConfig({
   plugins: [vue()],
@@ -18,7 +19,7 @@ export default defineConfig({
       '@anip-dev/vue': fileURLToPath(new URL('../packages/typescript/vue/src/index.ts', import.meta.url)),
     },
   },
-  base: normalizeBase(process.env.VITE_BASE_PATH ?? '/studio/'),
+  base: desktopMode ? './' : normalizeBase(process.env.VITE_BASE_PATH ?? '/studio/'),
   server: {
     proxy: {
       '/api': {
