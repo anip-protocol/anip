@@ -23,7 +23,7 @@ def _is_sqlite_url() -> bool:
 def _migrations_dir() -> Path:
     if _is_sqlite_url():
         return Path(__file__).parent / "migrations" / "sqlite"
-    return migrations_dir(Path(__file__).parent)
+    return Path(__file__).parent / "migrations"
 
 
 def current_backend() -> str:

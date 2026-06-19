@@ -135,3 +135,17 @@ def test_sqlite_failed_migration_does_not_record_schema_version(
             assert rolled_back["table_exists"] == 0
     finally:
         db.close_pool()
+
+
+def test_postgres_url_uses_postgres_migrations_when_backend_env_is_sqlite(
+    monkeypatch,
+):
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    db.close_pool()
+    db.set_database_url("postgresql://anip:anip@localhost:5432/anip_studio")
+    try:
+        versions = db.expected_migration_versions()
+        assert len(versions) > 1
+        assert 13 in versions
+    finally:
+        db.close_pool()
