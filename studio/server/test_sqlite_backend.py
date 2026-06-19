@@ -2,6 +2,12 @@ import pytest
 
 from studio.server import db
 from studio.server.db_backends import sqlite_path_from_url
+from studio.server.repository import (
+    create_project,
+    create_workspace,
+    list_projects,
+    list_workspaces,
+)
 
 
 def _run_sqlite_migration_file(conn, sql_file):
@@ -367,5 +373,46 @@ def test_postgres_url_uses_postgres_migrations_when_backend_env_is_sqlite(
         versions = db.expected_migration_versions()
         assert len(versions) > 1
         assert 13 in versions
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_json_fields_round_trip(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        db.init_db()
+        with db.get_pool().connection() as conn:
+            create_workspace(
+                conn,
+                workspace_id="sqlite-workspace",
+                name="SQLite Workspace",
+                summary="Desktop workspace",
+            )
+            create_project(
+                conn,
+                project_id="sqlite-project",
+                workspace_id="sqlite-workspace",
+                name="SQLite Project",
+                labels=["desktop", "sqlite"],
+                integration_profile={
+                    "kind": "native_api",
+                    "systems": [{"system_id": "local"}],
+                },
+            )
+            workspaces = list_workspaces(conn)
+            projects = list_projects(conn, workspace_id="sqlite-workspace")
+
+        workspace = next(item for item in workspaces if item["id"] == "sqlite-workspace")
+        project = next(item for item in projects if item["id"] == "sqlite-project")
+        assert workspace["projects_count"] == 1
+        assert project["labels"] == ["desktop", "sqlite"]
+        assert project["integration_profile"] == {
+            "kind": "native_api",
+            "systems": [{"system_id": "local"}],
+        }
     finally:
         db.close_pool()

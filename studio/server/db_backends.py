@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -67,7 +68,8 @@ class SQLiteConnection:
 
     def execute(self, sql: str, params: tuple | list | None = None):
         sqlite_sql = sql.replace("%s", "?")
-        return self._connection.execute(sqlite_sql, params or ())
+        sqlite_params = tuple(_sqlite_param(value) for value in (params or ()))
+        return SQLiteCursor(self._connection.execute(sqlite_sql, sqlite_params))
 
     def executescript(self, sql: str) -> None:
         self._connection.executescript(sql)
@@ -112,3 +114,42 @@ class SQLitePool:
 
     def close(self) -> None:
         return None
+
+
+class SQLiteCursor:
+    def __init__(self, cursor: sqlite3.Cursor):
+        self._cursor = cursor
+
+    @property
+    def rowcount(self) -> int:
+        return self._cursor.rowcount
+
+    def fetchone(self) -> dict | None:
+        return _sqlite_row(self._cursor.fetchone())
+
+    def fetchall(self) -> list[dict]:
+        return [_sqlite_row(row) for row in self._cursor.fetchall()]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield _sqlite_row(row)
+
+    def __getattr__(self, name: str):
+        return getattr(self._cursor, name)
+
+
+def _sqlite_row(row: sqlite3.Row | None) -> dict | None:
+    if row is None:
+        return None
+    return dict(row)
+
+
+def _sqlite_param(value):
+    if value.__class__.__name__ == "Json" and hasattr(value, "obj"):
+        dumps = getattr(value, "dumps", None)
+        if callable(dumps):
+            return dumps(value.obj)
+        return json.dumps(value.obj)
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
