@@ -97,6 +97,44 @@ def test_sqlite_migration_status_after_init_db_is_applied(monkeypatch, tmp_path)
         db.close_pool()
 
 
+def test_sqlite_migrations_create_all_core_tables(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    expected_tables = {
+        "projects",
+        "workspaces",
+        "workspace_connections",
+        "requirements_sets",
+        "scenarios",
+        "proposals",
+        "shapes",
+        "evaluations",
+        "project_documents",
+        "pm_artifacts",
+        "studio_settings",
+        "local_publications",
+        "integration_discovery_records",
+        "application_integration_projects",
+        "data_access_projects",
+        "service_metadata_artifacts",
+    }
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        db.init_db()
+        with db.get_pool().connection() as conn:
+            tables = {
+                row["name"]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+        assert expected_tables <= tables
+    finally:
+        db.close_pool()
+
+
 def test_sqlite_failed_migration_does_not_record_schema_version(
     monkeypatch, tmp_path
 ):
