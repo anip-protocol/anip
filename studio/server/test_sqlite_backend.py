@@ -79,3 +79,59 @@ def test_sqlite_init_db_runs_migrations(monkeypatch, tmp_path):
             conn.execute("SELECT id, name FROM projects")
     finally:
         db.close_pool()
+
+
+def test_sqlite_migration_status_after_init_db_is_applied(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        db.init_db()
+        status = db.migration_status()
+        assert status["applied"] is True
+        assert status["pending"] == []
+        assert status["applied_count"] == status["expected_count"] >= 1
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_failed_migration_does_not_record_schema_version(
+    monkeypatch, tmp_path
+):
+    sqlite_path = tmp_path / "studio.sqlite"
+    migrations_dir = tmp_path / "migrations"
+    migrations_dir.mkdir()
+    (migrations_dir / "001_ok.sql").write_text(
+        "CREATE TABLE ok_table (id TEXT PRIMARY KEY);"
+    )
+    (migrations_dir / "002_fail.sql").write_text(
+        "CREATE TABLE rolled_back_table (id TEXT PRIMARY KEY);"
+        "INSERT INTO missing_table (id) VALUES ('boom');"
+    )
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.setattr(db, "_migrations_dir", lambda: migrations_dir)
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        with pytest.raises(Exception):
+            db.init_db()
+        with db.get_pool().connection() as conn:
+            versions = [
+                row["version"]
+                for row in conn.execute(
+                    "SELECT version FROM schema_version ORDER BY version"
+                ).fetchall()
+            ]
+            assert versions == [1]
+            rolled_back = conn.execute(
+                "SELECT EXISTS("
+                "  SELECT 1 FROM sqlite_master"
+                "  WHERE type = 'table' AND name = 'rolled_back_table'"
+                ") AS table_exists"
+            ).fetchone()
+            assert rolled_back["table_exists"] == 0
+    finally:
+        db.close_pool()

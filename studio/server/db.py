@@ -1,6 +1,7 @@
 """Database connection pool and migration runner for ANIP Studio."""
 
 import os
+import sqlite3
 from pathlib import Path
 
 from psycopg.rows import dict_row
@@ -22,7 +23,7 @@ def _is_sqlite_url() -> bool:
 def _migrations_dir() -> Path:
     if _is_sqlite_url():
         return Path(__file__).parent / "migrations" / "sqlite"
-    return MIGRATIONS_DIR
+    return migrations_dir(Path(__file__).parent)
 
 
 def current_backend() -> str:
@@ -84,21 +85,17 @@ def init_db() -> None:
 
 def _run_migrations(conn) -> None:
     """Run unapplied Studio migrations on an existing connection."""
+    if _is_sqlite_url():
+        _run_sqlite_migrations(conn)
+        return
+
     with conn.transaction():
-        if _is_sqlite_url():
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS schema_version ("
-                "  version INTEGER PRIMARY KEY,"
-                "  applied_at TEXT NOT NULL DEFAULT (datetime('now'))"
-                ")"
-            )
-        else:
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS schema_version ("
-                "  version INTEGER PRIMARY KEY,"
-                "  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()"
-                ")"
-            )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_version ("
+            "  version INTEGER PRIMARY KEY,"
+            "  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()"
+            ")"
+        )
         applied = {
             r["version"]
             for r in conn.execute("SELECT version FROM schema_version").fetchall()
@@ -106,14 +103,51 @@ def _run_migrations(conn) -> None:
         for sql_file in sorted(_migrations_dir().glob("*.sql")):
             version = int(sql_file.stem.split("_")[0])
             if version not in applied:
-                sql_text = sql_file.read_text()
-                if _is_sqlite_url():
-                    conn.executescript(sql_text)
-                else:
-                    conn.execute(sql_text)
+                conn.execute(sql_file.read_text())
                 conn.execute(
                     "INSERT INTO schema_version (version) VALUES (%s)", (version,)
                 )
+
+
+def _run_sqlite_migrations(conn) -> None:
+    """Run SQLite migrations with each file and version insert atomically."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS schema_version ("
+        "  version INTEGER PRIMARY KEY,"
+        "  applied_at TEXT NOT NULL DEFAULT (datetime('now'))"
+        ")"
+    )
+    conn.commit()
+
+    applied = {
+        r["version"]
+        for r in conn.execute("SELECT version FROM schema_version").fetchall()
+    }
+    for sql_file in sorted(_migrations_dir().glob("*.sql")):
+        version = int(sql_file.stem.split("_")[0])
+        if version in applied:
+            continue
+        sql_text = sql_file.read_text()
+        with conn.transaction():
+            for statement in _sqlite_migration_statements(sql_text):
+                conn.execute(statement)
+            conn.execute("INSERT INTO schema_version (version) VALUES (%s)", (version,))
+
+
+def _sqlite_migration_statements(sql_text: str) -> list[str]:
+    """Split trusted migration files into single statements for sqlite3.execute."""
+    statements: list[str] = []
+    buffer: list[str] = []
+    for line in sql_text.splitlines(keepends=True):
+        buffer.append(line)
+        candidate = "".join(buffer).strip()
+        if candidate and sqlite3.complete_statement(candidate):
+            statements.append(candidate)
+            buffer = []
+    tail = "".join(buffer).strip()
+    if tail:
+        statements.append(tail)
+    return statements
 
 
 def expected_migration_versions() -> list[int]:
@@ -123,10 +157,19 @@ def expected_migration_versions() -> list[int]:
 def migration_status() -> dict:
     expected = expected_migration_versions()
     with get_pool().connection() as conn:
-        table_exists = conn.execute(
-            "SELECT to_regclass('schema_version') IS NOT NULL AS exists"
-        ).fetchone()
-        if not table_exists or not table_exists["exists"]:
+        if _is_sqlite_url():
+            table_exists = conn.execute(
+                "SELECT EXISTS("
+                "  SELECT 1 FROM sqlite_master"
+                "  WHERE type = 'table' AND name = 'schema_version'"
+                ") AS table_exists"
+            ).fetchone()
+        else:
+            table_exists = conn.execute(
+                "SELECT to_regclass('schema_version') IS NOT NULL AS exists"
+            ).fetchone()
+        exists_key = "table_exists" if _is_sqlite_url() else "exists"
+        if not table_exists or not table_exists[exists_key]:
             return {
                 "applied": False,
                 "applied_count": 0,
