@@ -15,6 +15,16 @@ STUDIO_MIGRATION_ADVISORY_LOCK_ID = 2402402402
 _pool: ConnectionPool | SQLitePool | None = None
 
 
+def _is_sqlite_url() -> bool:
+    return DATABASE_URL.startswith("sqlite://")
+
+
+def _migrations_dir() -> Path:
+    if _is_sqlite_url():
+        return Path(__file__).parent / "migrations" / "sqlite"
+    return MIGRATIONS_DIR
+
+
 def current_backend() -> str:
     return database_backend()
 
@@ -60,6 +70,10 @@ def close_pool() -> None:
 def init_db() -> None:
     """Create the schema_version table and run unapplied migrations."""
     with get_pool().connection() as conn:
+        if _is_sqlite_url():
+            _run_migrations(conn)
+            conn.commit()
+            return
         conn.execute("SELECT pg_advisory_lock(%s)", (STUDIO_MIGRATION_ADVISORY_LOCK_ID,))
         try:
             _run_migrations(conn)
@@ -71,27 +85,39 @@ def init_db() -> None:
 def _run_migrations(conn) -> None:
     """Run unapplied Studio migrations on an existing connection."""
     with conn.transaction():
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS schema_version ("
-            "  version INTEGER PRIMARY KEY,"
-            "  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()"
-            ")"
-        )
+        if _is_sqlite_url():
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS schema_version ("
+                "  version INTEGER PRIMARY KEY,"
+                "  applied_at TEXT NOT NULL DEFAULT (datetime('now'))"
+                ")"
+            )
+        else:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS schema_version ("
+                "  version INTEGER PRIMARY KEY,"
+                "  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()"
+                ")"
+            )
         applied = {
             r["version"]
             for r in conn.execute("SELECT version FROM schema_version").fetchall()
         }
-        for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        for sql_file in sorted(_migrations_dir().glob("*.sql")):
             version = int(sql_file.stem.split("_")[0])
             if version not in applied:
-                conn.execute(sql_file.read_text())
+                sql_text = sql_file.read_text()
+                if _is_sqlite_url():
+                    conn.executescript(sql_text)
+                else:
+                    conn.execute(sql_text)
                 conn.execute(
                     "INSERT INTO schema_version (version) VALUES (%s)", (version,)
                 )
 
 
 def expected_migration_versions() -> list[int]:
-    return [int(sql_file.stem.split("_")[0]) for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql"))]
+    return [int(sql_file.stem.split("_")[0]) for sql_file in sorted(_migrations_dir().glob("*.sql"))]
 
 
 def migration_status() -> dict:

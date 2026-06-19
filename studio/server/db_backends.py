@@ -66,7 +66,11 @@ class SQLiteConnection:
         self._connection.row_factory = sqlite3.Row
 
     def execute(self, sql: str, params: tuple | list | None = None):
-        return self._connection.execute(sql, params or ())
+        sqlite_sql = sql.replace("%s", "?")
+        return self._connection.execute(sqlite_sql, params or ())
+
+    def executescript(self, sql: str) -> None:
+        self._connection.executescript(sql)
 
     def commit(self) -> None:
         self._connection.commit()

@@ -63,3 +63,19 @@ def test_sqlite_pool_creates_parent_directory(monkeypatch, tmp_path):
         assert sqlite_path.exists()
     finally:
         db.close_pool()
+
+
+def test_sqlite_init_db_runs_migrations(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        db.init_db()
+        with db.get_pool().connection() as conn:
+            row = conn.execute("SELECT COUNT(*) AS count FROM schema_version").fetchone()
+            assert row["count"] >= 1
+            conn.execute("SELECT id, name FROM projects")
+    finally:
+        db.close_pool()
