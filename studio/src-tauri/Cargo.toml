@@ -1,6 +1,6 @@
 [package]
 name = "anip-studio-desktop"
-version = "0.24.6"
+version = "0.24.7"
 description = "ANIP Studio desktop shell"
 authors = ["ANIP Protocol <team@anip.dev>"]
 edition = "2021"

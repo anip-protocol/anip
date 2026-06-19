@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { invoke } from '@tauri-apps/api/core'
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { store } from './store'
@@ -35,6 +36,8 @@ const connecting = ref(false)
 const settingsOpen = ref(false)
 
 const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
+const desktopMode = !!import.meta.env.VITE_STUDIO_DESKTOP
+const ANIP_SITE_URL = 'https://anip.dev'
 
 type StudioMode = 'home' | 'inspect' | 'design'
 
@@ -911,6 +914,16 @@ function switchMode(mode: 'inspect' | 'design') {
   }
 }
 
+async function openAnipSite(event: MouseEvent) {
+  if (!desktopMode) return
+  event.preventDefault()
+  try {
+    await invoke('open_external_url', { url: ANIP_SITE_URL })
+  } catch {
+    window.location.href = ANIP_SITE_URL
+  }
+}
+
 async function connect() {
   const url = urlInput.value.replace(/\/+$/, '')
   if (!url) return
@@ -1116,7 +1129,7 @@ async function handleSettingsSaved() {
         <div class="sidebar-footer">
           <span class="version">{{ STUDIO_VERSION_LABEL }}</span>
           <span class="version version-protocol">{{ STUDIO_PROTOCOL_VERSION }}</span>
-          <a class="footer-link" href="https://anip.dev" target="_blank" rel="noreferrer">anip.dev</a>
+          <a class="footer-link" :href="ANIP_SITE_URL" target="_blank" rel="noopener noreferrer" @click="openAnipSite">anip.dev</a>
         </div>
       </nav>
 

@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "anip-studio-desktop"
-version = "0.24.6"
+version = "0.24.7"
 dependencies = [
  "serde",
  "serde_json",

@@ -12,6 +12,10 @@ use std::{
 use tauri::{path::BaseDirectory, Manager};
 
 static STUDIO_API_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
+const ALLOWED_EXTERNAL_URLS: &[&str] = &[
+    "https://anip.dev",
+    "https://anip.dev/",
+];
 
 fn studio_api_port() -> u16 {
     env::var("STUDIO_DESKTOP_API_PORT")
@@ -160,9 +164,38 @@ fn start_studio_api_if_configured(app: &tauri::App) {
     }
 }
 
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    if !ALLOWED_EXTERNAL_URLS.contains(&url.as_str()) {
+        return Err("external URL is not allowed".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    let status = Command::new("open").arg(&url).status();
+
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .status();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let status = Command::new("xdg-open").arg(&url).status();
+
+    status
+        .map_err(|err| format!("failed to open external URL: {err}"))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("failed to open external URL: status {status}"))
+            }
+        })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![open_external_url])
         .setup(|app| {
             start_studio_api_if_configured(app);
             Ok(())
