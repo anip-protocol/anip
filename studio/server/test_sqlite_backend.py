@@ -130,7 +130,17 @@ def test_sqlite_migrations_create_all_core_tables(monkeypatch, tmp_path):
                     "SELECT name FROM sqlite_master WHERE type = 'table'"
                 ).fetchall()
             }
+            evaluation_columns = {
+                row["name"]: row
+                for row in conn.execute("PRAGMA table_info(evaluations)").fetchall()
+            }
+            project_columns = {
+                row["name"]: row
+                for row in conn.execute("PRAGMA table_info(projects)").fetchall()
+            }
         assert expected_tables <= tables
+        assert evaluation_columns["proposal_id"]["notnull"] == 0
+        assert project_columns["workspace_id"]["notnull"] == 1
     finally:
         db.close_pool()
 
