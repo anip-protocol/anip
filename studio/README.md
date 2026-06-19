@@ -85,6 +85,25 @@ Published images are split by responsibility:
 - `anipprotocol/studio-web:<version>` — nginx web UI that proxies to `studio-api`.
 - `anipprotocol/studio:<version>` — compatibility alias for the web UI image.
 
+## Desktop API Preview
+
+To run the Studio API locally in desktop SQLite mode without Docker or
+Postgres:
+
+```bash
+studio/scripts/start-desktop-api.sh
+```
+
+The launcher starts only the FastAPI server at
+`http://127.0.0.1:${STUDIO_DESKTOP_API_PORT:-8100}`. It defaults to
+`STUDIO_MODE=desktop`, `STUDIO_DB_BACKEND=sqlite`, seeds showcase data, enables
+migrations, and writes SQLite data to
+`${ANIP_STUDIO_DESKTOP_DATA_DIR:-~/.anip/studio}/studio.sqlite` unless
+`STUDIO_SQLITE_PATH` is set.
+
+This is an API preview for local desktop storage. The future desktop shell is a
+separate layer and is not started by this script.
+
 ## Views
 
 | View | What It Shows |
