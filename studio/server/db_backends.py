@@ -45,9 +45,15 @@ def sqlite_path_from_url(database_url: str) -> Path:
     parsed = urlparse(database_url)
     if parsed.scheme != "sqlite":
         raise RuntimeError(f"Expected sqlite URL, got {database_url!r}")
+    if parsed.netloc:
+        raise RuntimeError(f"SQLite URL must not include a host: {database_url!r}")
     raw_path = unquote(parsed.path)
-    if raw_path.startswith("/") and parsed.netloc:
-        raw_path = f"/{parsed.netloc}{raw_path}"
+    if not raw_path or raw_path in {"/", "//"}:
+        raise RuntimeError(f"SQLite URL must include a database path: {database_url!r}")
+    if raw_path.startswith("//"):
+        raw_path = raw_path[1:]
+    elif raw_path.startswith("/"):
+        raw_path = raw_path[1:]
     path = Path(raw_path)
     if not path.is_absolute():
         path = Path.cwd() / path
@@ -74,6 +80,7 @@ class SQLiteConnection:
     @contextmanager
     def transaction(self):
         try:
+            self._connection.execute("BEGIN IMMEDIATE")
             yield self
             self._connection.commit()
         except Exception:
