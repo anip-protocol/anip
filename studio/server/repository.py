@@ -134,6 +134,15 @@ def _decode_json_rows(rows: list[Any]) -> list[dict]:
     return [_decode_json_fields(row) for row in rows]
 
 
+def _decode_studio_settings_fields(row: Any) -> dict | None:
+    decoded = _plain_row(row)
+    if decoded is None:
+        return None
+    if "value" in decoded:
+        decoded["value"] = _json_value(decoded["value"], {})
+    return decoded
+
+
 def assert_same_project(conn: Any, project_id: str, **refs: str) -> None:
     """Verify that every referenced record belongs to *project_id*.
 

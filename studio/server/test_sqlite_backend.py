@@ -1,8 +1,12 @@
+import json
+
 import pytest
+from psycopg.types.json import Jsonb
 
 from studio.server import db
 from studio.server.db_backends import sqlite_path_from_url
 from studio.server.repository import (
+    _decode_studio_settings_fields,
     create_project,
     create_workspace,
     list_projects,
@@ -414,5 +418,97 @@ def test_sqlite_json_fields_round_trip(monkeypatch, tmp_path):
             "kind": "native_api",
             "systems": [{"system_id": "local"}],
         }
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_jsonb_parameter_normalization(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        with db.get_pool().connection() as conn:
+            conn.execute(
+                "CREATE TABLE jsonb_payloads (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
+            )
+            conn.execute(
+                "INSERT INTO jsonb_payloads (id, payload) VALUES (%s, %s)",
+                ("jsonb-row", Jsonb({"nested": ["sqlite", "jsonb"]})),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT payload FROM jsonb_payloads WHERE id = %s",
+                ("jsonb-row",),
+            ).fetchone()
+
+        assert isinstance(row["payload"], str)
+        assert json.loads(row["payload"]) == {"nested": ["sqlite", "jsonb"]}
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_studio_settings_value_decodes_to_dict(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        db.init_db()
+        with db.get_pool().connection() as conn:
+            conn.execute(
+                "INSERT INTO studio_settings (key, value) VALUES (%s, %s)",
+                ("registry", Jsonb({"required_registry_mode": "dev"})),
+            )
+            conn.execute(
+                "INSERT INTO studio_settings (key, value) VALUES (%s, %s)",
+                ("recent_projects", Jsonb(["project-a", "project-b"])),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT value FROM studio_settings WHERE key = %s",
+                ("registry",),
+            ).fetchone()
+            list_row = conn.execute(
+                "SELECT value FROM studio_settings WHERE key = %s",
+                ("recent_projects",),
+            ).fetchone()
+
+        assert row["value"] == {"required_registry_mode": "dev"}
+        assert list_row["value"] == ["project-a", "project-b"]
+        assert _decode_studio_settings_fields(
+            {"value": '{"provider":"openai","temperature":0.2}'}
+        ) == {"value": {"provider": "openai", "temperature": 0.2}}
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_studio_settings_upsert_decodes_updated_value(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    upsert_sql = (
+        "INSERT INTO studio_settings (key, value) VALUES (%s, %s)"
+        " ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()"
+    )
+    try:
+        db.init_db()
+        with db.get_pool().connection() as conn:
+            conn.execute(upsert_sql, ("assistant", {"provider": "openai"}))
+            conn.execute(
+                upsert_sql,
+                ("assistant", Jsonb({"provider": "anthropic", "model": "claude"})),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT value FROM studio_settings WHERE key = %s",
+                ("assistant",),
+            ).fetchone()
+
+        assert row["value"] == {"provider": "anthropic", "model": "claude"}
     finally:
         db.close_pool()

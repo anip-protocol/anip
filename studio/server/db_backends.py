@@ -6,8 +6,11 @@ import json
 import os
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+from psycopg.types.json import Json, Jsonb
 
 
 SUPPORTED_BACKENDS = {"postgres", "sqlite"}
@@ -69,7 +72,11 @@ class SQLiteConnection:
     def execute(self, sql: str, params: tuple | list | None = None):
         sqlite_sql = sql.replace("%s", "?")
         sqlite_params = tuple(_sqlite_param(value) for value in (params or ()))
-        return SQLiteCursor(self._connection.execute(sqlite_sql, sqlite_params))
+        json_fields = _sqlite_json_fields(sqlite_sql)
+        return SQLiteCursor(
+            self._connection.execute(sqlite_sql, sqlite_params),
+            json_fields=json_fields,
+        )
 
     def executescript(self, sql: str) -> None:
         self._connection.executescript(sql)
@@ -104,6 +111,7 @@ class SQLitePool:
     def connection(self):
         raw = sqlite3.connect(self.path)
         raw.row_factory = sqlite3.Row
+        raw.create_function("now", 0, _sqlite_now)
         raw.execute("PRAGMA foreign_keys = ON")
         raw.execute("PRAGMA journal_mode = WAL")
         conn = SQLiteConnection(raw)
@@ -117,35 +125,43 @@ class SQLitePool:
 
 
 class SQLiteCursor:
-    def __init__(self, cursor: sqlite3.Cursor):
+    def __init__(self, cursor: sqlite3.Cursor, *, json_fields: set[str] | None = None):
         self._cursor = cursor
+        self._json_fields = json_fields or set()
 
     @property
     def rowcount(self) -> int:
         return self._cursor.rowcount
 
     def fetchone(self) -> dict | None:
-        return _sqlite_row(self._cursor.fetchone())
+        return _sqlite_row(self._cursor.fetchone(), self._json_fields)
 
     def fetchall(self) -> list[dict]:
-        return [_sqlite_row(row) for row in self._cursor.fetchall()]
+        return [_sqlite_row(row, self._json_fields) for row in self._cursor.fetchall()]
 
     def __iter__(self):
         for row in self._cursor:
-            yield _sqlite_row(row)
+            yield _sqlite_row(row, self._json_fields)
 
     def __getattr__(self, name: str):
         return getattr(self._cursor, name)
 
 
-def _sqlite_row(row: sqlite3.Row | None) -> dict | None:
+def _sqlite_row(row: sqlite3.Row | None, json_fields: set[str] | None = None) -> dict | None:
     if row is None:
         return None
-    return dict(row)
+    result = dict(row)
+    for field in json_fields or set():
+        if field in result and isinstance(result[field], str):
+            try:
+                result[field] = json.loads(result[field])
+            except json.JSONDecodeError:
+                pass
+    return result
 
 
 def _sqlite_param(value):
-    if value.__class__.__name__ == "Json" and hasattr(value, "obj"):
+    if isinstance(value, (Json, Jsonb)):
         dumps = getattr(value, "dumps", None)
         if callable(dumps):
             return dumps(value.obj)
@@ -153,3 +169,14 @@ def _sqlite_param(value):
     if isinstance(value, (dict, list)):
         return json.dumps(value)
     return value
+
+
+def _sqlite_json_fields(sql: str) -> set[str]:
+    normalized = sql.lower()
+    if "studio_settings" in normalized:
+        return {"value"}
+    return set()
+
+
+def _sqlite_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
