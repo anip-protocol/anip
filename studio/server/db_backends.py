@@ -33,6 +33,6 @@ def default_database_url() -> str:
 def migrations_dir(base_dir: Path) -> Path:
     backend = database_backend()
     candidate = base_dir / "migrations" / backend
-    if candidate.exists():
+    if candidate.is_dir():
         return candidate
     return base_dir / "migrations"
