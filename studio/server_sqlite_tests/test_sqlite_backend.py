@@ -16,6 +16,10 @@ from studio.server.repository import (
 )
 
 
+EXPECTED_SHOWCASE_PROJECT_ID = "85afbf8a-2414-49c1-824d-36d6d300b5f6"
+EXPECTED_SHOWCASE_PROJECT_NAME = "GTM Pipeline Q2 Review"
+
+
 def _run_sqlite_migration_file(conn, sql_file):
     with conn.transaction():
         for statement in db._sqlite_migration_statements(sql_file.read_text()):
@@ -531,7 +535,11 @@ def test_sqlite_api_starts_and_lists_seeded_projects(monkeypatch, tmp_path):
             assert projects.status_code == 200
             project_list = projects.json()
             assert isinstance(project_list, list)
-            assert [project for project in project_list if project.get("id")]
+            assert any(
+                project["id"] == EXPECTED_SHOWCASE_PROJECT_ID
+                and project["name"] == EXPECTED_SHOWCASE_PROJECT_NAME
+                for project in project_list
+            )
     finally:
         db.close_pool()
 
@@ -553,6 +561,8 @@ def test_sqlite_showcase_snapshot_import_is_idempotent(monkeypatch, tmp_path):
         first_ids = sorted(project["id"] for project in first)
         second_ids = sorted(project["id"] for project in second)
         assert first_ids
+        assert len(first_ids) == len(set(first_ids))
+        assert len(second_ids) == len(set(second_ids))
         assert first_ids == second_ids
     finally:
         db.close_pool()
