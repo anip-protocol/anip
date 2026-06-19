@@ -6,30 +6,33 @@ from pathlib import Path
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from .db_backends import database_backend, default_database_url, migrations_dir
+from .db_backends import SQLitePool, database_backend, default_database_url, migrations_dir
 
 DATABASE_URL = os.environ["DATABASE_URL"] if "DATABASE_URL" in os.environ else default_database_url()
 MIGRATIONS_DIR = migrations_dir(Path(__file__).parent)
 STUDIO_MIGRATION_ADVISORY_LOCK_ID = 2402402402
 
-_pool: ConnectionPool | None = None
+_pool: ConnectionPool | SQLitePool | None = None
 
 
 def current_backend() -> str:
     return database_backend()
 
 
-def get_pool() -> ConnectionPool:
+def get_pool() -> ConnectionPool | SQLitePool:
     """Return the global connection pool, creating it lazily."""
     global _pool
     if _pool is None:
-        _pool = ConnectionPool(
-            DATABASE_URL,
-            kwargs={"row_factory": dict_row},
-            min_size=2,
-            max_size=10,
-            open=True,
-        )
+        if DATABASE_URL.startswith("sqlite://"):
+            _pool = SQLitePool(DATABASE_URL)
+        else:
+            _pool = ConnectionPool(
+                DATABASE_URL,
+                kwargs={"row_factory": dict_row},
+                min_size=2,
+                max_size=10,
+                open=True,
+            )
     return _pool
 
 
