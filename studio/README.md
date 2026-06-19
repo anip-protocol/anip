@@ -85,7 +85,7 @@ Published images are split by responsibility:
 - `anipprotocol/studio-web:<version>` — nginx web UI that proxies to `studio-api`.
 - `anipprotocol/studio:<version>` — compatibility alias for the web UI image.
 
-## Desktop API Preview
+## Desktop Mode
 
 To run the Studio API locally in desktop SQLite mode without Docker or
 Postgres:
@@ -101,8 +101,18 @@ migrations, and writes SQLite data to
 `${ANIP_STUDIO_DESKTOP_DATA_DIR:-~/.anip/studio}/studio.sqlite` unless
 `STUDIO_SQLITE_PATH` is set.
 
-This is an API preview for local desktop storage. The future desktop shell is a
-separate layer and is not started by this script.
+To build the macOS desktop app shell with the bundled Studio API sidecar:
+
+```bash
+./.venv/bin/python -m pip install -r studio/server/desktop-build-requirements.txt
+npm --prefix studio install
+npm --prefix studio run desktop:build
+```
+
+The desktop app bundles the static Studio UI and a frozen Studio API sidecar.
+On launch, it starts the API on `127.0.0.1:8100`, uses the same SQLite data
+location as `start-desktop-api.sh`, and stores local project data under
+`~/.anip/studio` by default.
 
 ## Views
 

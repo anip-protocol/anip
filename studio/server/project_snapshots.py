@@ -19,10 +19,11 @@ from typing import Any
 from psycopg.types.json import Json
 
 from . import repository
+from .runtime_paths import repo_root, server_path
 
 SNAPSHOT_SCHEMA_VERSION = "anip-studio-project-snapshot/v1"
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_SNAPSHOT_DIR = _REPO_ROOT / "studio" / "server" / "showcase_snapshots"
+_REPO_ROOT = repo_root()
+_DEFAULT_SNAPSHOT_DIR = server_path("showcase_snapshots")
 
 
 def _jsonable(value: Any) -> Any:

@@ -1,2 +1,5 @@
 /target
 /gen
+/bin/anip-studio-api-*
+/pyinstaller-work
+/pyinstaller-spec

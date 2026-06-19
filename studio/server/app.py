@@ -16,8 +16,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from psycopg.types.json import Json
+from .runtime_paths import repo_root, server_path, tooling_schema_path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repo_root()
 
 # Add local packages to Python path so Studio can mount real ANIP services.
 for path in [
@@ -57,8 +58,8 @@ from .routers import projects, artifacts, shapes, vocabulary, import_export, wor
 from .seed import seed_from_examples  # noqa: E402
 from .observability import StudioMetrics, configure_json_logging  # noqa: E402
 
-SCHEMA_DIR = Path(__file__).resolve().parents[2] / "tooling" / "schemas"
-VOCAB_DEFAULTS_PATH = Path(__file__).parent / "vocabulary_defaults.json"
+SCHEMA_DIR = tooling_schema_path()
+VOCAB_DEFAULTS_PATH = server_path("vocabulary_defaults.json")
 ASSISTANT_SERVICE = create_studio_assistant_service()
 WORKBENCH_SERVICE = create_studio_workbench_service()
 _REGISTRY_CONFIG_KEY = "registry_trust_policy_config"
