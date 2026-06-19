@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -70,7 +71,7 @@ class SQLiteConnection:
         self._connection.row_factory = sqlite3.Row
 
     def execute(self, sql: str, params: tuple | list | None = None):
-        sqlite_sql = sql.replace("%s", "?")
+        sqlite_sql = _sqlite_sql(sql)
         sqlite_params = tuple(_sqlite_param(value) for value in (params or ()))
         json_fields = _sqlite_json_fields(sqlite_sql)
         return SQLiteCursor(
@@ -169,6 +170,12 @@ def _sqlite_param(value):
     if isinstance(value, (dict, list)):
         return json.dumps(value)
     return value
+
+
+def _sqlite_sql(sql: str) -> str:
+    sqlite_sql = sql.replace("%s", "?")
+    sqlite_sql = re.sub(r"(\?|'[^']*')::[a-zA-Z_][a-zA-Z0-9_]*", r"\1", sqlite_sql)
+    return sqlite_sql
 
 
 def _sqlite_json_fields(sql: str) -> set[str]:

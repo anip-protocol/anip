@@ -1,8 +1,10 @@
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 from psycopg.types.json import Jsonb
 
+from studio.server.app import app
 from studio.server import db
 from studio.server.db_backends import sqlite_path_from_url
 from studio.server.repository import (
@@ -510,5 +512,47 @@ def test_sqlite_studio_settings_upsert_decodes_updated_value(monkeypatch, tmp_pa
             ).fetchone()
 
         assert row["value"] == {"provider": "anthropic", "model": "claude"}
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_api_starts_and_lists_seeded_projects(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.setenv("STUDIO_SEED_SHOWCASES", "1")
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        with TestClient(app) as client:
+            health = client.get("/api/health")
+            assert health.status_code == 200
+            projects = client.get("/api/projects")
+            assert projects.status_code == 200
+            project_list = projects.json()
+            assert isinstance(project_list, list)
+            assert [project for project in project_list if project.get("id")]
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_showcase_snapshot_import_is_idempotent(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.setenv("STUDIO_SEED_SHOWCASES", "1")
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        with TestClient(app) as client:
+            first = client.get("/api/projects").json()
+        db.close_pool()
+        with TestClient(app) as client:
+            second = client.get("/api/projects").json()
+
+        first_ids = sorted(project["id"] for project in first)
+        second_ids = sorted(project["id"] for project in second)
+        assert first_ids
+        assert first_ids == second_ids
     finally:
         db.close_pool()
