@@ -24,6 +24,10 @@ const designRoutes = inspectOnly ? [] : [
   },
   {
     path: '/design/projects/:projectId',
+    redirect: (to: any) => `/design/projects/${to.params.projectId}/pm`,
+  },
+  {
+    path: '/design/projects/:projectId/dashboard',
     name: 'project-dashboard',
     component: () => import('./views/ProjectDashboardView.vue'),
   },

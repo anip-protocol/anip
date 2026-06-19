@@ -135,7 +135,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       name: 'project-product-design',
       label: 'Product Design',
       icon: '\u2022',
-      path: `/design/projects/${pid}`,
+      path: `/design/projects/${pid}/pm`,
       child: true,
       lane: 'product',
       modeSwitch: true,
@@ -339,7 +339,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
         name: 'project-developer-design',
         label: 'Developer Design',
         icon: '\u2022',
-        path: `/design/projects/${pid}`,
+        path: `/design/projects/${pid}/developer`,
         child: true,
         lane: 'developer',
         modeSwitch: true,
@@ -621,7 +621,7 @@ const headerContextLinks = computed<HeaderContextLink[]>(() => {
     links.push({
       key: 'project',
       label: project.name,
-      path: `/design/projects/${project.id}`,
+      path: `/design/projects/${project.id}/pm`,
       current: true,
     })
   }
@@ -680,7 +680,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
         productDraftAhead ? 'Working Product Design has changed since this revision.' : 'Working Product Design matches this revision.',
         baselinePinnedToLatest ? 'Developer Baseline is pinned to this revision.' : 'Developer Baseline is not pinned to the latest Product Revision.',
       ].join('\n'),
-      path: `/design/projects/${project.id}`,
+      path: `/design/projects/${project.id}/pm`,
       status: productDraftAhead ? 'draft' : baselineAligned ? 'current' : 'stale',
     })
   } else if (currentProductHash) {
@@ -688,7 +688,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
       key: 'product-revision',
       label: 'Product draft',
       title: 'No Product Revision has been locked yet. Lock Developer Baseline to create Product Revision 1.',
-      path: `/design/projects/${project.id}`,
+      path: `/design/projects/${project.id}/pm`,
       status: 'draft',
     })
   }
@@ -893,10 +893,10 @@ async function handleDesignNavigation(item: DesignNavItem) {
     return
   }
   if (item.modeSwitch && activeProject && item.lane) {
-    router.push({
-      path: `/design/projects/${activeProject.id}`,
-      query: { view: item.lane },
-    })
+    router.push(item.lane === 'developer'
+      ? `/design/projects/${activeProject.id}/developer`
+      : `/design/projects/${activeProject.id}/pm`,
+    )
     return
   }
   navigate(item.path)
@@ -907,7 +907,7 @@ function switchMode(mode: 'inspect' | 'design') {
     router.push('/inspect/discovery')
   } else {
     const pid = projectStore.activeProject?.id
-    router.push(pid ? `/design/projects/${pid}` : '/design')
+    router.push(pid ? `/design/projects/${pid}/pm` : '/design')
   }
 }
 

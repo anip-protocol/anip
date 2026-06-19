@@ -271,12 +271,7 @@ function handleTemplateDocumentToggle(idSuffix: string, event: Event) {
 }
 
 function openProject(id: string) {
-  const selectedProject = projects.value.find(project => project.id === id)
-  if (selectedProject?.project_type === 'governed_service_project') {
-    router.push({ path: `/design/projects/${id}/fronting` })
-    return
-  }
-  router.push({ path: `/design/projects/${id}`, query: { view: 'overview' } })
+  router.push({ path: `/design/projects/${id}/pm` })
 }
 
 async function handleCreate() {
@@ -415,7 +410,7 @@ async function handleCloneProject(projectId: string, projectName: string, projec
     summary: projectSummary ? `${projectSummary} (copy)` : undefined,
   })
   await loadProjects(workspaceId.value)
-  router.push({ path: `/design/projects/${clone.id}`, query: { view: 'overview' } })
+  router.push({ path: `/design/projects/${clone.id}/pm` })
 }
 
 async function handleCleanJunkProjects() {
