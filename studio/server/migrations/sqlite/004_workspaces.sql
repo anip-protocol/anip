@@ -16,9 +16,12 @@ UPDATE projects
 SET workspace_id = 'default'
 WHERE workspace_id IS NULL;
 
-PRAGMA legacy_alter_table = ON;
-PRAGMA defer_foreign_keys = ON;
-
+ALTER TABLE evaluations RENAME TO evaluations_old;
+ALTER TABLE shapes RENAME TO shapes_old;
+ALTER TABLE proposals RENAME TO proposals_old;
+ALTER TABLE scenarios RENAME TO scenarios_old;
+ALTER TABLE requirements_sets RENAME TO requirements_sets_old;
+ALTER TABLE vocabulary RENAME TO vocabulary_old;
 ALTER TABLE projects RENAME TO projects_old;
 
 CREATE TABLE projects (
@@ -52,14 +55,6 @@ SELECT
     updated_at,
     workspace_id
 FROM projects_old;
-
-DROP TABLE projects_old;
-
-CREATE INDEX idx_projects_domain ON projects(domain);
-CREATE INDEX idx_projects_updated ON projects(updated_at DESC);
-CREATE INDEX idx_projects_workspace ON projects(workspace_id);
-
-ALTER TABLE requirements_sets RENAME TO requirements_sets_old;
 
 CREATE TABLE requirements_sets (
     id TEXT PRIMARY KEY,
@@ -96,14 +91,6 @@ SELECT
     role
 FROM requirements_sets_old;
 
-DROP TABLE requirements_sets_old;
-
-CREATE INDEX idx_requirements_project ON requirements_sets(project_id);
-CREATE UNIQUE INDEX idx_requirements_primary_per_project
-    ON requirements_sets(project_id) WHERE role = 'primary';
-
-ALTER TABLE scenarios RENAME TO scenarios_old;
-
 CREATE TABLE scenarios (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -135,12 +122,6 @@ SELECT
     updated_at,
     content_hash
 FROM scenarios_old;
-
-DROP TABLE scenarios_old;
-
-CREATE INDEX idx_scenarios_project ON scenarios(project_id);
-
-ALTER TABLE proposals RENAME TO proposals_old;
 
 CREATE TABLE proposals (
     id TEXT PRIMARY KEY,
@@ -177,13 +158,6 @@ SELECT
     content_hash
 FROM proposals_old;
 
-DROP TABLE proposals_old;
-
-CREATE INDEX idx_proposals_project ON proposals(project_id);
-CREATE INDEX idx_proposals_requirements ON proposals(requirements_id);
-
-ALTER TABLE vocabulary RENAME TO vocabulary_old;
-
 CREATE TABLE vocabulary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
@@ -213,15 +187,6 @@ SELECT
     description,
     evaluator_recognized
 FROM vocabulary_old;
-
-DROP TABLE vocabulary_old;
-
-CREATE UNIQUE INDEX idx_vocabulary_global_unique
-    ON vocabulary(category, value) WHERE project_id IS NULL;
-CREATE INDEX idx_vocabulary_category ON vocabulary(category);
-CREATE INDEX idx_vocabulary_project ON vocabulary(project_id);
-
-ALTER TABLE shapes RENAME TO shapes_old;
 
 CREATE TABLE shapes (
     id TEXT PRIMARY KEY,
@@ -257,13 +222,6 @@ SELECT
     created_at,
     updated_at
 FROM shapes_old;
-
-DROP TABLE shapes_old;
-
-CREATE INDEX idx_shapes_project ON shapes(project_id);
-CREATE INDEX idx_shapes_requirements ON shapes(requirements_id);
-
-ALTER TABLE evaluations RENAME TO evaluations_old;
 
 CREATE TABLE evaluations (
     id TEXT PRIMARY KEY,
@@ -322,9 +280,28 @@ SELECT
 FROM evaluations_old;
 
 DROP TABLE evaluations_old;
+DROP TABLE shapes_old;
+DROP TABLE proposals_old;
+DROP TABLE scenarios_old;
+DROP TABLE requirements_sets_old;
+DROP TABLE vocabulary_old;
+DROP TABLE projects_old;
 
+CREATE INDEX idx_projects_domain ON projects(domain);
+CREATE INDEX idx_projects_updated ON projects(updated_at DESC);
+CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+CREATE INDEX idx_requirements_project ON requirements_sets(project_id);
+CREATE UNIQUE INDEX idx_requirements_primary_per_project
+    ON requirements_sets(project_id) WHERE role = 'primary';
+CREATE INDEX idx_scenarios_project ON scenarios(project_id);
+CREATE INDEX idx_proposals_project ON proposals(project_id);
+CREATE INDEX idx_proposals_requirements ON proposals(requirements_id);
+CREATE UNIQUE INDEX idx_vocabulary_global_unique
+    ON vocabulary(category, value) WHERE project_id IS NULL;
+CREATE INDEX idx_vocabulary_category ON vocabulary(category);
+CREATE INDEX idx_vocabulary_project ON vocabulary(project_id);
+CREATE INDEX idx_shapes_project ON shapes(project_id);
+CREATE INDEX idx_shapes_requirements ON shapes(requirements_id);
 CREATE INDEX idx_evaluations_project ON evaluations(project_id);
 CREATE INDEX idx_evaluations_proposal ON evaluations(proposal_id);
 CREATE INDEX idx_evaluations_scenario ON evaluations(scenario_id);
-
-PRAGMA legacy_alter_table = OFF;

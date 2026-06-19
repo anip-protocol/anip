@@ -4,6 +4,12 @@ from studio.server import db
 from studio.server.db_backends import sqlite_path_from_url
 
 
+def _run_sqlite_migration_file(conn, sql_file):
+    with conn.transaction():
+        for statement in db._sqlite_migration_statements(sql_file.read_text()):
+            conn.execute(statement)
+
+
 def test_database_backend_defaults_to_postgres(monkeypatch):
     monkeypatch.delenv("STUDIO_DB_BACKEND", raising=False)
     assert db.database_backend() == "postgres"
@@ -141,6 +147,172 @@ def test_sqlite_migrations_create_all_core_tables(monkeypatch, tmp_path):
         assert expected_tables <= tables
         assert evaluation_columns["proposal_id"]["notnull"] == 0
         assert project_columns["workspace_id"]["notnull"] == 1
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_workspace_migration_preserves_seeded_upgrade_rows(
+    monkeypatch, tmp_path
+):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    migrations_dir = db._migrations_dir()
+    count_tables = [
+        "projects",
+        "requirements_sets",
+        "scenarios",
+        "proposals",
+        "shapes",
+        "evaluations",
+        "vocabulary",
+    ]
+    try:
+        with db.get_pool().connection() as conn:
+            for migration_name in (
+                "001_initial.sql",
+                "002_slice5_hardening.sql",
+                "003_shapes.sql",
+            ):
+                _run_sqlite_migration_file(conn, migrations_dir / migration_name)
+
+            conn.execute(
+                "INSERT INTO projects (id, name, summary, domain, labels) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                ("proj-1", "Project One", "summary", "domain", '["seed"]'),
+            )
+            conn.execute(
+                "INSERT INTO requirements_sets "
+                "(id, project_id, title, status, data, content_hash, role) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                ("req-1", "proj-1", "Requirements", "active", '{"req":1}', "hr", "primary"),
+            )
+            conn.execute(
+                "INSERT INTO scenarios "
+                "(id, project_id, title, status, data, content_hash) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                ("scn-1", "proj-1", "Scenario", "active", '{"scn":1}', "hs"),
+            )
+            conn.execute(
+                "INSERT INTO proposals "
+                "(id, project_id, requirements_id, title, status, data, content_hash) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                ("prop-1", "proj-1", "req-1", "Proposal", "active", '{"prop":1}', "hp"),
+            )
+            conn.execute(
+                "INSERT INTO shapes "
+                "(id, project_id, requirements_id, title, status, data, content_hash) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                ("shape-1", "proj-1", "req-1", "Shape", "active", '{"shape":1}', "hsh"),
+            )
+            conn.execute(
+                "INSERT INTO evaluations "
+                "(id, project_id, proposal_id, scenario_id, requirements_id, result, "
+                "data, input_snapshot, requirements_hash, proposal_hash, scenario_hash, "
+                "shape_id, shape_hash, derived_expectations) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    "eval-1",
+                    "proj-1",
+                    "prop-1",
+                    "scn-1",
+                    "req-1",
+                    "HANDLED",
+                    '{"eval":1}',
+                    '{"input":1}',
+                    "hr",
+                    "hp",
+                    "hs",
+                    "shape-1",
+                    "hsh",
+                    '{"expect":1}',
+                ),
+            )
+            conn.execute(
+                "INSERT INTO vocabulary "
+                "(project_id, category, value, origin, description, evaluator_recognized) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                ("proj-1", "term", "value", "custom", "description", 1),
+            )
+            conn.commit()
+
+            before_counts = {
+                table: conn.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()[
+                    "count"
+                ]
+                for table in count_tables
+            }
+
+            _run_sqlite_migration_file(conn, migrations_dir / "004_workspaces.sql")
+
+            after_counts = {
+                table: conn.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()[
+                    "count"
+                ]
+                for table in count_tables
+            }
+            project = conn.execute(
+                "SELECT name, workspace_id FROM projects WHERE id = %s", ("proj-1",)
+            ).fetchone()
+            evaluation = conn.execute(
+                "SELECT proposal_id, shape_id FROM evaluations WHERE id = %s",
+                ("eval-1",),
+            ).fetchone()
+            vocabulary = conn.execute(
+                "SELECT description, evaluator_recognized "
+                "FROM vocabulary WHERE project_id = %s",
+                ("proj-1",),
+            ).fetchone()
+            foreign_key_errors = conn.execute("PRAGMA foreign_key_check").fetchall()
+            project_foreign_keys = [
+                dict(row) for row in conn.execute("PRAGMA foreign_key_list(projects)")
+            ]
+            dependent_foreign_keys = {
+                table: [
+                    dict(row)
+                    for row in conn.execute(f"PRAGMA foreign_key_list({table})")
+                ]
+                for table in (
+                    "requirements_sets",
+                    "scenarios",
+                    "proposals",
+                    "shapes",
+                    "evaluations",
+                    "vocabulary",
+                )
+            }
+
+        assert before_counts == {
+            "projects": 1,
+            "requirements_sets": 1,
+            "scenarios": 1,
+            "proposals": 1,
+            "shapes": 1,
+            "evaluations": 1,
+            "vocabulary": 1,
+        }
+        assert after_counts == before_counts
+        assert dict(project) == {"name": "Project One", "workspace_id": "default"}
+        assert dict(evaluation) == {"proposal_id": "prop-1", "shape_id": "shape-1"}
+        assert dict(vocabulary) == {
+            "description": "description",
+            "evaluator_recognized": 1,
+        }
+        assert foreign_key_errors == []
+        assert any(
+            row["from"] == "workspace_id"
+            and row["table"] == "workspaces"
+            and row["to"] == "id"
+            and row["on_delete"] == "CASCADE"
+            for row in project_foreign_keys
+        )
+        assert all(
+            not row["table"].endswith("_old")
+            for rows in dependent_foreign_keys.values()
+            for row in rows
+        )
     finally:
         db.close_pool()
 
