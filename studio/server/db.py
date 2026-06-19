@@ -1,4 +1,4 @@
-"""Postgres connection pool and migration runner for ANIP Studio."""
+"""Database connection pool and migration runner for ANIP Studio."""
 
 import os
 from pathlib import Path
@@ -6,14 +6,17 @@ from pathlib import Path
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://anip:anip@localhost:5432/anip_studio",
-)
-MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+from .db_backends import database_backend, default_database_url, migrations_dir
+
+DATABASE_URL = os.environ.get("DATABASE_URL", default_database_url())
+MIGRATIONS_DIR = migrations_dir(Path(__file__).parent)
 STUDIO_MIGRATION_ADVISORY_LOCK_ID = 2402402402
 
 _pool: ConnectionPool | None = None
+
+
+def current_backend() -> str:
+    return database_backend()
 
 
 def get_pool() -> ConnectionPool:
