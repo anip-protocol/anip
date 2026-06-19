@@ -7,10 +7,9 @@ from pathlib import Path
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from .db_backends import SQLitePool, database_backend, default_database_url, migrations_dir
+from .db_backends import SQLitePool, database_backend, default_database_url
 
 DATABASE_URL = os.environ["DATABASE_URL"] if "DATABASE_URL" in os.environ else default_database_url()
-MIGRATIONS_DIR = migrations_dir(Path(__file__).parent)
 STUDIO_MIGRATION_ADVISORY_LOCK_ID = 2402402402
 
 _pool: ConnectionPool | SQLitePool | None = None
