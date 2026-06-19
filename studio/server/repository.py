@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -81,6 +82,67 @@ _REF_TABLE_MAP: dict[str, str] = {
 }
 
 
+_JSON_FIELD_FALLBACKS: dict[str, Any] = {
+    "allowed_project_refs": [],
+    "data": {},
+    "derived_expectations": None,
+    "input_schema_summary": {},
+    "input_snapshot": {},
+    "integration_profile": {"kind": "none", "systems": []},
+    "labels": [],
+    "metadata": {},
+    "package_record": {},
+    "receipt": {},
+    "risk_notes": [],
+    "state": {},
+    "tags": [],
+}
+
+
+def _json_value(value: Any, fallback: Any) -> Any:
+    if value is None:
+        return deepcopy(fallback)
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return deepcopy(fallback)
+    return deepcopy(fallback)
+
+
+def _plain_row(row: Any) -> dict | None:
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row
+    return dict(row)
+
+
+def _decode_json_fields(row: Any) -> dict | None:
+    decoded = _plain_row(row)
+    if decoded is None:
+        return None
+    for field, fallback in _JSON_FIELD_FALLBACKS.items():
+        if field in decoded:
+            decoded[field] = _json_value(decoded[field], fallback)
+    return decoded
+
+
+def _decode_json_rows(rows: list[Any]) -> list[dict]:
+    return [_decode_json_fields(row) for row in rows]
+
+
+def _decode_studio_settings_fields(row: Any) -> dict | None:
+    decoded = _plain_row(row)
+    if decoded is None:
+        return None
+    if "value" in decoded:
+        decoded["value"] = _json_value(decoded["value"], {})
+    return decoded
+
+
 def assert_same_project(conn: Any, project_id: str, **refs: str) -> None:
     """Verify that every referenced record belongs to *project_id*.
 
@@ -109,11 +171,11 @@ def assert_same_project(conn: Any, project_id: str, **refs: str) -> None:
 # ---------------------------------------------------------------------------
 
 def list_workspaces(conn: Any) -> list[dict]:
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         "SELECT w.*, "
         "  (SELECT count(*) FROM projects WHERE workspace_id = w.id) AS projects_count "
         "FROM workspaces w ORDER BY updated_at DESC, name ASC"
-    ).fetchall()
+    ).fetchall())
 
 
 def get_workspace(conn: Any, workspace_id: str) -> dict:
@@ -125,7 +187,7 @@ def get_workspace(conn: Any, workspace_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("workspace", workspace_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def get_default_workspace_id(conn: Any) -> str:
@@ -147,7 +209,7 @@ def create_workspace(conn: Any, workspace_id: str, name: str, summary: str = "")
         (workspace_id, name, summary),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_workspace(conn: Any, workspace_id: str, **fields: Any) -> dict:
@@ -186,13 +248,13 @@ def delete_workspace(conn: Any, workspace_id: str) -> None:
 
 def list_projects(conn: Any, workspace_id: str | None = None) -> list[dict]:
     if workspace_id is None:
-        return conn.execute(
+        return _decode_json_rows(conn.execute(
             "SELECT * FROM projects ORDER BY updated_at DESC"
-        ).fetchall()
-    return conn.execute(
+        ).fetchall())
+    return _decode_json_rows(conn.execute(
         "SELECT * FROM projects WHERE workspace_id = %s ORDER BY updated_at DESC",
         (workspace_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_project(conn: Any, project_id: str) -> dict:
@@ -201,7 +263,7 @@ def get_project(conn: Any, project_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("project", project_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def get_project_detail(conn: Any, project_id: str) -> dict:
@@ -219,7 +281,7 @@ def get_project_detail(conn: Any, project_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("project", project_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_project(conn: Any, project_id: str, name: str, summary: str = "",
@@ -237,7 +299,7 @@ def create_project(conn: Any, project_id: str, name: str, summary: str = "",
         (project_id, workspace_id, name, summary, domain, Json(labels), project_type, Json(integration_profile)),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_project(conn: Any, project_id: str, **fields: Any) -> dict:
@@ -265,7 +327,7 @@ def update_project(conn: Any, project_id: str, **fields: Any) -> dict:
     if row is None:
         raise NotFoundError("project", project_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_project(conn: Any, project_id: str) -> None:
@@ -308,10 +370,10 @@ def _clone_generic_artifact_rows(
     id_map: dict[str, str],
     include_role: bool = False,
 ) -> dict[str, str]:
-    rows = conn.execute(
+    rows = _decode_json_rows(conn.execute(
         f"SELECT * FROM {table} WHERE project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     content_hash_map: dict[str, str] = {}
     for row in rows:
         old_id = row["id"]
@@ -417,10 +479,10 @@ def _clone_project_into(
         target_project_id=target_project_id,
         id_map=id_map,
     )
-    discovery_rows = conn.execute(
+    discovery_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM integration_discovery_records WHERE project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in discovery_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("integration-discovery"))
@@ -465,10 +527,10 @@ def _clone_project_into(
     )
 
     proposal_hash_map: dict[str, str] = {}
-    proposal_rows = conn.execute(
+    proposal_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM proposals WHERE project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in proposal_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("proposal"))
@@ -491,10 +553,10 @@ def _clone_project_into(
         proposal_hash_map[old_id] = hash_value
 
     shape_hash_map: dict[str, str] = {}
-    shape_rows = conn.execute(
+    shape_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM shapes WHERE project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in shape_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("shape"))
@@ -516,10 +578,10 @@ def _clone_project_into(
         )
         shape_hash_map[old_id] = hash_value
 
-    evaluation_rows = conn.execute(
+    evaluation_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM evaluations WHERE project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in evaluation_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("evaluation"))
@@ -577,10 +639,10 @@ def _clone_project_into(
             ),
         )
 
-    data_access_rows = conn.execute(
+    data_access_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM data_access_projects WHERE studio_project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in data_access_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("data-access"))
@@ -591,10 +653,10 @@ def _clone_project_into(
             (new_id, row["name"], target_project_id, Json(state)),
         )
 
-    integration_rows = conn.execute(
+    integration_rows = _decode_json_rows(conn.execute(
         "SELECT * FROM application_integration_projects WHERE studio_project_id = %s ORDER BY created_at ASC",
         (source_project_id,),
-    ).fetchall()
+    ).fetchall())
     for row in integration_rows:
         old_id = row["id"]
         new_id = id_map.setdefault(old_id, _generated_clone_id("app-int"))
@@ -682,7 +744,7 @@ def get_project_document(conn: Any, project_id: str, document_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("project_document", document_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_project_document(
@@ -707,7 +769,7 @@ def create_project_document(
         (document_id, project_id, title, kind, filename, media_type, source_path, content, digest),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_project_document(conn: Any, project_id: str, document_id: str) -> None:
@@ -726,10 +788,10 @@ def delete_project_document(conn: Any, project_id: str, document_id: str) -> Non
 
 def list_workspace_connections(conn: Any, workspace_id: str) -> list[dict]:
     get_workspace(conn, workspace_id)
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         "SELECT * FROM workspace_connections WHERE workspace_id = %s ORDER BY updated_at DESC, created_at DESC",
         (workspace_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_workspace_connection(conn: Any, workspace_id: str, connection_id: str) -> dict:
@@ -739,7 +801,7 @@ def get_workspace_connection(conn: Any, workspace_id: str, connection_id: str) -
     ).fetchone()
     if row is None:
         raise NotFoundError("workspace_connection", connection_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_workspace_connection(
@@ -780,7 +842,7 @@ def create_workspace_connection(
         ),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_workspace_connection(
@@ -822,7 +884,7 @@ def update_workspace_connection(
     if row is None:
         raise NotFoundError("workspace_connection", connection_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_workspace_connection(conn: Any, workspace_id: str, connection_id: str) -> None:
@@ -852,10 +914,10 @@ def _discovery_record_hash(payload: dict[str, Any]) -> str:
 
 def list_integration_discovery_records(conn: Any, project_id: str) -> list[dict]:
     get_project(conn, project_id)
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         "SELECT * FROM integration_discovery_records WHERE project_id = %s ORDER BY updated_at DESC, created_at DESC",
         (project_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_integration_discovery_record(conn: Any, project_id: str, record_id: str) -> dict:
@@ -865,7 +927,7 @@ def get_integration_discovery_record(conn: Any, project_id: str, record_id: str)
     ).fetchone()
     if row is None:
         raise NotFoundError("integration_discovery_record", record_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_integration_discovery_record(
@@ -920,7 +982,7 @@ def create_integration_discovery_record(
         ),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_integration_discovery_record(
@@ -970,7 +1032,7 @@ def update_integration_discovery_record(
     if row is None:
         raise NotFoundError("integration_discovery_record", record_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_integration_discovery_record(conn: Any, project_id: str, record_id: str) -> None:
@@ -1006,7 +1068,7 @@ def get_data_access_project(conn: Any, project_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("data_access_project", project_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_data_access_project(
@@ -1024,7 +1086,7 @@ def create_data_access_project(
         (project_id, name, studio_project_id, Json(state)),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_data_access_project(
@@ -1046,7 +1108,7 @@ def update_data_access_project(
     if row is None:
         raise NotFoundError("data_access_project", project_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_data_access_project(conn: Any, project_id: str) -> None:
@@ -1082,7 +1144,7 @@ def get_application_integration_project(conn: Any, project_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("application_integration_project", project_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_application_integration_project(
@@ -1100,7 +1162,7 @@ def create_application_integration_project(
         (project_id, title, studio_project_id, Json(state)),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_application_integration_project(
@@ -1122,7 +1184,7 @@ def update_application_integration_project(
     if row is None:
         raise NotFoundError("application_integration_project", project_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_application_integration_project(conn: Any, project_id: str) -> None:
@@ -1140,10 +1202,10 @@ def delete_application_integration_project(conn: Any, project_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 def _list_artifacts(conn: Any, table: str, project_id: str) -> list[dict]:
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         f"SELECT * FROM {table} WHERE project_id = %s ORDER BY created_at DESC",
         (project_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def _get_artifact(conn: Any, table: str, project_id: str,
@@ -1154,7 +1216,7 @@ def _get_artifact(conn: Any, table: str, project_id: str,
     ).fetchone()
     if row is None:
         raise NotFoundError(table, artifact_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def _create_artifact(conn: Any, table: str, project_id: str,
@@ -1176,7 +1238,7 @@ def _create_artifact(conn: Any, table: str, project_id: str,
         vals,
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def _update_artifact(conn: Any, table: str, project_id: str,
@@ -1208,7 +1270,7 @@ def _update_artifact(conn: Any, table: str, project_id: str,
     if row is None:
         raise NotFoundError(table, artifact_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def _delete_artifact(conn: Any, table: str, project_id: str,
@@ -1311,7 +1373,7 @@ def set_requirements_role(conn: Any, project_id: str, req_id: str,
     if row is None:
         raise NotFoundError("requirements_sets", req_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 # --- Scenarios ---
@@ -1437,6 +1499,7 @@ def delete_pm_artifact(conn: Any, project_id: str, artifact_id: str) -> None:
 # --- Studio-local publication records ---
 
 def _local_publication_summary(row: dict) -> dict:
+    row = _decode_json_fields(row)
     package_record = row.get("package_record") or {}
     receipt = row.get("receipt") or {}
     return {
@@ -1461,10 +1524,10 @@ def _local_publication_summary(row: dict) -> dict:
 
 def list_local_publications(conn: Any, project_id: str) -> list[dict]:
     get_project(conn, project_id)
-    rows = conn.execute(
+    rows = _decode_json_rows(conn.execute(
         "SELECT * FROM local_publications WHERE project_id = %s ORDER BY published_at DESC",
         (project_id,),
-    ).fetchall()
+    ).fetchall())
     return [_local_publication_summary(row) for row in rows]
 
 
@@ -1535,10 +1598,10 @@ def create_local_publication(
 # ---------------------------------------------------------------------------
 
 def list_proposals(conn: Any, project_id: str) -> list[dict]:
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         "SELECT * FROM proposals WHERE project_id = %s ORDER BY created_at DESC",
         (project_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_proposal(conn: Any, project_id: str, proposal_id: str) -> dict:
@@ -1548,7 +1611,7 @@ def get_proposal(conn: Any, project_id: str, proposal_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("proposals", proposal_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_proposal(conn: Any, project_id: str, proposal_id: str,
@@ -1562,7 +1625,7 @@ def create_proposal(conn: Any, project_id: str, proposal_id: str,
          content_hash(data)),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_proposal(conn: Any, project_id: str, proposal_id: str,
@@ -1594,7 +1657,7 @@ def update_proposal(conn: Any, project_id: str, proposal_id: str,
     if row is None:
         raise NotFoundError("proposals", proposal_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_proposal(conn: Any, project_id: str, proposal_id: str) -> None:
@@ -1622,10 +1685,10 @@ def delete_proposal(conn: Any, project_id: str, proposal_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 def list_shapes(conn: Any, project_id: str) -> list[dict]:
-    return conn.execute(
+    return _decode_json_rows(conn.execute(
         "SELECT * FROM shapes WHERE project_id = %s ORDER BY created_at DESC",
         (project_id,),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_shape(conn: Any, project_id: str, shape_id: str) -> dict:
@@ -1635,7 +1698,7 @@ def get_shape(conn: Any, project_id: str, shape_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("shapes", shape_id)
-    return row
+    return _decode_json_fields(row)
 
 
 def create_shape(conn: Any, project_id: str, shape_id: str,
@@ -1650,7 +1713,7 @@ def create_shape(conn: Any, project_id: str, shape_id: str,
          content_hash(data)),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def update_shape(conn: Any, project_id: str, shape_id: str,
@@ -1683,7 +1746,7 @@ def update_shape(conn: Any, project_id: str, shape_id: str,
     if row is None:
         raise NotFoundError("shapes", shape_id)
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_shape(conn: Any, project_id: str, shape_id: str) -> None:
@@ -1793,7 +1856,7 @@ def list_evaluations(conn: Any, project_id: str, *,
     query += " ORDER BY e.created_at DESC"
     rows = conn.execute(query, params).fetchall()
     result = []
-    for row in rows:
+    for row in _decode_json_rows(rows):
         is_stale, stale_artifacts = _compute_staleness(
             row,
             row.pop("current_req_hash", ""),
@@ -1814,7 +1877,7 @@ def get_evaluation(conn: Any, project_id: str, eval_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("evaluations", eval_id)
-    return _enrich_evaluation_staleness(conn, row)
+    return _enrich_evaluation_staleness(conn, _decode_json_fields(row))
 
 
 def create_evaluation(conn: Any, project_id: str, eval_id: str,
@@ -1874,7 +1937,7 @@ def create_evaluation(conn: Any, project_id: str, eval_id: str,
          Json(derived_expectations_snapshot) if derived_expectations_snapshot is not None else None),
     ).fetchone()
     conn.commit()
-    return row
+    return _decode_json_fields(row)
 
 
 def delete_evaluation(conn: Any, project_id: str, eval_id: str) -> None:

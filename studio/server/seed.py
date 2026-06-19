@@ -947,9 +947,9 @@ def _ensure_seed_artifacts(conn: Any, project_id: str, item: dict[str, Any]) -> 
 
 def _remove_empty_default_workspace_for_public_showcase(conn: Any) -> None:
     conn.execute(
-        "DELETE FROM workspaces w "
-        "WHERE w.id = %s "
-        "AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.workspace_id = w.id)",
+        "DELETE FROM workspaces "
+        "WHERE id = %s "
+        "AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.workspace_id = workspaces.id)",
         ("default",),
     )
     conn.commit()
