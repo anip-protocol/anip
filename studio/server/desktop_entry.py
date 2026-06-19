@@ -30,7 +30,10 @@ def main() -> None:
     os.environ.setdefault("STUDIO_READ_ONLY", "0")
     os.environ.setdefault("STUDIO_RUN_MIGRATIONS", "1")
 
+    data_dir = Path(os.environ["ANIP_STUDIO_DESKTOP_DATA_DIR"])
+    data_dir.mkdir(parents=True, exist_ok=True)
     Path(os.environ["STUDIO_SQLITE_PATH"]).parent.mkdir(parents=True, exist_ok=True)
+    os.chdir(data_dir)
 
     from studio.server.app import app
 
