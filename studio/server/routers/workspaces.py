@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from psycopg.errors import UniqueViolation
 
 from .. import repository
 from ..db import get_pool
+from ..db_backends import is_unique_violation
 from ..models import CloneWorkspace, CreateWorkspace, UpdateWorkspace, WorkspaceDetail, WorkspaceOut
 from ..repository import NotFoundError
 
@@ -29,8 +29,10 @@ def create_workspace(body: CreateWorkspace):
                 name=body.name,
                 summary=body.summary,
             )
-    except UniqueViolation:
-        raise HTTPException(status_code=409, detail=f"Workspace {body.id!r} already exists")
+    except Exception as e:
+        if is_unique_violation(e):
+            raise HTTPException(status_code=409, detail=f"Workspace {body.id!r} already exists")
+        raise
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetail)
@@ -64,8 +66,10 @@ def clone_workspace(workspace_id: str, body: CloneWorkspace):
                 name=body.name,
                 summary=body.summary,
             )
-    except UniqueViolation:
-        raise HTTPException(status_code=409, detail=f"Workspace {body.id!r} already exists")
+    except Exception as e:
+        if is_unique_violation(e):
+            raise HTTPException(status_code=409, detail=f"Workspace {body.id!r} already exists")
+        raise
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

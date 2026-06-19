@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from psycopg.types.json import Json, Jsonb
+from psycopg.errors import UniqueViolation
 
 
 SUPPORTED_BACKENDS = {"postgres", "sqlite"}
@@ -63,6 +64,14 @@ def sqlite_path_from_url(database_url: str) -> Path:
     if not path.is_absolute():
         path = Path.cwd() / path
     return path
+
+
+def is_unique_violation(error: Exception) -> bool:
+    if isinstance(error, UniqueViolation):
+        return True
+    if isinstance(error, sqlite3.IntegrityError):
+        return "unique constraint failed" in str(error).lower()
+    return False
 
 
 class SQLiteConnection:

@@ -566,3 +566,57 @@ def test_sqlite_showcase_snapshot_import_is_idempotent(monkeypatch, tmp_path):
         assert first_ids == second_ids
     finally:
         db.close_pool()
+
+
+def test_sqlite_duplicate_workspace_create_returns_conflict(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.delenv("STUDIO_SEED_SHOWCASES", raising=False)
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    body = {
+        "id": "duplicate-workspace",
+        "name": "Duplicate Workspace",
+        "summary": "SQLite conflict regression",
+    }
+    try:
+        with TestClient(app, raise_server_exceptions=False) as client:
+            first = client.post("/api/workspaces", json=body)
+            second = client.post("/api/workspaces", json=body)
+
+        assert first.status_code == 201
+        assert second.status_code == 409
+        assert second.json()["detail"] == "Workspace 'duplicate-workspace' already exists"
+    finally:
+        db.close_pool()
+
+
+def test_sqlite_duplicate_project_create_returns_conflict(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.delenv("STUDIO_SEED_SHOWCASES", raising=False)
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    workspace = {
+        "id": "project-conflict-workspace",
+        "name": "Project Conflict Workspace",
+    }
+    project = {
+        "id": "duplicate-project",
+        "workspace_id": "project-conflict-workspace",
+        "name": "Duplicate Project",
+    }
+    try:
+        with TestClient(app, raise_server_exceptions=False) as client:
+            workspace_response = client.post("/api/workspaces", json=workspace)
+            first = client.post("/api/projects", json=project)
+            second = client.post("/api/projects", json=project)
+
+        assert workspace_response.status_code == 201
+        assert first.status_code == 201
+        assert second.status_code == 409
+        assert second.json()["detail"] == "Project 'duplicate-project' already exists"
+    finally:
+        db.close_pool()
