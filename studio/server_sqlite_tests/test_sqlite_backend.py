@@ -544,6 +544,31 @@ def test_sqlite_api_starts_and_lists_seeded_projects(monkeypatch, tmp_path):
         db.close_pool()
 
 
+def test_sqlite_settings_reports_desktop_storage(monkeypatch, tmp_path):
+    sqlite_path = tmp_path / "studio.sqlite"
+    monkeypatch.setenv("STUDIO_MODE", "desktop")
+    monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("STUDIO_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.setenv("STUDIO_SEED_SHOWCASES", "1")
+    monkeypatch.setenv("STUDIO_SEED_PROFILE", "public_showcase")
+    db.close_pool()
+    db.set_database_url(f"sqlite:///{sqlite_path}")
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/settings")
+
+        assert response.status_code == 200
+        storage = response.json()["desktop_storage"]
+        assert storage["studio_mode"] == "desktop"
+        assert storage["backend"] == "sqlite"
+        assert storage["sqlite_path"] == str(sqlite_path)
+        assert storage["showcase_preload_enabled"] is True
+        assert storage["seed_profile"] == "public_showcase"
+        assert storage["central_install_recommendation"] == "Use the Studio server or Docker deployment with Postgres for shared/team installs."
+    finally:
+        db.close_pool()
+
+
 def test_sqlite_showcase_snapshot_import_is_idempotent(monkeypatch, tmp_path):
     sqlite_path = tmp_path / "studio.sqlite"
     monkeypatch.setenv("STUDIO_DB_BACKEND", "sqlite")

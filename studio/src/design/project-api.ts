@@ -571,6 +571,7 @@ export async function getStudioSettings(): Promise<StudioSettings> {
         assistant: await getRuntimeConfig(),
         simulator: compatibilitySimulatorRuntimeConfig(),
         registry: compatibilityRegistryTrustPolicy(),
+        desktop_storage: compatibilityDesktopStorageStatus(),
       }
     }
     throw err
@@ -638,6 +639,18 @@ function compatibilityRegistryTrustPolicy(): StudioSettings['registry'] {
     allows_development_registry: true,
     key_pinned: false,
     warning: 'The Studio backend does not expose /api/settings yet. Restart or update the backend to show the active Registry trust policy.',
+  }
+}
+
+function compatibilityDesktopStorageStatus(): StudioSettings['desktop_storage'] {
+  return {
+    studio_mode: 'default',
+    backend: 'postgres',
+    database_url_configured: false,
+    sqlite_path: null,
+    showcase_preload_enabled: false,
+    seed_profile: 'default',
+    central_install_recommendation: 'Use the Studio server or Docker deployment with Postgres for shared/team installs.',
   }
 }
 

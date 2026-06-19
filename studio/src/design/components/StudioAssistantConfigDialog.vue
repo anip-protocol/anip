@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { getStudioSettings, updateStudioSettings } from '../project-api'
-import type { AssistantRuntimeConfig, RegistryTrustPolicyConfig, SimulatorRuntimeConfig } from '../project-types'
+import type { AssistantRuntimeConfig, DesktopStorageStatus, RegistryTrustPolicyConfig, SimulatorRuntimeConfig } from '../project-types'
 
 const props = defineProps<{
   open: boolean
@@ -18,6 +18,7 @@ const error = ref<string | null>(null)
 const config = ref<AssistantRuntimeConfig | null>(null)
 const simulatorConfig = ref<SimulatorRuntimeConfig | null>(null)
 const registryConfig = ref<RegistryTrustPolicyConfig | null>(null)
+const desktopStorage = ref<DesktopStorageStatus | null>(null)
 const provider = ref('deterministic')
 const model = ref('')
 const baseUrl = ref('')
@@ -128,11 +129,34 @@ const registryTrustedKeyLocked = computed(() => fieldLocked(registryConfig.value
 const registryPublishTokenLocked = computed(() => fieldLocked(registryConfig.value?.publish_token_source))
 const simulatorFieldLocked = (source: string | undefined) => source === 'env' || readOnlyMode.value
 const simulatorApiKeyEditable = computed(() => !simulatorFieldLocked(simulatorConfig.value?.api_key_source))
+const storageModeLabel = computed(() => {
+  if (!desktopStorage.value) return 'Unknown'
+  if (desktopStorage.value.backend === 'sqlite') return 'Local SQLite'
+  if (desktopStorage.value.backend === 'postgres') return 'Postgres'
+  return desktopStorage.value.backend
+})
+const storageLocationLabel = computed(() => {
+  if (!desktopStorage.value) return 'Unknown'
+  if (desktopStorage.value.backend === 'sqlite') {
+    return desktopStorage.value.sqlite_path || 'Default local SQLite path'
+  }
+  if (desktopStorage.value.database_url_configured) return 'DATABASE_URL configured'
+  return 'Configured by Studio server environment'
+})
+const showcasePreloadLabel = computed(() => (
+  desktopStorage.value?.showcase_preload_enabled ? 'Enabled' : 'Disabled'
+))
 
-function hydrateForm(next: AssistantRuntimeConfig, registry?: RegistryTrustPolicyConfig | null, simulator?: SimulatorRuntimeConfig | null) {
+function hydrateForm(
+  next: AssistantRuntimeConfig,
+  registry?: RegistryTrustPolicyConfig | null,
+  simulator?: SimulatorRuntimeConfig | null,
+  storage?: DesktopStorageStatus | null,
+) {
   config.value = next
   if (registry !== undefined) registryConfig.value = registry
   if (simulator !== undefined) simulatorConfig.value = simulator
+  if (storage !== undefined) desktopStorage.value = storage
   provider.value = next.assistant_provider || 'deterministic'
   model.value = next.assistant_model || ''
   baseUrl.value = next.assistant_base_url || ''
@@ -159,7 +183,7 @@ async function loadConfig() {
   error.value = null
   try {
     const settings = await getStudioSettings()
-    hydrateForm(settings.assistant, settings.registry, settings.simulator)
+    hydrateForm(settings.assistant, settings.registry, settings.simulator, settings.desktop_storage)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load Studio settings.'
   } finally {
@@ -203,7 +227,7 @@ async function handleSave() {
           }
         : undefined,
     })
-    hydrateForm(settings.assistant, settings.registry, settings.simulator)
+    hydrateForm(settings.assistant, settings.registry, settings.simulator, settings.desktop_storage)
     emit('saved')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to save Studio settings.'
@@ -240,6 +264,31 @@ function sourceLabel(source: string | undefined) {
         <div v-if="readOnlyMode" class="assistant-config-note assistant-config-warning">
           Settings are locked in read-only mode.
         </div>
+
+        <section v-if="desktopStorage" class="assistant-config-section">
+          <div class="assistant-config-section-header">
+            <h3>Desktop Storage</h3>
+            <p>Desktop Studio uses local SQLite by default. Shared installs should use the Studio server or Docker deployment with Postgres.</p>
+          </div>
+          <div class="assistant-config-grid">
+            <div class="settings-readonly-card">
+              <span>Mode</span>
+              <span class="source-chip">{{ desktopStorage.studio_mode || 'default' }}</span>
+              <strong>{{ storageModeLabel }}</strong>
+            </div>
+            <div class="settings-readonly-card">
+              <span>Database</span>
+              <span class="source-chip">{{ desktopStorage.database_url_configured ? 'Env configured' : 'Default' }}</span>
+              <strong class="wrap-value">{{ storageLocationLabel }}</strong>
+            </div>
+            <div class="settings-readonly-card">
+              <span>Showcases</span>
+              <span class="source-chip">{{ desktopStorage.seed_profile }}</span>
+              <strong>{{ showcasePreloadLabel }}</strong>
+            </div>
+          </div>
+          <p class="assistant-config-subtle">{{ desktopStorage.central_install_recommendation }}</p>
+        </section>
 
         <section class="assistant-config-section">
           <div class="assistant-config-section-header">
