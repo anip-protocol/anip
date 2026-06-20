@@ -18,6 +18,7 @@ import { createInitialFrontingSetup } from '../design/fronting-initial-setup'
 import { getStarterTemplate, starterTemplatesForProjectType, type StarterTemplate } from '../design/starter-templates'
 import { validateStarterTemplatePackage, type StarterTemplatePackage } from '../design/starter-template-package'
 import { studioApiUnavailableMessage } from '../design/desktop-mode'
+import { projectPathFromParts } from '../design/project-routes'
 
 const route = useRoute()
 const router = useRouter()
@@ -139,11 +140,11 @@ function formatRegistryTemplateDiscoveryError(err: unknown): string {
 function routeForCreatedProject(projectId: string) {
   if (newProjectType.value === 'governed_service_project') {
     return {
-      path: `/design/projects/${projectId}/fronting`,
+      path: projectPathFromParts(projectId, workspaceId.value, '/fronting'),
     }
   }
 
-  return { path: `/design/projects/${projectId}/pm` }
+  return { path: projectPathFromParts(projectId, workspaceId.value, '/pm') }
 }
 
 function inferredConsumerMode(): ProjectConsumerMode {
@@ -271,7 +272,7 @@ function handleTemplateDocumentToggle(idSuffix: string, event: Event) {
 }
 
 function openProject(id: string) {
-  router.push({ path: `/design/projects/${id}/pm` })
+  router.push({ path: projectPathFromParts(id, workspaceId.value, '/pm') })
 }
 
 async function handleCreate() {
@@ -281,9 +282,7 @@ async function handleCreate() {
   creating.value = 'empty'
   clearProjectListError()
   try {
-    const id = crypto.randomUUID()
-    await createProject({
-      id,
+    const created = await createProject({
       workspace_id: workspaceId.value,
       name,
       domain: newDomain.value.trim() || undefined,
@@ -292,7 +291,7 @@ async function handleCreate() {
       project_type: newProjectType.value,
       integration_profile: { kind: selectedIntegrationKind.value, systems: [] },
     })
-    const nextRoute = routeForCreatedProject(id)
+    const nextRoute = routeForCreatedProject(created.id)
     resetCreateForm()
     showCreateForm.value = false
     await loadProjects(workspaceId.value)
@@ -318,10 +317,9 @@ async function handleCreateFromBrief() {
   if (!name || !brief) return
   creating.value = 'brief'
   clearProjectListError()
-  const id = crypto.randomUUID()
+  let createdProjectId = ''
   try {
-    await createProject({
-      id,
+    const created = await createProject({
       workspace_id: workspaceId.value,
       name,
       domain: newDomain.value.trim() || undefined,
@@ -330,9 +328,10 @@ async function handleCreateFromBrief() {
       project_type: newProjectType.value,
       integration_profile: { kind: selectedIntegrationKind.value, systems: [] },
     })
+    createdProjectId = created.id
     if (newProjectType.value === 'governed_service_project') {
       const template = activeStarterTemplate.value ?? undefined
-      await createInitialFrontingSetup(id, workspaceId.value, {
+      await createInitialFrontingSetup(created.id, workspaceId.value, {
         projectName: name,
         domain: newDomain.value.trim() || undefined,
         brief,
@@ -341,18 +340,20 @@ async function handleCreateFromBrief() {
         selectedDocumentIdSuffixes: template ? selectedTemplateDocumentIds.value : undefined,
       })
     } else {
-      const interpretation = await interpretProjectIntentWithAssistant(id, brief)
-      await acceptFirstDesign(id, brief, interpretation)
+      const interpretation = await interpretProjectIntentWithAssistant(created.id, brief)
+      await acceptFirstDesign(created.id, brief, interpretation)
     }
-    const nextRoute = routeForCreatedProject(id)
+    const nextRoute = routeForCreatedProject(created.id)
     resetCreateForm()
     showCreateForm.value = false
     await loadProjects(workspaceId.value)
     router.push(nextRoute)
   } catch (err) {
     try {
-      await deleteProject(id)
-      await loadProjects(workspaceId.value)
+      if (createdProjectId) {
+        await deleteProject(createdProjectId)
+        await loadProjects(workspaceId.value)
+      }
     } catch {
       // If cleanup fails, keep the original setup failure visible.
     }
@@ -410,7 +411,7 @@ async function handleCloneProject(projectId: string, projectName: string, projec
     summary: projectSummary ? `${projectSummary} (copy)` : undefined,
   })
   await loadProjects(workspaceId.value)
-  router.push({ path: `/design/projects/${clone.id}/pm` })
+  router.push({ path: projectPathFromParts(clone.id, workspaceId.value, '/pm') })
 }
 
 async function handleCleanJunkProjects() {

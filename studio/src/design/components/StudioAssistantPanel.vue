@@ -24,11 +24,12 @@ const question = ref('')
 const route = useRoute()
 const router = useRouter()
 const projectId = computed(() => String(route.params.projectId ?? '').trim())
+const workspaceId = computed(() => String(route.params.workspaceId ?? '').trim() || null)
 
 const nextStepRows = computed(() =>
   (props.explanation?.next_steps ?? []).map((step) => ({
     step,
-    actions: assistantStepActionsForText(step, projectId.value).filter((action) => Boolean(action.path)),
+    actions: assistantStepActionsForText(step, projectId.value, workspaceId.value).filter((action) => Boolean(action.path)),
   })),
 )
 

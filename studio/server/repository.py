@@ -338,6 +338,8 @@ def delete_project(conn: Any, project_id: str) -> None:
 
 
 def _generated_clone_id(prefix: str) -> str:
+    if prefix == "project":
+        return str(uuid4())
     return f"{prefix}-{uuid4()}"
 
 

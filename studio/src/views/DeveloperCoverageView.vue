@@ -94,6 +94,7 @@ const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
+const workspaceId = computed(() => String(route.params.workspaceId ?? '').trim() || null)
 const project = computed(() => projectStore.activeProject)
 const isAppGluePage = computed(() => route.name === 'project-developer-app-glue')
 const pageIssueKey = computed(() => isAppGluePage.value ? 'project-developer-app-glue' : 'project-developer-coverage')
@@ -148,7 +149,7 @@ const semanticRuleDrafts = ref<Record<string, {
 const simulatorAssistantNextStepRows = computed(() =>
   (simulatorAssistantAnalysis.value?.next_steps ?? []).map((step) => ({
     step,
-    actions: assistantStepActionsForText(step, projectId.value).filter((action) => {
+    actions: assistantStepActionsForText(step, projectId.value, workspaceId.value).filter((action) => {
       if (reviewedAgentReadinessReport.value.status !== 'blocked') return true
       return action.id !== 'open-publication'
         && action.id !== 'open-verification'

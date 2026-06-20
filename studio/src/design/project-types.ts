@@ -211,7 +211,7 @@ export interface VocabularyEntry {
 }
 
 export interface CreateProject {
-  id: string
+  id?: string
   workspace_id?: string
   name: string
   summary?: string

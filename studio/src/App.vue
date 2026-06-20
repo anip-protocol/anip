@@ -27,6 +27,11 @@ import StudioSettingsDialog from './design/components/StudioAssistantConfigDialo
 import StudioConfirmDialog from './design/components/StudioConfirmDialog.vue'
 import { setStudioTimeDisplayMode, studioTimePreferences } from './design/time'
 import { STUDIO_PROTOCOL_VERSION, STUDIO_VERSION_LABEL } from './version'
+import {
+  canonicalProjectPathForSuffix,
+  isLegacyProjectPath,
+  projectPath,
+} from './design/project-routes'
 
 const router = useRouter()
 const route = useRoute()
@@ -83,10 +88,10 @@ type DesignLane = 'product' | 'developer'
 const designLaneMemory = ref<Record<string, DesignLane>>({})
 
 function getProjectLane(path: string): DesignLane | null {
-  if (/^\/design\/projects\/[^/]+\/developer(?:\/|$)/.test(path)) return 'developer'
-  if (/^\/design\/projects\/[^/]+\/fronting(?:\/|$)/.test(path)) return 'developer'
+  if (/^\/design(?:\/workspaces\/[^/]+)?\/projects\/[^/]+\/developer(?:\/|$)/.test(path)) return 'developer'
+  if (/^\/design(?:\/workspaces\/[^/]+)?\/projects\/[^/]+\/fronting(?:\/|$)/.test(path)) return 'developer'
   if (
-    /^\/design\/projects\/[^/]+\/(?:source-docs|first-draft|pm|product-summary|actor-model|business-areas|permission-intent|requirements|scenarios|shapes|non-goals|success-criteria|pm-artifacts|pm-review|proposals)(?:\/|$)/.test(path)
+    /^\/design(?:\/workspaces\/[^/]+)?\/projects\/[^/]+\/(?:source-docs|first-draft|pm|product-summary|actor-model|business-areas|permission-intent|requirements|scenarios|shapes|non-goals|success-criteria|pm-artifacts|pm-review|proposals)(?:\/|$)/.test(path)
   ) {
     return 'product'
   }
@@ -97,7 +102,7 @@ const currentProjectLane = computed<DesignLane | null>(() => {
   const pid = projectStore.activeProject?.id
   const explicitLane = getProjectLane(route.path)
   if (explicitLane) return explicitLane
-  if (/^\/design\/projects\/[^/]+\/verification(?:\/|$)/.test(route.path)) return null
+  if (/^\/design(?:\/workspaces\/[^/]+)?\/projects\/[^/]+\/verification(?:\/|$)/.test(route.path)) return null
   if (route.name === 'project-dashboard' && route.query.view === 'product') return 'product'
   if (route.name === 'project-dashboard' && route.query.view === 'developer') return 'developer'
   if (route.name === 'project-dashboard' && route.query.view === 'overview') return null
@@ -109,7 +114,13 @@ watch(
   () => [route.path, route.query.view, projectStore.activeProject?.id] as const,
   ([path, view, projectId]) => {
     if (!projectId) return
-    if (path === `/design/projects/${projectId}` && (view === 'product' || view === 'developer')) {
+    if (
+      (
+        path === `/design/projects/${projectId}`
+        || path === projectPath(projectStore.activeProject ?? { id: projectId, workspace_id: null })
+      )
+      && (view === 'product' || view === 'developer')
+    ) {
       designLaneMemory.value = {
         ...designLaneMemory.value,
         [projectId]: view,
@@ -130,7 +141,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
   const project = projectStore.activeProject
   const items: DesignNavItem[] = []
   if (project) {
-    const pid = project.id
+    const p = (suffix = '') => projectPath(project, suffix)
     const activeLane = currentProjectLane.value
     const hasShapes = projectStore.artifacts.shapes.length > 0
     const isGovernedFrontingProject = project.project_type === 'governed_service_project'
@@ -138,7 +149,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       name: 'project-product-design',
       label: 'Product Design',
       icon: '\u2022',
-      path: `/design/projects/${pid}/pm`,
+      path: p('/pm'),
       child: true,
       lane: 'product',
       modeSwitch: true,
@@ -159,7 +170,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
         name: 'project-source-docs',
         label: 'Source Docs',
         icon: '\u2022',
-        path: `/design/projects/${pid}/source-docs`,
+        path: p('/source-docs'),
         child: true,
         lane: 'product',
         surfaceRole: 'Reference',
@@ -168,7 +179,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
         name: 'project-product-ai-assistant',
         label: 'Product Design AI Assistant',
         icon: '\u2022',
-        path: `/design/projects/${pid}/pm/assistant`,
+        path: p('/pm/assistant'),
         child: true,
         lane: 'product',
         surfaceRole: 'Draft',
@@ -179,7 +190,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
         name: 'first-draft-review',
         label: 'First Draft Review',
         icon: '\u2022',
-        path: `/design/projects/${pid}/first-draft`,
+        path: p('/first-draft'),
         child: true,
         lane: 'product',
         surfaceRole: 'Review',
@@ -201,7 +212,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-pm',
           label: 'Product Overview',
           icon: '\u2022',
-          path: `/design/projects/${pid}/pm`,
+          path: p('/pm'),
           child: true,
           lane: 'product',
           surfaceRole: 'Review',
@@ -210,7 +221,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-product-diagrams',
           label: 'Product Diagrams',
           icon: '\u2022',
-          path: `/design/projects/${pid}/pm/diagrams`,
+          path: p('/pm/diagrams'),
           child: true,
           lane: 'product',
           surfaceRole: 'Map',
@@ -219,7 +230,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-product-summary',
           label: 'Business Summary',
           icon: '\u2022',
-          path: `/design/projects/${pid}/product-summary`,
+          path: p('/product-summary'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -228,7 +239,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-actor-model',
           label: 'Actor Model',
           icon: '\u2022',
-          path: `/design/projects/${pid}/actor-model`,
+          path: p('/actor-model'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -237,7 +248,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-business-areas',
           label: 'Business Areas',
           icon: '\u2022',
-          path: `/design/projects/${pid}/business-areas`,
+          path: p('/business-areas'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -246,7 +257,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-permission-intent',
           label: 'Permission Intent',
           icon: '\u2022',
-          path: `/design/projects/${pid}/permission-intent`,
+          path: p('/permission-intent'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -255,7 +266,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-requirements-list',
           label: 'What Matters',
           icon: '\u2022',
-          path: `/design/projects/${pid}/requirements`,
+          path: p('/requirements'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -264,7 +275,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-scenarios-list',
           label: 'Real Situations',
           icon: '\u2022',
-          path: `/design/projects/${pid}/scenarios`,
+          path: p('/scenarios'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -273,7 +284,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-shapes',
           label: 'Service Design',
           icon: '\u2022',
-          path: `/design/projects/${pid}/shapes`,
+          path: p('/shapes'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -282,7 +293,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-non-goals',
           label: 'Non-Goals',
           icon: '\u2022',
-          path: `/design/projects/${pid}/non-goals`,
+          path: p('/non-goals'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -291,7 +302,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-success-criteria',
           label: 'Success Criteria',
           icon: '\u2022',
-          path: `/design/projects/${pid}/success-criteria`,
+          path: p('/success-criteria'),
           child: true,
           lane: 'product',
           surfaceRole: 'Author',
@@ -310,7 +321,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-pm-artifacts',
           label: 'PM Artifacts',
           icon: '\u2022',
-          path: `/design/projects/${pid}/pm-artifacts`,
+          path: p('/pm-artifacts'),
           child: true,
           lane: 'product',
           surfaceRole: 'Record',
@@ -319,7 +330,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-pm-review',
           label: 'PM Review',
           icon: '\u2022',
-          path: `/design/projects/${pid}/pm-review`,
+          path: p('/pm-review'),
           child: true,
           lane: 'product',
           surfaceRole: 'Sign Off',
@@ -330,7 +341,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'proposal',
           label: 'Legacy Approach',
           icon: '\u2022',
-          path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}`,
+          path: p(`/proposals/${projectStore.activeProposalId}`),
           child: true,
           lane: 'product',
           surfaceRole: 'Legacy',
@@ -342,7 +353,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
         name: 'project-developer-design',
         label: 'Developer Design',
         icon: '\u2022',
-        path: `/design/projects/${pid}/developer`,
+        path: p('/developer'),
         child: true,
         lane: 'developer',
         modeSwitch: true,
@@ -365,7 +376,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-home',
           label: 'Developer Overview',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer`,
+          path: p('/developer'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Review',
@@ -374,7 +385,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-diagrams',
           label: 'Developer Diagrams',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/diagrams`,
+          path: p('/developer/diagrams'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Map',
@@ -383,7 +394,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-ai-assistant',
           label: 'Developer Design AI Assistant',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/assistant`,
+          path: p('/developer/assistant'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Draft',
@@ -392,7 +403,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-handoff',
           label: 'Locked Product Handoff',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/handoff`,
+          path: p('/developer/handoff'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Baseline',
@@ -401,7 +412,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-source-docs',
           label: 'Developer Source Docs',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/source-docs`,
+          path: p('/developer/source-docs'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Evidence',
@@ -412,7 +423,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
                 name: 'project-fronting-express',
                 label: 'Govern API / MCP',
                 icon: '\u2022',
-                path: `/design/projects/${pid}/fronting`,
+                path: p('/fronting'),
                 child: true,
                 lane: 'developer',
                 surfaceRole: 'Map',
@@ -435,7 +446,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
                 name: 'project-integration-fronting',
                 label: 'API/MCP Mappings',
                 icon: '\u2022',
-                path: `/design/projects/${pid}/developer/integration-fronting`,
+                path: p('/developer/integration-fronting'),
                 child: true,
                 lane: 'developer',
                 surfaceRole: 'Formalize',
@@ -446,7 +457,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-service-formalization',
           label: 'Service Formalization',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/service-formalization`,
+          path: p('/developer/service-formalization'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -455,7 +466,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-capability-formalization',
           label: 'Capability Formalization',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/capability-formalization`,
+          path: p('/developer/capability-formalization'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -464,7 +475,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-governance-bindings',
           label: 'Roles & Access',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/governance-bindings`,
+          path: p('/developer/governance-bindings'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -473,7 +484,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-audit-lineage',
           label: 'Audit & Lineage',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/audit-lineage`,
+          path: p('/developer/audit-lineage'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -482,7 +493,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-scenario-formalization',
           label: 'Scenario Coverage Intent',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/scenario-formalization`,
+          path: p('/developer/scenario-formalization'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -491,7 +502,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-scenario-execution-semantics',
           label: 'Scenario Execution Semantics',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/scenario-execution-semantics`,
+          path: p('/developer/scenario-execution-semantics'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -500,7 +511,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-generation-settings',
           label: 'Generation Settings',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/generation-settings`,
+          path: p('/developer/generation-settings'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -509,7 +520,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-verification-expectations',
           label: 'Evidence & Verification Plan',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/verification-expectations`,
+          path: p('/developer/verification-expectations'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Formalize',
@@ -528,7 +539,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-coverage',
           label: 'Coverage Mapping',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/coverage`,
+          path: p('/developer/coverage'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Review',
@@ -537,7 +548,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-app-glue',
           label: 'Agent & App Glue',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/app-glue`,
+          path: p('/developer/app-glue'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Review',
@@ -546,7 +557,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-gaps',
           label: 'Consistency Gaps',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/gaps`,
+          path: p('/developer/gaps'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Evidence',
@@ -555,7 +566,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
           name: 'project-developer-definition',
           label: 'Developer Definition',
           icon: '\u2022',
-          path: `/design/projects/${pid}/developer/definition`,
+          path: p('/developer/definition'),
           child: true,
           lane: 'developer',
           surfaceRole: 'Compile',
@@ -566,7 +577,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       name: 'project-revisions',
       label: 'Revision History',
       icon: '\u2022',
-      path: `/design/projects/${pid}/revisions`,
+      path: p('/revisions'),
       child: true,
       projectMode: true,
       surfaceRole: 'Evidence',
@@ -575,7 +586,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       name: 'project-template-export',
       label: 'Create Template',
       icon: '\u2022',
-      path: `/design/projects/${pid}/templates/export`,
+      path: p('/templates/export'),
       child: true,
       projectMode: true,
       surfaceRole: 'Share',
@@ -584,7 +595,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       name: 'project-verification',
       label: 'Verification',
       icon: '\u2022',
-      path: `/design/projects/${pid}/verification`,
+      path: p('/verification'),
       child: true,
       projectMode: true,
       surfaceRole: 'Evidence',
@@ -624,7 +635,7 @@ const headerContextLinks = computed<HeaderContextLink[]>(() => {
     links.push({
       key: 'project',
       label: project.name,
-      path: `/design/projects/${project.id}/pm`,
+      path: projectPath(project, '/pm'),
       current: true,
     })
   }
@@ -658,6 +669,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
   if (!project) return []
 
   const badges: HeaderRevisionBadge[] = []
+  const p = (suffix = '') => projectPath(project, suffix)
   const productRevision = findLatestProductDesignRevisionArtifact(projectStore.artifacts.pmArtifacts)?.data as ProductDesignRevisionData | undefined
   const currentProductHash = productDesignSourceHash(projectStore.artifacts.pmArtifacts)
   const baseline = baselineForLineage.value
@@ -683,7 +695,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
         productDraftAhead ? 'Working Product Design has changed since this revision.' : 'Working Product Design matches this revision.',
         baselinePinnedToLatest ? 'Developer Baseline is pinned to this revision.' : 'Developer Baseline is not pinned to the latest Product Revision.',
       ].join('\n'),
-      path: `/design/projects/${project.id}/pm`,
+      path: p('/pm'),
       status: productDraftAhead ? 'draft' : baselineAligned ? 'current' : 'stale',
     })
   } else if (currentProductHash) {
@@ -691,7 +703,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
       key: 'product-revision',
       label: 'Product draft',
       title: 'No Product Revision has been locked yet. Lock Developer Baseline to create Product Revision 1.',
-      path: `/design/projects/${project.id}/pm`,
+      path: p('/pm'),
       status: 'draft',
     })
   }
@@ -715,7 +727,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
         savedRevision.previous_revision_artifact_id ? `Previous: ${savedRevision.previous_revision_artifact_id}` : 'Previous: none',
         developerAligned ? 'Developer Revision matches the active baseline.' : 'Developer Revision is stale against the active baseline.',
       ].join('\n'),
-      path: `/design/projects/${project.id}/developer`,
+      path: p('/developer'),
       status: developerAligned ? 'current' : 'stale',
     })
   } else if (baseline) {
@@ -723,7 +735,7 @@ const headerRevisionBadges = computed<HeaderRevisionBadge[]>(() => {
       key: 'developer-revision',
       label: 'Dev draft',
       title: 'Developer Baseline is locked, but no immutable Developer Revision has been saved yet.',
-      path: `/design/projects/${project.id}/developer/definition`,
+      path: p('/developer/definition'),
       status: 'draft',
     })
   }
@@ -792,7 +804,27 @@ watch(
   ([path, productReady, projectId, loading]) => {
     if (!projectId || loading || productReady) return
     if (getProjectLane(path) !== 'developer') return
-    router.replace(`/design/projects/${projectId}/pm`)
+    const project = projectStore.activeProject
+    router.replace(project ? projectPath(project, '/pm') : `/design/projects/${projectId}/pm`)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [route.path, route.fullPath, projectStore.activeProject?.id, projectStore.activeProject?.workspace_id, projectStore.loading] as const,
+  ([path, fullPath, projectId, workspaceId, loading]) => {
+    const project = projectStore.activeProject
+    if (loading || !project || !projectId || !workspaceId) return
+    const routeWorkspaceId = String(route.params.workspaceId ?? '').trim()
+    if (!isLegacyProjectPath(path) && routeWorkspaceId === workspaceId) return
+    const canonicalPath = isLegacyProjectPath(path)
+      ? canonicalProjectPathForSuffix(project, path)
+      : projectPath(project, path.slice(`/design/workspaces/${routeWorkspaceId}/projects/${project.id}`.length))
+    const queryIndex = fullPath.indexOf('?')
+    const hashIndex = fullPath.indexOf('#')
+    const suffixStart = [queryIndex, hashIndex].filter((index) => index >= 0).sort((a, b) => a - b)[0] ?? -1
+    const queryAndHash = suffixStart >= 0 ? fullPath.slice(suffixStart) : ''
+    router.replace(`${canonicalPath}${queryAndHash}`)
   },
   { immediate: true },
 )
@@ -807,7 +839,9 @@ function navigate(path: string) {
 
 async function maybeConfirmProjectClose(targetPath: string): Promise<boolean> {
   const activeProject = projectStore.activeProject
-  if (!activeProject || !route.path.startsWith(`/design/projects/${activeProject.id}`)) return true
+  const canonicalPrefix = projectPath(activeProject ?? { id: '', workspace_id: null }).replace(/\/$/, '')
+  const legacyPrefix = activeProject ? `/design/projects/${activeProject.id}` : ''
+  if (!activeProject || (!route.path.startsWith(canonicalPrefix) && !route.path.startsWith(legacyPrefix))) return true
 
   if (targetPath === '/design') {
     const confirmed = await requestConfirmation({
@@ -892,13 +926,13 @@ async function handleDesignNavigation(item: DesignNavItem) {
   }
   const activeProject = projectStore.activeProject
   if (activeProject && item.lane === 'developer' && !productGate.value.ready) {
-    router.push(`/design/projects/${activeProject.id}/pm`)
+    router.push(projectPath(activeProject, '/pm'))
     return
   }
   if (item.modeSwitch && activeProject && item.lane) {
     router.push(item.lane === 'developer'
-      ? `/design/projects/${activeProject.id}/developer`
-      : `/design/projects/${activeProject.id}/pm`,
+      ? projectPath(activeProject, '/developer')
+      : projectPath(activeProject, '/pm'),
     )
     return
   }
@@ -909,8 +943,8 @@ function switchMode(mode: 'inspect' | 'design') {
   if (mode === 'inspect') {
     router.push('/inspect/discovery')
   } else {
-    const pid = projectStore.activeProject?.id
-    router.push(pid ? `/design/projects/${pid}/pm` : '/design')
+    const project = projectStore.activeProject
+    router.push(project ? projectPath(project, '/pm') : '/design')
   }
 }
 

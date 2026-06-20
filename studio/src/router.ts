@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { checkApiAvailability } from './design/store'
 import { projectStore } from './design/project-store'
+import { projectPath, projectPathFromParts } from './design/project-routes'
 
 function normalizeBase(base: string): string {
   return base.endsWith('/') ? base : base + '/'
@@ -9,8 +10,29 @@ function normalizeBase(base: string): string {
 const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
 const desktopMode = !!import.meta.env.VITE_STUDIO_DESKTOP
 
+function workspaceProjectAlias(path: string): string | null {
+  if (!path.startsWith('/design/projects/:projectId')) return null
+  return path.replace('/design/projects/:projectId', '/design/workspaces/:workspaceId/projects/:projectId')
+}
+
+function withWorkspaceProjectAliases(routes: any[]): any[] {
+  return routes.map((route) => {
+    const alias = workspaceProjectAlias(route.path)
+    if (!alias) return route
+    const existingAliases = Array.isArray(route.alias)
+      ? route.alias
+      : route.alias
+        ? [route.alias]
+        : []
+    return {
+      ...route,
+      alias: [...existingAliases, alias],
+    }
+  })
+}
+
 // Only include Design routes in standalone builds (not embedded runtime packages)
-const designRoutes = inspectOnly ? [] : [
+const designRoutes = inspectOnly ? [] : withWorkspaceProjectAliases([
   // ── Project routes (primary) ──
   {
     path: '/design',
@@ -24,7 +46,7 @@ const designRoutes = inspectOnly ? [] : [
   },
   {
     path: '/design/projects/:projectId',
-    redirect: (to: any) => `/design/projects/${to.params.projectId}/pm`,
+    redirect: (to: any) => projectPathFromParts(String(to.params.projectId), String(to.params.workspaceId || ''), '/pm'),
   },
   {
     path: '/design/projects/:projectId/dashboard',
@@ -246,7 +268,7 @@ const designRoutes = inspectOnly ? [] : [
   },
   {
     path: '/design/projects/:projectId/overview',
-    redirect: (to: any) => `/design/projects/${to.params.projectId}/pm`,
+    redirect: (to: any) => projectPathFromParts(String(to.params.projectId), String(to.params.workspaceId || ''), '/pm'),
   },
   {
     path: '/design/projects/:projectId/first-draft',
@@ -281,22 +303,22 @@ const designRoutes = inspectOnly ? [] : [
   {
     path: '/developer',
     redirect: () => {
-      const pid = projectStore.activeProject?.id
-      return pid ? `/design/projects/${pid}/developer` : '/design'
+      const project = projectStore.activeProject
+      return project ? projectPath(project, '/developer') : '/design'
     },
   },
   {
     path: '/developer/data-access',
     redirect: () => {
-      const pid = projectStore.activeProject?.id
-      return pid ? `/design/projects/${pid}/developer/data-access` : '/design'
+      const project = projectStore.activeProject
+      return project ? projectPath(project, '/developer/data-access') : '/design'
     },
   },
   {
     path: '/developer/application-integration',
     redirect: () => {
-      const pid = projectStore.activeProject?.id
-      return pid ? `/design/projects/${pid}/developer/application-integration` : '/design'
+      const project = projectStore.activeProject
+      return project ? projectPath(project, '/developer/application-integration') : '/design'
     },
   },
   {
@@ -307,7 +329,7 @@ const designRoutes = inspectOnly ? [] : [
     path: '/application-integration',
     redirect: '/developer/application-integration',
   },
-]
+])
 
 const routes = [
   // Studio home

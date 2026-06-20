@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_pool
@@ -26,7 +28,7 @@ def create_project(body: CreateProject):
         with get_pool().connection() as conn:
             return repository.create_project(
                 conn,
-                project_id=body.id,
+                project_id=body.id or str(uuid4()),
                 workspace_id=body.workspace_id,
                 name=body.name,
                 summary=body.summary,

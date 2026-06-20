@@ -56,7 +56,7 @@ class WorkspaceDetail(WorkspaceOut):
 # ---------------------------------------------------------------------------
 
 class CreateProject(BaseModel):
-    id: str
+    id: Optional[str] = None
     workspace_id: Optional[str] = None
     name: str
     summary: str = ""
