@@ -16,27 +16,28 @@ import (
 )
 
 type PackageRecord struct {
-	PackageID               string                   `json:"package_id"`
-	PackageVersion          string                   `json:"package_version"`
-	ProjectRef              string                   `json:"project_ref"`
-	ProductRevisionRef      string                   `json:"product_revision_ref"`
-	DeveloperRevisionRef    string                   `json:"developer_revision_ref"`
-	ContractSignature       string                   `json:"contract_signature"`
-	PublisherID             string                   `json:"publisher_id,omitempty"`
-	PublisherType           string                   `json:"publisher_type,omitempty"`
-	Lineage                 map[string]any           `json:"lineage,omitempty"`
-	SchemaVersion           string                   `json:"schema_version"`
-	ManifestDigest          string                   `json:"manifest_digest"`
-	DefinitionDigest        string                   `json:"definition_digest"`
-	LockDigest              string                   `json:"lock_digest"`
-	PublishedAt             string                   `json:"published_at"`
-	DownloadCount           int64                    `json:"download_count"`
-	Manifest                map[string]any           `json:"manifest"`
-	ServiceDefinition       map[string]any           `json:"service_definition"`
-	RecommendedLock         map[string]any           `json:"recommended_lock"`
-	Readme                  string                   `json:"readme,omitempty"`
-	SourceLinks             []SourceLink             `json:"source_links,omitempty"`
-	ImplementationMaterials []ImplementationMaterial `json:"implementation_materials,omitempty"`
+	PackageID                 string                   `json:"package_id"`
+	PackageVersion            string                   `json:"package_version"`
+	ProjectRef                string                   `json:"project_ref"`
+	ProductRevisionRef        string                   `json:"product_revision_ref"`
+	DeveloperRevisionRef      string                   `json:"developer_revision_ref"`
+	ContractSignature         string                   `json:"contract_signature"`
+	PublisherID               string                   `json:"publisher_id,omitempty"`
+	PublisherType             string                   `json:"publisher_type,omitempty"`
+	Lineage                   map[string]any           `json:"lineage,omitempty"`
+	SchemaVersion             string                   `json:"schema_version"`
+	ManifestDigest            string                   `json:"manifest_digest"`
+	DefinitionDigest          string                   `json:"definition_digest"`
+	LockDigest                string                   `json:"lock_digest"`
+	PackageExecutionSignature string                   `json:"package_execution_signature,omitempty"`
+	PublishedAt               string                   `json:"published_at"`
+	DownloadCount             int64                    `json:"download_count"`
+	Manifest                  map[string]any           `json:"manifest"`
+	ServiceDefinition         map[string]any           `json:"service_definition"`
+	RecommendedLock           map[string]any           `json:"recommended_lock"`
+	Readme                    string                   `json:"readme,omitempty"`
+	SourceLinks               []SourceLink             `json:"source_links,omitempty"`
+	ImplementationMaterials   []ImplementationMaterial `json:"implementation_materials,omitempty"`
 }
 
 type SourceLink struct {
@@ -75,19 +76,20 @@ type CheckResult struct {
 }
 
 type ResolvedPackage struct {
-	Package          PackageRecord
-	Receipt          Receipt
-	PublicKeys       []PublicKey
-	SigningMode      string
-	ActiveKeyID      string
-	RegistryBaseURL  string
-	PackageURL       string
-	ReceiptURL       string
-	KeysURL          string
-	DefinitionDigest string
-	ManifestDigest   string
-	LockDigest       string
-	Checks           []CheckResult
+	Package                   PackageRecord
+	Receipt                   Receipt
+	PublicKeys                []PublicKey
+	SigningMode               string
+	ActiveKeyID               string
+	RegistryBaseURL           string
+	PackageURL                string
+	ReceiptURL                string
+	KeysURL                   string
+	DefinitionDigest          string
+	ManifestDigest            string
+	LockDigest                string
+	PackageExecutionSignature string
+	Checks                    []CheckResult
 }
 
 func ParsePackageRef(ref string) (string, string, error) {
@@ -208,6 +210,11 @@ func (r *ResolvedPackage) verify() {
 	r.DefinitionDigest = canonicalDigest(r.Package.ServiceDefinition)
 	r.ManifestDigest = canonicalDigest(r.Package.Manifest)
 	r.LockDigest = canonicalDigest(r.Package.RecommendedLock)
+	r.PackageExecutionSignature = firstNonEmpty(
+		r.Package.PackageExecutionSignature,
+		stringValue(r.Package.Manifest["package_execution_signature"]),
+		stringValue(r.Package.RecommendedLock["package_execution_signature"]),
+	)
 
 	r.addCheck("registry_package_identity_matches", r.Package.PackageID == r.Receipt.PackageID && r.Package.PackageVersion == r.Receipt.PackageVersion, fmt.Sprintf("package=%s@%s receipt=%s@%s", r.Package.PackageID, r.Package.PackageVersion, r.Receipt.PackageID, r.Receipt.PackageVersion))
 	if r.Package.PublisherID != "" || r.Receipt.PublisherID != "" {
@@ -216,6 +223,7 @@ func (r *ResolvedPackage) verify() {
 	r.addCheck("registry_definition_digest_matches", r.Package.DefinitionDigest != "" && r.Package.DefinitionDigest == r.DefinitionDigest, fmt.Sprintf("registry=%s computed=%s", r.Package.DefinitionDigest, r.DefinitionDigest))
 	r.addCheck("registry_manifest_digest_matches", r.Package.ManifestDigest != "" && r.Package.ManifestDigest == r.ManifestDigest, fmt.Sprintf("registry=%s computed=%s", r.Package.ManifestDigest, r.ManifestDigest))
 	r.addCheck("registry_lock_digest_matches", r.Package.LockDigest != "" && r.Package.LockDigest == r.LockDigest, fmt.Sprintf("registry=%s computed=%s", r.Package.LockDigest, r.LockDigest))
+	r.addCheck("registry_package_execution_signature_present", r.PackageExecutionSignature != "", fmt.Sprintf("signature=%s", r.PackageExecutionSignature))
 	r.addCheck("registry_receipt_present", r.Receipt.RegistrySignature != "", "registry receipt signature is present")
 
 	algorithm, keyID, signature, ok := parseRegistrySignature(r.Receipt.RegistrySignature)
@@ -231,13 +239,14 @@ func (r *ResolvedPackage) verify() {
 	r.addCheck("registry_public_key_present", found, fmt.Sprintf("key_id=%s", keyID))
 	if found && ok {
 		payload := map[string]any{
-			"package_id":         r.Package.PackageID,
-			"package_version":    r.Package.PackageVersion,
-			"contract_signature": r.Package.ContractSignature,
-			"definition_digest":  r.Package.DefinitionDigest,
-			"manifest_digest":    r.Package.ManifestDigest,
-			"lock_digest":        r.Package.LockDigest,
-			"issued_at":          r.Receipt.IssuedAt,
+			"package_id":                  r.Package.PackageID,
+			"package_version":             r.Package.PackageVersion,
+			"contract_signature":          r.Package.ContractSignature,
+			"definition_digest":           r.Package.DefinitionDigest,
+			"manifest_digest":             r.Package.ManifestDigest,
+			"lock_digest":                 r.Package.LockDigest,
+			"package_execution_signature": r.PackageExecutionSignature,
+			"issued_at":                   r.Receipt.IssuedAt,
 		}
 		if r.Package.PublisherID != "" {
 			payload["publisher_id"] = r.Package.PublisherID
@@ -271,6 +280,20 @@ func canonicalDigest(payload any) string {
 	bytes := bytes.TrimSuffix(buffer.Bytes(), []byte("\n"))
 	sum := sha256.Sum256(bytes)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func stringValue(value any) string {
+	text, _ := value.(string)
+	return text
 }
 
 func parseRegistrySignature(signature string) (string, string, []byte, bool) {
