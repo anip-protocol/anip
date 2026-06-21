@@ -34,14 +34,14 @@ To run a published release image instead of tagging local builds as `local`, set
 `ANIP_IMAGE_TAG` before starting Compose:
 
 ```bash
-ANIP_IMAGE_TAG=0.24.6 docker compose up
+ANIP_IMAGE_TAG=0.24.7 docker compose up
 ```
 
 To force a fresh pull of the published release images:
 
 ```bash
-ANIP_IMAGE_TAG=0.24.6 docker compose pull
-ANIP_IMAGE_TAG=0.24.6 docker compose up
+ANIP_IMAGE_TAG=0.24.7 docker compose pull
+ANIP_IMAGE_TAG=0.24.7 docker compose up
 ```
 
 Useful environment switches:
@@ -52,11 +52,11 @@ STUDIO_SEED_SHOWCASES=1 docker compose up --build
 
 # Host a read-only Studio demo. Unsafe HTTP methods are blocked at the API
 # boundary; only GET, HEAD, and OPTIONS remain available.
-ANIP_IMAGE_TAG=0.24.6 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
+ANIP_IMAGE_TAG=0.24.7 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
 
 # Optionally switch to a read-only database role after startup migrations,
 # vocabulary load, and showcase seeding complete.
-ANIP_IMAGE_TAG=0.24.6 \
+ANIP_IMAGE_TAG=0.24.7 \
 STUDIO_READ_ONLY=1 \
 STUDIO_READ_ONLY_DATABASE_URL=postgresql://anip_readonly:anip_readonly@studio-db:5432/anip_studio \
 docker compose up
