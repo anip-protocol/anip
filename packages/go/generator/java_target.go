@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	anipJavaPackageVersion = "0.24.5"
+	anipJavaPackageVersion = "0.24.7"
 	springBootVersion      = "3.4.3"
 	quarkusVersion         = "3.17.8"
 )
