@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import subprocess
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import time
 from datetime import datetime, timezone
@@ -105,6 +106,175 @@ def _normalize_implementation_materials(materials: list[dict[str, Any]]) -> list
     return normalized
 
 
+def _without_package_execution_signature(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        return {
+            key: _without_package_execution_signature(value)
+            for key, value in payload.items()
+            if key != "package_execution_signature"
+        }
+    if isinstance(payload, list):
+        return [_without_package_execution_signature(item) for item in payload]
+    return payload
+
+
+def _definition_capability_ids(service_definition: dict[str, Any]) -> set[str]:
+    ids: set[str] = set()
+    capabilities = service_definition.get("capability_formalizations")
+    if not isinstance(capabilities, list):
+        return ids
+    for capability in capabilities:
+        if not isinstance(capability, dict):
+            continue
+        capability_id = str(capability.get("capability_id") or "").strip()
+        if capability_id:
+            ids.add(capability_id)
+    return ids
+
+
+def _agent_consumability_capability_ids(agent_consumability: dict[str, Any]) -> set[str]:
+    capabilities = agent_consumability.get("capabilities")
+    if not isinstance(capabilities, dict):
+        return set()
+    return {str(capability_id).strip() for capability_id in capabilities.keys() if str(capability_id).strip()}
+
+
+def _number(value: Any) -> float:
+    if isinstance(value, bool):
+        return 1 if value else 0
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _execution_metadata_checks(
+    manifest: dict[str, Any],
+    service_definition: dict[str, Any],
+    lock: dict[str, Any],
+    implementation_materials: list[dict[str, str]],
+    lineage: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
+    agent_consumability = manifest.get("agent_consumability")
+    if not isinstance(agent_consumability, dict) or not agent_consumability:
+        agent_consumability = lock.get("agent_consumability")
+    if not isinstance(agent_consumability, dict):
+        agent_consumability = {}
+
+    readiness = manifest.get("agent_consumption_readiness")
+    if not isinstance(readiness, dict) or not readiness:
+        readiness = lock.get("agent_consumption_readiness")
+    if not isinstance(readiness, dict):
+        readiness = {}
+
+    definition_ids = _definition_capability_ids(service_definition)
+    consumability_ids = _agent_consumability_capability_ids(agent_consumability)
+    readiness_summary = readiness.get("summary") if isinstance(readiness.get("summary"), dict) else {}
+    observed_signature = str(
+        manifest.get("package_execution_signature")
+        or lock.get("package_execution_signature")
+        or ""
+    ).strip()
+    computed_signature = _compute_package_execution_signature(
+        manifest,
+        service_definition,
+        lock,
+        implementation_materials,
+        lineage or {},
+    )
+
+    return [
+        _check(
+            "agent_consumability_present",
+            bool(agent_consumability),
+            "agent_consumability metadata is required for executable packages",
+        ),
+        _check(
+            "agent_consumability_schema_present",
+            bool(str(agent_consumability.get("schema_version") or "").strip()),
+            f"schema_version={agent_consumability.get('schema_version') or ''}",
+        ),
+        _check(
+            "agent_consumability_capabilities_match_definition",
+            bool(definition_ids) and definition_ids == consumability_ids,
+            f"definition={sorted(definition_ids)} consumability={sorted(consumability_ids)}",
+        ),
+        _check(
+            "agent_consumption_readiness_ready",
+            str(readiness.get("status") or "").strip().lower() == "ready",
+            f"status={readiness.get('status') or ''}",
+        ),
+        _check(
+            "agent_consumption_readiness_has_no_blockers",
+            _number(readiness_summary.get("blockers")) == 0,
+            f"blockers={readiness_summary.get('blockers')}",
+        ),
+        _check(
+            "agent_consumption_readiness_has_no_warnings",
+            _number(readiness_summary.get("warnings")) == 0,
+            f"warnings={readiness_summary.get('warnings')}",
+        ),
+        _check(
+            "package_execution_signature_present",
+            bool(observed_signature),
+            f"signature={observed_signature}",
+        ),
+        _check(
+            "package_execution_signature_matches",
+            bool(observed_signature) and observed_signature == computed_signature,
+            f"stored={observed_signature} computed={computed_signature}",
+        ),
+    ]
+
+
+def _validate_execution_metadata(
+    manifest: dict[str, Any],
+    service_definition: dict[str, Any],
+    lock: dict[str, Any],
+    implementation_materials: list[dict[str, str]],
+    lineage: dict[str, Any] | None = None,
+    require_signature: bool = False,
+) -> None:
+    checks = _execution_metadata_checks(
+        manifest,
+        service_definition,
+        lock,
+        implementation_materials,
+        lineage,
+    )
+    failures = [
+        check
+        for check in checks
+        if check["status"] != "pass"
+        and (require_signature or not check["name"].startswith("package_execution_signature_"))
+    ]
+    if failures:
+        first = failures[0]
+        raise HTTPException(status_code=422, detail=f"{first['name']}: {first['detail']}")
+
+
+def _compute_package_execution_signature(
+    manifest: dict[str, Any],
+    service_definition: dict[str, Any],
+    lock: dict[str, Any],
+    implementation_materials: list[dict[str, str]],
+    lineage: dict[str, Any] | None = None,
+) -> str:
+    payload = {
+        "schema_version": "anip-package-execution-signature/v1",
+        "service_definition": service_definition,
+        "agent_consumability": _without_package_execution_signature(manifest).get("agent_consumability"),
+        "agent_consumption_readiness": _without_package_execution_signature(manifest).get("agent_consumption_readiness"),
+        "agent_consumption_publication_gate": _without_package_execution_signature(manifest).get("agent_consumption_publication_gate"),
+        "implementation_materials": implementation_materials,
+        "recommended_lock": _without_package_execution_signature(lock),
+        "lineage": lineage or {},
+    }
+    return _digest(payload)
+
+
 def _tail(text: str, limit: int = 4000) -> str:
     return text[-limit:] if len(text) > limit else text
 
@@ -137,9 +307,26 @@ def _build_local_publication(pid: str, body: LocalPublicationRequest) -> dict[st
             "custom_code_bundles": implementation_materials,
         }
     lineage = body.lineage or body.manifest.get("lineage") or body.recommended_lock.get("lineage") or {}
+    _validate_execution_metadata(
+        body.manifest,
+        body.service_definition,
+        body.recommended_lock,
+        implementation_materials,
+        lineage,
+    )
+    package_execution_signature = _compute_package_execution_signature(
+        body.manifest,
+        body.service_definition,
+        body.recommended_lock,
+        implementation_materials,
+        lineage,
+    )
+    body.manifest["package_execution_signature"] = package_execution_signature
+    body.recommended_lock["package_execution_signature"] = package_execution_signature
     published_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     manifest_digest = _digest(body.manifest)
     definition_digest = _digest(body.service_definition)
+    lock_digest = _digest(body.recommended_lock)
 
     package_record = {
         "package_id": package_id,
@@ -152,6 +339,8 @@ def _build_local_publication(pid: str, body: LocalPublicationRequest) -> dict[st
         "schema_version": schema_version,
         "manifest_digest": manifest_digest,
         "definition_digest": definition_digest,
+        "lock_digest": lock_digest,
+        "package_execution_signature": package_execution_signature,
         "published_at": published_at,
         "authority": "local-studio",
         "manifest": body.manifest,
@@ -168,6 +357,8 @@ def _build_local_publication(pid: str, body: LocalPublicationRequest) -> dict[st
         "contract_signature": contract_signature,
         "definition_digest": definition_digest,
         "manifest_digest": manifest_digest,
+        "lock_digest": lock_digest,
+        "package_execution_signature": package_execution_signature,
         "issued_at": published_at,
     }
     if lineage:
@@ -221,7 +412,10 @@ def _build_package_bundle(record: dict[str, Any]) -> dict[str, Any]:
         "digests": {
             "manifest": package_record.get("manifest_digest") or _digest(manifest),
             "service_definition": package_record.get("definition_digest") or _digest(service_definition),
-            "lock": _digest(lock),
+            "lock": package_record.get("lock_digest") or _digest(lock),
+            "package_execution": package_record.get("package_execution_signature")
+            or manifest.get("package_execution_signature")
+            or lock.get("package_execution_signature"),
             "receipt": receipt.get("registry_signature"),
         },
     }
@@ -232,14 +426,31 @@ def _verify_local_publication(record: dict[str, Any]) -> dict[str, Any]:
     receipt = record.get("receipt") or {}
     manifest = package_record.get("manifest") or {}
     service_definition = package_record.get("service_definition") or {}
+    lock = package_record.get("recommended_lock") or {}
+    implementation_materials = _normalize_implementation_materials(package_record.get("implementation_materials") or [])
     authority = record.get("authority") or receipt.get("authority") or package_record.get("authority") or "local-studio"
     package_id = package_record.get("package_id") or record.get("publication", {}).get("package_id")
     package_version = package_record.get("package_version") or record.get("publication", {}).get("package_version")
     contract_signature = package_record.get("contract_signature") or record.get("publication", {}).get("contract_signature")
     issued_at = receipt.get("issued_at")
+    lineage = package_record.get("lineage") or manifest.get("lineage") or package_record.get("recommended_lock", {}).get("lineage")
 
     computed_manifest_digest = _digest(manifest)
     computed_definition_digest = _digest(service_definition)
+    computed_lock_digest = _digest(lock)
+    computed_package_execution_signature = _compute_package_execution_signature(
+        manifest,
+        service_definition,
+        lock,
+        implementation_materials,
+        lineage if isinstance(lineage, dict) else {},
+    )
+    stored_package_execution_signature = str(
+        package_record.get("package_execution_signature")
+        or manifest.get("package_execution_signature")
+        or lock.get("package_execution_signature")
+        or ""
+    ).strip()
     expected_receipt_payload = {
         "authority": authority,
         "package_id": package_id,
@@ -247,9 +458,10 @@ def _verify_local_publication(record: dict[str, Any]) -> dict[str, Any]:
         "contract_signature": contract_signature,
         "definition_digest": computed_definition_digest,
         "manifest_digest": computed_manifest_digest,
+        "lock_digest": computed_lock_digest,
+        "package_execution_signature": stored_package_execution_signature,
         "issued_at": issued_at,
     }
-    lineage = package_record.get("lineage") or manifest.get("lineage") or package_record.get("recommended_lock", {}).get("lineage")
     if lineage:
         expected_receipt_payload["lineage"] = lineage
     computed_receipt_signature = _digest(expected_receipt_payload)
@@ -287,6 +499,28 @@ def _verify_local_publication(record: dict[str, Any]) -> dict[str, Any]:
             f"stored={package_record.get('definition_digest')} computed={computed_definition_digest}",
         ),
         _check(
+            "lock_digest_matches",
+            package_record.get("lock_digest") == computed_lock_digest,
+            f"stored={package_record.get('lock_digest')} computed={computed_lock_digest}",
+        ),
+        *_execution_metadata_checks(
+            manifest,
+            service_definition,
+            lock,
+            implementation_materials,
+            lineage if isinstance(lineage, dict) else {},
+        ),
+        _check(
+            "package_record_execution_signature_matches",
+            package_record.get("package_execution_signature") == stored_package_execution_signature,
+            f"stored={package_record.get('package_execution_signature')} manifest_or_lock={stored_package_execution_signature}",
+        ),
+        _check(
+            "computed_package_execution_signature_matches",
+            stored_package_execution_signature == computed_package_execution_signature,
+            f"stored={stored_package_execution_signature} computed={computed_package_execution_signature}",
+        ),
+        _check(
             "receipt_identity_matches",
             receipt.get("package_id") == package_id and receipt.get("package_version") == package_version,
             f"receipt={receipt.get('package_id')}@{receipt.get('package_version')} package={package_id}@{package_version}",
@@ -315,6 +549,8 @@ def _verify_local_publication(record: dict[str, Any]) -> dict[str, Any]:
         "developer_revision": lineage.get("developer_revision") if isinstance(lineage, dict) else None,
         "definition_digest": computed_definition_digest,
         "manifest_digest": computed_manifest_digest,
+        "lock_digest": computed_lock_digest,
+        "package_execution_signature": stored_package_execution_signature,
         "receipt_signature": receipt.get("registry_signature"),
         "computed_receipt_signature": computed_receipt_signature,
         "checks": checks,

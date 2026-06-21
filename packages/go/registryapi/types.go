@@ -91,28 +91,29 @@ type PublishPackageRequest struct {
 }
 
 type RegistryPackageRecord struct {
-	PackageID               string                          `json:"package_id"`
-	PackageVersion          string                          `json:"package_version"`
-	ProjectRef              string                          `json:"project_ref"`
-	ProductRevisionRef      string                          `json:"product_revision_ref"`
-	DeveloperRevisionRef    string                          `json:"developer_revision_ref"`
-	ContractSignature       string                          `json:"contract_signature"`
-	PublisherID             string                          `json:"publisher_id,omitempty"`
-	PublisherType           string                          `json:"publisher_type,omitempty"`
-	Publisher               *PublisherSummary               `json:"publisher,omitempty"`
-	Lineage                 map[string]any                  `json:"lineage,omitempty"`
-	SchemaVersion           string                          `json:"schema_version"`
-	ManifestDigest          string                          `json:"manifest_digest"`
-	DefinitionDigest        string                          `json:"definition_digest"`
-	LockDigest              string                          `json:"lock_digest"`
-	PublishedAt             string                          `json:"published_at"`
-	DownloadCount           int64                           `json:"download_count"`
-	Manifest                map[string]any                  `json:"manifest"`
-	ServiceDefinition       map[string]any                  `json:"service_definition"`
-	RecommendedLock         map[string]any                  `json:"recommended_lock"`
-	Readme                  string                          `json:"readme,omitempty"`
-	SourceLinks             []PackageSourceLink             `json:"source_links,omitempty"`
-	ImplementationMaterials []PackageImplementationMaterial `json:"implementation_materials,omitempty"`
+	PackageID                 string                          `json:"package_id"`
+	PackageVersion            string                          `json:"package_version"`
+	ProjectRef                string                          `json:"project_ref"`
+	ProductRevisionRef        string                          `json:"product_revision_ref"`
+	DeveloperRevisionRef      string                          `json:"developer_revision_ref"`
+	ContractSignature         string                          `json:"contract_signature"`
+	PublisherID               string                          `json:"publisher_id,omitempty"`
+	PublisherType             string                          `json:"publisher_type,omitempty"`
+	Publisher                 *PublisherSummary               `json:"publisher,omitempty"`
+	Lineage                   map[string]any                  `json:"lineage,omitempty"`
+	SchemaVersion             string                          `json:"schema_version"`
+	ManifestDigest            string                          `json:"manifest_digest"`
+	DefinitionDigest          string                          `json:"definition_digest"`
+	LockDigest                string                          `json:"lock_digest"`
+	PackageExecutionSignature string                          `json:"package_execution_signature,omitempty"`
+	PublishedAt               string                          `json:"published_at"`
+	DownloadCount             int64                           `json:"download_count"`
+	Manifest                  map[string]any                  `json:"manifest"`
+	ServiceDefinition         map[string]any                  `json:"service_definition"`
+	RecommendedLock           map[string]any                  `json:"recommended_lock"`
+	Readme                    string                          `json:"readme,omitempty"`
+	SourceLinks               []PackageSourceLink             `json:"source_links,omitempty"`
+	ImplementationMaterials   []PackageImplementationMaterial `json:"implementation_materials,omitempty"`
 }
 
 type RegistryReceipt struct {
@@ -128,26 +129,27 @@ type RegistryReceipt struct {
 }
 
 type RegistryPackageLock struct {
-	LockSchemaVersion   string `json:"lock_schema_version"`
-	ArtifactType        string `json:"artifact_type"`
-	SourceKind          string `json:"source_kind"`
-	RegistryURL         string `json:"registry_url,omitempty"`
-	PackageID           string `json:"package_id"`
-	PackageVersion      string `json:"package_version"`
-	ContractSignature   string `json:"contract_signature,omitempty"`
-	SchemaVersion       string `json:"schema_version,omitempty"`
-	DefinitionDigest    string `json:"definition_digest"`
-	ManifestDigest      string `json:"manifest_digest,omitempty"`
-	LockDigest          string `json:"lock_digest"`
-	ReceiptSignature    string `json:"receipt_signature,omitempty"`
-	ReceiptAuthority    string `json:"receipt_authority,omitempty"`
-	ReceiptKeyID        string `json:"receipt_key_id,omitempty"`
-	ReceiptAlgorithm    string `json:"receipt_algorithm,omitempty"`
-	ReceiptIssuedAt     string `json:"receipt_issued_at,omitempty"`
-	RegistrySigningMode string `json:"registry_signing_mode,omitempty"`
-	RegistryActiveKeyID string `json:"registry_active_key_id,omitempty"`
-	PublisherID         string `json:"publisher_id,omitempty"`
-	PublisherType       string `json:"publisher_type,omitempty"`
+	LockSchemaVersion         string `json:"lock_schema_version"`
+	ArtifactType              string `json:"artifact_type"`
+	SourceKind                string `json:"source_kind"`
+	RegistryURL               string `json:"registry_url,omitempty"`
+	PackageID                 string `json:"package_id"`
+	PackageVersion            string `json:"package_version"`
+	ContractSignature         string `json:"contract_signature,omitempty"`
+	SchemaVersion             string `json:"schema_version,omitempty"`
+	DefinitionDigest          string `json:"definition_digest"`
+	ManifestDigest            string `json:"manifest_digest,omitempty"`
+	LockDigest                string `json:"lock_digest"`
+	PackageExecutionSignature string `json:"package_execution_signature,omitempty"`
+	ReceiptSignature          string `json:"receipt_signature,omitempty"`
+	ReceiptAuthority          string `json:"receipt_authority,omitempty"`
+	ReceiptKeyID              string `json:"receipt_key_id,omitempty"`
+	ReceiptAlgorithm          string `json:"receipt_algorithm,omitempty"`
+	ReceiptIssuedAt           string `json:"receipt_issued_at,omitempty"`
+	RegistrySigningMode       string `json:"registry_signing_mode,omitempty"`
+	RegistryActiveKeyID       string `json:"registry_active_key_id,omitempty"`
+	PublisherID               string `json:"publisher_id,omitempty"`
+	PublisherType             string `json:"publisher_type,omitempty"`
 }
 
 type RegistryPublicKey struct {

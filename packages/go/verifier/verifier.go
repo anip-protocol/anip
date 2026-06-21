@@ -36,30 +36,31 @@ type CheckResult struct {
 }
 
 type Result struct {
-	Status                   string         `json:"status"`
-	SourceKind               string         `json:"source_kind"`
-	PackageID                string         `json:"package_id,omitempty"`
-	PackageVersion           string         `json:"package_version,omitempty"`
-	SchemaVersion            string         `json:"schema_version,omitempty"`
-	DefinitionDigest         string         `json:"definition_digest"`
-	RegistryDefinitionDigest string         `json:"registry_definition_digest,omitempty"`
-	ManifestDigest           string         `json:"manifest_digest,omitempty"`
-	LockDigest               string         `json:"lock_digest,omitempty"`
-	ReceiptAuthority         string         `json:"receipt_authority,omitempty"`
-	ReceiptKeyID             string         `json:"receipt_key_id,omitempty"`
-	ReceiptAlgorithm         string         `json:"receipt_algorithm,omitempty"`
-	ReceiptStatus            string         `json:"receipt_status,omitempty"`
-	ContractSignature        string         `json:"contract_signature,omitempty"`
-	Lineage                  map[string]any `json:"lineage,omitempty"`
-	ProductRevision          any            `json:"product_revision,omitempty"`
-	DeveloperRevision        any            `json:"developer_revision,omitempty"`
-	RegistryReceiptSignature string         `json:"registry_receipt_signature,omitempty"`
-	RegistrySigningMode      string         `json:"registry_signing_mode,omitempty"`
-	RegistryActiveKeyID      string         `json:"registry_active_key_id,omitempty"`
-	RegistryRecordPath       string         `json:"registry_record_path,omitempty"`
-	AgentReadiness           map[string]any `json:"agent_consumption_readiness,omitempty"`
-	AgentConsumability       map[string]any `json:"agent_consumability,omitempty"`
-	Checks                   []CheckResult  `json:"checks"`
+	Status                    string         `json:"status"`
+	SourceKind                string         `json:"source_kind"`
+	PackageID                 string         `json:"package_id,omitempty"`
+	PackageVersion            string         `json:"package_version,omitempty"`
+	SchemaVersion             string         `json:"schema_version,omitempty"`
+	DefinitionDigest          string         `json:"definition_digest"`
+	RegistryDefinitionDigest  string         `json:"registry_definition_digest,omitempty"`
+	ManifestDigest            string         `json:"manifest_digest,omitempty"`
+	LockDigest                string         `json:"lock_digest,omitempty"`
+	PackageExecutionSignature string         `json:"package_execution_signature,omitempty"`
+	ReceiptAuthority          string         `json:"receipt_authority,omitempty"`
+	ReceiptKeyID              string         `json:"receipt_key_id,omitempty"`
+	ReceiptAlgorithm          string         `json:"receipt_algorithm,omitempty"`
+	ReceiptStatus             string         `json:"receipt_status,omitempty"`
+	ContractSignature         string         `json:"contract_signature,omitempty"`
+	Lineage                   map[string]any `json:"lineage,omitempty"`
+	ProductRevision           any            `json:"product_revision,omitempty"`
+	DeveloperRevision         any            `json:"developer_revision,omitempty"`
+	RegistryReceiptSignature  string         `json:"registry_receipt_signature,omitempty"`
+	RegistrySigningMode       string         `json:"registry_signing_mode,omitempty"`
+	RegistryActiveKeyID       string         `json:"registry_active_key_id,omitempty"`
+	RegistryRecordPath        string         `json:"registry_record_path,omitempty"`
+	AgentReadiness            map[string]any `json:"agent_consumption_readiness,omitempty"`
+	AgentConsumability        map[string]any `json:"agent_consumability,omitempty"`
+	Checks                    []CheckResult  `json:"checks"`
 }
 
 func VerifyServiceDefinition(ctx context.Context, client *http.Client, options VerifyOptions) (*Result, error) {
@@ -90,24 +91,25 @@ func VerifyServiceDefinition(ctx context.Context, client *http.Client, options V
 	contractSignature := firstNonEmpty(resolved.ContractSignature, nestedString(resolved.Definition, "compiled_contract_identity", "signature"))
 
 	result := &Result{
-		SourceKind:               resolved.SourceKind,
-		PackageID:                resolved.PackageID,
-		PackageVersion:           resolved.PackageVersion,
-		SchemaVersion:            resolved.SchemaVersion,
-		DefinitionDigest:         definitionDigest,
-		RegistryDefinitionDigest: resolved.DefinitionDigest,
-		ManifestDigest:           resolved.ManifestDigest,
-		LockDigest:               resolved.LockDigest,
-		ReceiptAuthority:         resolved.ReceiptAuthority,
-		ReceiptKeyID:             resolved.ReceiptKeyID,
-		ReceiptAlgorithm:         resolved.ReceiptAlgorithm,
-		ContractSignature:        contractSignature,
-		Lineage:                  resolved.Lineage,
-		RegistrySigningMode:      resolved.RegistrySigningMode,
-		RegistryActiveKeyID:      resolved.RegistryActiveKeyID,
-		RegistryRecordPath:       resolved.RegistryRecordPath,
-		AgentReadiness:           resolved.AgentReadiness,
-		AgentConsumability:       resolved.AgentConsumability,
+		SourceKind:                resolved.SourceKind,
+		PackageID:                 resolved.PackageID,
+		PackageVersion:            resolved.PackageVersion,
+		SchemaVersion:             resolved.SchemaVersion,
+		DefinitionDigest:          definitionDigest,
+		RegistryDefinitionDigest:  resolved.DefinitionDigest,
+		ManifestDigest:            resolved.ManifestDigest,
+		LockDigest:                resolved.LockDigest,
+		PackageExecutionSignature: resolved.PackageExecutionSignature,
+		ReceiptAuthority:          resolved.ReceiptAuthority,
+		ReceiptKeyID:              resolved.ReceiptKeyID,
+		ReceiptAlgorithm:          resolved.ReceiptAlgorithm,
+		ContractSignature:         contractSignature,
+		Lineage:                   resolved.Lineage,
+		RegistrySigningMode:       resolved.RegistrySigningMode,
+		RegistryActiveKeyID:       resolved.RegistryActiveKeyID,
+		RegistryRecordPath:        resolved.RegistryRecordPath,
+		AgentReadiness:            resolved.AgentReadiness,
+		AgentConsumability:        resolved.AgentConsumability,
 	}
 
 	result.addCheck("definition_digest_computed", definitionDigest != "", "definition digest was recomputed from canonical JSON")
@@ -388,13 +390,14 @@ func (r *Result) addBundleRegistryReceiptCheck(resolved *generator.ResolvedServi
 		return
 	}
 	payload := map[string]any{
-		"package_id":         resolved.PackageID,
-		"package_version":    resolved.PackageVersion,
-		"contract_signature": contractSignature,
-		"definition_digest":  firstNonEmpty(resolved.DefinitionDigest, definitionDigest),
-		"manifest_digest":    resolved.ManifestDigest,
-		"lock_digest":        resolved.LockDigest,
-		"issued_at":          resolved.ReceiptIssuedAt,
+		"package_id":                  resolved.PackageID,
+		"package_version":             resolved.PackageVersion,
+		"contract_signature":          contractSignature,
+		"definition_digest":           firstNonEmpty(resolved.DefinitionDigest, definitionDigest),
+		"manifest_digest":             resolved.ManifestDigest,
+		"lock_digest":                 resolved.LockDigest,
+		"package_execution_signature": resolved.PackageExecutionSignature,
+		"issued_at":                   resolved.ReceiptIssuedAt,
 	}
 	if resolved.PublisherID != "" {
 		payload["publisher_id"] = resolved.PublisherID
@@ -473,6 +476,12 @@ func computeReceiptSignature(resolved *generator.ResolvedServiceDefinition, cont
 		"definition_digest":  firstNonEmpty(resolved.DefinitionDigest, definitionDigest),
 		"manifest_digest":    resolved.ManifestDigest,
 		"issued_at":          resolved.ReceiptIssuedAt,
+	}
+	if resolved.LockDigest != "" {
+		payload["lock_digest"] = resolved.LockDigest
+	}
+	if resolved.PackageExecutionSignature != "" {
+		payload["package_execution_signature"] = resolved.PackageExecutionSignature
 	}
 	if resolved.ReceiptAuthority != "" {
 		payload["authority"] = resolved.ReceiptAuthority
