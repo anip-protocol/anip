@@ -1,10 +1,10 @@
 [project]
 name = "anip-crypto"
-version = "0.24.6"
+version = "0.24.7"
 description = "ANIP cryptographic primitives — key management, JWT, JWS, JWKS"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core==0.24.6",
+    "anip-core==0.24.7",
     "cryptography>=42.0",
     "PyJWT[crypto]>=2.8",
 ]
