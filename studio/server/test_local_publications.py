@@ -51,11 +51,61 @@ def valid_anip_service_definition(signature: str) -> dict:
                         "input_name": "query",
                         "input_type": "string",
                         "required": True,
+                        "semantic_type": "search_query",
                         "summary": "Search query.",
                     }
                 ],
             }
         ],
+    }
+
+
+def valid_agent_consumption_readiness() -> dict:
+    return {
+        "artifact_type": "agent_consumption_readiness",
+        "status": "ready",
+        "score": 100,
+        "summary": {"blockers": 0, "warnings": 0, "info": 0, "probes": 1, "required_app_glue": 0},
+        "findings": [],
+        "probes": [
+            {
+                "id": "probe-1",
+                "label": "Search work items",
+                "prompt": "Search work items",
+                "expected_outcome": "success",
+                "rationale": "Smoke test covers the published capability surface.",
+            }
+        ],
+        "required_app_glue": [],
+    }
+
+
+def valid_agent_consumability() -> dict:
+    return {
+        "artifact_type": "agent_consumability_metadata",
+        "schema_version": "anip-agent-consumability/v0",
+        "capabilities": {
+            "work_item.search": {
+                "intent": {
+                    "category": "work_item.search",
+                    "summary": "Search governed work items.",
+                },
+                "business_effects": {
+                    "produces": ["data.read"],
+                    "does_not_produce": ["system.mutation"],
+                },
+            }
+        },
+    }
+
+
+def valid_local_publication_manifest(name: str, version: str = "0.1.1") -> dict:
+    return {
+        "name": name,
+        "version": version,
+        "anip_spec_version": "anip/0.24",
+        "agent_consumption_readiness": valid_agent_consumption_readiness(),
+        "agent_consumability": valid_agent_consumability(),
     }
 
 
@@ -142,9 +192,7 @@ def test_create_and_list_local_publication(client):
             },
         },
         "manifest": {
-            "name": "Work Item Fronting",
-            "version": "0.1.1",
-            "anip_spec_version": "anip/0.24",
+            **valid_local_publication_manifest("Work Item Fronting", "0.1.1"),
             "readme": "Work Item Fronting local package.",
             "source_links": [
                 {
@@ -160,10 +208,7 @@ def test_create_and_list_local_publication(client):
                 "bundle_tree_sha256": "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
             }
         ],
-        "service_definition": {
-            "artifact_type": "developer_definition",
-            "compiled_contract_identity": {"signature": "sha256:contract"},
-        },
+        "service_definition": valid_anip_service_definition("sha256:contract"),
         "recommended_lock": {"verifier_pack": {"name": "anip-verifier"}},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication", payload)
@@ -185,6 +230,9 @@ def test_create_and_list_local_publication(client):
         == payload["implementation_materials"][0]["ref"]
     )
     assert data["package"]["definition_digest"].startswith("sha256:")
+    assert data["package"]["package_execution_signature"].startswith("sha256:")
+    assert data["package"]["manifest"]["package_execution_signature"] == data["package"]["package_execution_signature"]
+    assert data["package"]["recommended_lock"]["package_execution_signature"] == data["package"]["package_execution_signature"]
     assert data["receipt"]["registry_signature"].startswith("sha256:")
     assert data["receipt"]["authority"] == "local-studio"
 
@@ -204,6 +252,7 @@ def test_create_and_list_local_publication(client):
     assert bundle_data["lineage"]["product_revision"]["artifact_id"] == "product-revision-2"
     assert bundle_data["package"]["lineage"] == payload["lineage"]
     assert bundle_data["package"]["implementation_materials"][0]["ref"] == payload["implementation_materials"][0]["ref"]
+    assert bundle_data["digests"]["package_execution"] == data["package"]["package_execution_signature"]
     assert (
         bundle_data["manifest"]["implementation_material"]["custom_code_bundles"][0]["bundle_tree_sha256"]
         == payload["implementation_materials"][0]["bundle_tree_sha256"]
@@ -212,11 +261,13 @@ def test_create_and_list_local_publication(client):
     expected_manifest["implementation_material"] = {
         "custom_code_bundles": payload["implementation_materials"],
     }
+    expected_manifest["package_execution_signature"] = data["package"]["package_execution_signature"]
     assert bundle_data["receipt"]["registry_signature"] == data["receipt"]["registry_signature"]
     assert bundle_data["manifest"] == expected_manifest
     assert bundle_data["service_definition"] == payload["service_definition"]
     expected_lock = deepcopy(payload["recommended_lock"])
     expected_lock["anip_spec_version"] = "anip/0.24"
+    expected_lock["package_execution_signature"] = data["package"]["package_execution_signature"]
     assert bundle_data["lock"] == expected_lock
     assert bundle_data["digests"]["service_definition"] == data["package"]["definition_digest"]
 
@@ -264,9 +315,7 @@ def test_create_local_publication_accepts_studio_project_ref(client):
             },
         },
         "manifest": {
-            "name": "Work Item Fronting",
-            "version": "0.1.2",
-            "anip_spec_version": "anip/0.24",
+            **valid_local_publication_manifest("Work Item Fronting", "0.1.2"),
             "readme": "Work Item Fronting local package.",
         },
         "service_definition": valid_anip_service_definition("sha256:contract"),
@@ -283,6 +332,34 @@ def test_create_local_publication_accepts_studio_project_ref(client):
     assert resp.json()["publication"]["project_ref"] == "studio:proj-local-publication-studio-ref"
 
 
+def test_local_publication_rejects_missing_agent_consumability(client):
+    create_project = client.post(
+        "/api/projects",
+        json={"id": "proj-local-publication-missing-agent", "name": "Local Publication Missing Agent Metadata"},
+    )
+    assert create_project.status_code == 201, create_project.text
+    payload = {
+        "package_id": "work-item-fronting",
+        "package_version": "0.1.3",
+        "project_ref": "proj-local-publication-missing-agent",
+        "product_revision_ref": "baseline:locked",
+        "developer_revision_ref": "proj-local-publication-conflict-developer-r1",
+        "contract_signature": "sha256:contract",
+        "manifest": {"name": "Work Item Fronting", "version": "0.1.3", "anip_spec_version": "anip/0.24"},
+        "service_definition": valid_anip_service_definition("sha256:contract"),
+        "recommended_lock": {},
+    }
+    create_saved_developer_definition_for_publication(client, "proj-local-publication-missing-agent", payload)
+
+    created = client.post(
+        "/api/projects/proj-local-publication-missing-agent/local-publications",
+        json=payload,
+    )
+
+    assert created.status_code == 422, created.text
+    assert "agent_consumability" in created.text
+
+
 def test_local_publication_package_version_is_immutable(client):
     create_project = client.post(
         "/api/projects",
@@ -296,13 +373,9 @@ def test_local_publication_package_version_is_immutable(client):
         "product_revision_ref": "baseline:locked",
         "developer_revision_ref": "developer-r1",
         "contract_signature": "sha256:contract",
-        "manifest": {"name": "Work Item Fronting", "anip_spec_version": "anip/0.24"},
-        "service_definition": {"artifact_type": "developer_definition"},
+        "manifest": valid_local_publication_manifest("Work Item Fronting", "0.1.1"),
+        "service_definition": valid_anip_service_definition("sha256:contract"),
         "recommended_lock": {},
-    }
-    payload["service_definition"] = {
-        "artifact_type": "developer_definition",
-        "compiled_contract_identity": {"signature": payload["contract_signature"]},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication-conflict", payload)
     first = client.post(
@@ -331,11 +404,8 @@ def test_local_publication_rejects_transient_contract_not_matching_saved_revisio
         "product_revision_ref": "baseline:locked",
         "developer_revision_ref": "developer-r1-transient",
         "contract_signature": "sha256:saved-contract",
-        "manifest": {"name": "Work Item Fronting", "anip_spec_version": "anip/0.24"},
-        "service_definition": {
-            "artifact_type": "developer_definition",
-            "compiled_contract_identity": {"signature": "sha256:saved-contract"},
-        },
+        "manifest": valid_local_publication_manifest("Work Item Fronting", "0.1.2"),
+        "service_definition": valid_anip_service_definition("sha256:saved-contract"),
         "recommended_lock": {},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication-transient", payload)
@@ -364,13 +434,9 @@ def test_local_publication_rejects_non_current_anip_spec(client):
         "developer_revision_ref": "developer-r2-tamper",
         "contract_signature": "sha256:contract",
         "schema_version": "anip-service-definition/v1",
-        "manifest": {"name": "Work Item Fronting", "anip_spec_version": "anip/0.23"},
-        "service_definition": {"artifact_type": "developer_definition"},
+        "manifest": {**valid_local_publication_manifest("Work Item Fronting", "0.2.0"), "anip_spec_version": "anip/0.23"},
+        "service_definition": valid_anip_service_definition("sha256:contract"),
         "recommended_lock": {},
-    }
-    payload["service_definition"] = {
-        "artifact_type": "developer_definition",
-        "compiled_contract_identity": {"signature": payload["contract_signature"]},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication-old-spec", payload)
     created = client.post(
@@ -392,13 +458,10 @@ def test_local_publication_verification_fails_for_tampered_record(client):
         "package_version": "0.2.0",
         "project_ref": "proj-local-publication-tamper",
         "product_revision_ref": "baseline:locked",
-        "developer_revision_ref": "developer-r2",
+        "developer_revision_ref": "proj-local-publication-agent-tamper-developer-r2",
         "contract_signature": "sha256:contract",
-        "manifest": {"name": "Work Item Fronting", "version": "0.2.0", "anip_spec_version": "anip/0.24"},
-        "service_definition": {
-            "artifact_type": "developer_definition",
-            "compiled_contract_identity": {"signature": "sha256:contract"},
-        },
+        "manifest": valid_local_publication_manifest("Work Item Fronting", "0.2.0"),
+        "service_definition": valid_anip_service_definition("sha256:contract"),
         "recommended_lock": {},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication-tamper", payload)
@@ -417,6 +480,40 @@ def test_local_publication_verification_fails_for_tampered_record(client):
     failed_checks = {check["name"] for check in result["checks"] if check["status"] == "fail"}
     assert "manifest_digest_matches" in failed_checks
     assert "receipt_signature_matches" in failed_checks
+
+
+def test_local_publication_verification_fails_for_tampered_agent_consumability(client):
+    create_project = client.post(
+        "/api/projects",
+        json={"id": "proj-local-publication-agent-tamper", "name": "Local Publication Agent Tamper"},
+    )
+    assert create_project.status_code == 201, create_project.text
+    payload = {
+        "package_id": "work-item-fronting",
+        "package_version": "0.2.1",
+        "project_ref": "proj-local-publication-agent-tamper",
+        "product_revision_ref": "baseline:locked",
+        "developer_revision_ref": "developer-r2",
+        "contract_signature": "sha256:contract",
+        "manifest": valid_local_publication_manifest("Work Item Fronting", "0.2.1"),
+        "service_definition": valid_anip_service_definition("sha256:contract"),
+        "recommended_lock": {},
+    }
+    create_saved_developer_definition_for_publication(client, "proj-local-publication-agent-tamper", payload)
+    created = client.post(
+        "/api/projects/proj-local-publication-agent-tamper/local-publications",
+        json=payload,
+    )
+    assert created.status_code == 201, created.text
+
+    tampered = deepcopy(created.json())
+    tampered["package"]["manifest"]["agent_consumability"]["capabilities"] = {}
+    result = _verify_local_publication(tampered)
+
+    assert result["status"] == "failed"
+    failed_checks = {check["name"] for check in result["checks"] if check["status"] == "fail"}
+    assert "package_execution_signature_matches" in failed_checks
+    assert "agent_consumability_capabilities_match_definition" in failed_checks
 
 
 def test_go_verifier_endpoint_persists_external_cli_provenance(client, monkeypatch):
@@ -446,11 +543,8 @@ def test_go_verifier_endpoint_persists_external_cli_provenance(client, monkeypat
                 "contract_signature": "sha256:contract",
             },
         },
-        "manifest": {"name": "Work Item Fronting", "version": "0.3.0", "anip_spec_version": "anip/0.24"},
-        "service_definition": {
-            "artifact_type": "developer_definition",
-            "compiled_contract_identity": {"signature": "sha256:contract"},
-        },
+        "manifest": valid_local_publication_manifest("Work Item Fronting", "0.3.0"),
+        "service_definition": valid_anip_service_definition("sha256:contract"),
         "recommended_lock": {},
     }
     create_saved_developer_definition_for_publication(client, "proj-local-publication-go", payload)

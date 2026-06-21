@@ -13,26 +13,27 @@ import (
 const PackageLockSchemaVersion = "anip-package-lock/v1"
 
 type PackageLock struct {
-	LockSchemaVersion   string `json:"lock_schema_version"`
-	ArtifactType        string `json:"artifact_type"`
-	SourceKind          string `json:"source_kind"`
-	RegistryURL         string `json:"registry_url,omitempty"`
-	PackageID           string `json:"package_id"`
-	PackageVersion      string `json:"package_version"`
-	ContractSignature   string `json:"contract_signature,omitempty"`
-	SchemaVersion       string `json:"schema_version,omitempty"`
-	DefinitionDigest    string `json:"definition_digest"`
-	ManifestDigest      string `json:"manifest_digest,omitempty"`
-	LockDigest          string `json:"lock_digest"`
-	ReceiptSignature    string `json:"receipt_signature,omitempty"`
-	ReceiptAuthority    string `json:"receipt_authority,omitempty"`
-	ReceiptKeyID        string `json:"receipt_key_id,omitempty"`
-	ReceiptAlgorithm    string `json:"receipt_algorithm,omitempty"`
-	ReceiptIssuedAt     string `json:"receipt_issued_at,omitempty"`
-	RegistrySigningMode string `json:"registry_signing_mode,omitempty"`
-	RegistryActiveKeyID string `json:"registry_active_key_id,omitempty"`
-	PublisherID         string `json:"publisher_id,omitempty"`
-	PublisherType       string `json:"publisher_type,omitempty"`
+	LockSchemaVersion         string `json:"lock_schema_version"`
+	ArtifactType              string `json:"artifact_type"`
+	SourceKind                string `json:"source_kind"`
+	RegistryURL               string `json:"registry_url,omitempty"`
+	PackageID                 string `json:"package_id"`
+	PackageVersion            string `json:"package_version"`
+	ContractSignature         string `json:"contract_signature,omitempty"`
+	SchemaVersion             string `json:"schema_version,omitempty"`
+	DefinitionDigest          string `json:"definition_digest"`
+	ManifestDigest            string `json:"manifest_digest,omitempty"`
+	LockDigest                string `json:"lock_digest"`
+	PackageExecutionSignature string `json:"package_execution_signature,omitempty"`
+	ReceiptSignature          string `json:"receipt_signature,omitempty"`
+	ReceiptAuthority          string `json:"receipt_authority,omitempty"`
+	ReceiptKeyID              string `json:"receipt_key_id,omitempty"`
+	ReceiptAlgorithm          string `json:"receipt_algorithm,omitempty"`
+	ReceiptIssuedAt           string `json:"receipt_issued_at,omitempty"`
+	RegistrySigningMode       string `json:"registry_signing_mode,omitempty"`
+	RegistryActiveKeyID       string `json:"registry_active_key_id,omitempty"`
+	PublisherID               string `json:"publisher_id,omitempty"`
+	PublisherType             string `json:"publisher_type,omitempty"`
 }
 
 func LoadPackageLock(path string) (*PackageLock, error) {
@@ -89,25 +90,26 @@ func BuildPackageLock(resolved *ResolvedServiceDefinition) (*PackageLock, error)
 		lockDigest = canonicalJSONDigest(resolved.RecommendedLock)
 	}
 	lock := &PackageLock{
-		LockSchemaVersion:   PackageLockSchemaVersion,
-		ArtifactType:        "anip_package_lock",
-		SourceKind:          resolved.SourceKind,
-		PackageID:           resolved.PackageID,
-		PackageVersion:      resolved.PackageVersion,
-		ContractSignature:   resolved.ContractSignature,
-		SchemaVersion:       resolved.SchemaVersion,
-		DefinitionDigest:    definitionDigest,
-		ManifestDigest:      resolved.ManifestDigest,
-		LockDigest:          lockDigest,
-		ReceiptSignature:    resolved.ReceiptSignature,
-		ReceiptAuthority:    resolved.ReceiptAuthority,
-		ReceiptKeyID:        resolved.ReceiptKeyID,
-		ReceiptAlgorithm:    resolved.ReceiptAlgorithm,
-		ReceiptIssuedAt:     resolved.ReceiptIssuedAt,
-		RegistrySigningMode: resolved.RegistrySigningMode,
-		RegistryActiveKeyID: resolved.RegistryActiveKeyID,
-		PublisherID:         resolved.PublisherID,
-		PublisherType:       resolved.PublisherType,
+		LockSchemaVersion:         PackageLockSchemaVersion,
+		ArtifactType:              "anip_package_lock",
+		SourceKind:                resolved.SourceKind,
+		PackageID:                 resolved.PackageID,
+		PackageVersion:            resolved.PackageVersion,
+		ContractSignature:         resolved.ContractSignature,
+		SchemaVersion:             resolved.SchemaVersion,
+		DefinitionDigest:          definitionDigest,
+		ManifestDigest:            resolved.ManifestDigest,
+		LockDigest:                lockDigest,
+		PackageExecutionSignature: resolved.PackageExecutionSignature,
+		ReceiptSignature:          resolved.ReceiptSignature,
+		ReceiptAuthority:          resolved.ReceiptAuthority,
+		ReceiptKeyID:              resolved.ReceiptKeyID,
+		ReceiptAlgorithm:          resolved.ReceiptAlgorithm,
+		ReceiptIssuedAt:           resolved.ReceiptIssuedAt,
+		RegistrySigningMode:       resolved.RegistrySigningMode,
+		RegistryActiveKeyID:       resolved.RegistryActiveKeyID,
+		PublisherID:               resolved.PublisherID,
+		PublisherType:             resolved.PublisherType,
 	}
 	if resolved.SourceKind == "registry" {
 		lock.RegistryURL = resolvedRegistryBaseURL(resolved)
@@ -154,6 +156,7 @@ func ValidateResolvedPackageLock(resolved *ResolvedServiceDefinition, lock *Pack
 		{name: "schema_version", expected: lock.SchemaVersion, observed: resolved.SchemaVersion},
 		{name: "manifest_digest", expected: lock.ManifestDigest, observed: resolved.ManifestDigest},
 		{name: "lock_digest", expected: lock.LockDigest, observed: resolved.LockDigest},
+		{name: "package_execution_signature", expected: lock.PackageExecutionSignature, observed: resolved.PackageExecutionSignature},
 		{name: "receipt_key_id", expected: lock.ReceiptKeyID, observed: resolved.ReceiptKeyID},
 		{name: "receipt_algorithm", expected: lock.ReceiptAlgorithm, observed: resolved.ReceiptAlgorithm},
 	}

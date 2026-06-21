@@ -535,27 +535,42 @@ func currentRuntimeAgentReadiness() map[string]any {
 }
 
 func currentRuntimeAgentConsumability() map[string]any {
+	capabilities := map[string]any{}
+	for _, capabilityID := range []string{
+		"compat.lookup",
+		"compat.prepare_change",
+		"compat.lookup_and_prepare",
+		"compat.secondary_lookup",
+	} {
+		capabilities[capabilityID] = map[string]any{
+			"intent": map[string]any{
+				"category": capabilityID,
+				"summary":  "Current runtime compatibility capability " + capabilityID + ".",
+			},
+			"business_effects": map[string]any{
+				"produces":         []any{"data.read"},
+				"does_not_produce": []any{"system.mutation"},
+			},
+			"app_glue": map[string]any{
+				"required": false,
+			},
+		}
+	}
+	capabilities["compat.lookup_and_prepare"].(map[string]any)["business_effects"] = map[string]any{
+		"produces":         []any{"approval.request", "system.preview_mutation"},
+		"does_not_produce": []any{"external_dispatch", "system.mutation"},
+	}
+	capabilities["compat.lookup_and_prepare"].(map[string]any)["intent"] = map[string]any{
+		"category": "compat.lookup.prepare",
+		"summary":  "Lookup compatibility records and prepare a governed change as one bounded capability.",
+	}
+	capabilities["compat.lookup_and_prepare"].(map[string]any)["required_context"] = []any{
+		map[string]any{"input": "query", "missing_behavior": "clarify"},
+	}
 	return map[string]any{
 		"artifact_type":  "agent_consumability_metadata",
 		"schema_version": "anip-agent-consumability/v0",
-		"capabilities": map[string]any{
-			"compat.lookup_and_prepare": map[string]any{
-				"intent": map[string]any{
-					"category": "compat.lookup.prepare",
-					"summary":  "Lookup compatibility records and prepare a governed change as one bounded capability.",
-				},
-				"business_effects": map[string]any{
-					"produces":         []any{"approval.request", "system.preview_mutation"},
-					"does_not_produce": []any{"external_dispatch", "system.mutation"},
-				},
-				"required_context": []any{
-					map[string]any{"input": "query", "missing_behavior": "clarify"},
-				},
-				"app_glue": map[string]any{
-					"required": false,
-				},
-			},
-		},
+		"capabilities":   capabilities,
 	}
 }
 
@@ -944,20 +959,41 @@ func TestVerifyPackageBundleServiceDefinition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compute definition digest: %v", err)
 	}
+	packageExecutionSignature, err := computeCanonicalDigest(map[string]any{
+		"schema_version":                     "anip-package-execution-signature/v1",
+		"service_definition":                 serviceDefinition,
+		"agent_consumability":                manifest["agent_consumability"],
+		"agent_consumption_readiness":        manifest["agent_consumption_readiness"],
+		"agent_consumption_publication_gate": nil,
+		"implementation_materials":           []map[string]any{},
+		"recommended_lock":                   lock,
+		"lineage":                            lineage,
+	})
+	if err != nil {
+		t.Fatalf("compute package execution signature: %v", err)
+	}
+	manifest["package_execution_signature"] = packageExecutionSignature
+	lock["package_execution_signature"] = packageExecutionSignature
 	manifestDigest, err := computeCanonicalDigest(manifest)
 	if err != nil {
 		t.Fatalf("compute manifest digest: %v", err)
 	}
+	lockDigest, err := computeCanonicalDigest(lock)
+	if err != nil {
+		t.Fatalf("compute lock digest: %v", err)
+	}
 	issuedAt := "2026-04-24T00:00:00Z"
 	receiptSignature, err := computeCanonicalDigest(map[string]any{
-		"authority":          "local-studio",
-		"package_id":         "work-item-fronting",
-		"package_version":    "0.2.0",
-		"contract_signature": "sha256:test-contract",
-		"definition_digest":  definitionDigest,
-		"lineage":            lineage,
-		"manifest_digest":    manifestDigest,
-		"issued_at":          issuedAt,
+		"authority":                   "local-studio",
+		"package_id":                  "work-item-fronting",
+		"package_version":             "0.2.0",
+		"contract_signature":          "sha256:test-contract",
+		"definition_digest":           definitionDigest,
+		"lineage":                     lineage,
+		"manifest_digest":             manifestDigest,
+		"lock_digest":                 lockDigest,
+		"package_execution_signature": packageExecutionSignature,
+		"issued_at":                   issuedAt,
 	})
 	if err != nil {
 		t.Fatalf("compute receipt signature: %v", err)
@@ -972,19 +1008,21 @@ func TestVerifyPackageBundleServiceDefinition(t *testing.T) {
 			"contract_signature": "sha256:test-contract",
 		},
 		"package": map[string]any{
-			"package_id":             "work-item-fronting",
-			"package_version":        "0.2.0",
-			"contract_signature":     "sha256:test-contract",
-			"lineage":                lineage,
-			"schema_version":         "anip-service-definition/v1",
-			"manifest_digest":        manifestDigest,
-			"definition_digest":      definitionDigest,
-			"manifest":               manifest,
-			"service_definition":     serviceDefinition,
-			"recommended_lock":       lock,
-			"developer_revision_ref": "developer-r5",
-			"product_revision_ref":   "product-r3",
-			"project_ref":            "work-item-fronting",
+			"package_id":                  "work-item-fronting",
+			"package_version":             "0.2.0",
+			"contract_signature":          "sha256:test-contract",
+			"lineage":                     lineage,
+			"schema_version":              "anip-service-definition/v1",
+			"manifest_digest":             manifestDigest,
+			"definition_digest":           definitionDigest,
+			"lock_digest":                 lockDigest,
+			"package_execution_signature": packageExecutionSignature,
+			"manifest":                    manifest,
+			"service_definition":          serviceDefinition,
+			"recommended_lock":            lock,
+			"developer_revision_ref":      "developer-r5",
+			"product_revision_ref":        "product-r3",
+			"project_ref":                 "work-item-fronting",
 		},
 		"lineage": lineage,
 		"receipt": map[string]any{
@@ -995,6 +1033,13 @@ func TestVerifyPackageBundleServiceDefinition(t *testing.T) {
 		"manifest":           manifest,
 		"service_definition": serviceDefinition,
 		"lock":               lock,
+		"digests": map[string]any{
+			"manifest":           manifestDigest,
+			"service_definition": definitionDigest,
+			"lock":               lockDigest,
+			"package_execution":  packageExecutionSignature,
+			"receipt":            receiptSignature,
+		},
 	}
 	bytes, err := json.Marshal(bundle)
 	if err != nil {

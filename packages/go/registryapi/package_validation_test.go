@@ -61,6 +61,45 @@ func validTestServiceDefinition(systemName string) map[string]any {
 	}
 }
 
+func validTestAgentReadiness() map[string]any {
+	return map[string]any{
+		"artifact_type": "agent_consumption_readiness",
+		"status":        "ready",
+		"score":         float64(100),
+		"summary": map[string]any{
+			"blockers":          float64(0),
+			"warnings":          float64(0),
+			"info":              float64(0),
+			"probes":            float64(1),
+			"required_app_glue": float64(0),
+		},
+		"findings":          []any{},
+		"probes":            []any{map[string]any{"id": "probe-1", "expected_outcome": "success"}},
+		"required_app_glue": []any{},
+	}
+}
+
+func validTestAgentConsumabilityFor(capabilityIDs ...string) map[string]any {
+	capabilities := map[string]any{}
+	for _, capabilityID := range capabilityIDs {
+		capabilities[capabilityID] = map[string]any{
+			"intent": map[string]any{
+				"category": capabilityID,
+				"summary":  "Governed capability " + capabilityID + ".",
+			},
+			"business_effects": map[string]any{
+				"produces":         []any{"data.read"},
+				"does_not_produce": []any{"system.mutation"},
+			},
+		}
+	}
+	return map[string]any{
+		"artifact_type":  "agent_consumability_metadata",
+		"schema_version": "anip-agent-consumability/v0",
+		"capabilities":   capabilities,
+	}
+}
+
 func validTestPublishPackageRequest() PublishPackageRequest {
 	return PublishPackageRequest{
 		PackageID:            "work-item-fronting",
@@ -85,8 +124,10 @@ func validTestPublishPackageRequest() PublishPackageRequest {
 			},
 		},
 		Manifest: map[string]any{
-			"name":              "Work Item Fronting",
-			"anip_spec_version": "anip/0.24",
+			"name":                        "Work Item Fronting",
+			"anip_spec_version":           "anip/0.24",
+			"agent_consumption_readiness": validTestAgentReadiness(),
+			"agent_consumability":         validTestAgentConsumabilityFor("test.search"),
 		},
 		ServiceDefinition: validTestServiceDefinition("Work Item Fronting"),
 		RecommendedLock: map[string]any{
@@ -460,6 +501,7 @@ func TestPublishPackageAcceptsComposedCapabilityShape(t *testing.T) {
 	child["capability_id"] = "test.search_records"
 	capabilities = append(capabilities, child)
 	body.ServiceDefinition["capability_formalizations"] = capabilities
+	body.Manifest["agent_consumability"] = validTestAgentConsumabilityFor("test.search", "test.search_records")
 	capability := capabilities[0].(map[string]any)
 	capability["kind"] = "composed"
 	capability["capability_id"] = "test.search"

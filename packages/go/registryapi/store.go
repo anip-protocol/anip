@@ -1018,15 +1018,166 @@ func stampServerDefinitionDigest(request *PublishPackageRequest, definitionDiges
 	request.RecommendedLock["anip_spec_version"] = core.ProtocolVersion
 }
 
+func computePackageExecutionSignature(request PublishPackageRequest) (string, error) {
+	lineage := request.Lineage
+	if len(lineage) == 0 {
+		lineage = map[string]any{}
+	}
+	payload := map[string]any{
+		"schema_version":                     "anip-package-execution-signature/v1",
+		"service_definition":                 request.ServiceDefinition,
+		"agent_consumability":                stripPackageExecutionSignatureMap(request.Manifest)["agent_consumability"],
+		"agent_consumption_readiness":        stripPackageExecutionSignatureMap(request.Manifest)["agent_consumption_readiness"],
+		"agent_consumption_publication_gate": stripPackageExecutionSignatureMap(request.Manifest)["agent_consumption_publication_gate"],
+		"implementation_materials":           implementationMaterialsToAny(request.ImplementationMaterials),
+		"recommended_lock":                   stripPackageExecutionSignatureMap(request.RecommendedLock),
+		"lineage":                            lineage,
+	}
+	return computeCanonicalDigest(payload)
+}
+
+func stripPackageExecutionSignatureMap(value map[string]any) map[string]any {
+	stripped, _ := stripPackageExecutionSignatureValue(value).(map[string]any)
+	if stripped == nil {
+		return map[string]any{}
+	}
+	return stripped
+}
+
+func stripPackageExecutionSignatureValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, item := range typed {
+			if key == "package_execution_signature" {
+				continue
+			}
+			result[key] = stripPackageExecutionSignatureValue(item)
+		}
+		return result
+	case []any:
+		result := make([]any, 0, len(typed))
+		for _, item := range typed {
+			result = append(result, stripPackageExecutionSignatureValue(item))
+		}
+		return result
+	default:
+		return value
+	}
+}
+
+func validatePackageExecutionMetadata(request PublishPackageRequest) error {
+	agentConsumability := mapFromAny(request.Manifest["agent_consumability"])
+	if len(agentConsumability) == 0 {
+		agentConsumability = mapFromAny(request.RecommendedLock["agent_consumability"])
+	}
+	if len(agentConsumability) == 0 {
+		return invalidPackagef("agent_consumability metadata is required")
+	}
+	if strings.TrimSpace(stringFromAny(agentConsumability["schema_version"])) == "" {
+		return invalidPackagef("agent_consumability.schema_version is required")
+	}
+	definitionIDs := capabilityIDSet(request.ServiceDefinition)
+	consumabilityIDs := consumabilityCapabilityIDSet(agentConsumability)
+	if len(definitionIDs) == 0 || !stringSetEqual(definitionIDs, consumabilityIDs) {
+		return invalidPackagef("agent_consumability capabilities must match service_definition capabilities: definition=%v consumability=%v", sortedStringSet(definitionIDs), sortedStringSet(consumabilityIDs))
+	}
+	readiness := mapFromAny(request.Manifest["agent_consumption_readiness"])
+	if len(readiness) == 0 {
+		readiness = mapFromAny(request.RecommendedLock["agent_consumption_readiness"])
+	}
+	if strings.ToLower(strings.TrimSpace(stringFromAny(readiness["status"]))) != "ready" {
+		return invalidPackagef("agent_consumption_readiness.status must be ready")
+	}
+	summary := mapFromAny(readiness["summary"])
+	if numericFromAny(summary["blockers"]) != 0 {
+		return invalidPackagef("agent_consumption_readiness.summary.blockers must be 0")
+	}
+	if numericFromAny(summary["warnings"]) != 0 {
+		return invalidPackagef("agent_consumption_readiness.summary.warnings must be 0")
+	}
+	return nil
+}
+
+func mapFromAny(value any) map[string]any {
+	if typed, ok := value.(map[string]any); ok {
+		return typed
+	}
+	return nil
+}
+
+func capabilityIDSet(definition map[string]any) map[string]struct{} {
+	result := map[string]struct{}{}
+	for _, item := range sliceFromAny(definition["capability_formalizations"]) {
+		capability := mapFromAny(item)
+		capabilityID := strings.TrimSpace(stringFromAny(capability["capability_id"]))
+		if capabilityID != "" {
+			result[capabilityID] = struct{}{}
+		}
+	}
+	return result
+}
+
+func consumabilityCapabilityIDSet(agentConsumability map[string]any) map[string]struct{} {
+	result := map[string]struct{}{}
+	for capabilityID := range mapFromAny(agentConsumability["capabilities"]) {
+		trimmed := strings.TrimSpace(capabilityID)
+		if trimmed != "" {
+			result[trimmed] = struct{}{}
+		}
+	}
+	return result
+}
+
+func stringSetEqual(left map[string]struct{}, right map[string]struct{}) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for value := range left {
+		if _, ok := right[value]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedStringSet(values map[string]struct{}) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func numericFromAny(value any) float64 {
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case json.Number:
+		number, _ := typed.Float64()
+		return number
+	default:
+		return 0
+	}
+}
+
 func buildReceiptPayload(pkg RegistryPackageRecord, issuedAt string) map[string]any {
 	payload := map[string]any{
-		"package_id":         pkg.PackageID,
-		"package_version":    pkg.PackageVersion,
-		"contract_signature": pkg.ContractSignature,
-		"definition_digest":  pkg.DefinitionDigest,
-		"manifest_digest":    pkg.ManifestDigest,
-		"lock_digest":        pkg.LockDigest,
-		"issued_at":          issuedAt,
+		"package_id":                  pkg.PackageID,
+		"package_version":             pkg.PackageVersion,
+		"contract_signature":          pkg.ContractSignature,
+		"definition_digest":           pkg.DefinitionDigest,
+		"manifest_digest":             pkg.ManifestDigest,
+		"lock_digest":                 pkg.LockDigest,
+		"package_execution_signature": pkg.PackageExecutionSignature,
+		"issued_at":                   issuedAt,
 	}
 	if pkg.PublisherID != "" {
 		payload["publisher_id"] = pkg.PublisherID
@@ -1076,6 +1227,23 @@ func buildPublishedArtifacts(request PublishPackageRequest, publishedAt time.Tim
 	if err != nil {
 		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
 	}
+	if err := validatePackageExecutionMetadata(request); err != nil {
+		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
+	}
+	packageExecutionSignature, err := computePackageExecutionSignature(request)
+	if err != nil {
+		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
+	}
+	request.Manifest["package_execution_signature"] = packageExecutionSignature
+	request.RecommendedLock["package_execution_signature"] = packageExecutionSignature
+	request.Manifest, err = normalizeJSONMap(request.Manifest)
+	if err != nil {
+		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
+	}
+	request.RecommendedLock, err = normalizeJSONMap(request.RecommendedLock)
+	if err != nil {
+		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
+	}
 	manifestDigest, err := computeCanonicalDigest(request.Manifest)
 	if err != nil {
 		return PublicationSummary{}, RegistryPackageRecord{}, RegistryReceipt{}, err
@@ -1099,26 +1267,27 @@ func buildPublishedArtifacts(request PublishPackageRequest, publishedAt time.Tim
 	}
 
 	pkg := RegistryPackageRecord{
-		PackageID:               request.PackageID,
-		PackageVersion:          request.PackageVersion,
-		ProjectRef:              request.ProjectRef,
-		ProductRevisionRef:      request.ProductRevisionRef,
-		DeveloperRevisionRef:    request.DeveloperRevisionRef,
-		ContractSignature:       request.ContractSignature,
-		PublisherID:             request.PublisherID,
-		PublisherType:           request.PublisherType,
-		Lineage:                 request.Lineage,
-		SchemaVersion:           request.SchemaVersion,
-		ManifestDigest:          manifestDigest,
-		DefinitionDigest:        definitionDigest,
-		LockDigest:              lockDigest,
-		PublishedAt:             publishedAt.UTC().Format(time.RFC3339),
-		Manifest:                request.Manifest,
-		ServiceDefinition:       request.ServiceDefinition,
-		RecommendedLock:         request.RecommendedLock,
-		Readme:                  request.Readme,
-		SourceLinks:             request.SourceLinks,
-		ImplementationMaterials: request.ImplementationMaterials,
+		PackageID:                 request.PackageID,
+		PackageVersion:            request.PackageVersion,
+		ProjectRef:                request.ProjectRef,
+		ProductRevisionRef:        request.ProductRevisionRef,
+		DeveloperRevisionRef:      request.DeveloperRevisionRef,
+		ContractSignature:         request.ContractSignature,
+		PublisherID:               request.PublisherID,
+		PublisherType:             request.PublisherType,
+		Lineage:                   request.Lineage,
+		SchemaVersion:             request.SchemaVersion,
+		ManifestDigest:            manifestDigest,
+		DefinitionDigest:          definitionDigest,
+		LockDigest:                lockDigest,
+		PackageExecutionSignature: packageExecutionSignature,
+		PublishedAt:               publishedAt.UTC().Format(time.RFC3339),
+		Manifest:                  request.Manifest,
+		ServiceDefinition:         request.ServiceDefinition,
+		RecommendedLock:           request.RecommendedLock,
+		Readme:                    request.Readme,
+		SourceLinks:               request.SourceLinks,
+		ImplementationMaterials:   request.ImplementationMaterials,
 	}
 
 	issuedAt := publishedAt.UTC().Format(time.RFC3339)

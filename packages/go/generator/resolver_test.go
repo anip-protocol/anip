@@ -237,30 +237,45 @@ func TestResolveServiceDefinitionFromRegistryRejectsUntrustedReceipt(t *testing.
 func TestResolveServiceDefinitionFromPackageBundle(t *testing.T) {
 	tempDir := t.TempDir()
 	bundlePath := filepath.Join(tempDir, "work-item-fronting-0.2.0.anip-package.json")
-	definitionBytes, err := json.Marshal(validResolverTestServiceDefinition("Work Item Fronting"))
+	definition := validResolverTestServiceDefinition("Work Item Fronting")
+	manifest := validResolverManifest("Work Item Fronting")
+	lock := map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}}
+	signature, err := computePackageExecutionSignature(manifest, definition, lock, []map[string]any{}, nil)
 	if err != nil {
-		t.Fatalf("marshal definition: %v", err)
+		t.Fatalf("compute package execution signature: %v", err)
 	}
-	if err := os.WriteFile(bundlePath, []byte(`{
-		"bundle_schema_version":"anip-package-bundle/v1",
-		"authority":"local-studio",
-		"package":{
-			"package_id":"work-item-fronting",
-			"package_version":"0.2.0",
-			"contract_signature":"sha256:test-signature",
-			"schema_version":"anip-service-definition/v1",
-			"manifest_digest":"sha256:manifest-digest",
-			"definition_digest":"sha256:def-digest",
-			"manifest":{"name":"Work Item Fronting","agent_consumption_readiness":{"artifact_type":"agent_consumption_readiness","status":"ready","score":100,"summary":{"blockers":0,"warnings":0,"info":0,"probes":1,"required_app_glue":0},"findings":[],"probes":[{"id":"probe-1","expected_outcome":"success"}],"required_app_glue":[]},"agent_consumability":{"artifact_type":"agent_consumability_metadata","schema_version":"anip-agent-consumability/v0","capabilities":{"work_item.search":{"intent":{"category":"work.item.search","summary":"Search work items."},"business_effects":{"produces":["data.read"],"does_not_produce":["system.mutation"]}}}}},
-			"service_definition":`+string(definitionBytes)+`,
-			"recommended_lock":{"verifier_pack":{"name":"anip-verifier"}}
+	manifest["package_execution_signature"] = signature
+	lock["package_execution_signature"] = signature
+	bundle := map[string]any{
+		"bundle_schema_version": "anip-package-bundle/v1",
+		"authority":             "local-studio",
+		"package": map[string]any{
+			"package_id":                  "work-item-fronting",
+			"package_version":             "0.2.0",
+			"contract_signature":          "sha256:test-signature",
+			"schema_version":              "anip-service-definition/v1",
+			"manifest_digest":             "sha256:manifest-digest",
+			"definition_digest":           "sha256:def-digest",
+			"lock_digest":                 "sha256:lock-digest",
+			"package_execution_signature": signature,
+			"manifest":                    manifest,
+			"service_definition":          definition,
+			"recommended_lock":            lock,
 		},
-		"receipt":{
-			"registry_signature":"sha256:receipt-signature",
-			"issued_at":"2026-04-24T00:00:00Z",
-			"authority":"local-studio"
-		}
-	}`), 0o600); err != nil {
+		"receipt": map[string]any{
+			"registry_signature": "sha256:receipt-signature",
+			"issued_at":          "2026-04-24T00:00:00Z",
+			"authority":          "local-studio",
+		},
+		"digests": map[string]any{
+			"package_execution": signature,
+		},
+	}
+	bundleBytes, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatalf("marshal package bundle: %v", err)
+	}
+	if err := os.WriteFile(bundlePath, bundleBytes, 0o600); err != nil {
 		t.Fatalf("write package bundle: %v", err)
 	}
 
