@@ -101,27 +101,7 @@ jobs:
           done
           echo "OK: Example app deps bumped"
 
-          # Studio app version — product/tool version, separate from STUDIO_PROTOCOL_VERSION.
-          node -e "
-            const fs = require('fs');
-            for (const file of ['studio/package.json', 'studio/package-lock.json']) {
-              const p = JSON.parse(fs.readFileSync(file, 'utf8'));
-              p.version = process.env.VERSION;
-              if (p.packages && p.packages['']) p.packages[''].version = process.env.VERSION;
-              fs.writeFileSync(file, JSON.stringify(p, null, 2) + '\n');
-            }
-            const versionFile = 'studio/src/version.ts';
-            const source = fs.readFileSync(versionFile, 'utf8');
-            const nextVersionLine = 'export const STUDIO_VERSION = \'' + process.env.VERSION + '\'';
-            if (!/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u.test(source)) {
-              throw new Error('studio/src/version.ts is missing export const STUDIO_VERSION');
-            }
-            fs.writeFileSync(
-              versionFile,
-              source.replace(/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u, nextVersionLine)
-            );
-          "
-          echo "OK: Studio version bumped"
+          echo "OK: Studio app version left unchanged; Studio releases use publish-studio-docker.yml"
 
       - name: Commit version bump
         id: bump
@@ -651,87 +631,6 @@ jobs:
             exit 1
           done
 
-  publish-studio-docker:
-    needs: bump-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: main
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Studio images
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          docker build \
-            -t anipprotocol/studio-api:"$VERSION" \
-            -t anipprotocol/studio-api:latest \
-            -f studio/server/Dockerfile .
-          docker push anipprotocol/studio-api:"$VERSION"
-          docker push anipprotocol/studio-api:latest
-
-          docker build \
-            -t anipprotocol/studio-web:"$VERSION" \
-            -t anipprotocol/studio-web:latest \
-            -t anipprotocol/studio:"$VERSION" \
-            -t anipprotocol/studio:latest \
-            -f studio/Dockerfile.standalone .
-          docker push anipprotocol/studio-web:"$VERSION"
-          docker push anipprotocol/studio-web:latest
-          docker push anipprotocol/studio:"$VERSION"
-          docker push anipprotocol/studio:latest
-
-  publish-registry-docker:
-    needs: bump-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: main
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate DigitalOcean token secret
-        env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
-            echo "::error::DIGITALOCEAN_ACCESS_TOKEN is required to push registry.digitalocean.com/anip/registry. Add it under repository Actions secrets before running this workflow."
-            exit 1
-          fi
-
-      - name: Log in to DigitalOcean Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: registry.digitalocean.com
-          username: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Build and push Registry image
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          docker build \
-            -t anipprotocol/registry:"$VERSION" \
-            -t anipprotocol/registry:latest \
-            -t registry.digitalocean.com/anip/registry:"$VERSION" \
-            -t registry.digitalocean.com/anip/registry:latest \
-            -f registry/Dockerfile .
-          docker push anipprotocol/registry:"$VERSION"
-          docker push anipprotocol/registry:latest
-          docker push registry.digitalocean.com/anip/registry:"$VERSION"
-          docker push registry.digitalocean.com/anip/registry:latest
-
   publish-showcase-docker:
     needs: bump-and-validate
     runs-on: ubuntu-latest
@@ -764,7 +663,7 @@ jobs:
           done
 
   release:
-    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-registry-docker, publish-showcase-docker]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-showcase-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
