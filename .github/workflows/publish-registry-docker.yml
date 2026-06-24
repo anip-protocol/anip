@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Registry image version tag (e.g., 0.5.1)"
+        description: "Registry app/image version tag (e.g., 0.6.5)"
         required: true
-        default: "0.5.1"
+        default: "0.6.5"
       source_ref:
         description: "Git ref to build from"
         required: true
