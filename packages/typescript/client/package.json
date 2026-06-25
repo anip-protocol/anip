@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/client",
-  "version": "0.24.8",
+  "version": "0.24.9",
   "description": "Framework-agnostic ANIP consumer adapter",
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/core": "0.24.8"
+    "@anip-dev/core": "0.24.9"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

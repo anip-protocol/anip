@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	anipTypeScriptPackageVersion = "0.24.8"
+	anipTypeScriptPackageVersion = "0.24.9"
 	defaultGeneratorPort         = 4100
 )
 

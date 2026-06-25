@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/service",
-  "version": "0.24.8",
+  "version": "0.24.9",
   "description": "ANIP service runtime — configure and run an ANIP service",
   "type": "module",
   "engines": {
@@ -13,9 +13,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/core": "0.24.8",
-    "@anip-dev/crypto": "0.24.8",
-    "@anip-dev/server": "0.24.8"
+    "@anip-dev/core": "0.24.9",
+    "@anip-dev/crypto": "0.24.9",
+    "@anip-dev/server": "0.24.9"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
