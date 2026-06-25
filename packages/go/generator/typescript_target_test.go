@@ -39,6 +39,12 @@ func TestBuildTypeScriptProject(t *testing.T) {
 	if !strings.Contains(capabilityModule, "if (!configured) return capability.backend_bindings[0];") {
 		t.Fatalf("generated capabilities module missing backend selection fallback")
 	}
+	if !strings.Contains(capabilityModule, "assertRequestedEffectsAllowed(capability, ctx);") {
+		t.Fatalf("generated capabilities module must deny forbidden requested effects before execution")
+	}
+	if strings.Index(capabilityModule, "assertRequestedEffectsAllowed(capability, ctx);") > strings.Index(capabilityModule, "params = applyInputDefaults(capability, params);") {
+		t.Fatalf("generated capabilities module must check requested effects before applying defaults")
+	}
 	if !strings.Contains(runtimeTargetModule, "export type GeneratedCapabilityInputMetadata") {
 		t.Fatalf("runtime target module missing generated capability input type")
 	}

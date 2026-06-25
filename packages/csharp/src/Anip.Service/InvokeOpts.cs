@@ -11,6 +11,7 @@ public class InvokeOpts
     public string? UpstreamService { get; set; }
     public bool Stream { get; set; }
     public Anip.Core.Budget? Budget { get; set; }
+    public List<string> RequestedEffects { get; set; } = new();
 
     /// <summary>
     /// v0.23: continuation grant ID supplied with an invoke. Carries Phase A+B

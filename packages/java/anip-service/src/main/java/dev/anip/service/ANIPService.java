@@ -99,6 +99,17 @@ public class ANIPService {
     private ScheduledFuture<?> retentionFuture;
     private ScheduledFuture<?> checkpointFuture;
 
+    private static List<String> sanitizeRequestedEffects(List<String> values) {
+        if (values == null || values.isEmpty()) return List.of();
+        List<String> result = new ArrayList<>();
+        for (String value : values) {
+            if (value == null || value.isBlank()) continue;
+            String normalized = value.trim();
+            if (!result.contains(normalized)) result.add(normalized);
+        }
+        return List.copyOf(result);
+    }
+
     /**
      * Creates a new ANIPService from the given configuration.
      * Call {@link #start()} to initialize storage and keys before use.
@@ -847,6 +858,7 @@ public class ANIPService {
                     invocationId, clientRefId,
                     effectiveTaskId, parentInvocationId, upstreamService,
                     opts != null ? opts.getApprovalGrant() : null,
+                    sanitizeRequestedEffects(opts != null ? opts.getRequestedEffects() : List.of()),
                     token.getScope(), List.of(token.getTokenId()),
                     payload -> true // no-op for unary
             );
@@ -1222,6 +1234,7 @@ public class ANIPService {
                 invocationId, clientRefId,
                 effectiveTaskId, parentInvocationId, upstreamService,
                 reservedGrantId,
+                sanitizeRequestedEffects(opts != null ? opts.getRequestedEffects() : List.of()),
                 token.getScope(), List.of(token.getTokenId()),
                 emitProgress
         );

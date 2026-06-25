@@ -592,6 +592,7 @@ def _user_prompt(question: str, capability_brief: str, history: list[dict[str, A
         "- parameters: object\n"
         "- unsupported: boolean\n"
         "- unsupported_reason: short string or null\n"
+        "- requested_effects: array of canonical business effect IDs explicitly requested by the user, or []\n"
         "- rationale: short string\n"
         "- user_message: short string\n\n"
         "Selection and parameter rules:\n"
@@ -985,11 +986,18 @@ def _issue_token(service_url: str, capability: str, scope: list[str], actor_id: 
     return payload["token"], resolved_actor_id or "default"
 
 
-def _invoke(service_url: str, capability: str, parameters: dict[str, Any], scope: list[str], actor_id: str | None = None) -> tuple[dict[str, Any], str]:
+def _invoke(
+    service_url: str,
+    capability: str,
+    parameters: dict[str, Any],
+    scope: list[str],
+    actor_id: str | None = None,
+    requested_effects: list[str] | None = None,
+) -> tuple[dict[str, Any], str]:
     token, resolved_actor_id = _issue_token(service_url=service_url, capability=capability, scope=scope, actor_id=actor_id)
     response = httpx.post(
         f"{service_url}/anip/invoke/{capability}",
-        json={"parameters": parameters},
+        json={"parameters": parameters, "requested_effects": requested_effects or []},
         headers={"Authorization": f"Bearer {token}"},
         timeout=20.0,
     )
@@ -1312,6 +1320,7 @@ async def ask(req: AskRequest):
             parameters=parameters,
             scope=metadata.get("minimum_scope", []),
             actor_id=req.actor_id,
+            requested_effects=plan.get("requested_effects") if isinstance(plan.get("requested_effects"), list) else [],
         )
         result = _enrich_approval_required_result(result, resolved_actor_id)
     continuation = build_clarification_continuation(
@@ -1413,6 +1422,7 @@ async def ask_stream(req: AskRequest):
                     parameters=parameters,
                     scope=metadata.get("minimum_scope", []),
                     actor_id=req.actor_id,
+                    requested_effects=plan.get("requested_effects") if isinstance(plan.get("requested_effects"), list) else [],
                 )
                 result = _enrich_approval_required_result(result, resolved_actor_id)
                 yield _stream_event(

@@ -129,6 +129,19 @@ def mount_anip(
         upstream_service = body.get("upstream_service")
         stream = body.get("stream", False)
         approval_grant = body.get("approval_grant")  # v0.23
+        requested_effects = body.get("requested_effects")
+        if requested_effects is not None and not isinstance(requested_effects, list):
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "invalid_parameters",
+                        "detail": "requested_effects must be an array of canonical effect ids",
+                        "resolution": {"action": "provide_valid_input", "recovery_class": "retry_now"},
+                    },
+                },
+                status_code=400,
+            )
         # SPEC.md §4.8 line 1035: session_id for session_bound grants is read
         # from the signed delegation token, NOT from caller-supplied body.
 
@@ -141,6 +154,7 @@ def mount_anip(
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
                 approval_grant=approval_grant,
+                requested_effects=requested_effects,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -160,6 +174,7 @@ def mount_anip(
                     upstream_service=upstream_service,
                     stream=True,
                     approval_grant=approval_grant,
+                    requested_effects=requested_effects,
                 )
                 status = _failure_status(result.get("failure", {}).get("type"))
                 return JSONResponse(result, status_code=status)
@@ -180,6 +195,7 @@ def mount_anip(
                     upstream_service=upstream_service,
                     stream=True,
                     approval_grant=approval_grant,
+                    requested_effects=requested_effects,
                     _progress_sink=progress_sink,
                 )
                 await queue.put({"type": "terminal", "result": result})

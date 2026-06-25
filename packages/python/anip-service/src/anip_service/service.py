@@ -900,6 +900,7 @@ class ANIPService:
         stream: bool = False,
         budget: dict[str, Any] | None = None,
         approval_grant: str | None = None,
+        requested_effects: list[str] | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
@@ -936,6 +937,7 @@ class ANIPService:
                 stream=stream,
                 budget=budget,
                 approval_grant=approval_grant,
+                requested_effects=requested_effects,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
                 invoke_start=invoke_start,
@@ -974,6 +976,7 @@ class ANIPService:
         stream: bool,
         budget: dict[str, Any] | None,
         approval_grant: str | None = None,
+        requested_effects: list[str] | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
         invoke_start: float,
@@ -1385,6 +1388,7 @@ class ANIPService:
             delegation_chain=[t.token_id for t in chain],
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
+            requested_effects=[str(item) for item in requested_effects or [] if str(item or "").strip()],
             _progress_sink=_internal_progress_sink if stream else None,
         )
 

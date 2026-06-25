@@ -73,6 +73,7 @@ type InvocationContext struct {
 	ParentInvocationID string
 	UpstreamService    string
 	ApprovalGrant      string
+	RequestedEffects   []string
 	costActual         *core.CostActual
 	EmitProgress       func(payload map[string]any) error
 }
@@ -93,6 +94,9 @@ type InvokeOpts struct {
 	// ApprovalGrant is a previously-issued grant_id presented as a
 	// continuation. v0.23 §4.8. Empty when the call is not a continuation.
 	ApprovalGrant string
+	// RequestedEffects is a caller-supplied list of canonical business effect
+	// ids the caller is asking this capability to produce.
+	RequestedEffects []string
 }
 
 // CheckpointPolicy configures automatic checkpoint creation.
