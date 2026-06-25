@@ -150,6 +150,7 @@ export interface ANIPService {
       stream?: boolean;
       budget?: Record<string, unknown> | null;
       approvalGrant?: string | null;
+      requestedEffects?: string[] | null;
       progressSink?: (event: Record<string, unknown>) => Promise<void>;
     },
   ): Promise<Record<string, unknown>>;
