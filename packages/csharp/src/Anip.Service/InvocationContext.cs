@@ -18,6 +18,7 @@ public class InvocationContext
     public string? ParentInvocationId { get; }
     public string? UpstreamService { get; }
     public string? ApprovalGrant { get; }
+    public List<string> RequestedEffects { get; }
     public CostActual? CostActual { get; set; }
     public Func<Dictionary<string, object?>, bool> EmitProgress { get; }
 
@@ -33,7 +34,8 @@ public class InvocationContext
         string? parentInvocationId,
         Func<Dictionary<string, object?>, bool> emitProgress,
         string? upstreamService = null,
-        string? approvalGrant = null)
+        string? approvalGrant = null,
+        List<string>? requestedEffects = null)
     {
         Token = token;
         RootPrincipal = rootPrincipal;
@@ -46,6 +48,7 @@ public class InvocationContext
         ParentInvocationId = parentInvocationId;
         UpstreamService = upstreamService;
         ApprovalGrant = approvalGrant;
+        RequestedEffects = requestedEffects ?? new();
         EmitProgress = emitProgress;
     }
 }

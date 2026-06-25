@@ -198,6 +198,7 @@ public class AnipController {
                 params.remove("parent_invocation_id");
                 params.remove("upstream_service");
                 params.remove("budget");
+                params.remove("requested_effects");
                 // v0.23: strip approval_grant so it does not leak into the
                 // params digest. Otherwise continuation validation hashes the
                 // grant id as a business parameter and fails grant_param_drift.
@@ -219,15 +220,17 @@ public class AnipController {
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
+        java.util.List<String> requestedEffects = extractRequestedEffects(body);
 
         if (stream) {
             return handleStreamInvoke(capability, token, params, clientRefId, taskId,
-                    parentInvocationId, upstreamService, budget, approvalGrant);
+                    parentInvocationId, upstreamService, budget, approvalGrant, requestedEffects);
         }
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId, upstreamService);
         if (budget != null) opts.setBudget(budget);
         if (approvalGrant != null) opts.setApprovalGrant(approvalGrant);
+        opts.setRequestedEffects(requestedEffects);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -356,7 +359,7 @@ public class AnipController {
                                            Map<String, Object> params, String clientRefId,
                                            String taskId, String parentInvocationId,
                                            String upstreamService, dev.anip.core.Budget budget,
-                                           String approvalGrant) {
+                                           String approvalGrant, java.util.List<String> requestedEffects) {
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
         StreamResult sr;
@@ -364,6 +367,7 @@ public class AnipController {
             InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
             if (budget != null) opts.setBudget(budget);
             if (approvalGrant != null) opts.setApprovalGrant(approvalGrant);
+            opts.setRequestedEffects(requestedEffects);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
             try {
@@ -587,5 +591,18 @@ public class AnipController {
         ResponseEntity<Object> toResponse() {
             return response;
         }
+    }
+
+    private java.util.List<String> extractRequestedEffects(Map<String, Object> body) {
+        if (body == null || !(body.get("requested_effects") instanceof java.util.List<?> values)) {
+            return java.util.List.of();
+        }
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (Object value : values) {
+            if (value == null) continue;
+            String text = value.toString().trim();
+            if (!text.isEmpty() && !result.contains(text)) result.add(text);
+        }
+        return java.util.List.copyOf(result);
     }
 }

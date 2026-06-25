@@ -209,6 +209,7 @@ public class AnipResource {
                 params.remove("upstream_service");
                 params.remove("approval_grant"); // v0.23
                 params.remove("budget");
+                params.remove("requested_effects");
             }
         }
 
@@ -223,6 +224,7 @@ public class AnipResource {
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
+        List<String> requestedEffects = extractRequestedEffects(body);
 
         // v0.23: continuation grant_id from body. NOTE: session_id is NEVER
         // read from the body — it must come from the signed delegation token.
@@ -232,12 +234,14 @@ public class AnipResource {
             InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId, upstreamService);
             if (budget != null) streamOpts.setBudget(budget);
             if (approvalGrant != null) streamOpts.setApprovalGrant(approvalGrant);
+            streamOpts.setRequestedEffects(requestedEffects);
             return handleStreamInvoke(capability, token, params, streamOpts);
         }
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvId, upstreamService);
         if (budget != null) opts.setBudget(budget);
         if (approvalGrant != null) opts.setApprovalGrant(approvalGrant);
+        opts.setRequestedEffects(requestedEffects);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -553,6 +557,19 @@ public class AnipResource {
             return new dev.anip.core.Budget(currency, maxAmount);
         }
         return null;
+    }
+
+    private List<String> extractRequestedEffects(Map<String, Object> body) {
+        if (body == null || !(body.get("requested_effects") instanceof List<?> values)) {
+            return List.of();
+        }
+        List<String> result = new java.util.ArrayList<>();
+        for (Object value : values) {
+            if (value == null) continue;
+            String text = value.toString().trim();
+            if (!text.isEmpty() && !result.contains(text)) result.add(text);
+        }
+        return List.copyOf(result);
     }
 
     // --- Auth helpers ---

@@ -58,6 +58,10 @@
       "intent_type": "read_only",
       "operation_type": "read",
       "side_effect_level": "read",
+      "business_effects": {
+        "produces": ["content.summary", "data.read"],
+        "does_not_produce": ["raw_data_export"]
+      },
       "backend_operation": "lookupRecords",
       "path_template": "/conformance/lookup",
       "output_shape": "conformance_lookup_result",
