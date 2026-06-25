@@ -85,6 +85,18 @@ jobs:
           cd ../..
           echo "OK: Java versions bumped"
 
+          # Generated service dependency defaults — the CLI must emit services
+          # that consume the just-published runtime packages.
+          sed -i "s/anipPythonPackageVersion = \"[0-9][0-9.]*\"/anipPythonPackageVersion = \"$VERSION\"/" packages/go/generator/python_target.go
+          sed -i "s/anipTypeScriptPackageVersion = \"[0-9][0-9.]*\"/anipTypeScriptPackageVersion = \"$VERSION\"/" packages/go/generator/typescript_target.go
+          sed -i "s|github.com/anip-protocol/anip/packages/go v[0-9][0-9.]*|github.com/anip-protocol/anip/packages/go v$VERSION|" packages/go/generator/go_target.go
+          sed -i "s/anipJavaPackageVersion = \"[0-9][0-9.]*\"/anipJavaPackageVersion = \"$VERSION\"/" packages/go/generator/java_target.go
+          sed -i "s/anipCSharpPackageVersion = \"[0-9][0-9.]*\"/anipCSharpPackageVersion = \"$VERSION\"/" packages/go/generator/csharp_target.go
+          sed -i "s/expectedReleasedRuntimeVersion = \"[0-9][0-9.]*\"/expectedReleasedRuntimeVersion = \"$VERSION\"/" packages/go/generator/release_version_test.go
+          sed -i "s|<anip.version>[0-9][0-9.]*</anip.version>|<anip.version>$VERSION</anip.version>|" packages/go/generator/java_target_test.go
+          sed -i "s|<AnipVersion>[0-9][0-9.]*</AnipVersion>|<AnipVersion>$VERSION</AnipVersion>|" packages/go/generator/csharp_target_test.go
+          echo "OK: Generator default dependency versions bumped"
+
           # TypeScript example app
           for pkg in examples/anip-ts/package.json; do
             node -e "

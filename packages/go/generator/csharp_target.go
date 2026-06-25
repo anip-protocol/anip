@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const anipCSharpPackageVersion = "0.24.7"
+const anipCSharpPackageVersion = "0.24.8"
 
 func BuildCSharpProject(definition *AnipServiceDefinition, options BuildCSharpProjectOptions) (*GeneratedProject, error) {
 	model, err := BuildGenerationModel(definition)
