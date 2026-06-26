@@ -2,6 +2,8 @@
 
 Small deterministic helpers for agent-consumption flows.
 
+These helpers assist consuming agents with routing, compact prompt construction, and contract-derived preflight checks. They are not the trust boundary. The authoritative policy decision remains the ANIP service invocation result.
+
 ## AgentConsumption
 
 `dev.anip.runtimeutils.AgentConsumption` provides static helper methods that use only declared capability metadata:

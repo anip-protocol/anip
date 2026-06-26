@@ -202,7 +202,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -224,14 +224,14 @@ jobs:
             done
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 19 TypeScript packages and internal deps at version $VERSION"
+          echo "All 20 TypeScript packages and internal deps at version $VERSION"
 
       - name: Validate Python package versions and internal deps
         env:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-runtime-utils anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
             PKG_VERSION=$(grep '^version' packages/python/$pkg/pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -251,7 +251,7 @@ jobs:
             fi
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 9 Python packages and internal deps at version $VERSION"
+          echo "All 12 Python packages and internal deps at version $VERSION"
 
       - name: Validate Go module exists
         run: |
@@ -267,7 +267,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio anip-example-flights anip-example-flights-quarkus; do
+          for pom in anip-core anip-runtime-utils anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio anip-example-flights anip-example-flights-quarkus; do
             if [ ! -f "$pom/pom.xml" ]; then
               echo "FAIL: $pom/pom.xml not found"
               FAILED=1
@@ -293,7 +293,7 @@ jobs:
             FAILED=1
           fi
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 17 Java modules and anip.version property at version $VERSION"
+          echo "All 20 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
     needs: bump-and-validate
@@ -316,7 +316,7 @@ jobs:
       - name: Dry run — verify packages
         working-directory: packages/typescript
         run: |
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             echo "=== Checking $pkg ==="
             cd $pkg && npm pack --dry-run && cd ..
           done
@@ -359,6 +359,7 @@ jobs:
 
           # Layer 1: no deps
           publish_or_skip core
+          publish_or_skip runtime-utils
 
           # Layer 2: depends on core
           publish_or_skip crypto
@@ -412,7 +413,7 @@ jobs:
 
       - name: Build and check all packages
         run: |
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-runtime-utils anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
             echo "=== Building $pkg ==="
             cd packages/python/$pkg
             rm -rf dist/
@@ -458,6 +459,7 @@ jobs:
           publish_or_skip anip-crypto
           publish_or_skip anip-server
           publish_or_skip anip-service
+          publish_or_skip anip-runtime-utils
           publish_or_skip anip-fastapi
           publish_or_skip anip-mcp
           publish_or_skip anip-rest
@@ -504,6 +506,7 @@ jobs:
           ARTIFACTS=(
             anip-parent
             anip-core
+            anip-runtime-utils
             anip-crypto
             anip-server
             anip-service
@@ -610,7 +613,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -e
-          PACKAGES=(Anip.Core Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio Anip.Studio)
+          PACKAGES=(Anip.Core Anip.RuntimeUtils Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio Anip.Studio)
           for pkg in "${PACKAGES[@]}"; do
             echo "=== Packing $pkg ==="
             dotnet pack "src/$pkg/$pkg.csproj" -c Release -o nupkgs /p:Version="$VERSION"

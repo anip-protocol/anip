@@ -8,6 +8,35 @@
 
 **Tech Stack:** Python pytest, TypeScript Vitest, Go testing, Java JUnit/Maven, C# xUnit/dotnet test, shared JSON fixtures.
 
+**Implementation status:** completed on branch `parity/generated-service-0.24.10-clean`.
+
+Completed packages:
+
+- Python: shared fixture parity test added to existing `anip-runtime-utils`.
+- TypeScript: `@anip-dev/runtime-utils`.
+- Go: `packages/go/runtimeutils`.
+- Java: `dev.anip:anip-runtime-utils`.
+- C#: `Anip.RuntimeUtils`.
+
+Release wiring status:
+
+- TypeScript release validation, dry-run, and publish lists include `runtime-utils`.
+- Python release validation, build, and publish lists include existing `anip-runtime-utils`.
+- Java parent module and Maven Central visibility list include `anip-runtime-utils`.
+- C# NuGet pack list includes `Anip.RuntimeUtils`.
+
+Deviation from the initial plan:
+
+- C# does not modify a solution file because `packages/csharp` does not currently use `Anip.sln`. The runtime-utils project follows the existing standalone project/test layout.
+
+Verification snapshot:
+
+- Python shared fixture test: passed.
+- TypeScript runtime-utils test/build: passed.
+- Go runtimeutils test: passed.
+- Java anip-runtime-utils test: passed.
+- C# Anip.RuntimeUtils test: passed.
+
 ---
 
 ## File Structure
