@@ -433,6 +433,35 @@ class TestANIPServiceInvoke:
         assert captured_ctx["invocation_id"].startswith("inv-")
         assert captured_ctx["client_reference_id"] == "ref-abc"
 
+    async def test_invocation_context_has_requested_effects(self):
+        """Handler should see structured requested effects from invoke()."""
+        captured_ctx = {}
+
+        def capturing_handler(ctx, params):
+            captured_ctx["requested_effects"] = ctx.requested_effects
+            return {"ok": True}
+
+        from anip_core import CapabilityDeclaration, CapabilityOutput, SideEffect, SideEffectType
+        from anip_service import Capability
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="effect_cap",
+                description="Captures requested effects",
+                contract_version="1.0",
+                inputs=[],
+                output=CapabilityOutput(type="object", fields=[]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["test"],
+            ),
+            handler=capturing_handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["test"], capability="effect_cap")
+        result = await service.invoke("effect_cap", token, {}, requested_effects=["raw_data_export"])
+
+        assert result["success"] is True
+        assert captured_ctx["requested_effects"] == ["raw_data_export"]
+
 
 class TestANIPServiceClassification:
     """Verify that invoke() stores event_class, retention_tier, and expires_at in audit."""

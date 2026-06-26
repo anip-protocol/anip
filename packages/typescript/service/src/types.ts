@@ -16,6 +16,8 @@ export interface InvocationContext {
   upstreamService: string | null;
   /** Reserved approval grant id for approved continuation invocations. */
   approvalGrant: string | null;
+  /** Canonical business effect IDs requested by the caller for this invocation. */
+  requestedEffects: string[];
   /** Set actual cost for variance tracking. */
   setCostActual(cost: Record<string, unknown>): void;
   /** Emit a progress event. No-op in unary mode. */

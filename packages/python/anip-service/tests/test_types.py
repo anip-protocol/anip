@@ -34,10 +34,24 @@ def test_invocation_context_cost_tracking():
     )
     assert ctx.approval_grant_id is None
     assert ctx.approval_grant is None
+    assert ctx.requested_effects == []
     assert ctx._cost_actual is None
     ctx.set_cost_actual({"financial": {"amount": 10.0, "currency": "USD"}})
     assert ctx._cost_actual is not None
     assert ctx._cost_actual["financial"]["amount"] == 10.0
+
+
+def test_invocation_context_tracks_requested_effects():
+    ctx = InvocationContext(
+        token=None,  # type: ignore — simplified for test
+        root_principal="human:alice@example.com",
+        subject="agent:bot-1",
+        scopes=["test.read"],
+        delegation_chain=["tok-1"],
+        requested_effects=["raw_data_export"],
+    )
+
+    assert ctx.requested_effects == ["raw_data_export"]
 
 
 def test_anip_error():

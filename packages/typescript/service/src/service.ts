@@ -150,6 +150,7 @@ export interface ANIPService {
       stream?: boolean;
       budget?: Record<string, unknown> | null;
       approvalGrant?: string | null;
+      requestedEffects?: string[] | null;
       progressSink?: (event: Record<string, unknown>) => Promise<void>;
     },
   ): Promise<Record<string, unknown>>;
@@ -1359,6 +1360,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         stream?: boolean;
         budget?: Record<string, unknown> | null;
         approvalGrant?: string | null;
+        requestedEffects?: string[] | null;
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
@@ -1369,6 +1371,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const parentInvocationId = opts?.parentInvocationId ?? null;
       const upstreamService = opts?.upstreamService ?? null;
       const approvalGrant = opts?.approvalGrant ?? null;
+      const requestedEffects = (opts?.requestedEffects ?? []).map(String).filter((item) => item.trim().length > 0);
 
       // Resolve effective disclosure level for this caller
       const effectiveLevel = resolveDisclosureLevel(
@@ -1759,6 +1762,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         parentInvocationId,
         upstreamService,
         approvalGrant,
+        requestedEffects,
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },

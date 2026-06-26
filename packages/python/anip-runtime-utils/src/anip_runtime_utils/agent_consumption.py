@@ -89,6 +89,22 @@ GENERIC_CATALOG_TOKENS = {
 
 TEMPORAL_REFERENCE_TOKENS = {"fiscal", "fy", "q1", "q2", "q3", "q4", "quarter", "quarters"}
 
+CAPABILITY_SCORING_STOP_TOKENS = {
+    "after",
+    "and",
+    "before",
+    "for",
+    "in",
+    "of",
+    "that",
+    "the",
+    "these",
+    "this",
+    "those",
+    "to",
+    "with",
+}
+
 UNSUPPORTED_EFFECT_TERMS = {
     "approval.execute": {"approve", "apply", "commit", "execute", "perform"},
     "external_dispatch": {"deliver", "dispatch", "publish", "send", "ship"},
@@ -116,7 +132,6 @@ APPROVAL_INTENT_TERMS = {
 }
 
 NEGATION_TERMS = {"avoid", "do", "dont", "do not", "exclude", "no", "not", "without"}
-
 
 def semantic_text_key(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
@@ -269,6 +284,21 @@ def _configured_float(
 
 def content_token_variants(value: Any, customization: dict[str, Any] | None = None) -> set[str]:
     variants = set(content_tokens(value))
+    variants = _apply_basic_inflection_variants(variants)
+    return _apply_token_variant_rules(variants, customization)
+
+
+def capability_score_tokens(value: Any) -> set[str]:
+    return {
+        token
+        for token in text_tokens(value)
+        if token not in CAPABILITY_SCORING_STOP_TOKENS
+        and not re.fullmatch(r"(?:19|20)\d{2}", token)
+    }
+
+
+def capability_score_token_variants(value: Any, customization: dict[str, Any] | None = None) -> set[str]:
+    variants = set(capability_score_tokens(value))
     variants = _apply_basic_inflection_variants(variants)
     return _apply_token_variant_rules(variants, customization)
 
@@ -430,6 +460,28 @@ def all_candidate_values_for_input(capability_metadata: dict[str, Any], input_sp
     if not candidates:
         candidates.update({allowed: allowed.replace("_", " ") for allowed in declared_input_candidate_values(input_spec)})
     return candidates
+
+
+def value_matches_other_declared_input(
+    value: Any,
+    input_name: str,
+    capability_metadata: dict[str, Any],
+) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    value_key = semantic_text_key(value)
+    if not value_key:
+        return False
+    for input_spec in capability_metadata.get("input_specs") or []:
+        if not isinstance(input_spec, dict):
+            continue
+        other_name = str(input_spec.get("name") or "")
+        if not other_name or other_name == input_name:
+            continue
+        for candidate in all_candidate_values_for_input(capability_metadata, input_spec):
+            if semantic_text_key(candidate) == value_key:
+                return True
+    return False
 
 
 def declared_input_candidate_values(input_spec: dict[str, Any]) -> list[str]:
@@ -621,13 +673,6 @@ def infer_declared_input_value(
         input_meanings_for(capability_metadata, input_name)
         or reference_catalog_for(capability_metadata, input_name)
     )
-    if (
-        requires_declared_grounding(input_spec, capability_metadata)
-        and not candidates
-        and not has_reviewed_candidates
-        and allows_open_text_reference_inference(input_spec, capability_metadata)
-    ):
-        return concrete_reference_value_from_text(conversation)
     return None
 
 
@@ -693,6 +738,8 @@ def is_ungrounded_declared_context(
     candidates = candidate_map_for_input(capability_metadata, input_name)
     if not candidates:
         if not allows_open_text_reference_inference(input_spec, capability_metadata):
+            return True
+        if value_matches_other_declared_input(value, input_name, capability_metadata):
             return True
         # Open-ended entity/reference inputs are validated by the service or
         # backend. The app should pass concrete names through instead of
@@ -1443,18 +1490,26 @@ def capability_match_score(conversation: str, capability_id: str, capability_met
     if isinstance(app_profile, dict):
         profile_text = " ".join(
             str(value)
-            for key in ("input_meanings", "reference_catalogs", "app_boundaries")
+            for key in ("capability_framing", "input_meanings", "reference_catalogs", "app_boundaries")
             for value in [app_profile.get(key)]
             if value is not None
         )
-    haystack = f"{capability_id} {capability_metadata.get('description', '')} {input_names} {intent_text} {profile_text}"
+    framing_text = " ".join(
+        str(capability_metadata.get(key) or "")
+        for key in ("capability_framing", "summary", "output_intent")
+    )
+    haystack = f"{capability_id} {capability_metadata.get('description', '')} {framing_text} {input_names} {intent_text} {profile_text}"
     customization = runtime_customization_for(capability_metadata)
-    source_tokens = content_token_variants(conversation, customization)
-    target_tokens = content_token_variants(haystack, customization)
+    source_tokens = capability_score_token_variants(conversation, customization)
+    target_tokens = capability_score_token_variants(haystack, customization)
     if not source_tokens or not target_tokens:
         return 0.0
     overlap = source_tokens & target_tokens
-    return len(overlap) / max(1, len(source_tokens))
+    recall = len(overlap) / max(1, len(source_tokens))
+    precision = len(overlap) / max(1, len(target_tokens))
+    id_tokens = capability_score_token_variants(capability_id, customization)
+    id_precision = len(source_tokens & id_tokens) / max(1, len(id_tokens))
+    return (recall * 0.65) + (precision * 0.25) + (id_precision * 0.10)
 
 
 READ_INTENT_TOKENS = {
@@ -1505,16 +1560,31 @@ def compact_capability_match_score(conversation: str, capability_id: str, capabi
     return max(0.0, score)
 
 
-def missing_required_input_names(conversation: str, capability_metadata: dict[str, Any]) -> set[str]:
-    inferred_parameters = normalize_declared_parameters({}, conversation, capability_metadata)
-    return {
-        str(input_spec.get("name") or "")
-        for input_spec in capability_metadata.get("input_specs", [])
-        if isinstance(input_spec, dict)
-        and input_spec.get("required") is True
-        and str(input_spec.get("name") or "")
-        and str(input_spec.get("name") or "") not in inferred_parameters
-    }
+def missing_required_input_names(
+    conversation: str,
+    capability_metadata: dict[str, Any],
+    parameter_values: dict[str, Any] | None = None,
+) -> set[str]:
+    seed_parameters = parameter_values if isinstance(parameter_values, dict) else {}
+    inferred_parameters = normalize_declared_parameters(seed_parameters, conversation, capability_metadata)
+    missing: set[str] = set()
+    for input_spec in capability_metadata.get("input_specs", []):
+        if not isinstance(input_spec, dict) or input_spec.get("required") is not True:
+            continue
+        name = str(input_spec.get("name") or "")
+        if not name or name in inferred_parameters:
+            continue
+        resolution = input_spec.get("resolution") if isinstance(input_spec.get("resolution"), dict) else {}
+        default_value = input_spec.get("default")
+        if (
+            default_value is not None
+            and default_value != ""
+            and default_value != []
+            and resolution.get("on_missing") == "use_default"
+        ):
+            continue
+        missing.add(name)
+    return missing
 
 
 def _same_effect_class(first: dict[str, Any], second: dict[str, Any]) -> bool:
@@ -1529,6 +1599,7 @@ def select_grounded_capability(
     conversation: str,
     selected_capability: str,
     metadata: dict[str, dict[str, Any]],
+    parameter_values: dict[str, Any] | None = None,
 ) -> str:
     """Prefer a grounded peer when the model picked an ungrounded capability.
 
@@ -1540,7 +1611,7 @@ def select_grounded_capability(
     """
 
     selected_metadata = metadata[selected_capability]
-    selected_missing = missing_required_input_names(conversation, selected_metadata)
+    selected_missing = missing_required_input_names(conversation, selected_metadata, parameter_values)
     if not selected_missing:
         return selected_capability
 
@@ -1548,6 +1619,7 @@ def select_grounded_capability(
     customization = runtime_customization_for(selected_metadata)
     min_score = _configured_float(customization, "grounded_peer_min_score", 0.12)
     margin = _configured_float(customization, "grounded_peer_margin", 0.02)
+    different_missing_margin = _configured_float(customization, "grounded_peer_different_missing_margin", 0.25)
     best_capability = selected_capability
     best_score = 0.0
     best_missing_count = len(selected_missing)
@@ -1557,10 +1629,15 @@ def select_grounded_capability(
             continue
         if not _same_effect_class(selected_metadata, capability_metadata):
             continue
-        missing = missing_required_input_names(conversation, capability_metadata)
-        if len(missing) >= best_missing_count:
+        missing = missing_required_input_names(conversation, capability_metadata, parameter_values)
+        if len(missing) > best_missing_count:
             continue
         score = capability_match_score(conversation, capability_id, capability_metadata)
+        if len(missing) == best_missing_count:
+            if missing != selected_missing:
+                continue
+            if score < selected_score + margin:
+                continue
         if score > best_score or (best_capability == selected_capability and score == best_score):
             best_capability = capability_id
             best_score = score
@@ -1568,8 +1645,48 @@ def select_grounded_capability(
 
     if best_capability != selected_capability and (
         best_score >= max(min_score, selected_score + margin)
-        or (selected_score == 0 and best_missing_count < len(selected_missing))
+        or (best_missing_count < len(selected_missing) and best_score >= min_score)
     ):
+        return best_capability
+    return selected_capability
+
+
+def select_stronger_contract_match_capability(
+    conversation: str,
+    selected_capability: str,
+    metadata: dict[str, dict[str, Any]],
+) -> str:
+    """Prefer a clearly better same-effect contract match.
+
+    This is deliberately narrower than free re-ranking. It only considers
+    capabilities that share the selected capability's declared effect class, and
+    it requires a material score margin. The safer outcome can be clarification:
+    if the better-matching contract has missing required context, selecting it
+    lets the service/runtime ask for that context instead of executing a nearby
+    but semantically different capability.
+    """
+
+    selected_metadata = metadata[selected_capability]
+    if missing_required_input_names(conversation, selected_metadata):
+        return selected_capability
+    selected_score = capability_match_score(conversation, selected_capability, selected_metadata)
+    customization = runtime_customization_for(selected_metadata)
+    min_score = _configured_float(customization, "stronger_contract_match_min_score", 0.12)
+    margin = _configured_float(customization, "stronger_contract_match_margin", 0.08)
+    best_capability = selected_capability
+    best_score = selected_score
+
+    for capability_id, capability_metadata in metadata.items():
+        if capability_id == selected_capability:
+            continue
+        if not _same_effect_class(selected_metadata, capability_metadata):
+            continue
+        score = capability_match_score(conversation, capability_id, capability_metadata)
+        if score > best_score:
+            best_capability = capability_id
+            best_score = score
+
+    if best_capability != selected_capability and best_score >= max(min_score, selected_score + margin):
         return best_capability
     return selected_capability
 
@@ -1675,7 +1792,9 @@ def select_requested_effect_floor_capability(
             best_capability = capability_id
             best_score = score
 
-    if best_capability != selected_capability and best_score >= max(min_score, selected_score + margin):
+    selected_lacks_requested_effect = bool(requested_effect and requested_effect not in selected_produces)
+    required_score = min_score if selected_lacks_requested_effect else max(min_score, selected_score + margin)
+    if best_capability != selected_capability and best_score >= required_score:
         return best_capability
     return selected_capability
 
@@ -1722,14 +1841,16 @@ def select_consumable_capability(
     selected_capability: str,
     metadata: dict[str, dict[str, Any]],
     selection_hints: list[dict[str, Any]] | None = None,
+    parameter_values: dict[str, Any] | None = None,
 ) -> str:
     matched_hint = matching_profile_hint(conversation, metadata, selection_hints)
     if matched_hint is not None and matched_hint.get("lock_capability") is True:
         return str(matched_hint.get("capability") or selected_capability)
     capability = select_profile_hint_capability(conversation, selected_capability, metadata, selection_hints)
-    capability = select_grounded_capability(conversation, capability, metadata)
+    capability = select_grounded_capability(conversation, capability, metadata, parameter_values)
     capability = select_requested_effect_floor_capability(conversation, capability, metadata)
     capability = select_approval_boundary_capability(conversation, capability, metadata)
+    capability = select_stronger_contract_match_capability(conversation, capability, metadata)
     return select_declared_effect_capability(conversation, capability, metadata)
 
 
@@ -1756,10 +1877,10 @@ def normalize_declared_parameters(
         input_spec = input_spec_by_name.get(str(key), {})
         if not is_supported_quarter_input_value(input_spec, value, conversation):
             continue
-        if is_ungrounded_declared_context(input_spec, value, conversation, capability_metadata):
-            continue
         value = normalize_declared_input_value(input_spec, value, conversation)
         value = normalize_reference_value(input_spec, value, conversation, capability_metadata)
+        if is_ungrounded_declared_context(input_spec, value, conversation, capability_metadata):
+            continue
         allowed_values = allowed_values_by_input.get(str(key)) or []
         if isinstance(value, str) and allowed_values:
             normalized = next((allowed for allowed in allowed_values if semantic_text_key(allowed) == semantic_text_key(value)), None)
@@ -1803,11 +1924,10 @@ def normalize_invocation_plan(
         *runtime_selection_hints,
     ]
     user_conversation = user_authored_conversation_text(conversation)
-    capability = select_consumable_capability(user_conversation, capability, metadata, effective_selection_hints)
-
     parameters = plan.get("parameters")
     if not isinstance(parameters, dict):
         raise ValueError("Model returned invalid parameters payload")
+    capability = select_consumable_capability(user_conversation, capability, metadata, effective_selection_hints, parameters)
 
     normalized_plan = dict(plan)
     filtered_parameters = normalize_declared_parameters(parameters, user_conversation, metadata[capability])

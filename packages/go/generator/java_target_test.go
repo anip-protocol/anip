@@ -49,6 +49,12 @@ func TestBuildJavaProject(t *testing.T) {
 	if !strings.Contains(capabilities, "createAll(BackendAdapter backendAdapter, String serviceFilter)") {
 		t.Fatalf("generated capabilities should expose service-filtered creation")
 	}
+	if !strings.Contains(capabilities, "assertRequestedEffectsAllowed(capability, ctx);") {
+		t.Fatalf("generated capabilities must deny forbidden requested effects before execution")
+	}
+	if strings.Index(capabilities, "assertRequestedEffectsAllowed(capability, ctx);") > strings.Index(capabilities, "params = applyInputDefaults(capability, params);") {
+		t.Fatalf("generated capabilities must check requested effects before applying defaults")
+	}
 	if !strings.Contains(capabilities, "declarationKind(capability)") || !strings.Contains(capabilities, "declarationComposition(capability)") {
 		t.Fatalf("generated capabilities should preserve composed declarations consistently")
 	}
@@ -82,7 +88,7 @@ func TestBuildJavaProjectRegistryDependencies(t *testing.T) {
 		"<artifactId>anip-server</artifactId>",
 		"<artifactId>anip-service</artifactId>",
 		"<artifactId>anip-spring-boot</artifactId>",
-		"<anip.version>0.24.5</anip.version>",
+		"<anip.version>0.24.6</anip.version>",
 	} {
 		if !strings.Contains(pom, expected) {
 			t.Fatalf("registry pom missing %q", expected)

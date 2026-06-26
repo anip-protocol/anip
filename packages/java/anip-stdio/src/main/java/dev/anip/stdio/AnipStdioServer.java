@@ -319,6 +319,7 @@ public class AnipStdioServer {
         // v0.23: continuation invocations supply approval_grant. session_id
         // for session_bound grants is read from the signed token, never the body.
         String approvalGrant = (String) params.get("approval_grant");
+        List<String> requestedEffects = extractRequestedEffects(params);
 
         // Extract budget from params.
         Budget budget = extractBudgetFromParams(params);
@@ -330,6 +331,7 @@ public class AnipStdioServer {
         if (approvalGrant != null) {
             opts.setApprovalGrant(approvalGrant);
         }
+        opts.setRequestedEffects(requestedEffects);
 
         if (stream) {
             // Streaming invocation: collect progress notifications then return final result.
@@ -542,5 +544,18 @@ public class AnipStdioServer {
         out.write(json);
         out.write('\n');
         out.flush();
+    }
+
+    private static List<String> extractRequestedEffects(Map<String, Object> params) {
+        if (params == null || !(params.get("requested_effects") instanceof List<?> values)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object value : values) {
+            if (value == null) continue;
+            String text = value.toString().trim();
+            if (!text.isEmpty() && !result.contains(text)) result.add(text);
+        }
+        return List.copyOf(result);
     }
 }

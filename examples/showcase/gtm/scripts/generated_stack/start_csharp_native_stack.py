@@ -30,6 +30,18 @@ def _api_keys_json() -> str:
     return json.dumps({profile.api_key: encode_actor_principal(profile) for profile in actor_profiles().values()})
 
 
+def _runtime_pythonpath() -> str:
+    paths = [
+        str(REPO_ROOT / "packages" / "python" / "anip-runtime-utils" / "src"),
+        str(REPO_ROOT / "examples" / "showcase" / "gtm"),
+        str(REPO_ROOT),
+    ]
+    existing = os.environ.get("PYTHONPATH")
+    if existing:
+        paths.append(existing)
+    return os.pathsep.join(paths)
+
+
 def _service_config(base_port: int) -> list[dict[str, str]]:
     services: list[dict[str, str]] = []
     for index, (name, _service_id) in enumerate(SERVICE_SLICES):
@@ -72,7 +84,7 @@ def _start_runtime(args: argparse.Namespace) -> subprocess.Popen[bytes]:
     env = os.environ.copy()
     env.update(
         {
-            "PYTHONPATH": os.pathsep.join([str(REPO_ROOT / "examples" / "showcase" / "gtm"), str(REPO_ROOT)]),
+            "PYTHONPATH": _runtime_pythonpath(),
             "ANIP_AGENT_APP_MODULE": "gtm_agent_app",
             "OPENAI_MODEL": args.model,
             "DATABASE_URL": args.database_url,

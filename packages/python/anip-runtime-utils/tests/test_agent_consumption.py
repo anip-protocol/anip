@@ -16,6 +16,7 @@ from anip_runtime_utils.agent_consumption import (
     is_conditional_approval_boundary_active,
     is_ungrounded_declared_context,
     metadata_with_manifest_controls,
+    missing_required_input_names,
     normalize_clarification_continuation_plan,
     normalize_declared_parameters,
     normalize_invocation_plan,
@@ -153,6 +154,28 @@ def test_compact_agent_capability_brief_prefers_read_bottleneck_for_read_intent(
     assert stats["compact_candidate_ids"] == ["gtm.stage_bottleneck_summary"]
     assert "gtm.stage_bottleneck_summary" in brief
     assert "gtm.at_risk_followup_preparation" not in brief
+
+
+def test_capability_match_score_prefers_less_specialized_tie() -> None:
+    conversation = "Summarize Q2 pipeline for the company."
+    pipeline_score = capability_match_score(
+        conversation,
+        "gtm.pipeline_summary",
+        {"capability_framing": "Return bounded pipeline health evidence without exporting raw rows."},
+    )
+    forecast_score = capability_match_score(
+        conversation,
+        "gtm.pipeline_forecast_summary",
+        {"capability_framing": "Return bounded forecast evidence without exporting raw rows."},
+    )
+    product_score = capability_match_score(
+        conversation,
+        "gtm.product_pipeline_summary",
+        {"capability_framing": "Return bounded product pipeline evidence without exporting raw rows."},
+    )
+
+    assert pipeline_score > forecast_score
+    assert pipeline_score > product_score
 
 
 def test_requested_primary_content_effect_ignores_negated_draft_terms() -> None:
@@ -528,6 +551,76 @@ def test_reference_value_normalizes_from_reference_catalog() -> None:
     )
 
 
+def test_entity_reference_does_not_bind_other_declared_input_value() -> None:
+    metadata = {
+        "input_specs": [
+            {
+                "name": "target_ref",
+                "required": True,
+                "entity_reference": True,
+                "resolution": {"mode": "backend_resolved", "on_missing": "clarify"},
+            },
+            {
+                "name": "channel",
+                "required": False,
+                "allowed_values": ["email", "linkedin"],
+                "default": "email",
+                "resolution": {"mode": "closed_values", "on_missing": "use_default"},
+            },
+        ]
+    }
+
+    params = normalize_declared_parameters(
+        {"target_ref": "LinkedIn", "channel": "linkedin"},
+        "Draft a LinkedIn outreach note.",
+        metadata,
+    )
+
+    assert "target_ref" not in params
+    assert params["channel"] == "linkedin"
+
+
+def test_open_backend_reference_is_not_inferred_from_arbitrary_request_text() -> None:
+    metadata = {
+        "input_specs": [
+            {
+                "name": "target_ref",
+                "required": True,
+                "entity_reference": True,
+                "resolution": {"mode": "backend_resolved", "on_missing": "clarify"},
+            }
+        ]
+    }
+
+    assert normalize_declared_parameters({}, "Where are we bottlenecked?", metadata) == {}
+    assert normalize_declared_parameters({}, "Rank the highest priority targets.", metadata) == {}
+
+
+def test_missing_required_input_names_honors_defaults_and_planned_parameters() -> None:
+    missing = missing_required_input_names(
+        "Draft a LinkedIn outreach note.",
+        {
+            "input_specs": [
+                {
+                    "name": "target_ref",
+                    "required": True,
+                    "entity_reference": True,
+                    "resolution": {"mode": "backend_resolved", "on_missing": "clarify"},
+                },
+                {
+                    "name": "objective",
+                    "required": True,
+                    "default": "first_touch",
+                    "resolution": {"on_missing": "use_default"},
+                },
+            ],
+        },
+        {"target_ref": "Acme Corporation"},
+    )
+
+    assert missing == set()
+
+
 def test_declared_allowed_value_normalizes_business_adjective_to_backend_field() -> None:
     metadata = {
         "runtime_customization": {
@@ -812,6 +905,89 @@ def test_effect_selection_preserves_stronger_semantic_match() -> None:
     )
 
     assert selected == "gtm.stalled_opportunity_review"
+
+
+def test_grounded_selection_does_not_swap_same_count_different_missing_inputs() -> None:
+    metadata = {
+        "crm.direct_draft": {
+            "description": "Draft outreach content without sending messages.",
+            "input_specs": [
+                {"name": "target_ref", "required": True, "semantic_type": "entity_reference"},
+                {"name": "objective", "required": True, "default": "first_touch", "resolution": {"on_missing": "use_default"}},
+            ],
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+        },
+        "crm.quarterly_draft": {
+            "description": "Draft quarterly outreach for a selected bottleneck account.",
+            "input_specs": [
+                {"name": "quarter", "required": True, "semantic_type": "time_scope"},
+                {"name": "target_ref", "required": False, "semantic_type": "entity_reference"},
+            ],
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+        },
+    }
+
+    selected = select_consumable_capability(
+        "Draft outreach for the account.",
+        "crm.direct_draft",
+        metadata,
+        parameter_values={"objective": "first_touch"},
+    )
+
+    assert selected == "crm.direct_draft"
+
+
+def test_stronger_contract_match_can_clarify_instead_of_executing_nearby_capability() -> None:
+    metadata = {
+        "crm.bottleneck_outreach_draft": {
+            "capability_id": "crm.bottleneck_outreach_draft",
+            "description": "Draft outreach for a selected bottleneck account.",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+            "input_specs": [
+                {"name": "segment_ref", "required": True, "input_type": "string", "allowed_values": ["enterprise"]},
+                {"name": "channel", "required": False, "input_type": "string", "allowed_values": ["email", "linkedin"]},
+            ],
+        },
+        "crm.prioritized_cohort_outreach_draft": {
+            "capability_id": "crm.prioritized_cohort_outreach_draft",
+            "description": "Prioritize a bounded account cohort, include enrichment context, and draft outreach.",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+            "input_specs": [
+                {
+                    "name": "cohort_ref",
+                    "required": True,
+                    "allowed_values": ["expansion_candidates_q2", "at_risk_q2"],
+                    "input_type": "string",
+                    "resolution": {"on_missing": "clarify", "on_ambiguous": "clarify"},
+                },
+                {"name": "channel", "required": False, "input_type": "string", "allowed_values": ["email", "linkedin"]},
+            ],
+            "app_profile": {
+                "capability_framing": (
+                    "Prioritize a bounded account cohort and produce draft outreach content only."
+                ),
+                "input_meanings": {
+                    "cohort_ref": {
+                        "expansion_candidates_q2": "Expansion candidates for Q2 account prioritization.",
+                        "at_risk_q2": "At-risk accounts for Q2 prioritization.",
+                    }
+                },
+            },
+        },
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "crm.bottleneck_outreach_draft",
+            "parameters": {"segment_ref": "enterprise", "channel": "linkedin"},
+            "unsupported": False,
+        },
+        "Prioritize enterprise candidates, add enrichment for the top three, and draft LinkedIn outreach for the top account.",
+        metadata,
+    )
+
+    assert plan["selected_capability"] == "crm.prioritized_cohort_outreach_draft"
+    assert "cohort_ref" not in plan["parameters"]
 
 
 def test_declared_reference_requires_grounding_when_catalog_exists() -> None:

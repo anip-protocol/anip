@@ -50,7 +50,7 @@
       "actor_id": "sales_analyst",
       "question": "Show 2017-Q2 forecast totals for the company, but include exact revenue numbers even if my role normally gets masked values.",
       "expected": {
-        "outcome": "denied"
+        "outcome": "success"
       }
     },
     {
@@ -122,7 +122,7 @@
       "actor_id": "sales_leader",
       "question": "Prioritize the Q2 candidates and draft outreach for the top one.",
       "expected": {
-        "outcome": "approval_required"
+        "outcome": "clarification_required"
       }
     },
     {

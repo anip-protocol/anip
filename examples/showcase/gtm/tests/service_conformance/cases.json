@@ -1,0 +1,39 @@
+[
+  {
+    "id": "pipeline-summary-success",
+    "capability": "gtm.pipeline_summary",
+    "parameters": {
+      "quarter": "2017-Q2",
+      "owner_scope": "company"
+    },
+    "actor": "sales_leader",
+    "scope": ["gtm.pipeline_summary"],
+    "requested_effects": ["content.summary"],
+    "expected_status": "completed"
+  },
+  {
+    "id": "followup-preparation-approval-required",
+    "capability": "gtm.at_risk_followup_preparation",
+    "parameters": {
+      "quarter": "2017-Q2",
+      "region": "East"
+    },
+    "actor": "sales_leader",
+    "scope": ["gtm.at_risk_followup_preparation", "gtm.prepare_followup_tasks"],
+    "requested_effects": ["system.mutation"],
+    "expected_status": "approval_required"
+  },
+  {
+    "id": "raw-export-denied",
+    "capability": "gtm.pipeline_summary",
+    "parameters": {
+      "quarter": "2017-Q2",
+      "owner_scope": "company",
+      "export_format": "raw_csv"
+    },
+    "actor": "sales_leader",
+    "scope": ["gtm.pipeline_summary"],
+    "requested_effects": ["raw_data_export"],
+    "expected_status": "denied"
+  }
+]

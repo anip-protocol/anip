@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const anipCSharpPackageVersion = "0.24.5"
+const anipCSharpPackageVersion = "0.24.6"
 
 func BuildCSharpProject(definition *AnipServiceDefinition, options BuildCSharpProjectOptions) (*GeneratedProject, error) {
 	model, err := BuildGenerationModel(definition)
@@ -598,6 +598,7 @@ func buildGeneratedCSharpCapabilities(namespaceName string) string {
 		"        Dictionary<string, object?> parameters,",
 		"        BackendAdapterHandler backendAdapter)",
 		"    {",
+		"        AssertRequestedEffectsAllowed(capability, ctx);",
 		"        parameters = ApplyInputDefaults(capability, parameters);",
 		"        AssertRequiredSemanticInputs(capability, parameters);",
 		"        ValidateInputBehavior(capability, parameters);",
@@ -779,6 +780,17 @@ func buildGeneratedCSharpCapabilities(namespaceName string) string {
 		`            ["backend_input_contract"] = contract,`,
 		`            ["unresolved_required_backend_inputs"] = unresolved,`,
 		"        };",
+		"    }",
+		"",
+		"    private static void AssertRequestedEffectsAllowed(Dictionary<string, object?> capability, InvocationContext ctx)",
+		"    {",
+		"        if (ctx.RequestedEffects.Count == 0) return;",
+		`        var effects = DictionaryValue(capability.GetValueOrDefault("business_effects"));`,
+		`        var forbidden = new HashSet<string>(StringList(effects.GetValueOrDefault("does_not_produce")));`,
+		"        if (forbidden.Count == 0) return;",
+		"        var blocked = ctx.RequestedEffects.Where(effect => forbidden.Contains(effect)).Distinct().OrderBy(effect => effect).ToList();",
+		"        if (blocked.Count == 0) return;",
+		`        throw new AnipError("denied", $"Capability {StringValue(capability, "capability_id")} does not produce requested effect(s): {string.Join(", ", blocked)}.").WithResolution("request_declared_capability");`,
 		"    }",
 		"",
 		"    private static Dictionary<string, object?>? SelectBackendBinding(Dictionary<string, object?> capability)",

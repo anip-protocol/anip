@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	anipJavaPackageVersion = "0.24.5"
+	anipJavaPackageVersion = "0.24.6"
 	springBootVersion      = "3.4.3"
 	quarkusVersion         = "3.17.8"
 )
@@ -1044,6 +1044,7 @@ func buildGeneratedJavaCapabilitiesModule(packageName string) string {
 		"    }",
 		"",
 		"    private static Map<String, Object> handle(Map<String, Object> capability, InvocationContext ctx, Map<String, Object> params, BackendAdapter backendAdapter) {",
+		"        assertRequestedEffectsAllowed(capability, ctx);",
 		"        params = applyInputDefaults(capability, params);",
 		"        assertRequiredSemanticInputs(capability, params);",
 		"        validateInputBehavior(capability, params);",
@@ -1226,6 +1227,20 @@ func buildGeneratedJavaCapabilitiesModule(packageName string) string {
 		`        plan.put("backend_input_contract", contract);`,
 		`        plan.put("unresolved_required_backend_inputs", unresolved);`,
 		"        return plan;",
+		"    }",
+		"",
+		"    private static void assertRequestedEffectsAllowed(Map<String, Object> capability, InvocationContext ctx) {",
+		"        List<String> requested = ctx.getRequestedEffects();",
+		"        if (requested.isEmpty()) return;",
+		`        List<String> forbidden = stringList(value(objectMap(capability.get("business_effects")), "does_not_produce"));`,
+		"        if (forbidden.isEmpty()) return;",
+		"        List<String> blocked = new ArrayList<>();",
+		"        for (String effect : requested) {",
+		"            if (forbidden.contains(effect) && !blocked.contains(effect)) blocked.add(effect);",
+		"        }",
+		"        if (blocked.isEmpty()) return;",
+		"        blocked.sort(String::compareTo);",
+		`        throw new ANIPError("denied", "Capability " + stringValue(capability, "capability_id") + " does not produce requested effect(s): " + String.join(", ", blocked) + ".").withResolution("request_declared_capability");`,
 		"    }",
 		"",
 		"    private static Map<String, Object> selectBackendBinding(Map<String, Object> capability) {",

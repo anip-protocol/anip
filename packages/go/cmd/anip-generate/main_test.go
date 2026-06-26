@@ -9,8 +9,48 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/anip-protocol/anip/packages/go/generator"
 	"github.com/anip-protocol/anip/packages/go/registryapi"
 )
+
+func validCLIReadiness() map[string]any {
+	return map[string]any{
+		"artifact_type": "agent_consumption_readiness",
+		"status":        "ready",
+		"score":         float64(100),
+		"summary": map[string]any{
+			"blockers":          float64(0),
+			"warnings":          float64(0),
+			"info":              float64(0),
+			"probes":            float64(1),
+			"required_app_glue": float64(0),
+		},
+		"findings":          []any{},
+		"probes":            []any{map[string]any{"id": "probe-1", "expected_outcome": "success"}},
+		"required_app_glue": []any{},
+	}
+}
+
+func validCLIConsumability(capabilityIDs ...string) map[string]any {
+	capabilities := map[string]any{}
+	for _, capabilityID := range capabilityIDs {
+		capabilities[capabilityID] = map[string]any{
+			"intent": map[string]any{
+				"category": capabilityID,
+				"summary":  "Generated test capability.",
+			},
+			"business_effects": map[string]any{
+				"produces":         []any{"data.read"},
+				"does_not_produce": []any{"system.mutation"},
+			},
+		}
+	}
+	return map[string]any{
+		"artifact_type":  "agent_consumability_metadata",
+		"schema_version": "anip-agent-consumability/v0",
+		"capabilities":   capabilities,
+	}
+}
 
 func TestCLIGeneratesAllTargetsFromFixture(t *testing.T) {
 	wd, err := os.Getwd()
@@ -265,30 +305,45 @@ func TestCLIGeneratesFromPackageBundle(t *testing.T) {
 			"contract_signature": "sha256:test-contract",
 		},
 	}
+	manifest := map[string]any{
+		"name":                        "Work Item Fronting",
+		"agent_consumption_readiness": validCLIReadiness(),
+		"agent_consumability":         validCLIConsumability("work_item.search", "work_item.prepare_update"),
+		"implementation_material": map[string]any{
+			"custom_code_bundles": []any{
+				map[string]any{
+					"title": "Reviewed app glue",
+					"ref":   "registry://acme/work-item-glue@1.2.3#sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				},
+			},
+		},
+	}
+	lock := map[string]any{
+		"verifier_pack":               map[string]any{"name": "anip-verifier"},
+		"agent_consumption_readiness": validCLIReadiness(),
+		"agent_consumability":         validCLIConsumability("work_item.search", "work_item.prepare_update"),
+	}
+	signature, err := generator.ComputePackageExecutionSignature(manifest, serviceDefinition, lock, []map[string]any{}, lineage)
+	if err != nil {
+		t.Fatalf("compute package execution signature: %v", err)
+	}
+	manifest["package_execution_signature"] = signature
+	lock["package_execution_signature"] = signature
 	bundleBytes, err := json.Marshal(map[string]any{
 		"bundle_schema_version": "anip-package-bundle/v1",
 		"authority":             "local-studio",
 		"lineage":               lineage,
 		"package": map[string]any{
-			"package_id":         "work-item-fronting",
-			"package_version":    "0.2.0",
-			"contract_signature": "sha256:test-contract",
-			"lineage":            lineage,
-			"schema_version":     "anip-service-definition/v1",
-			"definition_digest":  "sha256:test-definition",
-			"service_definition": serviceDefinition,
-			"manifest": map[string]any{
-				"name": "Work Item Fronting",
-				"implementation_material": map[string]any{
-					"custom_code_bundles": []any{
-						map[string]any{
-							"title": "Reviewed app glue",
-							"ref":   "registry://acme/work-item-glue@1.2.3#sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-						},
-					},
-				},
-			},
-			"recommended_lock": map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}},
+			"package_id":                  "work-item-fronting",
+			"package_version":             "0.2.0",
+			"contract_signature":          "sha256:test-contract",
+			"lineage":                     lineage,
+			"schema_version":              "anip-service-definition/v1",
+			"definition_digest":           "sha256:test-definition",
+			"service_definition":          serviceDefinition,
+			"manifest":                    manifest,
+			"recommended_lock":            lock,
+			"package_execution_signature": signature,
 		},
 		"receipt": map[string]any{
 			"registry_signature": "sha256:test-receipt",
@@ -410,7 +465,13 @@ func TestCLIGeneratesFromTrustedRegistryPackage(t *testing.T) {
 			},
 		},
 		SchemaVersion:     "anip-service-definition/v1",
-		Manifest:          map[string]any{"name": "Work Item Fronting", "version": "0.2.0", "anip_spec_version": "anip/0.24"},
+		Manifest: map[string]any{
+			"name":                        "Work Item Fronting",
+			"version":                     "0.2.0",
+			"anip_spec_version":           "anip/0.24",
+			"agent_consumption_readiness": validCLIReadiness(),
+			"agent_consumability":         validCLIConsumability("work_item.search", "work_item.prepare_update"),
+		},
 		ServiceDefinition: serviceDefinition,
 		RecommendedLock:   map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}},
 	}); err != nil {

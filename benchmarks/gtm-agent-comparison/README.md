@@ -5,7 +5,20 @@ This benchmark compares two ways of letting an agent answer the same GTM questio
 - **ANIP agent:** the agent discovers governed capabilities, selects one declared capability, and the service enforces input resolution, permissions, approvals, denial, and audit.
 - **MCP-style skill/recipe baseline:** the agent receives raw tool schemas plus client-side skills, recipes, and policy text. It must decide how to route, validate, stop, recover, or call tools from the consumer side.
 
-The benchmark is intentionally separate from the GTM release-gate question-bank runner. The release gate proves the generated ANIP services behave correctly. This benchmark measures the operational cost of different consumption patterns.
+The benchmark is intentionally separate from deterministic release gates. Service conformance, deterministic routing, and adversarial governance must pass before the LLM benchmark is used for comparison. This benchmark measures the operational cost and reliability profile of different consumption patterns.
+
+## Validation Model
+
+Do not treat a single LLM benchmark run as a release gate.
+
+Use this order instead:
+
+1. **Service conformance:** direct ANIP capability invocations, no LLM, pass/fail.
+2. **Deterministic routing conformance:** contract/profile-based capability selection, no LLM, pass/fail.
+3. **Adversarial governance conformance:** denial, approval, scope, masking, and forbidden-effect behavior, no model-dependent routing where possible.
+4. **LLM benchmark:** pass rate, failure classes, tokens, loops, latency, and variance over repeated runs.
+
+The LLM benchmark is useful, but it is stochastic. It can expose routing and prompt-packaging weaknesses; it should not be patched case-by-case until the deterministic gates show whether the failure belongs to the service contract, the routing profile, or the model-facing agent layer.
 
 ## What We Measure
 
@@ -152,11 +165,11 @@ python3 benchmarks/gtm-agent-comparison/scripts/compare_runs.py \
 
 For public claims, fill `config/openai-pricing.example.json` with the exact provider pricing that applied at the time of the run and keep the pricing file with the run artifacts.
 
-## Current Local Sample Results
+## Historical Local Sample Results
 
-These are engineering run notes, not final public benchmark claims.
+These are engineering run notes, not final public benchmark claims. They describe local runs from one development period and must be rerun after package, runtime, prompt, or contract changes. A `540/540` result here does not by itself prove the generated services are release-ready; deterministic service and routing gates must pass first.
 
-ANIP full-bank reference:
+ANIP full-bank reference from an earlier local run:
 
 - `540/540` passed against the generated GTM ANIP services.
 - Average loops: `2.20`.
@@ -165,7 +178,7 @@ ANIP full-bank reference:
 - Cached-token ratio: `75.41%`.
 - Average elapsed time: `1366.76ms`.
 
-ANIP compact-catalog optimization experiment:
+ANIP compact-catalog optimization experiment from earlier local runs:
 
 - This is a local opt-in runtime experiment, not a protocol/package change.
 - Enable with `ANIP_AGENT_COMPACT_CATALOG=true`.
@@ -193,7 +206,7 @@ The important observation is not only token count. The MCP-style baseline did no
 
 That is the implementation burden ANIP is designed to move from every agent consumer into the service-owned capability contract.
 
-MCP-style skill/recipe full-bank iteration:
+MCP-style skill/recipe full-bank iteration from earlier local runs:
 
 - Initial `gpt-5.4-mini` full-bank run: `516/540` passed.
 - The `24` failures were not ANIP failures; they were consumer-side recipe/guardrail gaps: scope restriction classification, unknown entity handling, temporal parsing, provider-selected-target boundary handling, compound flow policy, and final-response overclaims.
@@ -217,7 +230,7 @@ The fair conclusion from this GTM suite is precise:
 - The ANIP path passed through provider-owned capability contracts, generated services, and service-side governance semantics.
 - This suite proves governance-location and repair-burden differences more directly than model-tier differences.
 
-Hard-mode extension:
+Hard-mode extension from earlier local runs:
 
 - Added `cases/gtm-hard-mode.json`, a 24-case suite for prompt injection, mixed safe/unsafe intent, actor-boundary pressure, provider-selected targets, approval bypass attempts, negated actions, and multi-turn ambiguity.
 - Compact ANIP with `gpt-5.4-mini` passed `24/24`, average loops `2.33`, total loops `56`, total tokens `72,400`.
@@ -226,7 +239,7 @@ Hard-mode extension:
 - The failed MCP-style cases were consumer-side policy errors: draft-vs-send confusion, over-denial of safe draft-only requests, approval-bypass handling, provider-selected target continuation, and one safe-forecast/raw-SQL fallback conflict.
 - The hard-mode result does not prove that a stronger model can never help. It shows that stronger reasoning alone is not a reliable substitute for provider-owned execution contracts when policy and recovery live in consumer prompts/recipes.
 
-Mixed nano-to-mini routing experiment:
+Mixed nano-to-mini routing experiment from earlier local runs:
 
 - The mixed runner first sends each request to a compact ANIP runtime using `gpt-5.4-nano`, then falls back to compact ANIP on `gpt-5.4-mini` only when the benchmark acceptance check fails.
 - This is an engineering opportunity measurement, not a production routing policy. The fallback decision uses the benchmark's expected outcome oracle, so these results must not be presented as evidence that the runtime already has safe automatic nano-to-mini routing.

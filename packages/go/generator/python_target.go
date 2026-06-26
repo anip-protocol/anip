@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const anipPythonPackageVersion = "0.24.5"
+const anipPythonPackageVersion = "0.24.6"
 
 func BuildPythonProject(definition *AnipServiceDefinition, options BuildPythonProjectOptions) (*GeneratedProject, error) {
 	model, err := BuildGenerationModel(definition)
@@ -444,6 +444,27 @@ func buildGeneratedPythonCapabilitiesModule(defaultServiceID string) string {
 		`        "unresolved_required_backend_inputs": unresolved,`,
 		"    }",
 		"",
+		"def _capability_forbidden_effects(capability: dict[str, Any]) -> set[str]:",
+		`    effects = capability.get("business_effects") or {}`,
+		`    values = effects.get("does_not_produce") if isinstance(effects, dict) else []`,
+		"    return {str(item) for item in values or [] if str(item or '').strip()}",
+		"",
+		"def _requested_effects(ctx: InvocationContext) -> set[str]:",
+		`    values = getattr(ctx, "requested_effects", []) or []`,
+		"    return {str(item) for item in values if str(item or '').strip()}",
+		"",
+		"def _assert_requested_effects_allowed(capability: dict[str, Any], ctx: InvocationContext) -> None:",
+		"    requested = _requested_effects(ctx)",
+		"    forbidden = _capability_forbidden_effects(capability)",
+		"    blocked = sorted(requested & forbidden)",
+		"    if blocked:",
+		"        raise ANIPError(",
+		`            "denied",`,
+		`            f"Capability {capability['capability_id']} does not produce requested effect(s): {', '.join(blocked)}.",`,
+		`            {"action": "request_declared_capability", "recovery_class": "terminal", "unsupported_effects": blocked},`,
+		"            retry=False,",
+		"        )",
+		"",
 		"def _assert_required_semantic_inputs(capability: dict[str, Any], params: dict[str, Any]) -> None:",
 		"    missing = []",
 		"    for item in capability.get('required_inputs', []):",
@@ -583,6 +604,7 @@ func buildGeneratedPythonCapabilitiesModule(defaultServiceID string) string {
 		"    return resolved_output",
 		"",
 		"async def _handle_generated_capability(capability: dict[str, Any], ctx: InvocationContext, params: dict[str, Any], capability_registry: dict[str, Capability] | None = None) -> dict[str, Any]:",
+		"    _assert_requested_effects_allowed(capability, ctx)",
 		"    params = _apply_input_defaults(capability, params)",
 		"    _assert_required_semantic_inputs(capability, params)",
 		"    _validate_input_behavior(capability, params)",
@@ -889,6 +911,10 @@ func pythonModuleName(systemName string) string {
 		return "generated_anip_service"
 	}
 	return name
+}
+
+func PythonModuleNameForPackageID(packageID string) string {
+	return pythonModuleName(packageID)
 }
 
 func pythonStringListLiteral(values []string) string {

@@ -105,7 +105,7 @@ MULTITURN_EXTENSION_SPECS = [
         "initials": [
             "Score the leads.",
             "Prioritize the account cohort.",
-            "Rank the highest-priority targets.",
+            "Rank the highest-priority account targets.",
             "Show the best accounts to work.",
             "Score a named lead cohort.",
         ],
