@@ -22,12 +22,13 @@ This page is the operational reference for Studio. If you are learning Studio as
 
 ## Version and spec posture
 
-The current Studio application version is `0.24.6`. The current public Studio Docker image tag is `0.24.6`. The protocol target is `anip/0.24`.
+The current Studio application version is `0.9.0`. The current public Studio Docker image tag is `0.9.0`. The protocol target is `anip/0.24`.
 
 Those versions are intentionally separate:
 
 - Studio version tracks the product and tooling surface.
 - ANIP spec version tracks the contract shape emitted by Studio.
+- ANIP SDK/runtime package versions track language package releases such as `0.24.x`; they do not define the Studio app version.
 - Package and template versions track immutable published artifacts.
 
 Studio should reject starter templates that target a newer ANIP spec than the Studio build supports. For the current release line, Studio should emit strict `anip/0.24` definitions rather than silently preserving legacy shapes.

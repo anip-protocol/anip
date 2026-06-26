@@ -70,7 +70,9 @@ export async function mountAnip(
     const upstreamService = body.upstream_service ?? null;
     const budget = body.budget ?? null;
     const requestedEffects = Array.isArray(body.requested_effects)
-      ? body.requested_effects.map(String).filter((item: string) => item.trim().length > 0)
+      ? body.requested_effects
+          .map((item: unknown) => String(item))
+          .filter((item: string) => item.trim().length > 0)
       : [];
     // v0.23: continuation invocations supply approval_grant. session_id for
     // session_bound grants is read from the signed token, never the body.

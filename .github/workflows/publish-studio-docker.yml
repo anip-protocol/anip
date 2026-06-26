@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Studio image version tag (e.g., 0.24.6)"
+        description: "Studio app/image version tag (e.g., 0.9.0)"
         required: true
       source_ref:
         description: "Git ref to build from"

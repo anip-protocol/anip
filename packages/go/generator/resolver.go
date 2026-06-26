@@ -416,19 +416,6 @@ func computePackageExecutionSignature(
 	return computeCanonicalDigest(payload)
 }
 
-// ComputePackageExecutionSignature returns the canonical execution signature for
-// package fixtures and external package assembly paths that need to match
-// resolver validation exactly.
-func ComputePackageExecutionSignature(
-	manifest map[string]any,
-	serviceDefinition map[string]any,
-	lock map[string]any,
-	implementationMaterials []map[string]any,
-	lineage map[string]any,
-) (string, error) {
-	return computePackageExecutionSignature(manifest, serviceDefinition, lock, implementationMaterials, lineage)
-}
-
 func computeCanonicalDigest(payload any) (string, error) {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
