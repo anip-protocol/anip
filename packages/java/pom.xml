@@ -47,6 +47,7 @@
 
     <modules>
         <module>anip-core</module>
+        <module>anip-runtime-utils</module>
         <module>anip-crypto</module>
         <module>anip-server</module>
         <module>anip-service</module>
