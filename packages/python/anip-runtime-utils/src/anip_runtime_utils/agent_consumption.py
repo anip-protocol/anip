@@ -1587,6 +1587,38 @@ def missing_required_input_names(
     return missing
 
 
+def _missing_required_inputs_are_referenced(
+    conversation: str,
+    capability_metadata: dict[str, Any],
+    missing_inputs: set[str],
+) -> bool:
+    if not missing_inputs:
+        return False
+    conversation_tokens = text_tokens(conversation)
+    if not conversation_tokens:
+        return False
+    weak_tokens = {"id", "ids", "input", "name", "names", "ref", "reference", "value", "values"}
+    input_specs = {
+        str(item.get("name") or ""): item
+        for item in capability_metadata.get("input_specs", [])
+        if isinstance(item, dict)
+    }
+    for input_name in missing_inputs:
+        input_spec = input_specs.get(input_name, {})
+        input_text = " ".join(
+            str(value or "")
+            for value in (
+                input_name,
+                input_spec.get("semantic_type"),
+                input_spec.get("description"),
+            )
+        )
+        input_tokens = text_tokens(input_text) - weak_tokens
+        if not input_tokens or not (conversation_tokens & input_tokens):
+            return False
+    return True
+
+
 def _same_effect_class(first: dict[str, Any], second: dict[str, Any]) -> bool:
     first_produces = capability_produces(first)
     second_produces = capability_produces(second)
@@ -1667,8 +1699,7 @@ def select_stronger_contract_match_capability(
     """
 
     selected_metadata = metadata[selected_capability]
-    if missing_required_input_names(conversation, selected_metadata):
-        return selected_capability
+    selected_missing = missing_required_input_names(conversation, selected_metadata)
     selected_score = capability_match_score(conversation, selected_capability, selected_metadata)
     customization = runtime_customization_for(selected_metadata)
     min_score = _configured_float(customization, "stronger_contract_match_min_score", 0.12)
@@ -1680,6 +1711,9 @@ def select_stronger_contract_match_capability(
         if capability_id == selected_capability:
             continue
         if not _same_effect_class(selected_metadata, capability_metadata):
+            continue
+        missing = missing_required_input_names(conversation, capability_metadata)
+        if selected_missing and not _missing_required_inputs_are_referenced(conversation, capability_metadata, missing):
             continue
         score = capability_match_score(conversation, capability_id, capability_metadata)
         if score > best_score:

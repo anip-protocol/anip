@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from anip_runtime_utils.agent_consumption import (
     build_agent_capability_catalog,
     build_clarification_continuation,
@@ -1674,3 +1677,22 @@ def test_business_language_rule_does_not_override_excluded_terms() -> None:
 
     assert plan["unsupported"] is True
     assert "raw_data_export" in plan["unsupported_reason"]
+
+
+def test_shared_agent_consumption_fixtures() -> None:
+    fixture_path = Path(__file__).resolve().parents[3] / "agent-consumption-fixtures" / "capability-selection.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    for case in fixture["cases"]:
+        metadata = case["metadata"]
+        selected = case["selected_capability"]
+        conversation = case["conversation"]
+        chosen = select_consumable_capability(conversation, selected, metadata)
+
+        assert chosen == case["expected_capability"], case["id"]
+        assert sorted(missing_required_input_names(conversation, metadata[chosen])) == sorted(
+            case["expected_missing_inputs"]
+        ), case["id"]
+        assert sorted(requested_unsupported_effects(conversation, metadata[selected])) == sorted(
+            case["expected_unsupported_effects"]
+        ), case["id"]
