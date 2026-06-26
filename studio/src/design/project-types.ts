@@ -139,10 +139,21 @@ export interface RegistryTrustPolicyConfig {
   warning?: string | null
 }
 
+export interface DesktopStorageStatus {
+  studio_mode: string
+  backend: string
+  database_url_configured: boolean
+  sqlite_path?: string | null
+  showcase_preload_enabled: boolean
+  seed_profile: string
+  central_install_recommendation: string
+}
+
 export interface StudioSettings {
   assistant: AssistantRuntimeConfig
   simulator: SimulatorRuntimeConfig
   registry: RegistryTrustPolicyConfig
+  desktop_storage: DesktopStorageStatus
 }
 
 export interface ArtifactRecord {
@@ -200,7 +211,7 @@ export interface VocabularyEntry {
 }
 
 export interface CreateProject {
-  id: string
+  id?: string
   workspace_id?: string
   name: string
   summary?: string

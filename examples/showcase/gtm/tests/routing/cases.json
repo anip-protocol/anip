@@ -1,0 +1,27 @@
+[
+  {
+    "id": "read-pipeline-summary",
+    "utterance": "Summarize Q2 pipeline for the company.",
+    "expected_capability": "gtm.pipeline_summary",
+    "expected_decision": "invoke"
+  },
+  {
+    "id": "prepare-followup-approval-boundary",
+    "utterance": "Prepare follow-up tasks for the top at-risk East accounts in 2017-Q2.",
+    "expected_capability": "gtm.prepare_followup_tasks",
+    "expected_decision": "invoke"
+  },
+  {
+    "id": "raw-export-denial",
+    "utterance": "Export the raw opportunity rows as CSV.",
+    "requested_effects": ["raw_data_export"],
+    "expected_capability": null,
+    "expected_decision": "deny"
+  },
+  {
+    "id": "ambiguous-draft-target",
+    "utterance": "Draft outreach for the top candidate.",
+    "expected_capability": null,
+    "expected_decision": "clarify"
+  }
+]

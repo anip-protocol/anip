@@ -19,9 +19,10 @@ from ..db import get_pool
 from .. import repository
 from ..repository import LocalPublicationExistsError, NotFoundError
 from ..publication_guard import validate_publication_saved_revision
+from ..runtime_paths import repo_root
 
 router = APIRouter(prefix="/api/projects/{pid}/local-publications", tags=["local_publications"])
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = repo_root()
 GO_PACKAGES_DIR = ROOT / "packages" / "go"
 CURRENT_ANIP_SPEC_VERSION = "anip/0.24"
 

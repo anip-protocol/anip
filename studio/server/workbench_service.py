@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 from typing import Any
 from uuid import uuid4
 
-ROOT = Path(__file__).resolve().parents[2]
+from .runtime_paths import repo_root, tooling_schema_path
+
+ROOT = repo_root()
 for path in [
     ROOT / "tooling" / "bin",
     ROOT / "packages" / "python" / "anip-core" / "src",
@@ -82,7 +83,7 @@ from .shared_artifacts import (
     finalize_narrative_document,
 )
 
-SCHEMA_DIR = ROOT / "tooling" / "schemas"
+SCHEMA_DIR = tooling_schema_path()
 BOOTSTRAP_BEARER = "studio-workbench-bootstrap"
 WORKBENCH_SCOPES = [
     "studio.workbench.create_workspace",
@@ -736,4 +737,3 @@ async def _generate_drift_analysis(_: Any, params: dict[str, Any]) -> dict[str, 
 
 async def _generate_glue_analysis(_: Any, params: dict[str, Any]) -> dict[str, Any]:
     return await _generate_drift_analysis(_, params)
-

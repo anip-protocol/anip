@@ -278,6 +278,26 @@ the demo implementation with your own code, keep the contract and generated
 service substrate, then replace the custom bundle implementation behind the
 same extension points.
 
+## Validation And Package Promotion
+
+Do not promote a GTM package or showcase snapshot because one LLM question-bank
+run passed. The release gate is layered:
+
+1. Run service conformance directly against generated ANIP services, with no
+   LLM planner.
+2. Run deterministic routing conformance against the generated agent profile,
+   with no model call.
+3. Run adversarial governance checks for denial, approval, actor scope,
+   masking, requested effects, and forbidden effects.
+4. Run the LLM question bank as a pass-rate and failure-class benchmark.
+5. Only then publish the Studio package, registry package, generated images,
+   and showcase snapshot.
+
+Hard-mode behavior must be represented in the Studio project, package metadata,
+and custom bundles before it is treated as official showcase behavior. Runtime
+patches that only repair a benchmark phrase should be quarantined until the
+deterministic routing gate proves they are contract-derived.
+
 ## Running The 490-Question Gate
 
 The 490-question gate is split into the original 350-question bank and the

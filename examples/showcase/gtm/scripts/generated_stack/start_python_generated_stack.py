@@ -61,6 +61,7 @@ def _pythonpath(generated_dir: Path) -> str:
         str(REPO_ROOT / "packages" / "python" / "anip-core" / "src"),
         str(REPO_ROOT / "packages" / "python" / "anip-service" / "src"),
         str(REPO_ROOT / "packages" / "python" / "anip-fastapi" / "src"),
+        str(REPO_ROOT / "packages" / "python" / "anip-runtime-utils" / "src"),
         str(REPO_ROOT),
     ]
     existing = os.environ.get("PYTHONPATH")
@@ -140,7 +141,7 @@ def _start_runtime(args: argparse.Namespace) -> subprocess.Popen[bytes]:
     env = os.environ.copy()
     env.update(
         {
-            "PYTHONPATH": str(REPO_ROOT),
+            "PYTHONPATH": _pythonpath(Path(args.generated_dir).resolve()),
             "ANIP_AGENT_APP_MODULE": "gtm_agent_app",
             "OPENAI_MODEL": args.model,
             "GTM_GENERATED_DIR": str(Path(args.generated_dir).resolve()),

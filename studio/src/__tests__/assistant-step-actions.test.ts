@@ -43,6 +43,7 @@ describe('assistant-step-actions', () => {
     const actions = assistantStepActionsForText(
       'Proceed to generator, verifier, or publication gates only if non-simulator checks are also green.',
       'gtm-ai-recheck-20260429180003',
+      'workspace-1',
     )
 
     expect(actions).toEqual([
@@ -50,19 +51,19 @@ describe('assistant-step-actions', () => {
         id: 'open-generation',
         label: 'Open Generation',
         tone: 'primary',
-        path: '/design/projects/gtm-ai-recheck-20260429180003/developer/definition#generation-launch',
+        path: '/design/workspaces/workspace-1/projects/gtm-ai-recheck-20260429180003/developer/definition#generation-launch',
       },
       {
         id: 'open-verification',
         label: 'Open Verification',
         tone: 'primary',
-        path: '/design/projects/gtm-ai-recheck-20260429180003/verification',
+        path: '/design/workspaces/workspace-1/projects/gtm-ai-recheck-20260429180003/verification',
       },
       {
         id: 'open-publication',
         label: 'Open Publication',
         tone: 'primary',
-        path: '/design/projects/gtm-ai-recheck-20260429180003/developer/definition',
+        path: '/design/workspaces/workspace-1/projects/gtm-ai-recheck-20260429180003/developer/definition',
       },
     ])
   })

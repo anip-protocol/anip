@@ -112,6 +112,7 @@ import {
   selectionHintForSemanticRule,
   semanticInterpretationRuleForFinding,
 } from '../design/semantic-interpretation-rules'
+import { projectPath, projectPathFromParts } from '../design/project-routes'
 
 type AssistantLane = 'pm' | 'dev'
 type AssistantWorkMode = 'manual' | 'guided' | 'autopilot'
@@ -121,6 +122,9 @@ const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
 const project = computed(() => projectStore.activeProject)
+const projectRoute = (suffix = '') => project.value
+  ? projectPath(project.value, suffix)
+  : projectPathFromParts(projectId.value, null, suffix)
 const documents = computed(() => projectStore.artifacts.documents)
 const governedFrontingProject = computed(() => isGovernedFrontingProject(project.value))
 const assistantDocuments = computed(() =>
@@ -318,8 +322,8 @@ watch(projectId, ensureLoaded)
 function setLane(nextLane: AssistantLane) {
   router.replace({
     path: nextLane === 'dev'
-      ? `/design/projects/${projectId.value}/developer/assistant`
-      : `/design/projects/${projectId.value}/pm/assistant`,
+      ? projectRoute('/developer/assistant')
+      : projectRoute('/pm/assistant'),
     query: { ...route.query, lane: undefined, mode: workMode.value },
   })
 }
@@ -1335,6 +1339,9 @@ function numericSummaryValue(summary: Record<string, unknown>, key: string): num
 }
 const developerDefinitionSaved = computed(() => !!developerDefinitionArtifact.value)
 const developerCoverageSaved = computed(() => !!traceabilityArtifact.value)
+const simulatorReportSaved = computed(() =>
+  projectStore.artifacts.pmArtifacts.some((artifact) => artifact.data?.artifact_type === 'agent_consumption_simulation_report'),
+)
 const developerCoverageMappingBlocked = computed(() => {
   if (!traceabilityArtifact.value) return true
   const summary = summarizeCoverage(traceabilityCoverage.value)
@@ -1385,6 +1392,7 @@ const operatorDecisionQueue = computed(() => {
   if (!project.value) return []
   return buildStudioOperatorDecisionQueue({
     projectId: project.value.id,
+    workspaceId: project.value.workspace_id,
     coverage: traceabilityCoverage.value,
     highRiskItems: unresolvedHighRiskConfirmationItems(operatorHighRiskReport.value),
     readinessReport: agentReadinessReport.value,
@@ -1398,7 +1406,7 @@ const developerContinuationState = computed(() => {
         ? 'Developer Design already exists. The next useful assistant action is resolving readiness findings and high-risk confirmations, not creating another first draft.'
         : 'Developer Design coverage already exists. Review coverage, readiness, and simulator evidence before rerunning AI drafting from the locked baseline.',
       label: 'Open Agent & App Glue',
-      path: `/design/projects/${projectId.value}/developer/app-glue`,
+      path: projectRoute('/developer/app-glue'),
     }
   }
   if (developerDefinitionSaved.value) {
@@ -1406,7 +1414,7 @@ const developerContinuationState = computed(() => {
       title: 'Continue Developer Definition',
       copy: 'A Developer Definition is already saved. Review or revise the saved contract before rerunning AI drafting from the locked baseline.',
       label: 'Open Developer Definition',
-      path: `/design/projects/${projectId.value}/developer/definition`,
+      path: projectRoute('/developer/definition'),
     }
   }
   if (developerDesignReviewSaved.value) {
@@ -1414,7 +1422,7 @@ const developerContinuationState = computed(() => {
       title: 'Continue Developer Review',
       copy: 'Developer Design review artifacts already exist. Continue with coverage, readiness, and definition gates before rerunning AI drafting from the locked baseline.',
       label: 'Open Developer Coverage',
-      path: `/design/projects/${projectId.value}/developer/coverage`,
+      path: projectRoute('/developer/coverage'),
     }
   }
   return null
@@ -1456,8 +1464,8 @@ const operatorTasks = computed(() => buildStudioOperatorTasks({
     ? 'Attach service interfaces, semantic models, auth/scopes, or reviewed input-contract evidence before drafting Developer Design.'
     : 'Attach business source documents before drafting Product Design.',
   source_docs_path: lane.value === 'dev'
-    ? `/design/projects/${projectId.value}/developer/source-docs`
-    : `/design/projects/${projectId.value}/source-docs`,
+    ? projectRoute('/developer/source-docs')
+    : projectRoute('/source-docs'),
   source_evidence_ready: autopilotSourceEvidenceGate.value.ready,
   source_evidence_detail: autopilotSourceEvidenceGate.value.detail,
   source_evidence_mode_guidance: autopilotSourceEvidenceGate.value.modeGuidance,
@@ -1467,6 +1475,7 @@ const operatorTasks = computed(() => buildStudioOperatorTasks({
   developer_design_saved: developerDesignReviewSaved.value,
   developer_definition_saved: developerDefinitionSaved.value,
   coverage_blocked: developerCoverageMappingBlocked.value,
+  simulator_report_saved: simulatorReportSaved.value,
   developer_blocked: !!developerDesignIssue.value,
   app_readiness_blocked: !!appGlueIssue.value || developerReviewBlocked.value,
   source_ready: draftSourceReady.value,
@@ -1502,7 +1511,7 @@ const operatorPrimaryStep = computed(() => {
       label: 'Open Project',
       canRun: true,
       run: null as null | (() => Promise<void | 'needs_review'>),
-      path: `/design/projects/${projectId.value}`,
+      path: projectRoute(),
       requires_human_decision: false,
     }
   }
@@ -2337,7 +2346,7 @@ function developerDraftNeedsSaving(): boolean {
       <section v-if="developerLaneNeedsBaseline" class="panel blocking-state">
         <strong>Developer AI mode needs a locked Product Design baseline</strong>
         <p>Open Developer Overview and lock the Product Design baseline first. After that, add Developer Source Docs and run Developer Autopilot or Guided Mode.</p>
-        <button class="btn btn-secondary" type="button" @click="router.push(`/design/projects/${project.id}/developer`)">
+        <button class="btn btn-secondary" type="button" @click="router.push(projectRoute('/developer'))">
           Open Developer Overview
         </button>
       </section>
@@ -2389,15 +2398,15 @@ function developerDraftNeedsSaving(): boolean {
             <strong>Save Deterministic Developer Draft</strong>
             <span>Save selected deterministic Developer Design sections into reviewed artifacts.</span>
           </button>
-          <button class="mode-action-card" type="button" @click="router.push(`/design/projects/${project.id}/pm`)">
+          <button class="mode-action-card" type="button" @click="router.push(projectRoute('/pm'))">
             <strong>Open Product Design</strong>
             <span>Work through business intent, actors, requirements, situations, and PM review.</span>
           </button>
-          <button class="mode-action-card" type="button" @click="router.push(`/design/projects/${project.id}/developer`)">
+          <button class="mode-action-card" type="button" @click="router.push(projectRoute('/developer'))">
             <strong>Open Developer Design</strong>
             <span>Formalize services, capabilities, access, audit, app glue, and generation settings.</span>
           </button>
-          <button class="mode-action-card" type="button" @click="router.push(`/design/projects/${project.id}/verification`)">
+          <button class="mode-action-card" type="button" @click="router.push(projectRoute('/verification'))">
             <strong>Open Verification</strong>
             <span>Review evidence, simulator output, generated service alignment, and publication readiness.</span>
           </button>
@@ -2426,7 +2435,7 @@ function developerDraftNeedsSaving(): boolean {
               v-if="project"
               class="btn btn-secondary"
               type="button"
-              @click="router.push(`/design/projects/${project.id}/developer/app-customization`)"
+              @click="router.push(projectRoute('/developer/app-customization'))"
             >
               View App Customization
             </button>
@@ -2464,7 +2473,7 @@ function developerDraftNeedsSaving(): boolean {
               v-if="project"
               class="btn btn-secondary"
               type="button"
-              @click="router.push(lane === 'dev' ? `/design/projects/${project.id}/developer/source-docs` : `/design/projects/${project.id}/source-docs`)"
+              @click="router.push(lane === 'dev' ? projectRoute('/developer/source-docs') : projectRoute('/source-docs'))"
             >
               Open Source Docs
             </button>
@@ -2700,7 +2709,7 @@ function developerDraftNeedsSaving(): boolean {
           <div v-if="assistantDocuments.length === 0" class="blocking-state">
             <strong>{{ sourceMissingTitle }}</strong>
             <p>{{ sourceMissingCopy }}</p>
-            <button class="btn btn-secondary" @click="router.push(`/design/projects/${project.id}/source-docs`)">
+            <button class="btn btn-secondary" @click="router.push(projectRoute('/source-docs'))">
               Open Source Docs
             </button>
           </div>
@@ -2955,7 +2964,7 @@ function developerDraftNeedsSaving(): boolean {
             <p>
               Developer Autopilot can still ask targeted questions, but input contracts cannot be locked until implementation evidence or reviewed developer answers exist.
             </p>
-            <button class="btn btn-secondary" @click="router.push(`/design/projects/${project.id}/developer/source-docs`)">
+            <button class="btn btn-secondary" @click="router.push(projectRoute('/developer/source-docs'))">
               Open Developer Source Docs
             </button>
           </div>
@@ -2982,7 +2991,7 @@ function developerDraftNeedsSaving(): boolean {
             <strong>Developer topology is locked</strong>
             <p>AI Developer Design preserves the locked Product Design service count and boundaries unless the baseline is intentionally changed.</p>
           </div>
-          <button class="btn btn-secondary" @click="router.push(`/design/projects/${project.id}/developer`)">
+          <button class="btn btn-secondary" @click="router.push(projectRoute('/developer'))">
             Open Developer Overview
           </button>
         </article>
@@ -3023,7 +3032,7 @@ function developerDraftNeedsSaving(): boolean {
           <div v-if="!developerReady && !developerDraftBundle" class="blocking-state">
             <strong>Developer AI mode needs a locked PM baseline</strong>
             <p>Lock Product Design first so the assistant drafts from approved PM intent instead of asking developers to reconstruct it.</p>
-            <button class="btn btn-secondary" @click="router.push(`/design/projects/${project.id}/developer`)">
+            <button class="btn btn-secondary" @click="router.push(projectRoute('/developer'))">
               Open Developer Overview
             </button>
           </div>
@@ -3115,7 +3124,7 @@ function developerDraftNeedsSaving(): boolean {
               v-if="developerDraftBundle"
               class="btn btn-secondary"
               type="button"
-              @click="router.push(`/design/projects/${project.id}/developer/app-glue`)"
+              @click="router.push(projectRoute('/developer/app-glue'))"
             >
               Run Simulator / Readiness Loop
             </button>

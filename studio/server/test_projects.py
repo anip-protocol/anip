@@ -1,7 +1,13 @@
 """Tests for project CRUD API endpoints."""
 
 import os
+from uuid import UUID
+
 os.environ.setdefault("DATABASE_URL", "postgresql://anip:anip@localhost:5432/anip_studio")
+
+
+def assert_uuid(value: str) -> None:
+    UUID(value)
 
 
 def test_list_projects_empty(client):
@@ -28,6 +34,15 @@ def test_create_project(client):
     assert data["labels"] == ["test", "v1"]
     assert "created_at" in data
     assert "updated_at" in data
+
+
+def test_create_project_generates_uuid_when_id_is_omitted(client):
+    resp = client.post("/api/projects", json={"name": "Generated ID Project"})
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert_uuid(data["id"])
+    assert data["name"] == "Generated ID Project"
 
 
 def test_get_project_with_artifact_counts(client):
@@ -231,3 +246,15 @@ def test_clone_project_copies_artifacts(client):
     assert "proj-source" not in artifact["data"]["embedded_refs"]
     assert artifact["id"] in artifact["data"]["embedded_refs"]
     assert "proj-clone" in artifact["data"]["embedded_refs"]
+
+
+def test_clone_project_generates_uuid_when_id_is_omitted(client):
+    client.post("/api/projects", json={"id": "proj-clone-source-generated", "name": "Source"})
+
+    cloned = client.post(
+        "/api/projects/proj-clone-source-generated/clone",
+        json={"name": "Cloned Project"},
+    )
+
+    assert cloned.status_code == 201, cloned.text
+    assert_uuid(cloned.json()["id"])

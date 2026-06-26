@@ -163,6 +163,7 @@ describe('studio operator', () => {
       developer_design_saved: true,
       developer_definition_saved: true,
       coverage_blocked: false,
+      simulator_report_saved: true,
       developer_blocked: false,
       app_readiness_blocked: false,
       source_ready: true,
@@ -187,11 +188,14 @@ describe('studio operator', () => {
       developer_ready: true,
     }))
 
-    expect(tasks.find((task) => task.kind === 'draft_developer_design')?.state).toBe('complete')
+    const developerTask = tasks.find((task) => task.kind === 'draft_developer_design')
+    expect(developerTask?.state).toBe('complete')
+    expect(developerTask?.success_condition).toContain('coverage mapping')
+    expect(developerTask?.success_condition).toContain('Developer Definition')
     expect(nextStudioOperatorTask(tasks)?.kind).toBe('resolve_coverage_coordination')
   })
 
-  it('moves to app readiness after coverage is saved but app glue is still blocked', () => {
+  it('moves to Developer Definition after coverage is saved but definition is missing', () => {
     const tasks = buildStudioOperatorTasks(baseState({
       documents_count: 2,
       product_blocked: false,
@@ -206,7 +210,44 @@ describe('studio operator', () => {
     }))
 
     expect(tasks.find((task) => task.kind === 'resolve_coverage_coordination')?.state).toBe('complete')
+    expect(nextStudioOperatorTask(tasks)?.kind).toBe('save_developer_definition')
+  })
+
+  it('moves to app readiness after definition is saved but app glue is still blocked', () => {
+    const tasks = buildStudioOperatorTasks(baseState({
+      documents_count: 2,
+      product_blocked: false,
+      baseline_locked: true,
+      developer_design_saved: true,
+      developer_definition_saved: true,
+      coverage_blocked: false,
+      developer_blocked: false,
+      app_readiness_blocked: true,
+      source_ready: true,
+      developer_ready: true,
+    }))
+
     expect(nextStudioOperatorTask(tasks)?.kind).toBe('resolve_app_readiness')
+  })
+
+  it('moves to simulator after definition and app readiness are clear but simulator report is missing', () => {
+    const tasks = buildStudioOperatorTasks(baseState({
+      documents_count: 2,
+      product_blocked: false,
+      baseline_locked: true,
+      developer_design_saved: true,
+      developer_definition_saved: true,
+      coverage_blocked: false,
+      simulator_report_saved: false,
+      developer_blocked: false,
+      app_readiness_blocked: false,
+      source_ready: true,
+      developer_ready: true,
+    }))
+
+    const next = nextStudioOperatorTask(tasks)
+    expect(next?.kind).toBe('run_agent_simulator')
+    expect(next?.target_path).toBe('/design/projects/project-1/developer/app-glue')
   })
 
   it('labels the developer task as draft review when an assistant draft exists but artifacts are not saved', () => {
@@ -435,6 +476,7 @@ describe('studio operator', () => {
   it('builds a prioritized operator decision queue', () => {
     const queue = buildStudioOperatorDecisionQueue({
       projectId: 'project-1',
+      workspaceId: 'workspace-1',
       coverage: [coordinationItem()],
       highRiskItems: [{
         id: 'capability-identity:canonical-ids',
@@ -477,13 +519,16 @@ describe('studio operator', () => {
 
     expect(queue.map((item) => item.source)).toEqual(['high_risk', 'readiness', 'coordination'])
     expect(queue[0].severity).toBe('blocker')
-    expect(queue[1].route).toContain('/developer/app-glue')
+    expect(queue[0].route).toBe('/design/workspaces/workspace-1/projects/project-1/developer/capability-formalization#gtm.pipeline_summary')
+    expect(queue[1].route).toBe('/design/workspaces/workspace-1/projects/project-1/developer/app-glue')
+    expect(queue[2].route).toBe('/design/workspaces/workspace-1/projects/project-1/developer/coverage')
     expect(queue[2].action_label).toBe('Open Coordination Review')
   })
 
   it('routes missing capability input contracts to capability formalization review', () => {
     const queue = buildStudioOperatorDecisionQueue({
       projectId: 'project-1',
+      workspaceId: 'workspace-1',
       coverage: [],
       highRiskItems: [{
         id: 'developer-clarification:capability_contracts',
@@ -499,7 +544,7 @@ describe('studio operator', () => {
 
     expect(queue).toHaveLength(1)
     expect(queue[0].action_label).toBe('Provide Input Contracts')
-    expect(queue[0].route).toBe('/design/projects/project-1/developer/capability-formalization#capability-contracts')
+    expect(queue[0].route).toBe('/design/workspaces/workspace-1/projects/project-1/developer/capability-formalization#capability-contracts')
     expect(queue[0].actions).toEqual([])
   })
 })

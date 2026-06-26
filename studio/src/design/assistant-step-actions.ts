@@ -1,3 +1,5 @@
+import { projectPathFromParts } from './project-routes'
+
 export type AssistantStepActionTone = 'primary' | 'secondary'
 
 export interface AssistantStepAction {
@@ -12,13 +14,14 @@ function includesAny(value: string, tokens: string[]): boolean {
   return tokens.some((token) => value.includes(token))
 }
 
-function route(projectId: string, suffix: string): string {
-  return `/design/projects/${projectId}${suffix}`
+function route(projectId: string, workspaceId: string | null | undefined, suffix: string): string {
+  return projectPathFromParts(projectId, workspaceId, suffix)
 }
 
 export function assistantStepActionsForText(
   text: string,
   projectId: string | null | undefined,
+  workspaceId?: string | null,
 ): AssistantStepAction[] {
   if (!projectId) return []
   const normalized = text.toLowerCase()
@@ -61,7 +64,7 @@ export function assistantStepActionsForText(
       id: 'open-app-glue',
       label: 'Open Agent & App Glue',
       tone: 'secondary',
-      path: route(projectId, '/developer/app-glue'),
+      path: route(projectId, workspaceId, '/developer/app-glue'),
     })
   }
 
@@ -70,7 +73,7 @@ export function assistantStepActionsForText(
       id: 'open-app-customization',
       label: 'Open Agent App Customization',
       tone: 'secondary',
-      path: route(projectId, '/developer/app-customization'),
+      path: route(projectId, workspaceId, '/developer/app-customization'),
     })
   }
 
@@ -79,7 +82,7 @@ export function assistantStepActionsForText(
       id: 'open-coverage',
       label: 'Open Coverage',
       tone: 'secondary',
-      path: route(projectId, '/developer/coverage'),
+      path: route(projectId, workspaceId, '/developer/coverage'),
     })
   }
 
@@ -88,7 +91,7 @@ export function assistantStepActionsForText(
       id: 'open-definition',
       label: 'Open Developer Definition',
       tone: 'secondary',
-      path: route(projectId, '/developer/definition'),
+      path: route(projectId, workspaceId, '/developer/definition'),
     })
   }
 
@@ -97,7 +100,7 @@ export function assistantStepActionsForText(
       id: 'open-generation',
       label: 'Open Generation',
       tone: 'primary',
-      path: `${route(projectId, '/developer/definition')}#generation-launch`,
+      path: `${route(projectId, workspaceId, '/developer/definition')}#generation-launch`,
     })
   }
 
@@ -106,7 +109,7 @@ export function assistantStepActionsForText(
       id: 'open-verification',
       label: 'Open Verification',
       tone: 'primary',
-      path: route(projectId, '/verification'),
+      path: route(projectId, workspaceId, '/verification'),
     })
   }
 
@@ -115,7 +118,7 @@ export function assistantStepActionsForText(
       id: 'open-publication',
       label: 'Open Publication',
       tone: 'primary',
-      path: route(projectId, '/developer/definition'),
+      path: route(projectId, workspaceId, '/developer/definition'),
     })
   }
 

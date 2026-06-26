@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Literal
 
 import jsonschema
@@ -21,6 +20,7 @@ from ..repository import (
 )
 from .. import repository
 from ..project_snapshots import export_project_snapshot, import_project_snapshot
+from ..runtime_paths import tooling_schema_path
 from ..seed import seed_from_examples
 
 router = APIRouter(tags=["import_export"])
@@ -29,7 +29,7 @@ router = APIRouter(tags=["import_export"])
 # Schema loading
 # ---------------------------------------------------------------------------
 
-_SCHEMAS_DIR = Path(__file__).parent.parent.parent.parent / "tooling" / "schemas"
+_SCHEMAS_DIR = tooling_schema_path()
 
 _SCHEMA_FILES: dict[str, str] = {
     "requirements": "requirements.schema.json",

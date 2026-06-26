@@ -7,6 +7,7 @@ import type {
   TraceabilityCoverageItem,
 } from './project-types'
 import type { AgentConsumptionReadinessFinding, AgentConsumptionReadinessReport } from './agent-consumption-readiness'
+import { projectPathFromParts } from './project-routes'
 
 export const STUDIO_OPERATOR_ACTIVITY_LOG_ARTIFACT_TYPE = 'studio_operator_activity_log'
 export const STUDIO_OPERATOR_HANDOFF_SUMMARY_ARTIFACT_TYPE = 'studio_operator_handoff_summary'
@@ -17,7 +18,9 @@ export type StudioOperatorTaskKind =
   | 'lock_product_baseline'
   | 'draft_developer_design'
   | 'resolve_coverage_coordination'
+  | 'save_developer_definition'
   | 'resolve_app_readiness'
+  | 'run_agent_simulator'
   | 'open_generation_gate'
 
 export type StudioOperatorTaskState = 'ready' | 'blocked' | 'complete'
@@ -50,6 +53,7 @@ export interface StudioOperatorProjectState {
   developer_design_saved: boolean
   developer_definition_saved: boolean
   coverage_blocked: boolean
+  simulator_report_saved?: boolean
   developer_blocked: boolean
   app_readiness_blocked: boolean
   source_ready: boolean
@@ -297,12 +301,14 @@ export async function persistStudioOperatorHandoffSummary(args: {
 
 export function buildStudioOperatorDecisionQueue(args: {
   projectId: string
+  workspaceId?: string | null
   coverage: TraceabilityCoverageItem[]
   highRiskItems: HighRiskConfirmationItem[]
   readinessReport?: AgentConsumptionReadinessReport | null
   limit?: number
 }): StudioOperatorDecisionQueueItem[] {
   const limit = args.limit ?? 12
+  const route = (suffix = '') => projectPathFromParts(args.projectId, args.workspaceId, suffix)
   const coordination = args.coverage
     .filter((item) =>
       item.id.startsWith('shape:coordination:')
@@ -321,10 +327,10 @@ export function buildStudioOperatorDecisionQueue(args: {
       why_human: 'Studio cannot safely guess whether this relationship is service-owned behavior, consuming-app orchestration, follow-up work, or out of scope.',
       done_when: 'The relationship has a reviewed owner and will not silently become generated behavior.',
       recommendation: 'Decide whether this relationship is owned by a service capability, consuming app glue, follow-up work, or out of scope.',
-      route: `/design/projects/${args.projectId}/developer/coverage`,
+      route: route('/developer/coverage'),
       affected_label: item.label,
       action_label: 'Open Coordination Review',
-      actions: coordinationResolutionChoices(item, args.projectId).map((choice) => ({
+      actions: coordinationResolutionChoices(item, args.projectId, args.workspaceId).map((choice) => ({
         id: choice.id,
         label: choice.label,
         detail: choice.effect,
@@ -343,7 +349,7 @@ export function buildStudioOperatorDecisionQueue(args: {
     why_human: highRiskHumanReason(item),
     done_when: highRiskDoneWhen(item),
     recommendation: item.recommendation,
-    route: highRiskRoute(args.projectId, item),
+    route: highRiskRoute(args.projectId, item, args.workspaceId),
     affected_label: item.related_ids?.slice(0, 3).join(', '),
     action_label: highRiskActionLabel(item),
     actions: highRiskActions(item),
@@ -363,7 +369,7 @@ export function buildStudioOperatorDecisionQueue(args: {
       why_human: readinessHumanReason(finding),
       done_when: readinessDoneWhen(finding),
       recommendation: finding.recommendation,
-      route: readinessRoute(args.projectId, finding),
+      route: readinessRoute(args.projectId, finding, args.workspaceId),
       affected_label: [finding.capability_id, finding.input_name].filter(Boolean).join(' · ') || undefined,
       action_label: finding.owner === 'agent_app_glue' || finding.category === 'app_glue'
         ? 'Open App Glue Review'
@@ -411,27 +417,43 @@ function readinessActions(finding: AgentConsumptionReadinessFinding): StudioOper
   return actions
 }
 
-function highRiskRoute(projectId: string, item: HighRiskConfirmationItem): string {
+function projectRoute(projectId: string, workspaceId: string | null | undefined, suffix = ''): string {
+  return projectPathFromParts(projectId, workspaceId, suffix)
+}
+
+function canonicalizeProjectRoute(
+  projectId: string,
+  workspaceId: string | null | undefined,
+  targetRoute?: string | null,
+): string | null {
+  if (!targetRoute) return null
+  const legacyPrefix = `/design/projects/${projectId}`
+  if (!targetRoute.startsWith(legacyPrefix)) return targetRoute
+  return projectRoute(projectId, workspaceId, targetRoute.slice(legacyPrefix.length))
+}
+
+function highRiskRoute(projectId: string, item: HighRiskConfirmationItem, workspaceId?: string | null): string {
   if (item.id === 'developer-clarification:capability_contracts') {
-    return `/design/projects/${projectId}/developer/capability-formalization#capability-contracts`
+    return `${projectRoute(projectId, workspaceId, '/developer/capability-formalization')}#capability-contracts`
   }
   if (item.id === 'capability-identity:canonical-ids') {
     const capabilityId = item.related_ids?.find(Boolean)
-    return `/design/projects/${projectId}/developer/capability-formalization${capabilityId ? `#${encodeURIComponent(capabilityId)}` : ''}`
+    return `${projectRoute(projectId, workspaceId, '/developer/capability-formalization')}${capabilityId ? `#${encodeURIComponent(capabilityId)}` : ''}`
   }
   if (item.id === 'capability-identity:service-ownership') {
     const serviceId = item.related_ids?.map((value) => String(value).split(':')[0]).find((value) => value && value !== 'unassigned')
-    return `/design/projects/${projectId}/developer/service-formalization${serviceId ? `#${encodeURIComponent(serviceId)}` : ''}`
+    return `${projectRoute(projectId, workspaceId, '/developer/service-formalization')}${serviceId ? `#${encodeURIComponent(serviceId)}` : ''}`
   }
   if (item.id === 'service-ownership:services-without-capabilities') {
     const serviceId = item.related_ids?.find(Boolean)
-    return `/design/projects/${projectId}/developer/service-formalization${serviceId ? `#${encodeURIComponent(serviceId)}` : ''}`
+    return `${projectRoute(projectId, workspaceId, '/developer/service-formalization')}${serviceId ? `#${encodeURIComponent(serviceId)}` : ''}`
   }
   if (item.category === 'composition_ambiguity') {
     const capabilityId = item.related_ids?.find(Boolean)
-    return `/design/projects/${projectId}/developer/capability-formalization${capabilityId ? `#${encodeURIComponent(capabilityId)}` : ''}`
+    return `${projectRoute(projectId, workspaceId, '/developer/capability-formalization')}${capabilityId ? `#${encodeURIComponent(capabilityId)}` : ''}`
   }
-  return item.target_route ?? `/design/projects/${projectId}/developer/coverage`
+  return canonicalizeProjectRoute(projectId, workspaceId, item.target_route)
+    ?? projectRoute(projectId, workspaceId, '/developer/coverage')
 }
 
 function highRiskActionLabel(item: HighRiskConfirmationItem): string {
@@ -508,6 +530,8 @@ function highRiskDoneWhen(item: HighRiskConfirmationItem): string {
 
 export function buildStudioOperatorTasks(state: StudioOperatorProjectState): StudioOperatorTask[] {
   const projectId = state.project?.id ?? ''
+  const workspaceId = state.project?.workspace_id ?? null
+  const route = (suffix = '') => projectId ? projectRoute(projectId, workspaceId, suffix) : null
   const tasks: StudioOperatorTask[] = []
   const sourceEvidenceReady = state.source_evidence_ready ?? state.documents_count > 0
   const sourceEvidenceDetail = state.source_evidence_detail
@@ -526,7 +550,7 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     safe_action_label: 'Open Source Docs',
     success_condition: 'Source evidence is readable, lane-appropriate, and specific enough for Autopilot to draft safely.',
     state: sourceEvidenceReady ? 'complete' : 'ready',
-    target_path: projectId ? (state.source_docs_path ?? `/design/projects/${projectId}/source-docs`) : null,
+    target_path: projectId ? (state.source_docs_path ?? route('/source-docs')) : null,
   })
 
   const productNeedsSourceEvidence = state.product_blocked && !sourceEvidenceReady
@@ -556,7 +580,7 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     safe_action_label: 'Open Developer Overview',
     success_condition: 'Developer baseline is locked against the current Product Design revision.',
     state: state.baseline_locked ? 'complete' : (state.product_blocked ? 'blocked' : 'ready'),
-    target_path: projectId ? `/design/projects/${projectId}/developer` : null,
+    target_path: route('/developer'),
     requires_human_decision: !state.baseline_locked,
   })
 
@@ -569,15 +593,15 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     detail: !sourceEvidenceReady && !state.developer_design_saved && !state.developer_definition_saved
       ? `${sourceEvidenceDetail} ${sourceEvidenceModeGuidance}`
       : state.developer_definition_saved
-      ? 'Developer Definition exists.'
+      ? 'Developer Definition exists. Continue with simulator evidence and generation gates.'
       : state.developer_design_saved
-        ? 'Developer Design review artifacts exist. Continue with coverage and readiness decisions before saving the definition.'
+        ? 'Developer Design review artifacts exist. Continue with coverage mapping, Developer Definition, and simulator evidence before generation.'
         : state.developer_draft_available
           ? 'A Developer Design draft is ready. Review and save the selected sections before moving to coverage and readiness gates.'
       : 'Draft and review the Developer Design from the locked baseline.',
     why_it_matters: 'This turns product intent into concrete services, capabilities, access, audit, app glue, and generation settings.',
     safe_action_label: 'Run Developer Design step',
-    success_condition: 'Developer Design review artifacts are saved from the locked baseline.',
+    success_condition: 'Developer Design review artifacts are saved from the locked baseline; coverage mapping, Developer Definition, and simulator evidence still have their own gates.',
     state: (state.developer_design_saved || state.developer_definition_saved) ? 'complete' : (state.developer_ready && sourceEvidenceReady ? 'ready' : 'blocked'),
   })
 
@@ -590,8 +614,25 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     safe_action_label: 'Open Autopilot Decisions',
     success_condition: 'Each coordination item is marked addressed, deferred, or not applicable with a reviewed rationale.',
     state: state.coverage_blocked ? 'ready' : 'complete',
-    target_path: projectId ? `/design/projects/${projectId}/developer/coverage` : null,
+    target_path: route('/developer/coverage'),
     requires_human_decision: state.coverage_blocked,
+  })
+
+  tasks.push({
+    id: 'developer-definition',
+    kind: 'save_developer_definition',
+    title: 'Save Developer Definition',
+    detail: state.developer_definition_saved
+      ? 'A versioned Developer Definition exists for the current flow.'
+      : state.coverage_blocked
+        ? 'Save Coverage Mapping first so the Developer Definition is anchored to reviewed baseline coverage.'
+        : 'Compile and save the Developer Definition before simulator, generation, or publication gates.',
+    why_it_matters: 'The Developer Definition is the immutable contract artifact used by generation, verification, package publication, and snapshots.',
+    safe_action_label: 'Open Developer Definition',
+    success_condition: 'A saved Developer Definition revision exists and is ready for simulator and generation gates.',
+    state: state.developer_definition_saved ? 'complete' : (state.developer_design_saved && !state.coverage_blocked ? 'ready' : 'blocked'),
+    target_path: route('/developer/definition'),
+    requires_human_decision: !state.developer_definition_saved,
   })
 
   tasks.push({
@@ -605,8 +646,25 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     safe_action_label: 'Open Agent & App Glue',
     success_condition: 'Readiness findings are reviewed or fixed and required app glue is saved.',
     state: state.app_readiness_blocked ? 'ready' : 'complete',
-    target_path: projectId ? `/design/projects/${projectId}/developer/app-glue` : null,
+    target_path: route('/developer/app-glue'),
     requires_human_decision: state.app_readiness_blocked,
+  })
+
+  tasks.push({
+    id: 'agent-simulator',
+    kind: 'run_agent_simulator',
+    title: 'Run Agent Simulator',
+    detail: state.simulator_report_saved
+      ? 'A saved agent-consumption simulator report exists.'
+      : state.developer_definition_saved
+        ? 'Run the agent-consumption simulator from Agent & App Glue before generation or publication.'
+        : 'Save Developer Definition before running simulator evidence.',
+    why_it_matters: 'The simulator catches consumption gaps that static contract validation cannot prove by itself.',
+    safe_action_label: 'Open Agent & App Glue',
+    success_condition: 'A simulator report is saved or publication risk is explicitly accepted.',
+    state: state.simulator_report_saved ? 'complete' : (state.developer_definition_saved && !state.app_readiness_blocked ? 'ready' : 'blocked'),
+    target_path: route('/developer/app-glue'),
+    requires_human_decision: !state.simulator_report_saved,
   })
 
   tasks.push({
@@ -617,21 +675,21 @@ export function buildStudioOperatorTasks(state: StudioOperatorProjectState): Stu
     why_it_matters: 'Generation and Registry publication should only happen from reviewed, versioned contract artifacts.',
     safe_action_label: 'Open Developer Definition',
     success_condition: 'Definition, verifier, generator, and publication gates pass.',
-    state: state.developer_definition_saved && !state.developer_blocked && !state.app_readiness_blocked ? 'ready' : 'blocked',
-    target_path: projectId ? `/design/projects/${projectId}/developer/definition` : null,
+    state: state.developer_definition_saved && state.simulator_report_saved && !state.developer_blocked && !state.app_readiness_blocked ? 'ready' : 'blocked',
+    target_path: route('/developer/definition'),
   })
 
   return tasks
 }
 
-function readinessRoute(projectId: string, finding: AgentConsumptionReadinessFinding): string {
+function readinessRoute(projectId: string, finding: AgentConsumptionReadinessFinding, workspaceId?: string | null): string {
   if (finding.owner === 'agent_app_glue' || finding.category === 'app_glue' || finding.category === 'derived_target') {
-    return `/design/projects/${projectId}/developer/app-glue`
+    return projectRoute(projectId, workspaceId, '/developer/app-glue')
   }
   if (finding.owner === 'developer_contract') {
-    return `/design/projects/${projectId}/developer/capability-formalization${finding.capability_id ? `#${encodeURIComponent(finding.capability_id)}` : ''}`
+    return `${projectRoute(projectId, workspaceId, '/developer/capability-formalization')}${finding.capability_id ? `#${encodeURIComponent(finding.capability_id)}` : ''}`
   }
-  return `/design/projects/${projectId}/developer/coverage`
+  return projectRoute(projectId, workspaceId, '/developer/coverage')
 }
 
 function readinessReviewTarget(finding: AgentConsumptionReadinessFinding): string {
@@ -682,7 +740,11 @@ function slugify(value: string): string {
     || 'event'
 }
 
-export function coordinationResolutionChoices(item: TraceabilityCoverageItem, projectId?: string | null): CoordinationResolutionChoice[] {
+export function coordinationResolutionChoices(
+  item: TraceabilityCoverageItem,
+  projectId?: string | null,
+  workspaceId?: string | null,
+): CoordinationResolutionChoice[] {
   const label = item.label || 'this service relationship'
   const sourceDetail = item.detail || 'No source detail provided.'
   return [
@@ -693,7 +755,7 @@ export function coordinationResolutionChoices(item: TraceabilityCoverageItem, pr
       status: 'addressed',
       rationale: `Reviewed coordination for ${label}: represented as contract-owned capability behavior in Developer Design. Confirm the capability contract owns the sequence, inputs, outputs, empty-result behavior, and approval boundary.`,
       effect: 'Marks coverage addressed and sends the user to Capability Formalization to review or create the owned capability.',
-      next_path: projectId ? `/design/projects/${projectId}/developer/capability-formalization` : null,
+      next_path: projectId ? projectRoute(projectId, workspaceId, '/developer/capability-formalization') : null,
       patch_preview: {
         title: 'Coverage decision plus composed-capability review handoff',
         target_artifact: 'Developer Coverage / Capability Formalization',
@@ -713,7 +775,7 @@ export function coordinationResolutionChoices(item: TraceabilityCoverageItem, pr
       status: 'deferred',
       rationale: `Reviewed coordination for ${label}: consuming-app orchestration owns this relationship. Record app-glue guidance before generation/publication.`,
       effect: 'Marks coverage intentionally deferred and sends the user to Agent & App Glue to package the guidance.',
-      next_path: projectId ? `/design/projects/${projectId}/developer/app-glue` : null,
+      next_path: projectId ? projectRoute(projectId, workspaceId, '/developer/app-glue') : null,
       patch_preview: {
         title: 'Coverage decision plus app-glue handoff',
         target_artifact: 'Developer Coverage / Agent & App Glue',

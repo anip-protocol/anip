@@ -16,8 +16,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from psycopg.types.json import Json
+from .runtime_paths import repo_root, server_path, tooling_schema_path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repo_root()
 
 # Add local packages to Python path so Studio can mount real ANIP services.
 for path in [
@@ -49,16 +50,18 @@ from .simulator_provider import (  # noqa: E402
 from .assistant_service import create_studio_assistant_service  # noqa: E402
 from .workbench_service import create_studio_workbench_service  # noqa: E402
 
+from . import db as studio_db  # noqa: E402
 from .db import check_ready, get_pool, init_db, migration_status, set_database_url  # noqa: E402
-from .models import AgentConsumptionSimulationRequest, AgentConsumptionSimulationResult, AssistantRuntimeConfigOut, RegistryTrustPolicyOut, RuntimeStatusOut, SimulatorRuntimeConfigOut, StudioSettingsOut, UpdateAssistantRuntimeConfig, UpdateSimulatorRuntimeConfig, UpdateStudioSettings  # noqa: E402
+from .db_backends import sqlite_path_from_url  # noqa: E402
+from .models import AgentConsumptionSimulationRequest, AgentConsumptionSimulationResult, AssistantRuntimeConfigOut, DesktopStorageStatusOut, RegistryTrustPolicyOut, RuntimeStatusOut, SimulatorRuntimeConfigOut, StudioSettingsOut, UpdateAssistantRuntimeConfig, UpdateSimulatorRuntimeConfig, UpdateStudioSettings  # noqa: E402
 from .repository import load_vocabulary_defaults  # noqa: E402
 from .publication_guard import validate_publication_saved_revision  # noqa: E402
 from .routers import projects, artifacts, shapes, vocabulary, import_export, workspaces, data_access_projects, application_integration_projects, integration_fronting, local_publications, registry_verification  # noqa: E402
 from .seed import seed_from_examples  # noqa: E402
 from .observability import StudioMetrics, configure_json_logging  # noqa: E402
 
-SCHEMA_DIR = Path(__file__).resolve().parents[2] / "tooling" / "schemas"
-VOCAB_DEFAULTS_PATH = Path(__file__).parent / "vocabulary_defaults.json"
+SCHEMA_DIR = tooling_schema_path()
+VOCAB_DEFAULTS_PATH = server_path("vocabulary_defaults.json")
 ASSISTANT_SERVICE = create_studio_assistant_service()
 WORKBENCH_SERVICE = create_studio_workbench_service()
 _REGISTRY_CONFIG_KEY = "registry_trust_policy_config"
@@ -503,12 +506,42 @@ def _registry_trust_policy_config() -> RegistryTrustPolicyOut:
     )
 
 
+def _desktop_storage_status() -> DesktopStorageStatusOut:
+    studio_mode = (
+        os.environ.get("STUDIO_MODE")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENVIRONMENT")
+        or "default"
+    ).strip().lower()
+    backend = studio_db.database_backend()
+    sqlite_path = None
+    if backend == "sqlite":
+        try:
+            sqlite_path = str(sqlite_path_from_url(studio_db.DATABASE_URL))
+        except RuntimeError:
+            sqlite_path = None
+    seed_showcases = _startup_showcase_seed_enabled()
+    seed_profile = os.environ.get("STUDIO_SEED_PROFILE", "").strip()
+    if not seed_profile:
+        seed_profile = "public_showcase" if seed_showcases else "default"
+    return DesktopStorageStatusOut(
+        studio_mode=studio_mode,
+        backend=backend,
+        database_url_configured=bool(os.environ.get("DATABASE_URL", "").strip()),
+        sqlite_path=sqlite_path,
+        showcase_preload_enabled=seed_showcases,
+        seed_profile=seed_profile,
+        central_install_recommendation="Use the Studio server or Docker deployment with Postgres for shared/team installs.",
+    )
+
+
 @app.get("/api/settings", response_model=StudioSettingsOut)
 async def studio_settings():
     return StudioSettingsOut(
         assistant=await runtime_config(),
         simulator=await simulator_config(),
         registry=_registry_trust_policy_config(),
+        desktop_storage=_desktop_storage_status(),
     )
 
 

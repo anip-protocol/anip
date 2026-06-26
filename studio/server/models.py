@@ -56,7 +56,7 @@ class WorkspaceDetail(WorkspaceOut):
 # ---------------------------------------------------------------------------
 
 class CreateProject(BaseModel):
-    id: str
+    id: Optional[str] = None
     workspace_id: Optional[str] = None
     name: str
     summary: str = ""
@@ -428,10 +428,21 @@ class RegistryTrustPolicyOut(BaseModel):
     warning: str | None = None
 
 
+class DesktopStorageStatusOut(BaseModel):
+    studio_mode: str
+    backend: str
+    database_url_configured: bool = False
+    sqlite_path: str | None = None
+    showcase_preload_enabled: bool = False
+    seed_profile: str = "default"
+    central_install_recommendation: str
+
+
 class StudioSettingsOut(BaseModel):
     assistant: AssistantRuntimeConfigOut
     simulator: SimulatorRuntimeConfigOut
     registry: RegistryTrustPolicyOut
+    desktop_storage: DesktopStorageStatusOut
 
 
 class UpdateRegistryTrustPolicy(BaseModel):

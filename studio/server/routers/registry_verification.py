@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from time import time
 from typing import Any
 
@@ -16,9 +15,10 @@ from pydantic import BaseModel
 from ..db import get_pool
 from .. import repository
 from ..repository import NotFoundError
+from ..runtime_paths import repo_root
 
 router = APIRouter(prefix="/api/projects/{pid}/registry-verification", tags=["registry_verification"])
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = repo_root()
 GO_PACKAGES_DIR = ROOT / "packages" / "go"
 _REGISTRY_CONFIG_KEY = "registry_trust_policy_config"
 

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+from .runtime_paths import repo_root
+
+_REPO_ROOT = repo_root()
 
 
 def _slug(value: str) -> str:

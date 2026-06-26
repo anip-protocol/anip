@@ -1,0 +1,96 @@
+{
+  "schema_version": "anip-agent-consumption-fixtures/v1",
+  "cases": [
+    {
+      "id": "stronger_same_effect_clarifies_missing_target",
+      "conversation": "Draft a notification for the selected customer cohort.",
+      "selected_capability": "records.single_notification_draft",
+      "expected_capability": "records.cohort_notification_draft",
+      "expected_missing_inputs": ["cohort_ref"],
+      "expected_unsupported_effects": [],
+      "metadata": {
+        "records.single_notification_draft": {
+          "capability_id": "records.single_notification_draft",
+          "description": "Draft a notification for one explicit record.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "record_ref",
+              "type": "string",
+              "required": true,
+              "semantic_type": "record_reference",
+              "resolution": {"mode": "explicit_only", "on_missing": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Draft content for a single explicitly selected record.",
+            "input_meanings": {},
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        },
+        "records.cohort_notification_draft": {
+          "capability_id": "records.cohort_notification_draft",
+          "description": "Draft a notification after selecting from a bounded cohort.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "cohort_ref",
+              "type": "string",
+              "required": true,
+              "allowed_values": ["renewal_risk", "expansion_ready"],
+              "semantic_type": "cohort_reference",
+              "resolution": {"mode": "closed_values", "on_missing": "clarify", "on_ambiguous": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Select from a bounded cohort and draft notification content.",
+            "input_meanings": {
+              "cohort_ref": {
+                "renewal_risk": "renewal risk customer cohort",
+                "expansion_ready": "expansion ready customer cohort"
+              }
+            },
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        }
+      }
+    },
+    {
+      "id": "unsupported_external_dispatch_detected",
+      "conversation": "Draft the notification and send it immediately.",
+      "selected_capability": "records.single_notification_draft",
+      "expected_capability": "records.single_notification_draft",
+      "expected_missing_inputs": ["record_ref"],
+      "expected_unsupported_effects": ["external_dispatch"],
+      "metadata": {
+        "records.single_notification_draft": {
+          "capability_id": "records.single_notification_draft",
+          "description": "Draft a notification for one explicit record.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "record_ref",
+              "type": "string",
+              "required": true,
+              "semantic_type": "record_reference",
+              "resolution": {"mode": "explicit_only", "on_missing": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Draft content for a single explicitly selected record.",
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        }
+      }
+    }
+  ]
+}

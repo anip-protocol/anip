@@ -15,7 +15,7 @@ services:
       retries: 10
 
   studio-api:
-    image: "anipprotocol/studio-api:${ANIP_IMAGE_TAG:-local}"
+    image: "anipprotocol/studio-api:${STUDIO_IMAGE_TAG:-${ANIP_IMAGE_TAG:-local}}"
     build:
       context: ..
       dockerfile: studio/server/Dockerfile
@@ -40,7 +40,7 @@ services:
         condition: service_healthy
 
   studio-web:
-    image: "anipprotocol/studio-web:${ANIP_IMAGE_TAG:-local}"
+    image: "anipprotocol/studio-web:${STUDIO_IMAGE_TAG:-${ANIP_IMAGE_TAG:-local}}"
     build:
       context: ..
       dockerfile: studio/Dockerfile.standalone

@@ -10,9 +10,10 @@ from typing import Any
 
 from . import repository
 from .project_snapshots import import_showcase_snapshots_from_disk
+from .runtime_paths import repo_root
 from .seed_catalog import SEED_PROJECTS
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = repo_root()
 PUBLIC_SHOWCASE_WORKSPACE = {
     "id": "ws-anip-showcases",
     "name": "ANIP Public Showcases",
