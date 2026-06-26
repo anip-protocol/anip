@@ -73,7 +73,7 @@ func buildGeneratedGoMod(modulePath string, dependencySource DependencySource) s
 		"",
 		"go 1.25.0",
 		"",
-		"require github.com/anip-protocol/anip/packages/go v0.24.9",
+		"require github.com/anip-protocol/anip/packages/go v0.24.10",
 	}
 	if dependencySource == DependencySourceLocal {
 		lines = append(lines,

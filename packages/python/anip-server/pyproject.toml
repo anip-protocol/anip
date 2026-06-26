@@ -1,11 +1,11 @@
 [project]
 name = "anip-server"
-version = "0.24.9"
+version = "0.24.10"
 description = "ANIP server primitives — delegation, audit, checkpoints, Merkle trees"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core==0.24.9",
-    "anip-crypto==0.24.9",
+    "anip-core==0.24.10",
+    "anip-crypto==0.24.10",
 ]
 authors = [{ name = "ANIP Protocol", email = "team@anip.dev" }]
 license = { text = "Apache-2.0" }

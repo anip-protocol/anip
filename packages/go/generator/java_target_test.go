@@ -88,7 +88,7 @@ func TestBuildJavaProjectRegistryDependencies(t *testing.T) {
 		"<artifactId>anip-server</artifactId>",
 		"<artifactId>anip-service</artifactId>",
 		"<artifactId>anip-spring-boot</artifactId>",
-		"<anip.version>0.24.9</anip.version>",
+		"<anip.version>0.24.10</anip.version>",
 	} {
 		if !strings.Contains(pom, expected) {
 			t.Fatalf("registry pom missing %q", expected)
