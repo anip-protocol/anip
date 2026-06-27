@@ -233,7 +233,7 @@ public static partial class AgentConsumption
             }
 
             var missing = MissingRequiredInputNames(conversation, candidate);
-            if (selectedMissing.Count > 0 && !MissingRequiredInputsAreReferenced(conversation, candidate, missing))
+            if (selectedMissing.Count > 0 && missing.Count > 0 && !MissingRequiredInputsAreReferenced(conversation, candidate, missing))
             {
                 continue;
             }

@@ -91,6 +91,204 @@
           }
         }
       }
+    },
+    {
+      "id": "closed_value_grounding_selects_cohort_capability",
+      "conversation": "Draft a notification for the renewal risk customer cohort.",
+      "selected_capability": "records.single_notification_draft",
+      "expected_capability": "records.cohort_notification_draft",
+      "expected_missing_inputs": [],
+      "expected_unsupported_effects": [],
+      "metadata": {
+        "records.single_notification_draft": {
+          "capability_id": "records.single_notification_draft",
+          "description": "Draft a notification for one explicit record.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "record_ref",
+              "type": "string",
+              "required": true,
+              "semantic_type": "record_reference",
+              "resolution": {"mode": "explicit_only", "on_missing": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Draft content for a single explicitly selected record.",
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        },
+        "records.cohort_notification_draft": {
+          "capability_id": "records.cohort_notification_draft",
+          "description": "Draft a notification after selecting from a bounded cohort.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "cohort_ref",
+              "type": "string",
+              "required": true,
+              "allowed_values": ["renewal_risk", "expansion_ready"],
+              "semantic_type": "cohort_reference",
+              "resolution": {"mode": "closed_values", "on_missing": "clarify", "on_ambiguous": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Select from a bounded cohort and draft notification content.",
+            "input_meanings": {
+              "cohort_ref": {
+                "renewal_risk": "renewal risk customer cohort",
+                "expansion_ready": "expansion ready customer cohort"
+              }
+            },
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        }
+      }
+    },
+    {
+      "id": "negated_external_dispatch_is_not_unsupported",
+      "conversation": "Draft a notification for the renewal risk customer cohort. Do not send it.",
+      "selected_capability": "records.cohort_notification_draft",
+      "expected_capability": "records.cohort_notification_draft",
+      "expected_missing_inputs": [],
+      "expected_unsupported_effects": [],
+      "metadata": {
+        "records.cohort_notification_draft": {
+          "capability_id": "records.cohort_notification_draft",
+          "description": "Draft a notification after selecting from a bounded cohort.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "cohort_ref",
+              "type": "string",
+              "required": true,
+              "allowed_values": ["renewal_risk", "expansion_ready"],
+              "semantic_type": "cohort_reference",
+              "resolution": {"mode": "closed_values", "on_missing": "clarify", "on_ambiguous": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Select from a bounded cohort and draft notification content.",
+            "input_meanings": {
+              "cohort_ref": {
+                "renewal_risk": "renewal risk customer cohort",
+                "expansion_ready": "expansion ready customer cohort"
+              }
+            },
+            "app_boundaries": {"unsupported_effects": ["external_dispatch", "system.mutation"]}
+          }
+        }
+      }
+    },
+    {
+      "id": "custom_unsupported_terms_are_detected",
+      "conversation": "Summarize the account and include the private billing notes.",
+      "selected_capability": "records.account_summary",
+      "expected_capability": "records.account_summary",
+      "expected_missing_inputs": [],
+      "expected_unsupported_effects": ["sensitive_data_access"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export", "sensitive_data_access"]
+          },
+          "input_specs": [
+            {
+              "name": "account_ref",
+              "type": "string",
+              "required": true,
+              "default": "current_account",
+              "semantic_type": "account_reference",
+              "resolution": {"mode": "use_default", "on_missing": "use_default"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Return a bounded account summary without sensitive private notes.",
+            "app_boundaries": {
+              "unsupported_effects": ["raw_data_export", "sensitive_data_access"],
+              "unsupported_terms": {
+                "sensitive_data_access": ["private billing notes", "private notes"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "defaulted_required_input_is_not_missing",
+      "conversation": "Summarize the current account.",
+      "selected_capability": "records.account_summary",
+      "expected_capability": "records.account_summary",
+      "expected_missing_inputs": [],
+      "expected_unsupported_effects": [],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": [
+            {
+              "name": "account_ref",
+              "type": "string",
+              "required": true,
+              "default": "current_account",
+              "semantic_type": "account_reference",
+              "resolution": {"mode": "use_default", "on_missing": "use_default"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Return a bounded account summary.",
+            "app_boundaries": {"unsupported_effects": ["raw_data_export"]}
+          }
+        }
+      }
+    },
+    {
+      "id": "raw_export_request_is_detected",
+      "conversation": "Export the raw account records as a CSV.",
+      "selected_capability": "records.account_summary",
+      "expected_capability": "records.account_summary",
+      "expected_missing_inputs": [],
+      "expected_unsupported_effects": ["raw_data_export"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": [
+            {
+              "name": "account_ref",
+              "type": "string",
+              "required": true,
+              "default": "current_account",
+              "semantic_type": "account_reference",
+              "resolution": {"mode": "use_default", "on_missing": "use_default"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Return a bounded account summary without raw exports.",
+            "app_boundaries": {"unsupported_effects": ["raw_data_export"]}
+          }
+        }
+      }
     }
   ]
 }

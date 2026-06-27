@@ -412,6 +412,7 @@ export function selectConsumableCapability(
     const missing = missingRequiredInputNames(conversation, candidate);
     if (
       selectedMissing.length > 0 &&
+      missing.length > 0 &&
       !missingRequiredInputsAreReferenced(conversation, candidate, missing)
     ) {
       continue;
