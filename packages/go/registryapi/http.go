@@ -70,6 +70,10 @@ type NamespaceAdminStore interface {
 	ApplyAbuseTakedown(ctx context.Context, reportID string, request ApplyAbuseTakedownRequest) (RegistryAbuseReport, bool, error)
 }
 
+type PackageLifecycleAdminStore interface {
+	UpdatePackageLifecycle(ctx context.Context, packageID string, version string, request UpdatePackageLifecycleRequest, updatedBy string) (RegistryPackageRecord, bool, error)
+}
+
 type RegistryUserAdminStore interface {
 	ListRegistryUsers(ctx context.Context, query RegistryAdminListQuery) (PaginatedRegistryUsers, error)
 }
@@ -582,6 +586,32 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"artifact": artifact})
 	})
 
+	mux.HandleFunc("PATCH /registry-api/v1/admin/packages/{packageID}/{version}/lifecycle", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
+			return
+		}
+		adminStore, ok := store.(PackageLifecycleAdminStore)
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "registry package lifecycle administration is not supported by this store"})
+			return
+		}
+		var request UpdatePackageLifecycleRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid lifecycle request"})
+			return
+		}
+		record, exists, err := adminStore.UpdatePackageLifecycle(r.Context(), r.PathValue("packageID"), r.PathValue("version"), request, registryAdminActor(r, store, adminGitHubLogins))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		if !exists {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "package version not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"package": record})
+	})
+
 	mux.HandleFunc("PATCH /registry-api/v1/admin/abuse-reports/{reportID}/status", func(w http.ResponseWriter, r *http.Request) {
 		if !authorizeRegistryAdminRequest(w, r, store, options.AdminToken, adminGitHubLogins) {
 			return
@@ -885,12 +915,30 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "package version not found"})
 			return
 		}
+		if record.Lifecycle.Status == PackageLifecycleTakedown {
+			writeJSON(w, http.StatusGone, map[string]any{
+				"error":      "package version is unavailable",
+				"package_id": packageID,
+				"version":    version,
+				"lifecycle":  record.Lifecycle,
+			})
+			return
+		}
 		writeJSON(w, http.StatusOK, record)
 	})
 
 	mux.HandleFunc("GET /registry-api/v1/packages/{packageID}/{version}/download", func(w http.ResponseWriter, r *http.Request) {
 		packageID := r.PathValue("packageID")
 		version := r.PathValue("version")
+		existing, ok := store.GetPackage(packageID, version)
+		if !ok {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "package version not found"})
+			return
+		}
+		if status, message := packageLifecycleBlocksDownload(r, existing.Lifecycle); status != 0 {
+			writeJSON(w, status, map[string]any{"error": message, "lifecycle": existing.Lifecycle})
+			return
+		}
 		record, ok := store.RecordPackageDownload(packageID, version)
 		if !ok {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "package version not found"})
@@ -908,6 +956,10 @@ func NewHandlerWithOptions(store Store, options HandlerOptions) http.Handler {
 		record, ok := store.GetPackage(packageID, version)
 		if !ok {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "package version not found"})
+			return
+		}
+		if status, message := packageLifecycleBlocksDownload(r, record.Lifecycle); status != 0 {
+			writeJSON(w, status, map[string]any{"error": message, "lifecycle": record.Lifecycle})
 			return
 		}
 		receipt, ok := store.GetReceipt(packageID, version)
@@ -1144,6 +1196,35 @@ func authorizeRegistryAdminRequest(w http.ResponseWriter, r *http.Request, store
 	}
 	writeJSON(w, http.StatusForbidden, map[string]any{"error": "valid registry admin session or bearer token is required"})
 	return false
+}
+
+func registryAdminActor(r *http.Request, store Store, adminGitHubLogins map[string]bool) string {
+	sessionStore, sessionStoreOK := store.(BrowserSessionStore)
+	sessionToken, sessionTokenOK := browserSessionToken(r)
+	if sessionStoreOK && sessionTokenOK {
+		sessionContext, err := sessionStore.AuthenticateBrowserSession(r.Context(), sessionToken)
+		if err == nil && browserSessionIsRegistryAdmin(sessionContext, adminGitHubLogins) {
+			login := strings.TrimSpace(sessionContext.User.GitHubLogin)
+			if login != "" {
+				return "github:" + login
+			}
+		}
+	}
+	return "registry-admin"
+}
+
+func packageLifecycleBlocksDownload(r *http.Request, lifecycle PackageLifecycle) (int, string) {
+	switch normalizePackageLifecycle(lifecycle).Status {
+	case PackageLifecycleYanked:
+		if r.URL.Query().Get("allow_yanked") == "true" || r.Header.Get("X-ANIP-Allow-Yanked-Package") == "true" {
+			return 0, ""
+		}
+		return http.StatusGone, "package version has been yanked"
+	case PackageLifecycleTakedown:
+		return http.StatusGone, "package version is unavailable"
+	default:
+		return 0, ""
+	}
 }
 
 func browserSessionIsRegistryAdmin(sessionContext RegistryBrowserSessionContext, adminGitHubLogins map[string]bool) bool {

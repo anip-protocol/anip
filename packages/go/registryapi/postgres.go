@@ -48,6 +48,35 @@ type publisherSummaryScan struct {
 	TrustLevel    sql.NullString
 }
 
+type packageLifecycleScan struct {
+	Status                    string
+	Reason                    string
+	ReplacementPackageID      sql.NullString
+	ReplacementPackageVersion sql.NullString
+	UpdatedAt                 sql.NullTime
+	UpdatedBy                 sql.NullString
+}
+
+func (scan packageLifecycleScan) lifecycle() PackageLifecycle {
+	lifecycle := PackageLifecycle{
+		Status: scan.Status,
+		Reason: scan.Reason,
+	}
+	if scan.ReplacementPackageID.Valid || scan.ReplacementPackageVersion.Valid {
+		lifecycle.Replacement = &PackageLifecycleReplacement{
+			PackageID:      scan.ReplacementPackageID.String,
+			PackageVersion: scan.ReplacementPackageVersion.String,
+		}
+	}
+	if scan.UpdatedAt.Valid {
+		lifecycle.UpdatedAt = scan.UpdatedAt.Time.UTC().Format(time.RFC3339)
+	}
+	if scan.UpdatedBy.Valid {
+		lifecycle.UpdatedBy = scan.UpdatedBy.String
+	}
+	return normalizePackageLifecycle(lifecycle)
+}
+
 func (scan publisherSummaryScan) summary() *PublisherSummary {
 	if !scan.PublisherID.Valid || strings.TrimSpace(scan.PublisherID.String) == "" {
 		return nil
@@ -263,6 +292,8 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 		SELECT p.package_id, p.package_version, p.project_ref, p.product_revision_ref,
 		       p.developer_revision_ref, p.contract_signature, p.publisher_id, p.publisher_type,
 		       p.published_at, p.download_count,
+		       p.lifecycle_status, p.lifecycle_reason, p.lifecycle_replacement_package_id,
+		       p.lifecycle_replacement_package_version, p.lifecycle_updated_at, p.lifecycle_updated_by,
 		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
 		FROM published_lineages l
 		JOIN registry_packages p USING (package_id, package_version)
@@ -285,6 +316,7 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 		var item PublicationSummary
 		var publishedAt time.Time
 		var publisher publisherSummaryScan
+		var lifecycle packageLifecycleScan
 		if err := rows.Scan(
 			&item.PackageID,
 			&item.PackageVersion,
@@ -296,6 +328,12 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 			&item.PublisherType,
 			&publishedAt,
 			&item.DownloadCount,
+			&lifecycle.Status,
+			&lifecycle.Reason,
+			&lifecycle.ReplacementPackageID,
+			&lifecycle.ReplacementPackageVersion,
+			&lifecycle.UpdatedAt,
+			&lifecycle.UpdatedBy,
 			&publisher.PublisherID,
 			&publisher.PublisherType,
 			&publisher.DisplayName,
@@ -306,6 +344,7 @@ func (s *PostgresStore) ListPublications() []PublicationSummary {
 			return []PublicationSummary{}
 		}
 		item.PublishedAt = publishedAt.UTC().Format(time.RFC3339)
+		item.Lifecycle = lifecycle.lifecycle()
 		item.Publisher = publisher.summary()
 		if pkg, ok := s.GetPackage(item.PackageID, item.PackageVersion); ok {
 			item.Lineage = pkg.Lineage
@@ -322,12 +361,15 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 	var definitionBytes []byte
 	var lockBytes []byte
 	var publisher publisherSummaryScan
+	var lifecycle packageLifecycleScan
 
 	err := s.pool.QueryRow(context.Background(), `
 		SELECT p.package_id, p.package_version, p.project_ref, p.product_revision_ref,
 		       p.developer_revision_ref, p.contract_signature, p.publisher_id, p.publisher_type, p.schema_version,
 		       p.manifest_digest, p.definition_digest, p.lock_digest, p.published_at, p.download_count,
 		       p.manifest, p.service_definition, p.recommended_lock,
+		       p.lifecycle_status, p.lifecycle_reason, p.lifecycle_replacement_package_id,
+		       p.lifecycle_replacement_package_version, p.lifecycle_updated_at, p.lifecycle_updated_by,
 		       pub.publisher_id, pub.publisher_type, pub.display_name, pub.website_url, pub.status, pub.trust_level
 		FROM registry_packages p
 		LEFT JOIN registry_artifact_ownership ownership
@@ -355,6 +397,12 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 		&manifestBytes,
 		&definitionBytes,
 		&lockBytes,
+		&lifecycle.Status,
+		&lifecycle.Reason,
+		&lifecycle.ReplacementPackageID,
+		&lifecycle.ReplacementPackageVersion,
+		&lifecycle.UpdatedAt,
+		&lifecycle.UpdatedBy,
 		&publisher.PublisherID,
 		&publisher.PublisherType,
 		&publisher.DisplayName,
@@ -370,6 +418,7 @@ func (s *PostgresStore) GetPackage(packageID, version string) (RegistryPackageRe
 	}
 
 	record.PublishedAt = publishedAt.UTC().Format(time.RFC3339)
+	record.Lifecycle = lifecycle.lifecycle()
 	if err := json.Unmarshal(manifestBytes, &record.Manifest); err != nil {
 		return RegistryPackageRecord{}, false
 	}
@@ -399,6 +448,43 @@ func (s *PostgresStore) RecordPackageDownload(packageID, version string) (Regist
 		return RegistryPackageRecord{}, false
 	}
 	return s.GetPackage(packageID, version)
+}
+
+func (s *PostgresStore) UpdatePackageLifecycle(ctx context.Context, packageID string, version string, request UpdatePackageLifecycleRequest, updatedBy string) (RegistryPackageRecord, bool, error) {
+	lifecycle, err := validatePackageLifecycleUpdate(packageID, version, request)
+	if err != nil {
+		return RegistryPackageRecord{}, true, err
+	}
+	updatedAt := time.Now().UTC()
+	updatedBy = strings.TrimSpace(updatedBy)
+	if updatedBy == "" {
+		updatedBy = "registry-admin"
+	}
+	var replacementID any
+	var replacementVersion any
+	if lifecycle.Replacement != nil {
+		replacementID = lifecycle.Replacement.PackageID
+		replacementVersion = lifecycle.Replacement.PackageVersion
+	}
+	commandTag, err := s.pool.Exec(ctx, `
+		UPDATE registry_packages
+		SET lifecycle_status = $3,
+		    lifecycle_reason = $4,
+		    lifecycle_replacement_package_id = $5,
+		    lifecycle_replacement_package_version = $6,
+		    lifecycle_updated_at = $7,
+		    lifecycle_updated_by = $8,
+		    updated_at = now()
+		WHERE package_id = $1 AND package_version = $2
+	`, packageID, version, lifecycle.Status, lifecycle.Reason, replacementID, replacementVersion, updatedAt, updatedBy)
+	if err != nil {
+		return RegistryPackageRecord{}, false, err
+	}
+	if commandTag.RowsAffected() != 1 {
+		return RegistryPackageRecord{}, false, nil
+	}
+	record, ok := s.GetPackage(packageID, version)
+	return record, ok, nil
 }
 
 func (s *PostgresStore) GetReceipt(packageID, version string) (RegistryReceipt, bool) {

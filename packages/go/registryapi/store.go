@@ -1417,6 +1417,32 @@ func (s *MemoryStore) RecordPackageDownload(packageID, version string) (Registry
 	return record, true
 }
 
+func (s *MemoryStore) UpdatePackageLifecycle(ctx context.Context, packageID string, version string, request UpdatePackageLifecycleRequest, updatedBy string) (RegistryPackageRecord, bool, error) {
+	key := storeKey(packageID, version)
+	record, ok := s.packages[key]
+	if !ok {
+		return RegistryPackageRecord{}, false, nil
+	}
+	lifecycle, err := validatePackageLifecycleUpdate(packageID, version, request)
+	if err != nil {
+		return RegistryPackageRecord{}, true, err
+	}
+	lifecycle.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	lifecycle.UpdatedBy = strings.TrimSpace(updatedBy)
+	if lifecycle.UpdatedBy == "" {
+		lifecycle.UpdatedBy = "registry-admin"
+	}
+	record.Lifecycle = normalizePackageLifecycle(lifecycle)
+	s.packages[key] = record
+	for index, publication := range s.publications {
+		if publication.PackageID == packageID && publication.PackageVersion == version {
+			s.publications[index].Lifecycle = record.Lifecycle
+			break
+		}
+	}
+	return record, true, nil
+}
+
 func (s *MemoryStore) GetReceipt(packageID, version string) (RegistryReceipt, bool) {
 	record, ok := s.receipts[storeKey(packageID, version)]
 	return record, ok
