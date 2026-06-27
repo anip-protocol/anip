@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const expectedReleasedRuntimeVersion = "0.24.10"
+const expectedReleasedRuntimeVersion = "0.24.11"
 
 func TestGeneratedRegistryDependenciesUseCurrentReleasedRuntimeVersion(t *testing.T) {
 	definition := mustReadFixtureDefinition(t)
