@@ -125,6 +125,23 @@ func TestGetPackageReceipt(t *testing.T) {
 	}
 }
 
+func TestPackageDetailIncludesDefaultLifecycle(t *testing.T) {
+	store := NewMemoryStore()
+	request := validTestPublishPackageRequest()
+	result, err := store.PublishPackage(request)
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+
+	record, ok := store.GetPackage(result.Package.PackageID, result.Package.PackageVersion)
+	if !ok {
+		t.Fatalf("expected package to exist")
+	}
+	if record.Lifecycle.Status != PackageLifecycleActive {
+		t.Fatalf("expected active lifecycle, got %q", record.Lifecycle.Status)
+	}
+}
+
 func TestDownloadPackageIncrementsDownloadCount(t *testing.T) {
 	store := NewMemoryStore()
 	handler := NewHandler(store)
