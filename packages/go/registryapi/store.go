@@ -342,6 +342,60 @@ func firstNonEmptyString(primary string, fallback string) string {
 	return fallback
 }
 
+func defaultPackageLifecycle() PackageLifecycle {
+	return PackageLifecycle{Status: PackageLifecycleActive}
+}
+
+func normalizePackageLifecycle(lifecycle PackageLifecycle) PackageLifecycle {
+	lifecycle.Status = strings.TrimSpace(lifecycle.Status)
+	if lifecycle.Status == "" {
+		lifecycle.Status = PackageLifecycleActive
+	}
+	lifecycle.Reason = strings.TrimSpace(lifecycle.Reason)
+	lifecycle.UpdatedAt = strings.TrimSpace(lifecycle.UpdatedAt)
+	lifecycle.UpdatedBy = strings.TrimSpace(lifecycle.UpdatedBy)
+	if lifecycle.Replacement != nil {
+		lifecycle.Replacement.PackageID = strings.TrimSpace(lifecycle.Replacement.PackageID)
+		lifecycle.Replacement.PackageVersion = strings.TrimSpace(lifecycle.Replacement.PackageVersion)
+		if lifecycle.Replacement.PackageID == "" && lifecycle.Replacement.PackageVersion == "" {
+			lifecycle.Replacement = nil
+		}
+	}
+	return lifecycle
+}
+
+func validatePackageLifecycleUpdate(packageID string, packageVersion string, request UpdatePackageLifecycleRequest) (PackageLifecycle, error) {
+	status := strings.TrimSpace(request.Status)
+	if status == "" {
+		return PackageLifecycle{}, fmt.Errorf("lifecycle status is required")
+	}
+	switch status {
+	case PackageLifecycleActive, PackageLifecycleSuperseded, PackageLifecycleDeprecated, PackageLifecycleYanked, PackageLifecycleTakedown:
+	default:
+		return PackageLifecycle{}, fmt.Errorf("unsupported lifecycle status %q", status)
+	}
+
+	reason := strings.TrimSpace(request.Reason)
+	if status != PackageLifecycleActive && reason == "" {
+		return PackageLifecycle{}, fmt.Errorf("lifecycle reason is required for non-active status")
+	}
+
+	replacementID := strings.TrimSpace(request.ReplacementPackageID)
+	replacementVersion := strings.TrimSpace(request.ReplacementPackageVersion)
+	var replacement *PackageLifecycleReplacement
+	if replacementID != "" || replacementVersion != "" {
+		if replacementID == "" || replacementVersion == "" {
+			return PackageLifecycle{}, fmt.Errorf("replacement package id and version must be provided together")
+		}
+		if replacementID == packageID && replacementVersion == packageVersion {
+			return PackageLifecycle{}, fmt.Errorf("replacement package cannot point to itself")
+		}
+		replacement = &PackageLifecycleReplacement{PackageID: replacementID, PackageVersion: replacementVersion}
+	}
+
+	return PackageLifecycle{Status: status, Reason: reason, Replacement: replacement}, nil
+}
+
 func normalizeSourceLinks(links []PackageSourceLink) []PackageSourceLink {
 	normalized := make([]PackageSourceLink, 0, len(links))
 	for _, link := range links {
@@ -1264,6 +1318,7 @@ func buildPublishedArtifacts(request PublishPackageRequest, publishedAt time.Tim
 		PublisherType:        request.PublisherType,
 		Lineage:              request.Lineage,
 		PublishedAt:          publishedAt.UTC().Format(time.RFC3339),
+		Lifecycle:            defaultPackageLifecycle(),
 	}
 
 	pkg := RegistryPackageRecord{
@@ -1283,6 +1338,7 @@ func buildPublishedArtifacts(request PublishPackageRequest, publishedAt time.Tim
 		PackageExecutionSignature: packageExecutionSignature,
 		PublishedAt:               publishedAt.UTC().Format(time.RFC3339),
 		Manifest:                  request.Manifest,
+		Lifecycle:                 defaultPackageLifecycle(),
 		ServiceDefinition:         request.ServiceDefinition,
 		RecommendedLock:           request.RecommendedLock,
 		Readme:                    request.Readme,
@@ -1322,6 +1378,9 @@ func (s *MemoryStore) ListPublications() []PublicationSummary {
 	for _, item := range s.publications {
 		if pkg, ok := s.packages[storeKey(item.PackageID, item.PackageVersion)]; ok {
 			item.DownloadCount = pkg.DownloadCount
+			item.Lifecycle = normalizePackageLifecycle(pkg.Lifecycle)
+		} else {
+			item.Lifecycle = normalizePackageLifecycle(item.Lifecycle)
 		}
 		items = append(items, item)
 	}
@@ -1342,6 +1401,7 @@ func (s *MemoryStore) ListPublications() []PublicationSummary {
 
 func (s *MemoryStore) GetPackage(packageID, version string) (RegistryPackageRecord, bool) {
 	record, ok := s.packages[storeKey(packageID, version)]
+	record.Lifecycle = normalizePackageLifecycle(record.Lifecycle)
 	return record, ok
 }
 
@@ -1352,8 +1412,35 @@ func (s *MemoryStore) RecordPackageDownload(packageID, version string) (Registry
 		return RegistryPackageRecord{}, false
 	}
 	record.DownloadCount++
+	record.Lifecycle = normalizePackageLifecycle(record.Lifecycle)
 	s.packages[key] = record
 	return record, true
+}
+
+func (s *MemoryStore) UpdatePackageLifecycle(ctx context.Context, packageID string, version string, request UpdatePackageLifecycleRequest, updatedBy string) (RegistryPackageRecord, bool, error) {
+	key := storeKey(packageID, version)
+	record, ok := s.packages[key]
+	if !ok {
+		return RegistryPackageRecord{}, false, nil
+	}
+	lifecycle, err := validatePackageLifecycleUpdate(packageID, version, request)
+	if err != nil {
+		return RegistryPackageRecord{}, true, err
+	}
+	lifecycle.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	lifecycle.UpdatedBy = strings.TrimSpace(updatedBy)
+	if lifecycle.UpdatedBy == "" {
+		lifecycle.UpdatedBy = "registry-admin"
+	}
+	record.Lifecycle = normalizePackageLifecycle(lifecycle)
+	s.packages[key] = record
+	for index, publication := range s.publications {
+		if publication.PackageID == packageID && publication.PackageVersion == version {
+			s.publications[index].Lifecycle = record.Lifecycle
+			break
+		}
+	}
+	return record, true, nil
 }
 
 func (s *MemoryStore) GetReceipt(packageID, version string) (RegistryReceipt, bool) {

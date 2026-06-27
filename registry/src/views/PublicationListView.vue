@@ -26,6 +26,22 @@ function versionSort(left: PublicationSummary, right: PublicationSummary): numbe
   return right.package_version.localeCompare(left.package_version, undefined, { numeric: true, sensitivity: 'base' })
 }
 
+function lifecycleStatus(item: PublicationSummary): string {
+  return item.lifecycle?.status || 'active'
+}
+
+function isUnavailableLifecycle(item: PublicationSummary): boolean {
+  return ['yanked', 'takedown'].includes(lifecycleStatus(item))
+}
+
+function preferredLatestVersion(versions: PublicationSummary[]): PublicationSummary {
+  const activeVersions = versions.filter((item) => lifecycleStatus(item) === 'active')
+  if (activeVersions.length > 0) return activeVersions[0]
+  const availableVersions = versions.filter((item) => !isUnavailableLifecycle(item))
+  if (availableVersions.length > 0) return availableVersions[0]
+  return versions[0]
+}
+
 function matchesPackage(item: PublicationSummary, needle: string): boolean {
   if (!needle) return true
   return [
@@ -39,6 +55,8 @@ function matchesPackage(item: PublicationSummary, needle: string): boolean {
     item.lineage?.developer_revision?.artifact_id ?? '',
     String(item.lineage?.developer_revision?.revision_number ?? ''),
     item.contract_signature,
+    lifecycleStatus(item),
+    item.lifecycle?.reason ?? '',
   ].some((value) => value.toLowerCase().includes(needle))
 }
 
@@ -53,7 +71,7 @@ function groupPackages(records: PublicationSummary[]): PackageGroup[] {
     const sortedVersions = [...versions].sort(versionSort)
     return {
       package_id,
-      latest: sortedVersions[0],
+      latest: preferredLatestVersion(sortedVersions),
       versions: sortedVersions,
       total_downloads: sortedVersions.reduce((total, item) => total + Number(item.download_count ?? 0), 0),
     }
@@ -90,6 +108,10 @@ function publisherBadgeLabel(item: PublicationSummary): string {
 function publisherBadgeClass(item: PublicationSummary): string {
   const trust = String(item.publisher?.trust_level ?? item.publisher_type ?? '').toLowerCase()
   return trust === 'official' ? 'official' : 'neutral'
+}
+
+function lifecycleBadgeClass(item: PublicationSummary): string {
+  return lifecycleStatus(item).replace(/_/g, '-')
 }
 
 onMounted(async () => {
@@ -141,6 +163,12 @@ onMounted(async () => {
           <div class="card-heading">
             <strong>{{ group.package_id }}</strong>
             <span :class="['authority-pill', publisherBadgeClass(group.latest)]">{{ publisherBadgeLabel(group.latest) }}</span>
+            <span
+              v-if="lifecycleStatus(group.latest) !== 'active'"
+              :class="['authority-pill', 'lifecycle-pill', lifecycleBadgeClass(group.latest)]"
+            >
+              {{ lifecycleStatus(group.latest) }}
+            </span>
           </div>
           <span class="card-line">
             <b>Latest</b>
@@ -177,7 +205,10 @@ onMounted(async () => {
               :to="{ name: 'package-detail', params: { packageId: version.package_id, version: version.package_version } }"
             >
               <span>{{ version.package_version }}</span>
-              <small>{{ formatRegistryTimestamp(version.published_at) }} · {{ version.download_count ?? 0 }} downloads</small>
+              <small>
+                {{ formatRegistryTimestamp(version.published_at) }} · {{ version.download_count ?? 0 }} downloads
+                <template v-if="lifecycleStatus(version) !== 'active'"> · {{ lifecycleStatus(version) }}</template>
+              </small>
             </router-link>
           </div>
         </article>

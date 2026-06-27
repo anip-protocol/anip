@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"os"
@@ -501,6 +502,14 @@ func TestCLIGeneratesFromTrustedRegistryPackage(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("publish package: %v", err)
 	}
+	if _, _, err := store.UpdatePackageLifecycle(context.Background(), "work-item-fronting", "0.2.0", registryapi.UpdatePackageLifecycleRequest{
+		Status:                    registryapi.PackageLifecycleSuperseded,
+		Reason:                    "Use the regenerated package.",
+		ReplacementPackageID:      "work-item-fronting",
+		ReplacementPackageVersion: "0.2.1",
+	}, "admin"); err != nil {
+		t.Fatalf("update package lifecycle: %v", err)
+	}
 	server := httptest.NewServer(registryapi.NewHandler(store))
 	t.Cleanup(server.Close)
 
@@ -527,20 +536,24 @@ func TestCLIGeneratesFromTrustedRegistryPackage(t *testing.T) {
 	}
 
 	var result struct {
-		Status            string         `json:"status"`
-		Target            string         `json:"target"`
-		SourceKind        string         `json:"source_kind"`
-		PackageID         string         `json:"package_id"`
-		PackageVersion    string         `json:"package_version"`
-		LockDigest        string         `json:"lock_digest"`
-		RegistryTrusted   bool           `json:"registry_trusted"`
-		WrittenLockFile   string         `json:"written_lock_file"`
-		WrittenLockDigest string         `json:"written_lock_digest"`
-		ReceiptAuthority  string         `json:"receipt_authority"`
-		ReceiptSignature  string         `json:"receipt_signature"`
-		ProductRevision   map[string]any `json:"product_revision"`
-		DeveloperRevision map[string]any `json:"developer_revision"`
-		FileCount         int            `json:"file_count"`
+		Status            string `json:"status"`
+		Target            string `json:"target"`
+		SourceKind        string `json:"source_kind"`
+		PackageID         string `json:"package_id"`
+		PackageVersion    string `json:"package_version"`
+		LockDigest        string `json:"lock_digest"`
+		RegistryTrusted   bool   `json:"registry_trusted"`
+		WrittenLockFile   string `json:"written_lock_file"`
+		WrittenLockDigest string `json:"written_lock_digest"`
+		ReceiptAuthority  string `json:"receipt_authority"`
+		ReceiptSignature  string `json:"receipt_signature"`
+		PackageLifecycle  struct {
+			Status string `json:"status"`
+		} `json:"package_lifecycle"`
+		PackageLifecycleWarning string         `json:"package_lifecycle_warning"`
+		ProductRevision         map[string]any `json:"product_revision"`
+		DeveloperRevision       map[string]any `json:"developer_revision"`
+		FileCount               int            `json:"file_count"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
 		t.Fatalf("parse CLI JSON output: %v\n%s", err, out)
@@ -556,6 +569,9 @@ func TestCLIGeneratesFromTrustedRegistryPackage(t *testing.T) {
 	}
 	if result.ReceiptAuthority != "remote-registry" || result.ReceiptSignature == "" {
 		t.Fatalf("expected registry receipt metadata, got %+v", result)
+	}
+	if result.PackageLifecycle.Status != registryapi.PackageLifecycleSuperseded || !strings.Contains(result.PackageLifecycleWarning, "work-item-fronting@0.2.1") {
+		t.Fatalf("expected package lifecycle metadata, got %+v warning=%q", result.PackageLifecycle, result.PackageLifecycleWarning)
 	}
 	if result.ProductRevision["ref"] != "product-r3" || result.DeveloperRevision["ref"] != "developer-r5" {
 		t.Fatalf("expected registry lineage metadata, got product=%+v developer=%+v", result.ProductRevision, result.DeveloperRevision)

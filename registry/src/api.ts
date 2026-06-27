@@ -113,6 +113,19 @@ export interface PublisherArtifactSummary {
   updated_at: string
 }
 
+export interface PackageLifecycleReplacement {
+  package_id: string
+  package_version: string
+}
+
+export interface PackageLifecycle {
+  status: 'active' | 'superseded' | 'deprecated' | 'yanked' | 'takedown'
+  reason?: string
+  replacement?: PackageLifecycleReplacement
+  updated_at?: string
+  updated_by?: string
+}
+
 export interface UpdatePublisherRequest {
   display_name: string
   description: string
@@ -147,6 +160,13 @@ export interface UpdatePublisherStatusRequest {
 export interface UpdateArtifactOwnershipStatusRequest {
   status: string
   reason?: string
+}
+
+export interface UpdatePackageLifecycleRequest {
+  status: string
+  reason?: string
+  replacement_package_id?: string
+  replacement_package_version?: string
 }
 
 export interface TransferArtifactOwnershipRequest {
@@ -203,6 +223,7 @@ export interface PublicationSummary {
   lineage?: RegistryRevisionLineage
   published_at: string
   download_count?: number
+  lifecycle?: PackageLifecycle
 }
 
 export interface RegistryPackageRecord {
@@ -222,6 +243,7 @@ export interface RegistryPackageRecord {
   lock_digest?: string
   published_at: string
   download_count?: number
+  lifecycle?: PackageLifecycle
   manifest: Record<string, unknown>
   service_definition: Record<string, unknown>
   recommended_lock: Record<string, unknown>
@@ -539,6 +561,23 @@ export async function updateAdminArtifactStatus(
     },
   )
   return payload.artifact
+}
+
+export async function updateAdminPackageLifecycle(
+  token: string | null,
+  packageId: string,
+  version: string,
+  request: UpdatePackageLifecycleRequest,
+): Promise<RegistryPackageRecord> {
+  const payload = await api<{ package: RegistryPackageRecord }>(
+    `/admin/packages/${encodeURIComponent(packageId)}/${encodeURIComponent(version)}/lifecycle`,
+    {
+      method: 'PATCH',
+      headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+    },
+  )
+  return payload.package
 }
 
 export async function transferAdminArtifactOwnership(

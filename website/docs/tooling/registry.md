@@ -43,6 +43,22 @@ The service definition and manifest are signed as part of the package record. If
 
 For the full package and implementation-material lifecycle, see [Lifecycle and Revisions](/docs/concepts/lifecycle-and-revisions).
 
+## Package version lifecycle
+
+Package versions are immutable, but Registry can mark a specific version with an operational lifecycle state:
+
+| State | Meaning | Consumer behavior |
+| --- | --- | --- |
+| `active` | The version is current and recommended. | Browse, download, lock, verify, and generate normally. |
+| `superseded` | A newer version is preferred, but this version remains valid for compatibility. | Registry and CLI show a warning and replacement link when available. |
+| `deprecated` | The version should not be used for new generation. | Registry and CLI show a stronger warning and replacement link when available. |
+| `yanked` | The version should not be consumed by default because it is known-bad or misleading. | Downloads, locks, and generation fail unless the user explicitly opts into historical reproduction. |
+| `takedown` | The version is not available for consumption. | Package contents, downloads, locks, and generation are blocked. |
+
+Lifecycle state does not mutate the signed package contents. It is Registry-owned operational metadata around an immutable artifact, similar to unlisting or yanking in package ecosystems.
+
+Use `superseded` for normal replacement, `deprecated` when consumers should actively move away, `yanked` when default generation must stop but audit/history still matters, and `takedown` for policy/security removal.
+
 ## What does not belong in a public package
 
 Do not publish:
@@ -154,6 +170,7 @@ Registry exposes public read APIs and authenticated publish APIs under `/registr
 | `/registry-api/v1/packages/{packageId}/{version}/download` | GET | Download package artifact and increment package download count. |
 | `/registry-api/v1/packages/{packageId}/{version}/lock` | GET | Download the recommended lock for one package version. |
 | `/registry-api/v1/packages/{packageId}/{version}/receipt` | GET | Fetch signed Registry receipt. |
+| `/registry-api/v1/admin/packages/{packageId}/{version}/lifecycle` | PATCH | Update package-version lifecycle state. Requires admin authorization. |
 | `/registry-api/v1/templates` | GET | List starter templates. |
 | `/registry-api/v1/templates` | POST | Publish a starter template. Requires bearer token. |
 | `/registry-api/v1/templates/{templateId}/{version}` | GET | Inspect one template version. |
@@ -258,6 +275,8 @@ anip generate \
 ```
 
 If Registry returns a package with a different digest, generation should fail.
+
+If Registry marks a package version as `deprecated` or `superseded`, generation still proceeds but includes lifecycle metadata and a warning in the JSON result. If Registry marks a package version as `yanked`, generation fails unless `--allow-yanked-package` is set explicitly for pinned historical reproduction. `takedown` packages are always blocked.
 
 ## Template publishing
 

@@ -305,6 +305,23 @@ Applying a takedown suspends the report target (`package`, `template`, `publishe
 
 Supported publisher statuses are `active`, `pending_review`, and `suspended`; suspended publishers cannot use scoped publisher tokens. Supported artifact ownership statuses are `active`, `transferred`, and `suspended`; suspended ownership blocks publishing new package/template versions for that artifact id.
 
+Package versions are immutable, but administrators can mark a specific package version with lifecycle metadata:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ANIP_REGISTRY_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "deprecated",
+    "reason": "Known-bad generated-service behavior; use 0.4.5.",
+    "replacement_package_id": "gtm-pipeline-q2-review",
+    "replacement_package_version": "0.4.5"
+  }' \
+  https://registry.anip.dev/registry-api/v1/admin/packages/gtm-pipeline-q2-review/0.4.4/lifecycle
+```
+
+Supported package lifecycle statuses are `active`, `superseded`, `deprecated`, `yanked`, and `takedown`. `superseded` and `deprecated` keep package contents available with warnings. `yanked` blocks downloads and locks unless the caller explicitly opts into historical reproduction with `allow_yanked=true` or `X-ANIP-Allow-Yanked-Package: true`. `takedown` blocks package contents, downloads, and locks.
+
 Create a scoped token:
 
 ```bash

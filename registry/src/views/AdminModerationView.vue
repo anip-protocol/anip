@@ -10,13 +10,16 @@ import {
   listAdminNamespaces,
   listAdminPublishers,
   listAdminUsers,
+  listPublications,
   logoutRegistryAuthSession,
   transferAdminArtifactOwnership,
   transferAdminNamespace,
   updateAdminArtifactStatus,
   updateAdminAbuseReportStatus,
   updateAdminNamespaceStatus,
+  updateAdminPackageLifecycle,
   updateAdminPublisherStatus,
+  type PublicationSummary,
   type PublisherArtifactSummary,
   type RegistryAbuseReport,
   type RegistryBrowserSessionContext,
@@ -26,7 +29,7 @@ import {
 } from '../api'
 import { formatRegistryTimestamp } from '../datetime'
 
-type AdminSection = 'users' | 'publishers' | 'namespaces' | 'artifacts' | 'reports'
+type AdminSection = 'users' | 'publishers' | 'namespaces' | 'artifacts' | 'packages' | 'reports'
 
 const SESSION_SENTINEL = '__browser_session__'
 
@@ -43,6 +46,7 @@ const statusFilters = reactive<Record<AdminSection, string>>({
   publishers: '',
   namespaces: '',
   artifacts: '',
+  packages: '',
   reports: '',
 })
 const pageState = reactive<Record<AdminSection, { limit: number; offset: number; total: number }>>({
@@ -50,6 +54,7 @@ const pageState = reactive<Record<AdminSection, { limit: number; offset: number;
   publishers: { limit: 25, offset: 0, total: 0 },
   namespaces: { limit: 25, offset: 0, total: 0 },
   artifacts: { limit: 25, offset: 0, total: 0 },
+  packages: { limit: 25, offset: 0, total: 0 },
   reports: { limit: 25, offset: 0, total: 0 },
 })
 
@@ -57,6 +62,7 @@ const users = ref<RegistryUser[]>([])
 const namespaces = ref<RegistryNamespaceSummary[]>([])
 const publishers = ref<RegistryPublisher[]>([])
 const artifacts = ref<PublisherArtifactSummary[]>([])
+const packages = ref<PublicationSummary[]>([])
 const reports = ref<RegistryAbuseReport[]>([])
 
 const namespaceActions = reactive<Record<string, { status: string; reason: string }>>({})
@@ -64,6 +70,7 @@ const namespaceTransferActions = reactive<Record<string, { targetPublisherId: st
 const publisherActions = reactive<Record<string, { status: string; trustLevel: string; reason: string }>>({})
 const artifactActions = reactive<Record<string, { status: string; reason: string }>>({})
 const artifactTransferActions = reactive<Record<string, { targetPublisherId: string; targetNamespace: string; reason: string }>>({})
+const packageLifecycleActions = reactive<Record<string, { status: string; reason: string; replacementPackageId: string; replacementPackageVersion: string }>>({})
 const reportActions = reactive<Record<string, { status: string; resolution: string; takedownReason: string }>>({})
 const newReport = reactive({
   targetKind: 'package',
@@ -88,7 +95,53 @@ function artifactKey(artifact: PublisherArtifactSummary): string {
   return `${artifact.artifact_kind}:${artifact.artifact_id}`
 }
 
+function packageKey(record: PublicationSummary): string {
+  return `${record.package_id}@${record.package_version}`
+}
+
+function packageLifecycleStatus(record: PublicationSummary): string {
+  return record.lifecycle?.status || 'active'
+}
+
+function packageLifecycleReplacementLabel(record: PublicationSummary): string {
+  const replacement = record.lifecycle?.replacement
+  return replacement ? `${replacement.package_id}@${replacement.package_version}` : 'none'
+}
+
+function matchesPackageLifecycle(record: PublicationSummary, needle: string): boolean {
+  if (!needle) return true
+  return [
+    record.package_id,
+    record.package_version,
+    record.project_ref,
+    record.contract_signature,
+    packageLifecycleStatus(record),
+    record.lifecycle?.reason ?? '',
+    packageLifecycleReplacementLabel(record),
+  ].some((value) => String(value).toLowerCase().includes(needle))
+}
+
+const filteredPackages = computed(() => {
+  const needle = searchQuery.value.trim().toLowerCase()
+  const status = statusFilters.packages.trim()
+  return packages.value
+    .filter((record) => matchesPackageLifecycle(record, needle))
+    .filter((record) => !status || packageLifecycleStatus(record) === status)
+    .sort((left, right) => {
+      const leftTime = new Date(left.published_at).getTime() || 0
+      const rightTime = new Date(right.published_at).getTime() || 0
+      if (leftTime !== rightTime) return rightTime - leftTime
+      return `${left.package_id}@${left.package_version}`.localeCompare(`${right.package_id}@${right.package_version}`)
+    })
+})
+
+const pagedPackages = computed(() => {
+  const state = pageState.packages
+  return filteredPackages.value.slice(state.offset, state.offset + state.limit)
+})
+
 function sectionCount(section: AdminSection): number {
+  if (section === 'packages') return filteredPackages.value.length
   return pageState[section].total
 }
 
@@ -98,10 +151,11 @@ function setSection(section: AdminSection): void {
 
 function currentPageLabel(): string {
   const state = pageState[activeSection.value]
-  if (state.total === 0) return '0 of 0'
+  const total = activeSection.value === 'packages' ? filteredPackages.value.length : state.total
+  if (total === 0) return '0 of 0'
   const start = state.offset + 1
-  const end = Math.min(state.offset + state.limit, state.total)
-  return `${start}-${end} of ${state.total}`
+  const end = Math.min(state.offset + state.limit, total)
+  return `${start}-${end} of ${total}`
 }
 
 function adminListQuery(section: AdminSection) {
@@ -127,7 +181,8 @@ async function previousPage(): Promise<void> {
 
 async function nextPage(): Promise<void> {
   const state = pageState[activeSection.value]
-  if (state.offset + state.limit >= state.total) return
+  const total = activeSection.value === 'packages' ? filteredPackages.value.length : state.total
+  if (state.offset + state.limit >= total) return
   state.offset += state.limit
   await refresh()
 }
@@ -195,6 +250,19 @@ function ensureArtifactTransferAction(artifact: PublisherArtifactSummary): { tar
   return artifactTransferActions[key]
 }
 
+function ensurePackageLifecycleAction(record: PublicationSummary): { status: string; reason: string; replacementPackageId: string; replacementPackageVersion: string } {
+  const key = packageKey(record)
+  if (!packageLifecycleActions[key]) {
+    packageLifecycleActions[key] = {
+      status: packageLifecycleStatus(record),
+      reason: '',
+      replacementPackageId: record.lifecycle?.replacement?.package_id ?? '',
+      replacementPackageVersion: record.lifecycle?.replacement?.package_version ?? '',
+    }
+  }
+  return packageLifecycleActions[key]
+}
+
 function ensureReportAction(report: RegistryAbuseReport): { status: string; resolution: string; takedownReason: string } {
   if (!reportActions[report.report_id]) {
     reportActions[report.report_id] = {
@@ -220,6 +288,12 @@ function syncActionDefaults(): void {
     ensureArtifactAction(artifact).status = artifact.status
     ensureArtifactTransferAction(artifact)
   })
+  packages.value.forEach((record) => {
+    const action = ensurePackageLifecycleAction(record)
+    action.status = packageLifecycleStatus(record)
+    action.replacementPackageId = record.lifecycle?.replacement?.package_id ?? action.replacementPackageId
+    action.replacementPackageVersion = record.lifecycle?.replacement?.package_version ?? action.replacementPackageVersion
+  })
   reports.value.forEach((report) => {
     const action = ensureReportAction(report)
     action.status = report.status
@@ -232,11 +306,12 @@ async function loadAdminState(token: string | null, source: 'token' | 'session')
   error.value = null
   success.value = null
   try {
-    const [userResult, namespaceResult, publisherResult, artifactResult, reportResult] = await Promise.all([
+    const [userResult, namespaceResult, publisherResult, artifactResult, packageResult, reportResult] = await Promise.all([
       listAdminUsers(token, adminListQuery('users')),
       listAdminNamespaces(token, adminListQuery('namespaces')),
       listAdminPublishers(token, adminListQuery('publishers')),
       listAdminArtifacts(token, adminListQuery('artifacts')),
+      listPublications(),
       listAdminAbuseReports(token, adminListQuery('reports')),
     ])
     activeToken.value = source === 'session' ? SESSION_SENTINEL : token || ''
@@ -247,6 +322,7 @@ async function loadAdminState(token: string | null, source: 'token' | 'session')
     namespaces.value = namespaceResult.items
     publishers.value = publisherResult.items
     artifacts.value = artifactResult.items
+    packages.value = packageResult
     reports.value = reportResult.items
     pageState.users.total = userResult.total
     pageState.users.limit = userResult.limit
@@ -260,6 +336,8 @@ async function loadAdminState(token: string | null, source: 'token' | 'session')
     pageState.artifacts.total = artifactResult.total
     pageState.artifacts.limit = artifactResult.limit
     pageState.artifacts.offset = artifactResult.offset
+    pageState.packages.total = filteredPackages.value.length
+    pageState.packages.offset = Math.min(pageState.packages.offset, Math.max(0, filteredPackages.value.length - pageState.packages.limit))
     pageState.reports.total = reportResult.total
     pageState.reports.limit = reportResult.limit
     pageState.reports.offset = reportResult.offset
@@ -292,6 +370,7 @@ async function disconnect(): Promise<void> {
   namespaces.value = []
   publishers.value = []
   artifacts.value = []
+  packages.value = []
   reports.value = []
   error.value = null
   success.value = null
@@ -391,6 +470,26 @@ async function transferArtifact(artifact: PublisherArtifactSummary): Promise<voi
     action.targetNamespace = ''
     action.reason = ''
     success.value = `${artifact.artifact_kind} ${artifact.artifact_id} transferred.`
+    await refresh()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function updatePackageLifecycle(record: PublicationSummary): Promise<void> {
+  if (!activeToken.value) return
+  error.value = null
+  success.value = null
+  const action = ensurePackageLifecycleAction(record)
+  try {
+    await updateAdminPackageLifecycle(activeCredential.value, record.package_id, record.package_version, {
+      status: action.status,
+      reason: action.reason.trim() || undefined,
+      replacement_package_id: action.replacementPackageId.trim() || undefined,
+      replacement_package_version: action.replacementPackageVersion.trim() || undefined,
+    })
+    action.reason = ''
+    success.value = `Package ${record.package_id}@${record.package_version} lifecycle updated.`
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -538,7 +637,7 @@ onMounted(async () => {
       <section class="panel full-width-panel">
         <div class="admin-section-tabs" role="tablist" aria-label="Registry admin sections">
           <button
-            v-for="section in (['users', 'publishers', 'namespaces', 'artifacts', 'reports'] as AdminSection[])"
+            v-for="section in (['users', 'publishers', 'namespaces', 'artifacts', 'packages', 'reports'] as AdminSection[])"
             :key="section"
             class="admin-section-tab"
             :class="{ active: activeSection === section }"
@@ -594,6 +693,18 @@ onMounted(async () => {
               <option value="active">active</option>
               <option value="suspended">suspended</option>
               <option value="transferred">transferred</option>
+            </select>
+          </label>
+
+          <label v-if="activeSection === 'packages'" class="form-field compact-field">
+            <span>Lifecycle</span>
+            <select v-model="statusFilters.packages">
+              <option value="">All lifecycle states</option>
+              <option value="active">active</option>
+              <option value="superseded">superseded</option>
+              <option value="deprecated">deprecated</option>
+              <option value="yanked">yanked</option>
+              <option value="takedown">takedown</option>
             </select>
           </label>
 
@@ -801,6 +912,58 @@ onMounted(async () => {
             </tbody>
           </table>
           <p v-if="artifacts.length === 0" class="empty-state">No artifact ownership records match the current filters.</p>
+        </div>
+
+        <div v-if="activeSection === 'packages'" class="admin-grid-scroll">
+          <table class="admin-data-table admin-action-table">
+            <thead>
+              <tr>
+                <th>Package</th>
+                <th>Version</th>
+                <th>Lifecycle</th>
+                <th>Replacement</th>
+                <th>Published</th>
+                <th>Downloads</th>
+                <th>Lifecycle Update</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="record in pagedPackages" :key="packageKey(record)">
+                <td><strong>{{ record.package_id }}</strong></td>
+                <td>{{ record.package_version }}</td>
+                <td><span class="status-pill">{{ packageLifecycleStatus(record) }}</span></td>
+                <td>{{ packageLifecycleReplacementLabel(record) }}</td>
+                <td>{{ formatRegistryTimestamp(record.published_at) }}</td>
+                <td>{{ record.download_count ?? 0 }}</td>
+                <td>
+                  <form class="admin-inline-form transfer-form" @submit.prevent="updatePackageLifecycle(record)">
+                    <select v-model="ensurePackageLifecycleAction(record).status">
+                      <option value="active">active</option>
+                      <option value="superseded">superseded</option>
+                      <option value="deprecated">deprecated</option>
+                      <option value="yanked">yanked</option>
+                      <option value="takedown">takedown</option>
+                    </select>
+                    <input
+                      v-model="ensurePackageLifecycleAction(record).replacementPackageId"
+                      placeholder="replacement package id"
+                    />
+                    <input
+                      v-model="ensurePackageLifecycleAction(record).replacementPackageVersion"
+                      placeholder="replacement version"
+                    />
+                    <input
+                      v-model="ensurePackageLifecycleAction(record).reason"
+                      :required="ensurePackageLifecycleAction(record).status !== 'active'"
+                      placeholder="audit reason"
+                    />
+                    <button class="artifact-action" type="submit" :disabled="loading">Update</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="pagedPackages.length === 0" class="empty-state">No package versions match the current filters.</p>
         </div>
 
         <div v-if="activeSection === 'reports'" class="admin-grid-stack">
