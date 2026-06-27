@@ -30,18 +30,19 @@ docker compose up --build
 # API is available at http://localhost:8100
 ```
 
-To run a published release image instead of tagging local builds as `local`, set
-`ANIP_IMAGE_TAG` before starting Compose:
+To run a published Studio release image instead of tagging local builds as `local`, set
+`STUDIO_IMAGE_TAG` before starting Compose. This is the Studio image version, not
+the ANIP protocol version; Studio remains compatible with ANIP `0.24`.
 
 ```bash
-ANIP_IMAGE_TAG=0.9.0 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 docker compose up
 ```
 
 To force a fresh pull of the published release images:
 
 ```bash
-ANIP_IMAGE_TAG=0.9.0 docker compose pull
-ANIP_IMAGE_TAG=0.9.0 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 docker compose pull
+STUDIO_IMAGE_TAG=0.9.0 docker compose up
 ```
 
 Useful environment switches:
@@ -52,11 +53,11 @@ STUDIO_SEED_SHOWCASES=1 docker compose up --build
 
 # Host a read-only Studio demo. Unsafe HTTP methods are blocked at the API
 # boundary; only GET, HEAD, and OPTIONS remain available.
-ANIP_IMAGE_TAG=0.9.0 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
 
 # Optionally switch to a read-only database role after startup migrations,
 # vocabulary load, and showcase seeding complete.
-ANIP_IMAGE_TAG=0.9.0 \
+STUDIO_IMAGE_TAG=0.9.0 \
 STUDIO_READ_ONLY=1 \
 STUDIO_READ_ONLY_DATABASE_URL=postgresql://anip_readonly:anip_readonly@studio-db:5432/anip_studio \
 docker compose up
@@ -85,7 +86,7 @@ Published images are split by responsibility:
 - `anipprotocol/studio-web:<version>` — nginx web UI that proxies to `studio-api`.
 - `anipprotocol/studio:<version>` — compatibility alias for the web UI image.
 
-## Desktop API Preview
+## Desktop Mode
 
 To run the Studio API locally in desktop SQLite mode without Docker or
 Postgres:
@@ -101,8 +102,18 @@ migrations, and writes SQLite data to
 `${ANIP_STUDIO_DESKTOP_DATA_DIR:-~/.anip/studio}/studio.sqlite` unless
 `STUDIO_SQLITE_PATH` is set.
 
-This is an API preview for local desktop storage. The future desktop shell is a
-separate layer and is not started by this script.
+To build the macOS desktop app shell with the bundled Studio API sidecar:
+
+```bash
+./.venv/bin/python -m pip install -r studio/server/desktop-build-requirements.txt
+npm --prefix studio install
+npm --prefix studio run desktop:build
+```
+
+The desktop app bundles the static Studio UI and a frozen Studio API sidecar.
+On launch, it starts the API on `127.0.0.1:8100`, uses the same SQLite data
+location as `start-desktop-api.sh`, and stores local project data under
+`~/.anip/studio` by default.
 
 ## Views
 
