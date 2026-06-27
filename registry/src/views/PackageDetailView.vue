@@ -207,6 +207,27 @@ const packageVersion = computed(() =>
   String(record.value?.manifest?.version ?? record.value?.package_version ?? props.version),
 )
 const schemaLabel = computed(() => record.value?.schema_version || 'Unknown schema')
+const lifecycleStatus = computed(() => record.value?.lifecycle?.status || 'active')
+const lifecycleIsActive = computed(() => lifecycleStatus.value === 'active')
+const lifecycleReplacement = computed(() => record.value?.lifecycle?.replacement ?? null)
+const lifecycleMessage = computed(() => {
+  const status = lifecycleStatus.value
+  if (status === 'active') return ''
+  const reason = record.value?.lifecycle?.reason
+  const replacement = lifecycleReplacement.value
+    ? ` Use ${lifecycleReplacement.value.package_id}@${lifecycleReplacement.value.package_version} instead.`
+    : ''
+  const base = status === 'superseded'
+    ? 'This package version has been superseded.'
+    : status === 'deprecated'
+      ? 'This package version is deprecated and should not be used for new generation.'
+      : status === 'yanked'
+        ? 'This package version has been yanked and is blocked by default generation flows.'
+        : status === 'takedown'
+          ? 'This package version is unavailable.'
+          : `This package version is ${status}.`
+  return `${base}${reason ? ` Reason: ${reason}.` : ''}${replacement}`
+})
 const publisherLabel = computed(() => {
   const publisher = record.value?.publisher
   if (publisher?.display_name) return publisher.display_name
@@ -478,10 +499,31 @@ onMounted(async () => {
             {{ publisherLabel }} · {{ publisherTrustLabel }}
           </span>
           <span class="authority-pill neutral">{{ schemaLabel }}</span>
+          <span
+            v-if="!lifecycleIsActive"
+            :class="['authority-pill', 'lifecycle-pill', lifecycleStatus]"
+          >
+            {{ lifecycleStatus }}
+          </span>
           <span :class="['authority-pill', `readiness-${agentReadinessStatus}`]">
             Readiness {{ agentReadinessStatus.replace(/_/g, ' ') }}
           </span>
         </div>
+      </article>
+
+      <article
+        v-if="!lifecycleIsActive"
+        :class="['panel', 'lifecycle-banner', lifecycleStatus]"
+      >
+        <h2>Package Lifecycle Warning</h2>
+        <p>{{ lifecycleMessage }}</p>
+        <router-link
+          v-if="lifecycleReplacement"
+          class="artifact-action"
+          :to="{ name: 'package-detail', params: { packageId: lifecycleReplacement.package_id, version: lifecycleReplacement.package_version } }"
+        >
+          Open replacement {{ lifecycleReplacement.package_id }}@{{ lifecycleReplacement.package_version }}
+        </router-link>
       </article>
 
       <div class="metric-grid">
