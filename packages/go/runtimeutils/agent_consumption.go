@@ -205,7 +205,7 @@ func SelectConsumableCapability(conversation string, selectedCapability string, 
 			continue
 		}
 		missing := MissingRequiredInputNames(conversation, candidate)
-		if len(selectedMissing) > 0 && !missingRequiredInputsAreReferenced(conversation, candidate, missing) {
+		if len(selectedMissing) > 0 && len(missing) > 0 && !missingRequiredInputsAreReferenced(conversation, candidate, missing) {
 			continue
 		}
 		score := CapabilityMatchScore(conversation, capabilityID, candidate)

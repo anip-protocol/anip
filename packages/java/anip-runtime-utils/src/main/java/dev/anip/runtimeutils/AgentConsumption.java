@@ -176,7 +176,7 @@ public final class AgentConsumption {
                 continue;
             }
             List<String> missing = missingRequiredInputNames(conversation, candidate);
-            if (!selectedMissing.isEmpty() && !missingRequiredInputsAreReferenced(conversation, candidate, missing)) {
+            if (!selectedMissing.isEmpty() && !missing.isEmpty() && !missingRequiredInputsAreReferenced(conversation, candidate, missing)) {
                 continue;
             }
             double score = capabilityMatchScore(conversation, capabilityId, candidate);
