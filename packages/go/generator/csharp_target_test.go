@@ -61,6 +61,12 @@ func TestBuildCSharpProject(t *testing.T) {
 			t.Fatalf("generated capabilities missing %q", expected)
 		}
 	}
+	if !strings.Contains(capabilities, "AssertRequestedEffectsAllowed(capability, ctx);") {
+		t.Fatalf("generated capabilities must deny forbidden requested effects before execution")
+	}
+	if strings.Index(capabilities, "AssertRequestedEffectsAllowed(capability, ctx);") > strings.Index(capabilities, "parameters = ApplyInputDefaults(capability, parameters);") {
+		t.Fatalf("generated capabilities must check requested effects before applying defaults")
+	}
 	for _, forbidden := range []string{
 		"ANIP_OPTIONAL_INPUT_OVERRIDES_JSON",
 		"ANIP_COMPOSED_CAPABILITY_BRIDGE",
@@ -85,7 +91,7 @@ func TestBuildCSharpProjectRegistryDependencies(t *testing.T) {
 
 	projectFile := fileContent(project.Files, "WorkItemGovernanceService.csproj")
 	for _, expected := range []string{
-		`<AnipVersion>0.24.5</AnipVersion>`,
+		`<AnipVersion>0.24.11</AnipVersion>`,
 		`<PackageReference Include="Anip.Core" Version="$(AnipVersion)" />`,
 		`<PackageReference Include="Anip.Crypto" Version="$(AnipVersion)" />`,
 		`<PackageReference Include="Anip.Server" Version="$(AnipVersion)" />`,

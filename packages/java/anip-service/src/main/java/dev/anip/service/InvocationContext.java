@@ -21,6 +21,7 @@ public class InvocationContext {
     private final String parentInvocationId;
     private final String upstreamService;
     private final String approvalGrant;
+    private final List<String> requestedEffects;
     private final List<String> scopes;
     private final List<String> delegationChain;
     private final Function<Map<String, Object>, Boolean> emitProgress;
@@ -57,6 +58,17 @@ public class InvocationContext {
                              String taskId, String parentInvocationId, String upstreamService,
                              String approvalGrant, List<String> scopes, List<String> delegationChain,
                              Function<Map<String, Object>, Boolean> emitProgress) {
+        this(token, rootPrincipal, subject, invocationId, clientReferenceId,
+                taskId, parentInvocationId, upstreamService, approvalGrant, List.of(),
+                scopes, delegationChain, emitProgress);
+    }
+
+    public InvocationContext(DelegationToken token, String rootPrincipal, String subject,
+                             String invocationId, String clientReferenceId,
+                             String taskId, String parentInvocationId, String upstreamService,
+                             String approvalGrant, List<String> requestedEffects,
+                             List<String> scopes, List<String> delegationChain,
+                             Function<Map<String, Object>, Boolean> emitProgress) {
         this.token = token;
         this.rootPrincipal = rootPrincipal;
         this.subject = subject;
@@ -66,6 +78,7 @@ public class InvocationContext {
         this.parentInvocationId = parentInvocationId;
         this.upstreamService = upstreamService;
         this.approvalGrant = approvalGrant;
+        this.requestedEffects = requestedEffects == null ? List.of() : List.copyOf(requestedEffects);
         this.scopes = scopes;
         this.delegationChain = delegationChain;
         this.emitProgress = emitProgress;
@@ -105,6 +118,10 @@ public class InvocationContext {
 
     public String getApprovalGrant() {
         return approvalGrant;
+    }
+
+    public List<String> getRequestedEffects() {
+        return requestedEffects;
     }
 
     public List<String> getScopes() {

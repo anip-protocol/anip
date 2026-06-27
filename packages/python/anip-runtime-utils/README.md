@@ -3,6 +3,10 @@
 Small shared runtime helpers for agent-side deterministic normalization and
 preflight handling.
 
+These helpers assist consuming agents with routing, compact prompt construction,
+and contract-derived preflight checks. They are not the trust boundary. The
+authoritative policy decision remains the ANIP service invocation result.
+
 Current scope:
 
 - metadata-driven enum/default normalization

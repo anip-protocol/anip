@@ -85,6 +85,18 @@ jobs:
           cd ../..
           echo "OK: Java versions bumped"
 
+          # Generated service dependency defaults — the CLI must emit services
+          # that consume the just-published runtime packages.
+          sed -i "s/anipPythonPackageVersion = \"[0-9][0-9.]*\"/anipPythonPackageVersion = \"$VERSION\"/" packages/go/generator/python_target.go
+          sed -i "s/anipTypeScriptPackageVersion = \"[0-9][0-9.]*\"/anipTypeScriptPackageVersion = \"$VERSION\"/" packages/go/generator/typescript_target.go
+          sed -i "s|github.com/anip-protocol/anip/packages/go v[0-9][0-9.]*|github.com/anip-protocol/anip/packages/go v$VERSION|" packages/go/generator/go_target.go
+          sed -i "s/anipJavaPackageVersion = \"[0-9][0-9.]*\"/anipJavaPackageVersion = \"$VERSION\"/" packages/go/generator/java_target.go
+          sed -i "s/anipCSharpPackageVersion = \"[0-9][0-9.]*\"/anipCSharpPackageVersion = \"$VERSION\"/" packages/go/generator/csharp_target.go
+          sed -i "s/expectedReleasedRuntimeVersion = \"[0-9][0-9.]*\"/expectedReleasedRuntimeVersion = \"$VERSION\"/" packages/go/generator/release_version_test.go
+          sed -i "s|<anip.version>[0-9][0-9.]*</anip.version>|<anip.version>$VERSION</anip.version>|" packages/go/generator/java_target_test.go
+          sed -i "s|<AnipVersion>[0-9][0-9.]*</AnipVersion>|<AnipVersion>$VERSION</AnipVersion>|" packages/go/generator/csharp_target_test.go
+          echo "OK: Generator default dependency versions bumped"
+
           # TypeScript example app
           for pkg in examples/anip-ts/package.json; do
             node -e "
@@ -101,27 +113,7 @@ jobs:
           done
           echo "OK: Example app deps bumped"
 
-          # Studio app version — product/tool version, separate from STUDIO_PROTOCOL_VERSION.
-          node -e "
-            const fs = require('fs');
-            for (const file of ['studio/package.json', 'studio/package-lock.json']) {
-              const p = JSON.parse(fs.readFileSync(file, 'utf8'));
-              p.version = process.env.VERSION;
-              if (p.packages && p.packages['']) p.packages[''].version = process.env.VERSION;
-              fs.writeFileSync(file, JSON.stringify(p, null, 2) + '\n');
-            }
-            const versionFile = 'studio/src/version.ts';
-            const source = fs.readFileSync(versionFile, 'utf8');
-            const nextVersionLine = 'export const STUDIO_VERSION = \'' + process.env.VERSION + '\'';
-            if (!/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u.test(source)) {
-              throw new Error('studio/src/version.ts is missing export const STUDIO_VERSION');
-            }
-            fs.writeFileSync(
-              versionFile,
-              source.replace(/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u, nextVersionLine)
-            );
-          "
-          echo "OK: Studio version bumped"
+          echo "OK: Studio app version left unchanged; Studio releases use publish-studio-docker.yml"
 
       - name: Commit version bump
         id: bump
@@ -202,7 +194,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -224,14 +216,14 @@ jobs:
             done
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 19 TypeScript packages and internal deps at version $VERSION"
+          echo "All 20 TypeScript packages and internal deps at version $VERSION"
 
       - name: Validate Python package versions and internal deps
         env:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-runtime-utils anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
             PKG_VERSION=$(grep '^version' packages/python/$pkg/pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -251,7 +243,7 @@ jobs:
             fi
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 9 Python packages and internal deps at version $VERSION"
+          echo "All 12 Python packages and internal deps at version $VERSION"
 
       - name: Validate Go module exists
         run: |
@@ -267,7 +259,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio anip-example-flights anip-example-flights-quarkus; do
+          for pom in anip-core anip-runtime-utils anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio anip-example-flights anip-example-flights-quarkus; do
             if [ ! -f "$pom/pom.xml" ]; then
               echo "FAIL: $pom/pom.xml not found"
               FAILED=1
@@ -293,7 +285,7 @@ jobs:
             FAILED=1
           fi
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 17 Java modules and anip.version property at version $VERSION"
+          echo "All 20 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
     needs: bump-and-validate
@@ -316,7 +308,7 @@ jobs:
       - name: Dry run — verify packages
         working-directory: packages/typescript
         run: |
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             echo "=== Checking $pkg ==="
             cd $pkg && npm pack --dry-run && cd ..
           done
@@ -359,6 +351,7 @@ jobs:
 
           # Layer 1: no deps
           publish_or_skip core
+          publish_or_skip runtime-utils
 
           # Layer 2: depends on core
           publish_or_skip crypto
@@ -412,7 +405,7 @@ jobs:
 
       - name: Build and check all packages
         run: |
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-runtime-utils anip-fastapi anip-mcp anip-rest anip-graphql anip-studio anip-stdio anip-grpc; do
             echo "=== Building $pkg ==="
             cd packages/python/$pkg
             rm -rf dist/
@@ -458,6 +451,7 @@ jobs:
           publish_or_skip anip-crypto
           publish_or_skip anip-server
           publish_or_skip anip-service
+          publish_or_skip anip-runtime-utils
           publish_or_skip anip-fastapi
           publish_or_skip anip-mcp
           publish_or_skip anip-rest
@@ -504,6 +498,7 @@ jobs:
           ARTIFACTS=(
             anip-parent
             anip-core
+            anip-runtime-utils
             anip-crypto
             anip-server
             anip-service
@@ -610,7 +605,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -e
-          PACKAGES=(Anip.Core Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio Anip.Studio)
+          PACKAGES=(Anip.Core Anip.RuntimeUtils Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio Anip.Studio)
           for pkg in "${PACKAGES[@]}"; do
             echo "=== Packing $pkg ==="
             dotnet pack "src/$pkg/$pkg.csproj" -c Release -o nupkgs /p:Version="$VERSION"
@@ -651,87 +646,6 @@ jobs:
             exit 1
           done
 
-  publish-studio-docker:
-    needs: bump-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: main
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Studio images
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          docker build \
-            -t anipprotocol/studio-api:"$VERSION" \
-            -t anipprotocol/studio-api:latest \
-            -f studio/server/Dockerfile .
-          docker push anipprotocol/studio-api:"$VERSION"
-          docker push anipprotocol/studio-api:latest
-
-          docker build \
-            -t anipprotocol/studio-web:"$VERSION" \
-            -t anipprotocol/studio-web:latest \
-            -t anipprotocol/studio:"$VERSION" \
-            -t anipprotocol/studio:latest \
-            -f studio/Dockerfile.standalone .
-          docker push anipprotocol/studio-web:"$VERSION"
-          docker push anipprotocol/studio-web:latest
-          docker push anipprotocol/studio:"$VERSION"
-          docker push anipprotocol/studio:latest
-
-  publish-registry-docker:
-    needs: bump-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: main
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate DigitalOcean token secret
-        env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
-            echo "::error::DIGITALOCEAN_ACCESS_TOKEN is required to push registry.digitalocean.com/anip/registry. Add it under repository Actions secrets before running this workflow."
-            exit 1
-          fi
-
-      - name: Log in to DigitalOcean Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: registry.digitalocean.com
-          username: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Build and push Registry image
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          docker build \
-            -t anipprotocol/registry:"$VERSION" \
-            -t anipprotocol/registry:latest \
-            -t registry.digitalocean.com/anip/registry:"$VERSION" \
-            -t registry.digitalocean.com/anip/registry:latest \
-            -f registry/Dockerfile .
-          docker push anipprotocol/registry:"$VERSION"
-          docker push anipprotocol/registry:latest
-          docker push registry.digitalocean.com/anip/registry:"$VERSION"
-          docker push registry.digitalocean.com/anip/registry:latest
-
   publish-showcase-docker:
     needs: bump-and-validate
     runs-on: ubuntu-latest
@@ -764,7 +678,7 @@ jobs:
           done
 
   release:
-    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-registry-docker, publish-showcase-docker]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-showcase-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -39,6 +39,16 @@ public class AnipService : IDisposable
     private CancellationTokenSource? _cts;
     private readonly List<Task> _backgroundTasks = new();
 
+    private static List<string> SanitizeRequestedEffects(IEnumerable<string>? values)
+    {
+        if (values is null) return new();
+        return values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct()
+            .ToList();
+    }
+
     /// <summary>
     /// Creates a new AnipService from the given configuration.
     /// Call Start() to initialize storage and keys before use.
@@ -1076,7 +1086,8 @@ public class AnipService : IDisposable
                 parentInvocationId: opts.ParentInvocationId,
                 emitProgress: _ => false, // No-op for unary invocations.
                 upstreamService: opts.UpstreamService,
-                approvalGrant: opts.ApprovalGrant
+                approvalGrant: opts.ApprovalGrant,
+                requestedEffects: SanitizeRequestedEffects(opts.RequestedEffects)
             );
 
             // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
@@ -1554,7 +1565,8 @@ public class AnipService : IDisposable
             parentInvocationId: parentInvId,
             emitProgress: emitProgress,
             upstreamService: upstreamSvc,
-            approvalGrant: opts.ApprovalGrant
+            approvalGrant: opts.ApprovalGrant,
+            requestedEffects: SanitizeRequestedEffects(opts.RequestedEffects)
         );
 
         // 5. Run handler in background task.

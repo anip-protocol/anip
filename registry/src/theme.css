@@ -369,6 +369,31 @@ pre {
   color: #991b1b;
 }
 
+.authority-pill.lifecycle-pill.superseded,
+.authority-pill.lifecycle-pill.deprecated {
+  border-color: rgba(217, 119, 6, 0.24);
+  background: rgba(217, 119, 6, 0.12);
+  color: #92400e;
+}
+
+.authority-pill.lifecycle-pill.yanked,
+.authority-pill.lifecycle-pill.takedown {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: rgba(220, 38, 38, 0.12);
+  color: #991b1b;
+}
+
+.lifecycle-banner {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(255, 247, 237, 0.94));
+}
+
+.lifecycle-banner.yanked,
+.lifecycle-banner.takedown {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.98), rgba(255, 247, 237, 0.94));
+}
+
 .version-history {
   display: grid;
   gap: 0.45rem;

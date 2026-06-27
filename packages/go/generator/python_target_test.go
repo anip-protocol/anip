@@ -64,6 +64,15 @@ func TestBuildPythonProject(t *testing.T) {
 	if !strings.Contains(capabilities, `ANIPError("denied"`) {
 		t.Fatalf("capability module should use ANIP denied failures for policy denials")
 	}
+	if !strings.Contains(capabilities, "def _assert_requested_effects_allowed") {
+		t.Fatalf("capability module should enforce structured requested effects against declared forbidden effects")
+	}
+	if !strings.Contains(capabilities, "_assert_requested_effects_allowed(capability, ctx)") {
+		t.Fatalf("capability module should enforce requested effects before input and policy handling")
+	}
+	if !strings.Contains(capabilities, "_assert_requested_effects_allowed(capability, ctx)\n    params = _apply_input_defaults") {
+		t.Fatalf("requested effect enforcement must run before input defaulting or missing-input clarification")
+	}
 
 	backendAdapter := fileContent(project.Files, "src/work_item_governance_service/backend_adapter.py")
 	if strings.Contains(backendAdapter, "type BackendInvocationPlan =") {

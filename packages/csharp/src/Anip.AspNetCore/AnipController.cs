@@ -144,6 +144,7 @@ public class AnipController : ControllerBase
             parameters.Remove("parent_invocation_id");
             parameters.Remove("upstream_service");
             parameters.Remove("approval_grant"); // v0.23
+            parameters.Remove("requested_effects");
             parameters.Remove("budget");
         }
 
@@ -233,9 +234,11 @@ public class AnipController : ControllerBase
             }
         }
 
+        var requestedEffects = ExtractStringList(body, "requested_effects");
+
         if (stream)
         {
-            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId, upstreamService, approvalGrant);
+            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId, upstreamService, approvalGrant, requestedEffects);
         }
 
         var opts = new InvokeOpts
@@ -246,6 +249,7 @@ public class AnipController : ControllerBase
             UpstreamService = upstreamService,
             Stream = false,
             ApprovalGrant = approvalGrant,
+            RequestedEffects = requestedEffects,
         };
 
         var result = _service.Invoke(capability, token, parameters, opts);
@@ -580,7 +584,8 @@ public class AnipController : ControllerBase
         string? taskId,
         string? parentInvocationId,
         string? upstreamService,
-        string? approvalGrant = null)
+        string? approvalGrant = null,
+        List<string>? requestedEffects = null)
     {
         StreamResult sr;
         try
@@ -593,6 +598,7 @@ public class AnipController : ControllerBase
                 UpstreamService = upstreamService,
                 Stream = true,
                 ApprovalGrant = approvalGrant,
+                RequestedEffects = requestedEffects ?? new(),
             };
             sr = _service.InvokeStream(capability, token, parameters, opts);
         }
@@ -797,5 +803,30 @@ public class AnipController : ControllerBase
         if (val is JsonElement el && el.ValueKind == JsonValueKind.String)
             return el.GetString();
         return val as string;
+    }
+
+    private static List<string> ExtractStringList(Dictionary<string, object?> body, string key)
+    {
+        if (!body.TryGetValue(key, out var val) || val is null) return new();
+        if (val is JsonElement { ValueKind: JsonValueKind.Array } array)
+        {
+            return array.EnumerateArray()
+                .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() ?? string.Empty : item.ToString())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .Distinct()
+                .ToList();
+        }
+        if (val is IEnumerable<object?> objects)
+        {
+            return objects
+                .Where(item => item is not null)
+                .Select(item => item!.ToString() ?? string.Empty)
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .Distinct()
+                .ToList();
+        }
+        return new();
     }
 }

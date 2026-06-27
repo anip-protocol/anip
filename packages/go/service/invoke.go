@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,23 @@ func parseISO8601Duration(d string) time.Duration {
 		total += time.Duration(s) * time.Second
 	}
 	return total
+}
+
+func sanitizeRequestedEffects(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		result = append(result, value)
+	}
+	return result
 }
 
 // resolveBoundPrice extracts a bound price from params using capability's binding declarations.
@@ -609,6 +627,7 @@ func (s *Service) Invoke(
 		ParentInvocationID: opts.ParentInvocationID,
 		UpstreamService:    opts.UpstreamService,
 		ApprovalGrant:      opts.ApprovalGrant,
+		RequestedEffects:   sanitizeRequestedEffects(opts.RequestedEffects),
 		EmitProgress: func(payload map[string]any) error {
 			// No-op for unary invocations.
 			return nil
@@ -940,6 +959,7 @@ func (s *Service) InvokeStream(
 		ParentInvocationID: parentInvID,
 		UpstreamService:    upstreamSvc,
 		ApprovalGrant:      opts.ApprovalGrant,
+		RequestedEffects:   sanitizeRequestedEffects(opts.RequestedEffects),
 		EmitProgress:       emitProgress,
 	}
 

@@ -291,6 +291,12 @@ SELECTION_HINTS = [
         "lock_capability": True,
     },
     {
+        "capability": "gtm.lookalike_accounts",
+        "all_terms": ["accounts"],
+        "any_terms": ["resemble", "resembles", "similar", "similar to"],
+        "lock_capability": True,
+    },
+    {
         "capability": "gtm.score_leads",
         "all_terms": ["score", "without routing"],
         "any_terms": ["inbound", "webinar"],

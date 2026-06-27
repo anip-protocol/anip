@@ -55,6 +55,7 @@ func Run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 	var verifyCustomCodeBundleDigest string
 	var includeDockerfile bool
 	var includeDockerCompose bool
+	var allowYankedPackage bool
 	var dependencySource string
 	var framework string
 	var transportList string
@@ -106,6 +107,7 @@ Flags:`)
 	fs.StringVar(&verifyCustomCodeBundleDigest, "verify-custom-code-bundle-digest", "", "Expected sha256 digest for the normalized local custom bundle tree.")
 	fs.BoolVar(&includeDockerfile, "dockerfile", false, "Include a target-specific Dockerfile when generating a project")
 	fs.BoolVar(&includeDockerCompose, "docker-compose", false, "Include a local single-service docker-compose.yml when generating a project")
+	fs.BoolVar(&allowYankedPackage, "allow-yanked-package", false, "Allow generating from a yanked registry package for pinned historical reproduction. Takedown packages are always blocked.")
 	fs.StringVar(&dependencySource, "dependency-source", string(generator.DependencySourceRegistry), "Dependency source for generated projects: registry or local")
 	fs.StringVar(&framework, "framework", "", "Target framework variant. For typescript: hono, express, fastify. For java: spring-boot or quarkus.")
 	fs.StringVar(&transportList, "transport", string(generator.TransportHTTP), "Generated transport runner(s). HTTP host is included by default; use stdio or http,stdio to add a local stdio runner.")
@@ -129,12 +131,13 @@ Flags:`)
 		fail(err.Error())
 	}
 	resolveOptions := generator.ResolveServiceDefinitionOptions{
-		DefinitionPath: definitionPath,
-		PackageBundle:  packageBundle,
-		RegistryBase:   registryBase,
-		PackageID:      packageID,
-		PackageVersion: packageVersion,
-		PackageRef:     packageRef,
+		DefinitionPath:     definitionPath,
+		PackageBundle:      packageBundle,
+		RegistryBase:       registryBase,
+		PackageID:          packageID,
+		PackageVersion:     packageVersion,
+		PackageRef:         packageRef,
+		AllowYankedPackage: allowYankedPackage,
 	}
 	generator.ApplyPackageLockToResolveOptions(&resolveOptions, loadedLock)
 	userCustomBundleRef := strings.TrimSpace(customCodeBundleRef)
@@ -192,7 +195,7 @@ Flags:`)
 			if err != nil {
 				fail(err.Error())
 			}
-			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port)
+			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port, generator.DependencySource(dependencySource))
 			writtenLock := writeLockOrFail(writeLock, resolved)
 			addLockResultMetadata(result, lockFile, writeLock, writtenLock)
 			encoder := json.NewEncoder(stdout)
@@ -213,7 +216,7 @@ Flags:`)
 			if err != nil {
 				fail(err.Error())
 			}
-			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port)
+			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port, generator.DependencySource(dependencySource))
 			writtenLock := writeLockOrFail(writeLock, resolved)
 			addLockResultMetadata(result, lockFile, writeLock, writtenLock)
 			encoder := json.NewEncoder(stdout)
@@ -225,16 +228,25 @@ Flags:`)
 			if err != nil {
 				fail(err.Error())
 			}
+			pythonPackageName := packageName
+			if strings.TrimSpace(pythonPackageName) == "" && strings.TrimSpace(resolved.PackageID) != "" {
+				pythonPackageName = generator.PythonModuleNameForPackageID(resolved.PackageID)
+			}
+			pythonProjectName := packageName
+			if strings.TrimSpace(pythonProjectName) == "" && strings.TrimSpace(resolved.PackageID) != "" {
+				pythonProjectName = resolved.PackageID
+			}
 			project, err := generator.BuildPythonProject(definition, generator.BuildPythonProjectOptions{
 				DependencySource: generator.DependencySource(dependencySource),
 				Transports:       transports,
-				PackageName:      packageName,
+				ProjectName:      pythonProjectName,
+				PackageName:      pythonPackageName,
 				Port:             port,
 			})
 			if err != nil {
 				fail(err.Error())
 			}
-			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port)
+			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port, generator.DependencySource(dependencySource))
 			writtenLock := writeLockOrFail(writeLock, resolved)
 			addLockResultMetadata(result, lockFile, writeLock, writtenLock)
 			encoder := json.NewEncoder(stdout)
@@ -257,7 +269,7 @@ Flags:`)
 			if err != nil {
 				fail(err.Error())
 			}
-			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port)
+			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port, generator.DependencySource(dependencySource))
 			writtenLock := writeLockOrFail(writeLock, resolved)
 			addLockResultMetadata(result, lockFile, writeLock, writtenLock)
 			encoder := json.NewEncoder(stdout)
@@ -279,7 +291,7 @@ Flags:`)
 			if err != nil {
 				fail(err.Error())
 			}
-			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port)
+			result := writeGeneratedProjectResult(resolved, registryTrusted, target, outputPath, project, force, customCodeBundle, userCustomBundleRef, verifyCustomCodeBundleDigest, includeDockerfile, includeDockerCompose, port, generator.DependencySource(dependencySource))
 			writtenLock := writeLockOrFail(writeLock, resolved)
 			addLockResultMetadata(result, lockFile, writeLock, writtenLock)
 			encoder := json.NewEncoder(stdout)
@@ -340,6 +352,7 @@ func writeGeneratedProjectResult(
 	includeDockerfile bool,
 	includeDockerCompose bool,
 	port int,
+	dependencySource generator.DependencySource,
 ) map[string]any {
 	customBundleReport, err := generator.ApplyCustomCodeBundleWithReport(project, customCodeBundle)
 	if err != nil {
@@ -356,6 +369,9 @@ func writeGeneratedProjectResult(
 	}
 	if target == "python" {
 		generator.EnsurePythonCustomModuleSupport(project)
+	}
+	if err := generator.ReconcileDependencyManifests(project, target, dependencySource); err != nil {
+		fail(err.Error())
 	}
 	containerFiles, err := generator.BuildContainerArtifacts(target, project, generator.ContainerArtifactOptions{
 		Dockerfile:    includeDockerfile,
@@ -436,6 +452,12 @@ func buildGenerateResult(resolved *generator.ResolvedServiceDefinition, registry
 	}
 	if resolved.ReceiptAlgorithm != "" {
 		result["receipt_algorithm"] = resolved.ReceiptAlgorithm
+	}
+	if resolved.PackageLifecycle.Status != "" {
+		result["package_lifecycle"] = resolved.PackageLifecycle
+	}
+	if resolved.PackageLifecycleWarning != "" {
+		result["package_lifecycle_warning"] = resolved.PackageLifecycleWarning
 	}
 	if len(resolved.Lineage) > 0 {
 		result["lineage"] = resolved.Lineage

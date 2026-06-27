@@ -28,6 +28,34 @@ type RegistryBrowserSessionContext struct {
 	Admin     bool                       `json:"admin,omitempty"`
 }
 
+const (
+	PackageLifecycleActive     = "active"
+	PackageLifecycleSuperseded = "superseded"
+	PackageLifecycleDeprecated = "deprecated"
+	PackageLifecycleYanked     = "yanked"
+	PackageLifecycleTakedown   = "takedown"
+)
+
+type PackageLifecycleReplacement struct {
+	PackageID      string `json:"package_id"`
+	PackageVersion string `json:"package_version"`
+}
+
+type PackageLifecycle struct {
+	Status      string                       `json:"status"`
+	Reason      string                       `json:"reason,omitempty"`
+	Replacement *PackageLifecycleReplacement `json:"replacement,omitempty"`
+	UpdatedAt   string                       `json:"updated_at,omitempty"`
+	UpdatedBy   string                       `json:"updated_by,omitempty"`
+}
+
+type UpdatePackageLifecycleRequest struct {
+	Status                    string `json:"status"`
+	Reason                    string `json:"reason,omitempty"`
+	ReplacementPackageID      string `json:"replacement_package_id,omitempty"`
+	ReplacementPackageVersion string `json:"replacement_package_version,omitempty"`
+}
+
 type PublicationSummary struct {
 	PackageID            string            `json:"package_id"`
 	PackageVersion       string            `json:"package_version"`
@@ -41,6 +69,7 @@ type PublicationSummary struct {
 	Lineage              map[string]any    `json:"lineage,omitempty"`
 	PublishedAt          string            `json:"published_at"`
 	DownloadCount        int64             `json:"download_count"`
+	Lifecycle            PackageLifecycle  `json:"lifecycle"`
 }
 
 type PackageSourceLink struct {
@@ -108,6 +137,7 @@ type RegistryPackageRecord struct {
 	PackageExecutionSignature string                          `json:"package_execution_signature,omitempty"`
 	PublishedAt               string                          `json:"published_at"`
 	DownloadCount             int64                           `json:"download_count"`
+	Lifecycle                 PackageLifecycle                `json:"lifecycle"`
 	Manifest                  map[string]any                  `json:"manifest"`
 	ServiceDefinition         map[string]any                  `json:"service_definition"`
 	RecommendedLock           map[string]any                  `json:"recommended_lock"`

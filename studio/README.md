@@ -35,14 +35,14 @@ To run a published Studio release image instead of tagging local builds as `loca
 the ANIP protocol version; Studio remains compatible with ANIP `0.24`.
 
 ```bash
-STUDIO_IMAGE_TAG=0.24.7 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 docker compose up
 ```
 
 To force a fresh pull of the published release images:
 
 ```bash
-STUDIO_IMAGE_TAG=0.24.7 docker compose pull
-STUDIO_IMAGE_TAG=0.24.7 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 docker compose pull
+STUDIO_IMAGE_TAG=0.9.0 docker compose up
 ```
 
 Useful environment switches:
@@ -53,11 +53,11 @@ STUDIO_SEED_SHOWCASES=1 docker compose up --build
 
 # Host a read-only Studio demo. Unsafe HTTP methods are blocked at the API
 # boundary; only GET, HEAD, and OPTIONS remain available.
-STUDIO_IMAGE_TAG=0.24.7 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
+STUDIO_IMAGE_TAG=0.9.0 STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up
 
 # Optionally switch to a read-only database role after startup migrations,
 # vocabulary load, and showcase seeding complete.
-STUDIO_IMAGE_TAG=0.24.7 \
+STUDIO_IMAGE_TAG=0.9.0 \
 STUDIO_READ_ONLY=1 \
 STUDIO_READ_ONLY_DATABASE_URL=postgresql://anip_readonly:anip_readonly@studio-db:5432/anip_studio \
 docker compose up

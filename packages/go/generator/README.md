@@ -67,6 +67,8 @@ go run ./cmd/anip generate \
 
 Registry generation is trust-gated. The generator fetches the package, receipt, and Registry public keys, then verifies the manifest, Service Definition, recommended lock, and Ed25519 receipt before writing output.
 
+Registry package lifecycle is also enforced. `superseded` and `deprecated` packages can still resolve, but the resolved result includes lifecycle metadata and a warning. `yanked` packages fail by default and require the explicit `--allow-yanked-package` CLI flag or equivalent resolver option for pinned historical reproduction. `takedown` packages are always blocked.
+
 Every generated project also includes a framework-agnostic agent consumption kit:
 
 ```text

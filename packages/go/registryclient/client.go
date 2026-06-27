@@ -38,6 +38,24 @@ type PackageRecord struct {
 	Readme                    string                   `json:"readme,omitempty"`
 	SourceLinks               []SourceLink             `json:"source_links,omitempty"`
 	ImplementationMaterials   []ImplementationMaterial `json:"implementation_materials,omitempty"`
+	Lifecycle                 PackageLifecycle         `json:"lifecycle,omitempty"`
+}
+
+type PackageLifecycleReplacement struct {
+	PackageID      string `json:"package_id,omitempty"`
+	PackageVersion string `json:"package_version,omitempty"`
+}
+
+type PackageLifecycle struct {
+	Status      string                       `json:"status,omitempty"`
+	Reason      string                       `json:"reason,omitempty"`
+	Replacement *PackageLifecycleReplacement `json:"replacement,omitempty"`
+	UpdatedAt   string                       `json:"updated_at,omitempty"`
+	UpdatedBy   string                       `json:"updated_by,omitempty"`
+}
+
+type ResolveOptions struct {
+	AllowYankedPackage bool
 }
 
 type SourceLink struct {
@@ -105,6 +123,10 @@ func ParsePackageRef(ref string) (string, string, error) {
 }
 
 func ResolveAndVerify(ctx context.Context, client *http.Client, registryBase string, packageID string, packageVersion string) (*ResolvedPackage, error) {
+	return ResolveAndVerifyWithOptions(ctx, client, registryBase, packageID, packageVersion, ResolveOptions{})
+}
+
+func ResolveAndVerifyWithOptions(ctx context.Context, client *http.Client, registryBase string, packageID string, packageVersion string, options ResolveOptions) (*ResolvedPackage, error) {
 	if strings.TrimSpace(packageID) == "" || strings.TrimSpace(packageVersion) == "" {
 		return nil, fmt.Errorf("package id and package version are required for registry resolution")
 	}
@@ -118,6 +140,9 @@ func ResolveAndVerify(ctx context.Context, client *http.Client, registryBase str
 	}
 
 	packageURL := fmt.Sprintf("%s/packages/%s/%s/download", apiBase, url.PathEscape(packageID), url.PathEscape(packageVersion))
+	if options.AllowYankedPackage {
+		packageURL += "?allow_yanked=true"
+	}
 	receiptURL := fmt.Sprintf("%s/packages/%s/%s/receipt", apiBase, url.PathEscape(packageID), url.PathEscape(packageVersion))
 	keysURL := apiBase + "/keys"
 

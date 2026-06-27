@@ -2,6 +2,7 @@ package registryapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -122,6 +123,164 @@ func TestGetPackageReceipt(t *testing.T) {
 	}
 	if payload.SignatureAlgorithm != SignatureAlgorithmEd25519 || payload.KeyID == "" {
 		t.Fatalf("expected signed receipt metadata, got %+v", payload)
+	}
+}
+
+func TestPackageDetailIncludesDefaultLifecycle(t *testing.T) {
+	store := NewMemoryStore()
+	request := validTestPublishPackageRequest()
+	result, err := store.PublishPackage(request)
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+
+	record, ok := store.GetPackage(result.Package.PackageID, result.Package.PackageVersion)
+	if !ok {
+		t.Fatalf("expected package to exist")
+	}
+	if record.Lifecycle.Status != PackageLifecycleActive {
+		t.Fatalf("expected active lifecycle, got %q", record.Lifecycle.Status)
+	}
+}
+
+func TestAdminUpdatesPackageLifecycle(t *testing.T) {
+	store := NewMemoryStore()
+	published, err := store.PublishPackage(validTestPublishPackageRequest())
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "test-admin-token"})
+
+	payload := map[string]any{
+		"status":                      PackageLifecycleDeprecated,
+		"reason":                      "later validation found generated-service drift",
+		"replacement_package_id":      published.Package.PackageID,
+		"replacement_package_version": "0.2.1",
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal lifecycle request: %v", err)
+	}
+	req := httptest.NewRequest(
+		http.MethodPatch,
+		"/registry-api/v1/admin/packages/"+published.Package.PackageID+"/"+published.Package.PackageVersion+"/lifecycle",
+		bytes.NewReader(body),
+	)
+	req.Header.Set("Authorization", "Bearer test-admin-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected lifecycle update 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Package RegistryPackageRecord `json:"package"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode lifecycle update: %v", err)
+	}
+	if response.Package.Lifecycle.Status != PackageLifecycleDeprecated {
+		t.Fatalf("expected deprecated lifecycle, got %+v", response.Package.Lifecycle)
+	}
+	if response.Package.Lifecycle.Replacement == nil || response.Package.Lifecycle.Replacement.PackageVersion != "0.2.1" {
+		t.Fatalf("expected replacement metadata, got %+v", response.Package.Lifecycle)
+	}
+	if response.Package.Lifecycle.UpdatedBy == "" || response.Package.Lifecycle.UpdatedAt == "" {
+		t.Fatalf("expected lifecycle audit metadata, got %+v", response.Package.Lifecycle)
+	}
+}
+
+func TestAdminPackageLifecycleRequiresAdminAuth(t *testing.T) {
+	store := NewMemoryStore()
+	published, err := store.PublishPackage(validTestPublishPackageRequest())
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	handler := NewHandlerWithOptions(store, HandlerOptions{AdminToken: "test-admin-token"})
+
+	body := strings.NewReader(`{"status":"deprecated","reason":"bad package"}`)
+	req := httptest.NewRequest(
+		http.MethodPatch,
+		"/registry-api/v1/admin/packages/"+published.Package.PackageID+"/"+published.Package.PackageVersion+"/lifecycle",
+		body,
+	)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 without admin auth, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestYankedPackageDownloadRequiresExplicitOverride(t *testing.T) {
+	store := NewMemoryStore()
+	published, err := store.PublishPackage(validTestPublishPackageRequest())
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	if _, ok, err := store.UpdatePackageLifecycle(
+		context.Background(),
+		published.Package.PackageID,
+		published.Package.PackageVersion,
+		UpdatePackageLifecycleRequest{Status: PackageLifecycleYanked, Reason: "bad generated-service behavior"},
+		"test-admin",
+	); err != nil || !ok {
+		t.Fatalf("update lifecycle: ok=%v err=%v", ok, err)
+	}
+	handler := NewHandler(store)
+
+	downloadReq := httptest.NewRequest(
+		http.MethodGet,
+		"/registry-api/v1/packages/"+published.Package.PackageID+"/"+published.Package.PackageVersion+"/download",
+		nil,
+	)
+	downloadRec := httptest.NewRecorder()
+	handler.ServeHTTP(downloadRec, downloadReq)
+	if downloadRec.Code != http.StatusGone {
+		t.Fatalf("expected yanked download 410, got %d body=%s", downloadRec.Code, downloadRec.Body.String())
+	}
+
+	overrideReq := httptest.NewRequest(
+		http.MethodGet,
+		"/registry-api/v1/packages/"+published.Package.PackageID+"/"+published.Package.PackageVersion+"/download?allow_yanked=true",
+		nil,
+	)
+	overrideRec := httptest.NewRecorder()
+	handler.ServeHTTP(overrideRec, overrideReq)
+	if overrideRec.Code != http.StatusOK {
+		t.Fatalf("expected yanked download override 200, got %d body=%s", overrideRec.Code, overrideRec.Body.String())
+	}
+}
+
+func TestTakedownPackageDoesNotExposeContents(t *testing.T) {
+	store := NewMemoryStore()
+	published, err := store.PublishPackage(validTestPublishPackageRequest())
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	if _, ok, err := store.UpdatePackageLifecycle(
+		context.Background(),
+		published.Package.PackageID,
+		published.Package.PackageVersion,
+		UpdatePackageLifecycleRequest{Status: PackageLifecycleTakedown, Reason: "legal takedown"},
+		"test-admin",
+	); err != nil || !ok {
+		t.Fatalf("update lifecycle: ok=%v err=%v", ok, err)
+	}
+	handler := NewHandler(store)
+
+	detailReq := httptest.NewRequest(
+		http.MethodGet,
+		"/registry-api/v1/packages/"+published.Package.PackageID+"/"+published.Package.PackageVersion,
+		nil,
+	)
+	detailRec := httptest.NewRecorder()
+	handler.ServeHTTP(detailRec, detailReq)
+	if detailRec.Code != http.StatusGone {
+		t.Fatalf("expected takedown detail 410, got %d body=%s", detailRec.Code, detailRec.Body.String())
+	}
+	if strings.Contains(detailRec.Body.String(), "service_definition") {
+		t.Fatalf("takedown response should not expose package contents: %s", detailRec.Body.String())
 	}
 }
 

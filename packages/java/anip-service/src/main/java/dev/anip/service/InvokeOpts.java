@@ -14,6 +14,7 @@ public class InvokeOpts {
     private String upstreamService;
     private Budget budget;
     private String approvalGrant;  // v0.23: grant_id supplied on continuation invocations
+    private java.util.List<String> requestedEffects = java.util.List.of();
 
     public InvokeOpts() {}
 
@@ -98,6 +99,16 @@ public class InvokeOpts {
 
     public InvokeOpts setApprovalGrant(String approvalGrant) {
         this.approvalGrant = approvalGrant;
+        return this;
+    }
+
+    /** Canonical business effect IDs the caller is requesting this invocation to produce. */
+    public java.util.List<String> getRequestedEffects() {
+        return requestedEffects;
+    }
+
+    public InvokeOpts setRequestedEffects(java.util.List<String> requestedEffects) {
+        this.requestedEffects = requestedEffects == null ? java.util.List.of() : requestedEffects;
         return this;
     }
 }

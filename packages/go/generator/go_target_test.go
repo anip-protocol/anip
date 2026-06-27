@@ -33,11 +33,18 @@ func TestBuildGoProject(t *testing.T) {
 	}
 
 	runtimeModule := fileContent(project.Files, "generated/runtime_target.go")
+	capabilityModule := fileContent(project.Files, "host/capabilities.go")
 	if !strings.Contains(runtimeModule, "work_item.prepare_update") {
 		t.Fatalf("generated runtime target missing expected capability id")
 	}
 	if !strings.Contains(runtimeModule, `"backend_input_mode": "hybrid"`) {
 		t.Fatalf("generated runtime target missing hybrid backend input mode")
+	}
+	if !strings.Contains(capabilityModule, "assertRequestedEffectsAllowed(capability, ctx)") {
+		t.Fatalf("generated capabilities module must deny forbidden requested effects before execution")
+	}
+	if strings.Index(capabilityModule, "assertRequestedEffectsAllowed(capability, ctx)") > strings.Index(capabilityModule, "params = applyInputDefaults(capability, params)") {
+		t.Fatalf("generated capabilities module must check requested effects before applying defaults")
 	}
 }
 

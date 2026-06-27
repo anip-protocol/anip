@@ -1,6 +1,12 @@
 # GTM Pipeline Q2 Review
 
-ANIP package `gtm-pipeline-q2-review@0.4.4` for local showcase and registry smoke usage.
+ANIP package `gtm-pipeline-q2-review@0.4.5` for local showcase and registry smoke usage.
+
+`0.4.5` is the current signed Studio-local publication export. It includes
+`package_execution_signature`, manifest/lock/service-definition digests, receipt
+metadata, and Product/Developer revision lineage. Older package files in this
+folder are retained as historical artifacts and should not be treated as the
+latest trusted package source.
 
 ## Contents
 
@@ -45,7 +51,7 @@ go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.js
 From a trusted registry package:
 
 ```bash
-go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.4 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
+go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.5 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
 ```
 
 ## Verify

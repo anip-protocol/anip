@@ -1,0 +1,56 @@
+{
+  "agent_consumability": {
+    "capability_count": 23,
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_publication_gate": {
+    "detail": "Latest simulator report passed 12/12 probes.",
+    "label": "Simulation passed",
+    "latest_report_artifact_id": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-agent-consumption-simulation-report",
+    "overridden": false,
+    "status": "pass"
+  },
+  "agent_consumption_readiness": {
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "info": 0,
+      "probes": 49,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "agent_consumption_simulation": {
+    "generated_at": "2026-06-24T18:35:25.517Z",
+    "simulator_runtime": {
+      "model": "gpt-5.4-mini",
+      "model_source": "default",
+      "provider": "openai",
+      "provider_source": "default"
+    },
+    "status": "pass",
+    "summary": {
+      "failed": 0,
+      "passed": 12,
+      "total": 12
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "blueprint_version": "0.4.5",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "extension_packs": [],
+  "generated_at": "2026-06-24T18:54:53.712Z",
+  "lock_kind": "publisher_recommended_lock",
+  "package_execution_signature": "sha256:81a633a6324680d4a52249fa59d7211298b17a2a4ac47542758e1d11a0e7f6f5",
+  "regression_packs": [],
+  "runtime_packages": [],
+  "schema_version": "anip-service-definition/v1",
+  "service_definition_digest": "57736b4fe62d4d9a3b5a4b57d0c1daeb217d470904b64cd8568d8532ae1d8bd4",
+  "verifier_packs": [
+    "anip-verifier@local"
+  ]
+}

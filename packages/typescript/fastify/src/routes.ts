@@ -65,6 +65,9 @@ export async function mountAnip(
       const parentInvocationId = (body.parent_invocation_id as string) ?? null;
       const upstreamService = (body.upstream_service as string) ?? null;
       const budget = (body.budget as Record<string, unknown>) ?? null;
+      const requestedEffects = Array.isArray(body.requested_effects)
+        ? body.requested_effects.map(String).filter((item) => item.trim().length > 0)
+        : [];
       // v0.23: continuation invocations supply approval_grant. session_id for
       // session_bound grants is read from the signed token, never the body.
       const approvalGrant = (body.approval_grant as string) ?? null;
@@ -78,6 +81,7 @@ export async function mountAnip(
           upstreamService,
           budget,
           approvalGrant,
+          requestedEffects,
         });
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
@@ -93,6 +97,7 @@ export async function mountAnip(
         const result = await service.invoke(req.params.capability, token, params, {
           clientReferenceId, taskId, parentInvocationId, upstreamService, stream: true, budget,
           approvalGrant,
+          requestedEffects,
         });
         const failure = result.failure as Record<string, unknown>;
         return reply.status(failureStatus(failure?.type as string)).send(result);
@@ -115,6 +120,7 @@ export async function mountAnip(
         stream: true,
         budget,
         approvalGrant,
+        requestedEffects,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
           reply.raw.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);

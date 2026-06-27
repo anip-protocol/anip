@@ -36,6 +36,18 @@ def _api_keys_json() -> str:
     return json.dumps({profile.api_key: encode_actor_principal(profile) for profile in actor_profiles().values()})
 
 
+def _runtime_pythonpath() -> str:
+    paths = [
+        str(REPO_ROOT / "packages" / "python" / "anip-runtime-utils" / "src"),
+        str(REPO_ROOT / "examples" / "showcase" / "gtm"),
+        str(REPO_ROOT),
+    ]
+    existing = os.environ.get("PYTHONPATH")
+    if existing:
+        paths.append(existing)
+    return os.pathsep.join(paths)
+
+
 def _service_config(base_port: int) -> list[dict[str, str]]:
     services: list[dict[str, str]] = []
     for index, (name, _service_id) in enumerate(SERVICE_SLICES):
@@ -54,6 +66,8 @@ def _start_services(args: argparse.Namespace) -> list[subprocess.Popen[bytes]]:
     generated_dir = Path(args.generated_dir).resolve()
     if not (generated_dir / "node_modules").exists():
         subprocess.run(["npm", "install"], cwd=generated_dir, check=True)
+    if not (generated_dir / "dist" / "main.js").exists():
+        subprocess.run(["npm", "run", "build"], cwd=generated_dir, check=True)
     api_keys = _api_keys_json()
     processes: list[subprocess.Popen[bytes]] = []
     for index, (_name, service_id) in enumerate(SERVICE_SLICES):
@@ -68,7 +82,7 @@ def _start_services(args: argparse.Namespace) -> list[subprocess.Popen[bytes]]:
                 "ANIP_SERVICE_ID": service_id,
             }
         )
-        processes.append(subprocess.Popen(["npm", "run", "dev"], cwd=generated_dir, env=env))
+        processes.append(subprocess.Popen(["npm", "run", "start"], cwd=generated_dir, env=env))
     return processes
 
 
@@ -76,7 +90,7 @@ def _start_runtime(args: argparse.Namespace) -> subprocess.Popen[bytes]:
     env = os.environ.copy()
     env.update(
         {
-            "PYTHONPATH": os.pathsep.join([str(REPO_ROOT / "examples" / "showcase" / "gtm"), str(REPO_ROOT)]),
+            "PYTHONPATH": _runtime_pythonpath(),
             "ANIP_AGENT_APP_MODULE": "gtm_agent_app",
             "OPENAI_MODEL": args.model,
             "DATABASE_URL": args.database_url,

@@ -444,12 +444,12 @@ def _issue_token(client: TestClient, key: str, capability_id: str, scope: list[s
     return response.json()["token"]
 
 
-def _invoke(client: TestClient, key: str, capability_id: str, scope: list[str], parameters: dict) -> dict:
+def _invoke(client: TestClient, key: str, capability_id: str, scope: list[str], parameters: dict, requested_effects: list[str] | None = None) -> dict:
     token = _issue_token(client, key, capability_id, scope)
     response = client.post(
         f"/anip/invoke/{capability_id}",
         headers={"Authorization": f"Bearer {token}"},
-        json={"parameters": parameters},
+        json={"parameters": parameters, "requested_effects": requested_effects or []},
     )
     assert response.status_code in (200, 400, 403)
     return response.json()
@@ -513,6 +513,19 @@ def test_behavior_matrix_missing_required_input_clarifies() -> None:
     payload = _invoke(_client(), "analyst-key", "conformance.lookup", ["conformance.read"], {})
     _assert_failure_type(payload, "clarification_required")
     _assert_resolution_action(payload, "obtain_binding")
+
+
+def test_behavior_matrix_requested_forbidden_effect_denies_before_missing_inputs() -> None:
+    payload = _invoke(
+        _client(),
+        "analyst-key",
+        "conformance.lookup",
+        ["conformance.read"],
+        {},
+        requested_effects=["raw_data_export"],
+    )
+    _assert_failure_type(payload, "denied")
+    _assert_resolution_action(payload, "request_declared_capability")
 
 
 def test_behavior_matrix_insufficient_scope_is_denied_before_execution() -> None:

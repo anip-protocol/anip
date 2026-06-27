@@ -4,6 +4,10 @@ Thin web UI for the ANIP Registry service.
 
 This app is intentionally non-authoritative. The Go registry backend is the trusted core.
 
+The Registry app version is independent from ANIP SDK/runtime package versions.
+The current Registry app/image version is `0.6.5`; the current ANIP spec line is
+`0.24`.
+
 ## Development
 
 ```bash
@@ -93,7 +97,7 @@ To run a published release image instead of tagging the build as `local`, set
 `ANIP_IMAGE_TAG`:
 
 ```bash
-ANIP_IMAGE_TAG=0.24.5 docker compose up
+ANIP_IMAGE_TAG=0.6.5 docker compose up
 ```
 
 The compose stack defaults to development signing mode and a local publish token:

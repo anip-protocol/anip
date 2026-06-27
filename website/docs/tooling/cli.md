@@ -178,6 +178,25 @@ anip generate \
   --force
 ```
 
+Registry package lifecycle is enforced during generation:
+
+- `active` packages generate normally.
+- `superseded` and `deprecated` packages generate, but the JSON result includes `package_lifecycle` and `package_lifecycle_warning`.
+- `yanked` packages fail by default. Use `--allow-yanked-package` only for pinned historical reproduction.
+- `takedown` packages always fail.
+
+Example historical reproduction of a yanked package:
+
+```bash
+anip generate \
+  --registry-url https://registry.example.com/registry-api/v1 \
+  --package my-service@0.1.0 \
+  --allow-yanked-package \
+  --target python \
+  --output ./generated/my-service-repro \
+  --force
+```
+
 ### Generate with framework variants
 
 TypeScript Fastify:
@@ -484,6 +503,7 @@ Flags:
 | `--expected-contract-signature` | Expected compiled contract signature. |
 | `--require-registry-mode` | Required Registry signing mode, such as `production`. |
 | `--trusted-registry-key-id` | Trusted Registry receipt signing key ID. |
+| `--allow-yanked-package` | Allow validation of a yanked package for pinned historical reproduction. Takedown packages remain blocked. |
 
 Examples:
 
