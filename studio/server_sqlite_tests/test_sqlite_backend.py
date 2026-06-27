@@ -16,7 +16,7 @@ from studio.server.repository import (
 )
 
 
-EXPECTED_SHOWCASE_PROJECT_ID = "85afbf8a-2414-49c1-824d-36d6d300b5f6"
+EXPECTED_SHOWCASE_PROJECT_ID = "e19bba7f-ce1d-4ca8-bfb2-60fad064f007"
 EXPECTED_SHOWCASE_PROJECT_NAME = "GTM Pipeline Q2 Review"
 
 
