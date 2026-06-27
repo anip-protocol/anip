@@ -24,6 +24,7 @@ type ResolveServiceDefinitionOptions struct {
 	PackageVersion         string
 	PackageRef             string
 	AllowUntrustedRegistry bool
+	AllowYankedPackage     bool
 }
 
 type ResolvedServiceDefinition struct {
@@ -50,6 +51,8 @@ type ResolvedServiceDefinition struct {
 	RegistryPublicKeys        []registryclient.PublicKey
 	PublisherID               string
 	PublisherType             string
+	PackageLifecycle          registryclient.PackageLifecycle
+	PackageLifecycleWarning   string
 	Manifest                  map[string]any
 	RecommendedLock           map[string]any
 	ImplementationMaterials   []map[string]any
@@ -234,7 +237,9 @@ func resolveFromRegistry(ctx context.Context, client *http.Client, options Resol
 		return nil, fmt.Errorf("package id and package version are required for registry resolution")
 	}
 
-	resolvedPackage, err := registryclient.ResolveAndVerify(ctx, client, options.RegistryBase, packageID, packageVersion)
+	resolvedPackage, err := registryclient.ResolveAndVerifyWithOptions(ctx, client, options.RegistryBase, packageID, packageVersion, registryclient.ResolveOptions{
+		AllowYankedPackage: options.AllowYankedPackage,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -242,6 +247,10 @@ func resolveFromRegistry(ctx context.Context, client *http.Client, options Resol
 		return nil, fmt.Errorf("registry package %s@%s failed trust verification: %s", packageID, packageVersion, resolvedPackage.FailureSummary())
 	}
 	record := resolvedPackage.Package
+	lifecycle := normalizeResolvedPackageLifecycle(record.Lifecycle)
+	if err := validateResolvedPackageLifecycle(record.PackageID, record.PackageVersion, lifecycle, options.AllowYankedPackage); err != nil {
+		return nil, err
+	}
 	implementationMaterials := implementationMaterialsToMap(record.ImplementationMaterials)
 	manifest := manifestWithPackageImplementationMaterials(record.Manifest, implementationMaterials)
 	packageExecutionSignature := firstNonEmpty(
@@ -278,6 +287,8 @@ func resolveFromRegistry(ctx context.Context, client *http.Client, options Resol
 		RegistryPublicKeys:        resolvedPackage.PublicKeys,
 		PublisherID:               record.PublisherID,
 		PublisherType:             record.PublisherType,
+		PackageLifecycle:          lifecycle,
+		PackageLifecycleWarning:   packageLifecycleWarning(record.PackageID, record.PackageVersion, lifecycle),
 		Manifest:                  manifest,
 		RecommendedLock:           record.RecommendedLock,
 		ImplementationMaterials:   implementationMaterials,
@@ -294,6 +305,45 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeResolvedPackageLifecycle(lifecycle registryclient.PackageLifecycle) registryclient.PackageLifecycle {
+	lifecycle.Status = strings.TrimSpace(strings.ToLower(lifecycle.Status))
+	if lifecycle.Status == "" {
+		lifecycle.Status = "active"
+	}
+	return lifecycle
+}
+
+func validateResolvedPackageLifecycle(packageID string, packageVersion string, lifecycle registryclient.PackageLifecycle, allowYanked bool) error {
+	switch lifecycle.Status {
+	case "active", "deprecated", "superseded":
+		return nil
+	case "yanked":
+		if allowYanked {
+			return nil
+		}
+		return fmt.Errorf("registry package %s@%s is yanked; use --allow-yanked-package only for pinned historical reproduction", packageID, packageVersion)
+	case "takedown":
+		return fmt.Errorf("registry package %s@%s is under takedown and cannot be used", packageID, packageVersion)
+	default:
+		return fmt.Errorf("registry package %s@%s has unknown lifecycle status %q", packageID, packageVersion, lifecycle.Status)
+	}
+}
+
+func packageLifecycleWarning(packageID string, packageVersion string, lifecycle registryclient.PackageLifecycle) string {
+	replacement := ""
+	if lifecycle.Replacement != nil && strings.TrimSpace(lifecycle.Replacement.PackageID) != "" && strings.TrimSpace(lifecycle.Replacement.PackageVersion) != "" {
+		replacement = fmt.Sprintf("; replacement=%s@%s", lifecycle.Replacement.PackageID, lifecycle.Replacement.PackageVersion)
+	}
+	switch lifecycle.Status {
+	case "deprecated":
+		return fmt.Sprintf("registry package %s@%s is deprecated%s", packageID, packageVersion, replacement)
+	case "superseded":
+		return fmt.Sprintf("registry package %s@%s is superseded%s", packageID, packageVersion, replacement)
+	default:
+		return ""
+	}
 }
 
 func stringValue(value any) string {

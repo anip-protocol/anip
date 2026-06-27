@@ -27,6 +27,7 @@ type VerifyOptions struct {
 	ExpectedContractSignature string
 	RequiredRegistryMode      string
 	TrustedRegistryKeyID      string
+	AllowYankedPackage        bool
 }
 
 type CheckResult struct {
@@ -36,31 +37,33 @@ type CheckResult struct {
 }
 
 type Result struct {
-	Status                    string         `json:"status"`
-	SourceKind                string         `json:"source_kind"`
-	PackageID                 string         `json:"package_id,omitempty"`
-	PackageVersion            string         `json:"package_version,omitempty"`
-	SchemaVersion             string         `json:"schema_version,omitempty"`
-	DefinitionDigest          string         `json:"definition_digest"`
-	RegistryDefinitionDigest  string         `json:"registry_definition_digest,omitempty"`
-	ManifestDigest            string         `json:"manifest_digest,omitempty"`
-	LockDigest                string         `json:"lock_digest,omitempty"`
-	PackageExecutionSignature string         `json:"package_execution_signature,omitempty"`
-	ReceiptAuthority          string         `json:"receipt_authority,omitempty"`
-	ReceiptKeyID              string         `json:"receipt_key_id,omitempty"`
-	ReceiptAlgorithm          string         `json:"receipt_algorithm,omitempty"`
-	ReceiptStatus             string         `json:"receipt_status,omitempty"`
-	ContractSignature         string         `json:"contract_signature,omitempty"`
-	Lineage                   map[string]any `json:"lineage,omitempty"`
-	ProductRevision           any            `json:"product_revision,omitempty"`
-	DeveloperRevision         any            `json:"developer_revision,omitempty"`
-	RegistryReceiptSignature  string         `json:"registry_receipt_signature,omitempty"`
-	RegistrySigningMode       string         `json:"registry_signing_mode,omitempty"`
-	RegistryActiveKeyID       string         `json:"registry_active_key_id,omitempty"`
-	RegistryRecordPath        string         `json:"registry_record_path,omitempty"`
-	AgentReadiness            map[string]any `json:"agent_consumption_readiness,omitempty"`
-	AgentConsumability        map[string]any `json:"agent_consumability,omitempty"`
-	Checks                    []CheckResult  `json:"checks"`
+	Status                    string                           `json:"status"`
+	SourceKind                string                           `json:"source_kind"`
+	PackageID                 string                           `json:"package_id,omitempty"`
+	PackageVersion            string                           `json:"package_version,omitempty"`
+	SchemaVersion             string                           `json:"schema_version,omitempty"`
+	DefinitionDigest          string                           `json:"definition_digest"`
+	RegistryDefinitionDigest  string                           `json:"registry_definition_digest,omitempty"`
+	ManifestDigest            string                           `json:"manifest_digest,omitempty"`
+	LockDigest                string                           `json:"lock_digest,omitempty"`
+	PackageExecutionSignature string                           `json:"package_execution_signature,omitempty"`
+	ReceiptAuthority          string                           `json:"receipt_authority,omitempty"`
+	ReceiptKeyID              string                           `json:"receipt_key_id,omitempty"`
+	ReceiptAlgorithm          string                           `json:"receipt_algorithm,omitempty"`
+	ReceiptStatus             string                           `json:"receipt_status,omitempty"`
+	ContractSignature         string                           `json:"contract_signature,omitempty"`
+	Lineage                   map[string]any                   `json:"lineage,omitempty"`
+	ProductRevision           any                              `json:"product_revision,omitempty"`
+	DeveloperRevision         any                              `json:"developer_revision,omitempty"`
+	RegistryReceiptSignature  string                           `json:"registry_receipt_signature,omitempty"`
+	RegistrySigningMode       string                           `json:"registry_signing_mode,omitempty"`
+	RegistryActiveKeyID       string                           `json:"registry_active_key_id,omitempty"`
+	RegistryRecordPath        string                           `json:"registry_record_path,omitempty"`
+	PackageLifecycle          *registryclient.PackageLifecycle `json:"package_lifecycle,omitempty"`
+	PackageLifecycleWarning   string                           `json:"package_lifecycle_warning,omitempty"`
+	AgentReadiness            map[string]any                   `json:"agent_consumption_readiness,omitempty"`
+	AgentConsumability        map[string]any                   `json:"agent_consumability,omitempty"`
+	Checks                    []CheckResult                    `json:"checks"`
 }
 
 func VerifyServiceDefinition(ctx context.Context, client *http.Client, options VerifyOptions) (*Result, error) {
@@ -76,6 +79,7 @@ func VerifyServiceDefinition(ctx context.Context, client *http.Client, options V
 		PackageVersion:         options.PackageVersion,
 		PackageRef:             options.PackageRef,
 		AllowUntrustedRegistry: true,
+		AllowYankedPackage:     options.AllowYankedPackage,
 	}
 	generator.ApplyPackageLockToResolveOptions(&resolveOptions, loadedLock)
 	resolved, err := generator.ResolveServiceDefinition(ctx, client, resolveOptions)
@@ -110,6 +114,12 @@ func VerifyServiceDefinition(ctx context.Context, client *http.Client, options V
 		RegistryRecordPath:        resolved.RegistryRecordPath,
 		AgentReadiness:            resolved.AgentReadiness,
 		AgentConsumability:        resolved.AgentConsumability,
+	}
+	if resolved.PackageLifecycle.Status != "" {
+		result.PackageLifecycle = &resolved.PackageLifecycle
+	}
+	if resolved.PackageLifecycleWarning != "" {
+		result.PackageLifecycleWarning = resolved.PackageLifecycleWarning
 	}
 
 	result.addCheck("definition_digest_computed", definitionDigest != "", "definition digest was recomputed from canonical JSON")

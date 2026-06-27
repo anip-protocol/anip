@@ -45,6 +45,7 @@ func Run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 	var expectedContractSignature string
 	var requiredRegistryMode string
 	var trustedRegistryKeyID string
+	var allowYankedPackage bool
 
 	fs := flag.NewFlagSet("anip validate", flag.ContinueOnError)
 	if hasHelpFlag(args) {
@@ -76,6 +77,7 @@ Flags:`)
 	fs.StringVar(&expectedContractSignature, "expected-contract-signature", "", "Expected compiled contract signature")
 	fs.StringVar(&requiredRegistryMode, "require-registry-mode", "", "Required Registry signing mode, for example production")
 	fs.StringVar(&trustedRegistryKeyID, "trusted-registry-key-id", "", "Trusted Registry receipt signing key id")
+	fs.BoolVar(&allowYankedPackage, "allow-yanked-package", false, "Allow validating a yanked registry package for pinned historical reproduction. Takedown packages are always blocked.")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return 0
@@ -97,6 +99,7 @@ Flags:`)
 		ExpectedContractSignature: expectedContractSignature,
 		RequiredRegistryMode:      requiredRegistryMode,
 		TrustedRegistryKeyID:      trustedRegistryKeyID,
+		AllowYankedPackage:        allowYankedPackage,
 	})
 	if err != nil {
 		fail(err.Error(), 1)

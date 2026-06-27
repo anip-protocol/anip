@@ -189,6 +189,126 @@ func TestResolveServiceDefinitionFromRegistry(t *testing.T) {
 	}
 }
 
+func TestResolveServiceDefinitionFromRegistryCarriesDeprecatedLifecycle(t *testing.T) {
+	store := registryapi.NewMemoryStore()
+	_, err := store.PublishPackage(registryapi.PublishPackageRequest{
+		PackageID:            "work-item-fronting",
+		PackageVersion:       "0.2.0",
+		ProjectRef:           "work-item-fronting",
+		ProductRevisionRef:   "product-r3",
+		DeveloperRevisionRef: "developer-r5",
+		ContractSignature:    "sha256:test-signature",
+		SchemaVersion:        "anip-service-definition/v1",
+		Manifest:             validResolverManifest("Work Item Fronting"),
+		ServiceDefinition:    validResolverTestServiceDefinition("Work Item Fronting"),
+		RecommendedLock:      map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}},
+	})
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	if _, _, err := store.UpdatePackageLifecycle(context.Background(), "work-item-fronting", "0.2.0", registryapi.UpdatePackageLifecycleRequest{
+		Status:                    registryapi.PackageLifecycleDeprecated,
+		Reason:                    "Use the corrected package.",
+		ReplacementPackageID:      "work-item-fronting",
+		ReplacementPackageVersion: "0.2.1",
+	}, "admin"); err != nil {
+		t.Fatalf("update lifecycle: %v", err)
+	}
+	server := httptest.NewServer(registryapi.NewHandler(store))
+	defer server.Close()
+
+	resolved, err := ResolveServiceDefinition(context.Background(), server.Client(), ResolveServiceDefinitionOptions{
+		RegistryBase:   server.URL,
+		PackageID:      "work-item-fronting",
+		PackageVersion: "0.2.0",
+	})
+	if err != nil {
+		t.Fatalf("ResolveServiceDefinition: %v", err)
+	}
+	if resolved.PackageLifecycle.Status != registryapi.PackageLifecycleDeprecated {
+		t.Fatalf("expected deprecated lifecycle, got %+v", resolved.PackageLifecycle)
+	}
+	if !strings.Contains(resolved.PackageLifecycleWarning, "work-item-fronting@0.2.1") {
+		t.Fatalf("expected replacement warning, got %q", resolved.PackageLifecycleWarning)
+	}
+}
+
+func TestResolveServiceDefinitionFromRegistryRejectsYankedByDefault(t *testing.T) {
+	store := registryapi.NewMemoryStore()
+	_, err := store.PublishPackage(registryapi.PublishPackageRequest{
+		PackageID:            "work-item-fronting",
+		PackageVersion:       "0.2.0",
+		ProjectRef:           "work-item-fronting",
+		ProductRevisionRef:   "product-r3",
+		DeveloperRevisionRef: "developer-r5",
+		ContractSignature:    "sha256:test-signature",
+		SchemaVersion:        "anip-service-definition/v1",
+		Manifest:             validResolverManifest("Work Item Fronting"),
+		ServiceDefinition:    validResolverTestServiceDefinition("Work Item Fronting"),
+		RecommendedLock:      map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}},
+	})
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	if _, _, err := store.UpdatePackageLifecycle(context.Background(), "work-item-fronting", "0.2.0", registryapi.UpdatePackageLifecycleRequest{
+		Status: registryapi.PackageLifecycleYanked,
+		Reason: "Bad package.",
+	}, "admin"); err != nil {
+		t.Fatalf("update lifecycle: %v", err)
+	}
+	server := httptest.NewServer(registryapi.NewHandler(store))
+	defer server.Close()
+
+	_, err = ResolveServiceDefinition(context.Background(), server.Client(), ResolveServiceDefinitionOptions{
+		RegistryBase:   server.URL,
+		PackageID:      "work-item-fronting",
+		PackageVersion: "0.2.0",
+	})
+	if err == nil || !strings.Contains(err.Error(), "yanked") {
+		t.Fatalf("expected yanked package rejection, got %v", err)
+	}
+}
+
+func TestResolveServiceDefinitionFromRegistryAllowsExplicitYankedReproduction(t *testing.T) {
+	store := registryapi.NewMemoryStore()
+	_, err := store.PublishPackage(registryapi.PublishPackageRequest{
+		PackageID:            "work-item-fronting",
+		PackageVersion:       "0.2.0",
+		ProjectRef:           "work-item-fronting",
+		ProductRevisionRef:   "product-r3",
+		DeveloperRevisionRef: "developer-r5",
+		ContractSignature:    "sha256:test-signature",
+		SchemaVersion:        "anip-service-definition/v1",
+		Manifest:             validResolverManifest("Work Item Fronting"),
+		ServiceDefinition:    validResolverTestServiceDefinition("Work Item Fronting"),
+		RecommendedLock:      map[string]any{"verifier_pack": map[string]any{"name": "anip-verifier"}},
+	})
+	if err != nil {
+		t.Fatalf("publish package: %v", err)
+	}
+	if _, _, err := store.UpdatePackageLifecycle(context.Background(), "work-item-fronting", "0.2.0", registryapi.UpdatePackageLifecycleRequest{
+		Status: registryapi.PackageLifecycleYanked,
+		Reason: "Bad package.",
+	}, "admin"); err != nil {
+		t.Fatalf("update lifecycle: %v", err)
+	}
+	server := httptest.NewServer(registryapi.NewHandler(store))
+	defer server.Close()
+
+	resolved, err := ResolveServiceDefinition(context.Background(), server.Client(), ResolveServiceDefinitionOptions{
+		RegistryBase:       server.URL,
+		PackageID:          "work-item-fronting",
+		PackageVersion:     "0.2.0",
+		AllowYankedPackage: true,
+	})
+	if err != nil {
+		t.Fatalf("ResolveServiceDefinition: %v", err)
+	}
+	if resolved.PackageLifecycle.Status != registryapi.PackageLifecycleYanked {
+		t.Fatalf("expected yanked lifecycle, got %+v", resolved.PackageLifecycle)
+	}
+}
+
 func TestResolveServiceDefinitionFromRegistryRejectsUntrustedReceipt(t *testing.T) {
 	store := registryapi.NewMemoryStore()
 	_, err := store.PublishPackage(registryapi.PublishPackageRequest{
