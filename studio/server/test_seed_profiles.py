@@ -35,11 +35,11 @@ def test_public_showcase_gtm_project_is_snapshot_backed(monkeypatch):
 
     assert seed._seed_profile() == "public_showcase"
     snapshot = project_snapshots.load_snapshot_file(
-        project_snapshots._DEFAULT_SNAPSHOT_DIR / "gtm-pipeline-q2-review-0.4.3.studio-project-snapshot.json"
+        project_snapshots._DEFAULT_SNAPSHOT_DIR / "gtm-pipeline-q2-review-0.4.5.studio-project-snapshot.json"
     )
     assert snapshot["project"]["id"]
     assert snapshot["published_packages"][0]["package_id"] == "gtm-pipeline-q2-review"
-    assert snapshot["published_packages"][0]["package_version"] == "0.4.3"
+    assert snapshot["published_packages"][0]["package_version"] == "0.4.5"
 
 
 def test_snapshot_showcase_profile_skips_catalog_projects():
@@ -52,7 +52,9 @@ def test_latest_snapshot_selection_keeps_newest_package_versions():
     paths = sorted(project_snapshots._DEFAULT_SNAPSHOT_DIR.glob("*.studio-project-snapshot.json"))
     selected_names = {path.name for path in project_snapshots._latest_snapshot_paths(paths)}
 
-    assert "gtm-pipeline-q2-review-0.4.3.studio-project-snapshot.json" in selected_names
+    assert "gtm-pipeline-q2-review-0.4.5.studio-project-snapshot.json" in selected_names
+    assert "gtm-pipeline-q2-review-0.4.4.studio-project-snapshot.json" not in selected_names
+    assert "gtm-pipeline-q2-review-0.4.3.studio-project-snapshot.json" not in selected_names
     assert "gtm-pipeline-q2-review-0.4.1.studio-project-snapshot.json" not in selected_names
     assert "jira-fronting-showcase-0.2.3.studio-project-snapshot.json" in selected_names
     assert "jira-fronting-showcase-0.2.1.studio-project-snapshot.json" not in selected_names
