@@ -91,7 +91,7 @@ func TestBuildCSharpProjectRegistryDependencies(t *testing.T) {
 
 	projectFile := fileContent(project.Files, "WorkItemGovernanceService.csproj")
 	for _, expected := range []string{
-		`<AnipVersion>0.24.11</AnipVersion>`,
+		`<AnipVersion>0.24.12</AnipVersion>`,
 		`<PackageReference Include="Anip.Core" Version="$(AnipVersion)" />`,
 		`<PackageReference Include="Anip.Crypto" Version="$(AnipVersion)" />`,
 		`<PackageReference Include="Anip.Server" Version="$(AnipVersion)" />`,
