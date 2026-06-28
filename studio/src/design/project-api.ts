@@ -44,14 +44,14 @@ import type {
   SavedApplicationIntegrationProjectSummary,
 } from '../application-integration/types'
 import { issueCapabilityToken, invokeCapability } from '../api'
-import { studioApiUrl } from './api-base'
+import { ensureStudioApiUrl } from './api-base'
 
 // ---------------------------------------------------------------------------
 // Core fetch wrapper
 // ---------------------------------------------------------------------------
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(studioApiUrl(path), {
+  const resp = await fetch(await ensureStudioApiUrl(path), {
     ...options,
     headers: {
       'Content-Type': 'application/json',
