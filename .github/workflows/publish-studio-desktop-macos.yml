@@ -231,11 +231,30 @@ jobs:
           APPLE_API_KEY_PATH: ${{ steps.notary-key.outputs.path }}
         run: |
           set -euo pipefail
+          SUBMIT_JSON="$RUNNER_TEMP/notary-submit.json"
           xcrun notarytool submit "${{ steps.artifacts.outputs.dmg_path }}" \
             --key "$APPLE_API_KEY_PATH" \
             --key-id "$APPLE_API_KEY" \
             --issuer "$APPLE_API_ISSUER" \
-            --wait
+            --wait \
+            --output-format json > "$SUBMIT_JSON"
+
+          cat "$SUBMIT_JSON"
+          SUBMISSION_ID="$(python -c 'import json,sys; print(json.load(open(sys.argv[1])).get("id", ""))' "$SUBMIT_JSON")"
+          SUBMISSION_STATUS="$(python -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status", ""))' "$SUBMIT_JSON")"
+          if [ -z "$SUBMISSION_ID" ]; then
+            echo "::error::notarytool did not return a submission id"
+            exit 1
+          fi
+          if [ "$SUBMISSION_STATUS" != "Accepted" ]; then
+            echo "::error::Apple notarization status is $SUBMISSION_STATUS for submission $SUBMISSION_ID"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY" \
+              --issuer "$APPLE_API_ISSUER" || true
+            exit 1
+          fi
+
           xcrun stapler staple "${{ steps.artifacts.outputs.dmg_path }}"
           xcrun stapler validate "${{ steps.artifacts.outputs.dmg_path }}"
 
