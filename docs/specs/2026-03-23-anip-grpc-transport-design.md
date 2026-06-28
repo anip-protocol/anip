@@ -10,7 +10,7 @@ A single canonical protobuf file at `proto/anip/v1/anip.proto` defines the `Anip
 
 ## Service Definition
 
-10 RPCs mapping to the 9 ANIP protocol operations (invoke split into unary and streaming):
+11 RPCs mapping to the ANIP protocol operations (invoke split into unary and streaming):
 
 ```protobuf
 syntax = "proto3";
@@ -31,6 +31,7 @@ service AnipService {
   rpc Permissions(PermissionsRequest) returns (PermissionsResponse);
   rpc Invoke(InvokeRequest) returns (InvokeResponse);
   rpc InvokeStream(InvokeRequest) returns (stream InvokeEvent);
+  rpc IssueApprovalGrant(IssueApprovalGrantRequest) returns (IssueApprovalGrantResponse);
   rpc QueryAudit(QueryAuditRequest) returns (QueryAuditResponse);
 }
 ```
@@ -49,7 +50,7 @@ Per-call, not per-channel. Different calls on the same channel can use different
 **Auth boundary (same as HTTP and stdio):**
 
 - `IssueToken` — bearer metadata required. Server tries bootstrap auth first (`authenticate_bearer`), then ANIP JWT resolution (`resolve_bearer_token`) for sub-delegation. Matches current HTTP behavior exactly.
-- `Permissions`, `Invoke`, `InvokeStream`, `QueryAudit` — JWT only via `resolve_bearer_token`
+- `Permissions`, `Invoke`, `InvokeStream`, `IssueApprovalGrant`, `QueryAudit` — JWT only via `resolve_bearer_token`
 - `Discovery`, `Manifest`, `Jwks`, `ListCheckpoints`, `GetCheckpoint` — no auth required
 
 **Missing auth on a protected RPC:** returns gRPC status `UNAUTHENTICATED` with a message like "Authorization metadata required".
@@ -109,9 +110,10 @@ message IssueTokenRequest {
   repeated string scope = 2;
   string capability = 3;
   string purpose_parameters_json = 4;  // Optional, JSON string
-  string parent_token = 5;             // Optional, JWT string
+  string parent_token = 5;             // Optional, stored parent token ID
   int32 ttl_hours = 6;
   string caller_class = 7;
+  Budget budget = 8;
 }
 message IssueTokenResponse {
   bool issued = 1;
@@ -119,6 +121,21 @@ message IssueTokenResponse {
   string token = 3;      // JWT string (when issued)
   string expires = 4;    // ISO 8601 (when issued)
   AnipFailure failure = 5; // When !issued (e.g., scope narrowing failed, insufficient authority)
+  Budget budget = 6;
+}
+
+// --- Shared budget types ---
+message Budget {
+  string currency = 1;
+  double max_amount = 2;
+}
+message BudgetContext {
+  double budget_max = 1;
+  string budget_currency = 2;
+  double cost_check_amount = 3;
+  string cost_certainty = 4;
+  double cost_actual = 5;
+  bool within_budget = 6;
 }
 
 // --- Permissions ---
@@ -134,6 +151,11 @@ message InvokeRequest {
   string capability = 1;
   string parameters_json = 2;       // JSON string
   string client_reference_id = 3;
+  string task_id = 4;
+  string parent_invocation_id = 5;
+  string upstream_service = 6;
+  string approval_grant = 7;        // ApprovalGrant continuation id
+  repeated string requested_effects = 8;
 }
 message InvokeResponse {
   bool success = 1;
@@ -142,6 +164,10 @@ message InvokeResponse {
   string result_json = 4;           // JSON string (when success)
   string cost_actual_json = 5;      // Optional, JSON string
   AnipFailure failure = 6;          // When !success
+  string task_id = 7;
+  string parent_invocation_id = 8;
+  BudgetContext budget_context = 9;
+  string upstream_service = 10;
 }
 
 // --- Invoke (streaming) ---
@@ -161,10 +187,32 @@ message CompletedEvent {
   string client_reference_id = 2;
   string result_json = 3;
   string cost_actual_json = 4;
+  string task_id = 5;
+  string parent_invocation_id = 6;
+  BudgetContext budget_context = 7;
+  string upstream_service = 8;
 }
 message FailedEvent {
   string invocation_id = 1;
   string client_reference_id = 2;
+  AnipFailure failure = 3;
+  string task_id = 4;
+  string parent_invocation_id = 5;
+  BudgetContext budget_context = 6;
+  string upstream_service = 7;
+}
+
+// --- Approval Grants ---
+message IssueApprovalGrantRequest {
+  string approval_request_id = 1;
+  string grant_type = 2;
+  string session_id = 3;
+  optional int32 expires_in_seconds = 4;
+  optional int32 max_uses = 5;
+}
+message IssueApprovalGrantResponse {
+  bool success = 1;
+  string grant_json = 2;
   AnipFailure failure = 3;
 }
 
@@ -174,6 +222,7 @@ message AnipFailure {
   string detail = 2;
   string resolution_json = 3;  // Optional, JSON string
   bool retry = 4;
+  string context_json = 5;     // Optional protocol-specific metadata
 }
 
 // --- Audit ---
@@ -184,6 +233,8 @@ message QueryAuditRequest {
   string client_reference_id = 4;
   string event_class = 5;
   int32 limit = 6;
+  string task_id = 7;
+  string parent_invocation_id = 8;
 }
 message QueryAuditResponse {
   bool success = 1;

@@ -5,7 +5,7 @@ import warnings
 
 from anip.v1 import anip_pb2 as anip_dot_v1_dot_anip__pb2
 
-GRPC_GENERATED_VERSION = '1.78.0'
+GRPC_GENERATED_VERSION = '1.81.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -25,8 +25,8 @@ if _version_not_supported:
     )
 
 
-class AnipServiceStub(object):
-    """AnipService exposes the full ANIP protocol over gRPC.
+class AnipServiceStub:
+    """AnipService exposes the core ANIP protocol over gRPC.
     Auth: bearer token via "authorization" call metadata.
     """
 
@@ -81,6 +81,11 @@ class AnipServiceStub(object):
                 request_serializer=anip_dot_v1_dot_anip__pb2.InvokeRequest.SerializeToString,
                 response_deserializer=anip_dot_v1_dot_anip__pb2.InvokeEvent.FromString,
                 _registered_method=True)
+        self.IssueApprovalGrant = channel.unary_unary(
+                '/anip.v1.AnipService/IssueApprovalGrant',
+                request_serializer=anip_dot_v1_dot_anip__pb2.IssueApprovalGrantRequest.SerializeToString,
+                response_deserializer=anip_dot_v1_dot_anip__pb2.IssueApprovalGrantResponse.FromString,
+                _registered_method=True)
         self.QueryAudit = channel.unary_unary(
                 '/anip.v1.AnipService/QueryAudit',
                 request_serializer=anip_dot_v1_dot_anip__pb2.QueryAuditRequest.SerializeToString,
@@ -88,8 +93,8 @@ class AnipServiceStub(object):
                 _registered_method=True)
 
 
-class AnipServiceServicer(object):
-    """AnipService exposes the full ANIP protocol over gRPC.
+class AnipServiceServicer:
+    """AnipService exposes the core ANIP protocol over gRPC.
     Auth: bearer token via "authorization" call metadata.
     """
 
@@ -150,6 +155,12 @@ class AnipServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def IssueApprovalGrant(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def QueryAudit(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -204,6 +215,11 @@ def add_AnipServiceServicer_to_server(servicer, server):
                     request_deserializer=anip_dot_v1_dot_anip__pb2.InvokeRequest.FromString,
                     response_serializer=anip_dot_v1_dot_anip__pb2.InvokeEvent.SerializeToString,
             ),
+            'IssueApprovalGrant': grpc.unary_unary_rpc_method_handler(
+                    servicer.IssueApprovalGrant,
+                    request_deserializer=anip_dot_v1_dot_anip__pb2.IssueApprovalGrantRequest.FromString,
+                    response_serializer=anip_dot_v1_dot_anip__pb2.IssueApprovalGrantResponse.SerializeToString,
+            ),
             'QueryAudit': grpc.unary_unary_rpc_method_handler(
                     servicer.QueryAudit,
                     request_deserializer=anip_dot_v1_dot_anip__pb2.QueryAuditRequest.FromString,
@@ -217,8 +233,8 @@ def add_AnipServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class AnipService(object):
-    """AnipService exposes the full ANIP protocol over gRPC.
+class AnipService:
+    """AnipService exposes the core ANIP protocol over gRPC.
     Auth: bearer token via "authorization" call metadata.
     """
 
@@ -455,6 +471,33 @@ class AnipService(object):
             '/anip.v1.AnipService/InvokeStream',
             anip_dot_v1_dot_anip__pb2.InvokeRequest.SerializeToString,
             anip_dot_v1_dot_anip__pb2.InvokeEvent.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def IssueApprovalGrant(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/anip.v1.AnipService/IssueApprovalGrant',
+            anip_dot_v1_dot_anip__pb2.IssueApprovalGrantRequest.SerializeToString,
+            anip_dot_v1_dot_anip__pb2.IssueApprovalGrantResponse.FromString,
             options,
             channel_credentials,
             insecure,

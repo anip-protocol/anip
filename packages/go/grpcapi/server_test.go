@@ -65,7 +65,7 @@ func newTestEnv(t *testing.T) *testEnv {
 					if ctx.EmitProgress != nil {
 						_ = ctx.EmitProgress(map[string]any{"step": "processing"})
 					}
-					return map[string]any{"echo": msg}, nil
+					return map[string]any{"echo": msg, "requested_effects": ctx.RequestedEffects}, nil
 				},
 			},
 		},
@@ -124,6 +124,87 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 }
 
+func transferFundsGrpcCapability() service.CapabilityDef {
+	return service.CapabilityDef{
+		Declaration: core.CapabilityDeclaration{
+			Name:        "transfer_funds",
+			Description: "High-value transfer",
+			Inputs: []core.CapabilityInput{
+				{Name: "amount", Type: "number", Required: true},
+				{Name: "to_account", Type: "string", Required: true},
+			},
+			Output:       core.CapabilityOutput{Type: "transfer_confirmation", Fields: []string{"transfer_id"}},
+			SideEffect:   core.SideEffect{Type: "irreversible", RollbackWindow: "none"},
+			MinimumScope: []string{"finance.write"},
+			GrantPolicy: &core.GrantPolicy{
+				AllowedGrantTypes: []string{core.GrantTypeOneTime, core.GrantTypeSessionBound},
+				DefaultGrantType:  core.GrantTypeOneTime,
+				ExpiresInSeconds:  900,
+				MaxUses:           1,
+			},
+		},
+		Handler: func(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
+			if amount, _ := params["amount"].(float64); amount > 10000 {
+				return nil, &core.ANIPError{
+					ErrorType: "approval_required",
+					Detail:    "needs approval",
+				}
+			}
+			return map[string]any{"transfer_id": "tx"}, nil
+		},
+	}
+}
+
+func newApprovalTestEnv(t *testing.T) *testEnv {
+	t.Helper()
+
+	svc := service.New(service.Config{
+		ServiceID:    "test-grpc-finance-service",
+		Capabilities: []service.CapabilityDef{transferFundsGrpcCapability()},
+		Storage:      ":memory:",
+		Trust:        "signed",
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-api-key" {
+				return "human:tester@example.com", true
+			}
+			return "", false
+		},
+		RetentionIntervalSeconds: -1,
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen error: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterAnipServiceServer(s, NewAnipGrpcServer(svc))
+	go func() { _ = s.Serve(lis) }()
+
+	conn, err := grpc.NewClient(
+		lis.Addr().String(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		s.GracefulStop()
+		svc.Shutdown()
+		t.Fatalf("Dial error: %v", err)
+	}
+
+	return &testEnv{
+		svc:    svc,
+		client: pb.NewAnipServiceClient(conn),
+		conn:   conn,
+		stop: func() {
+			conn.Close()
+			s.GracefulStop()
+			svc.Shutdown()
+		},
+	}
+}
+
 // issueTestToken issues a token via API key auth and returns the JWT string.
 func issueTestToken(t *testing.T, svc *service.Service) string {
 	t.Helper()
@@ -131,6 +212,22 @@ func issueTestToken(t *testing.T, svc *service.Service) string {
 		Subject:    "human:tester@example.com",
 		Scope:      []string{"echo"},
 		Capability: "echo",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected token to be issued")
+	}
+	return resp.Token
+}
+
+func issueCapabilityToken(t *testing.T, svc *service.Service, scope []string, capability string) string {
+	t.Helper()
+	resp, err := svc.IssueToken("human:tester@example.com", core.TokenRequest{
+		Subject:    "human:tester@example.com",
+		Scope:      scope,
+		Capability: capability,
 	})
 	if err != nil {
 		t.Fatalf("IssueToken() error: %v", err)
@@ -387,6 +484,34 @@ func TestInvoke(t *testing.T) {
 	}
 }
 
+func TestInvokeCarriesRequestedEffects(t *testing.T) {
+	env := newTestEnv(t)
+	defer env.stop()
+
+	jwt := issueTestToken(t, env.svc)
+
+	ctx := withBearer(context.Background(), jwt)
+	resp, err := env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:       "echo",
+		ParametersJson:   `{"message":"effects"}`,
+		RequestedEffects: []string{"data.read", "content.summary"},
+	})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("expected success=true, got false (failure: %v)", resp.Failure)
+	}
+	var result map[string]any
+	if err := json.Unmarshal([]byte(resp.ResultJson), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	effects, _ := result["requested_effects"].([]any)
+	if len(effects) != 2 || effects[0] != "data.read" || effects[1] != "content.summary" {
+		t.Fatalf("requested_effects not carried to handler: %#v", result["requested_effects"])
+	}
+}
+
 func TestInvokeNoAuth(t *testing.T) {
 	env := newTestEnv(t)
 	defer env.stop()
@@ -430,6 +555,79 @@ func TestInvokeUnknownCapability(t *testing.T) {
 	}
 	if resp.Failure.Type != "unknown_capability" {
 		t.Fatalf("expected failure type 'unknown_capability', got %q", resp.Failure.Type)
+	}
+}
+
+func TestApprovalGrantFlowPreservesFailureContextAndContinuation(t *testing.T) {
+	env := newApprovalTestEnv(t)
+	defer env.stop()
+
+	requester := issueCapabilityToken(t, env.svc, []string{"finance.write"}, "transfer_funds")
+	ctx := withBearer(context.Background(), requester)
+	first, err := env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "transfer_funds",
+		ParametersJson: `{"amount":50000,"to_account":"x"}`,
+	})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+	if first.Success || first.Failure == nil {
+		t.Fatalf("expected approval_required failure, got %#v", first)
+	}
+	if first.Failure.Type != "approval_required" {
+		t.Fatalf("failure type = %q, want approval_required", first.Failure.Type)
+	}
+	var contextJSON map[string]any
+	if err := json.Unmarshal([]byte(first.Failure.ContextJson), &contextJSON); err != nil {
+		t.Fatalf("failure context_json must carry approval metadata: %v", err)
+	}
+	approvalRequired, _ := contextJSON["approval_required"].(map[string]any)
+	requestID, _ := approvalRequired["approval_request_id"].(string)
+	if requestID == "" {
+		t.Fatalf("approval_request_id missing from context_json: %#v", contextJSON)
+	}
+
+	approver := issueCapabilityToken(t, env.svc, []string{"finance.write", "approver:*"}, "transfer_funds")
+	grantResp, err := env.client.IssueApprovalGrant(withBearer(context.Background(), approver), &pb.IssueApprovalGrantRequest{
+		ApprovalRequestId: requestID,
+		GrantType:         core.GrantTypeOneTime,
+	})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant() error: %v", err)
+	}
+	if !grantResp.Success {
+		t.Fatalf("expected grant success, got failure: %#v", grantResp.Failure)
+	}
+	var grant map[string]any
+	if err := json.Unmarshal([]byte(grantResp.GrantJson), &grant); err != nil {
+		t.Fatalf("grant_json invalid: %v", err)
+	}
+	grantID, _ := grant["grant_id"].(string)
+	if grantID == "" {
+		t.Fatalf("grant_id missing from grant_json: %#v", grant)
+	}
+
+	second, err := env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "transfer_funds",
+		ParametersJson: `{"amount":50000,"to_account":"x"}`,
+		ApprovalGrant:  grantID,
+	})
+	if err != nil {
+		t.Fatalf("continuation Invoke() error: %v", err)
+	}
+	if second.Success {
+		t.Fatal("test handler still requires approval; expected failure after grant reservation")
+	}
+	third, err := env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "transfer_funds",
+		ParametersJson: `{"amount":50000,"to_account":"x"}`,
+		ApprovalGrant:  grantID,
+	})
+	if err != nil {
+		t.Fatalf("second continuation Invoke() error: %v", err)
+	}
+	if third.Success || third.Failure == nil || third.Failure.Type != "grant_consumed" {
+		t.Fatalf("expected consumed grant on second continuation, got %#v", third)
 	}
 }
 

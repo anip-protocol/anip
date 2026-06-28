@@ -25,6 +25,7 @@ service AnipService {
   rpc Permissions(PermissionsRequest) returns (PermissionsResponse);
   rpc Invoke(InvokeRequest) returns (InvokeResponse);
   rpc InvokeStream(InvokeRequest) returns (stream InvokeEvent);
+  rpc IssueApprovalGrant(IssueApprovalGrantRequest) returns (IssueApprovalGrantResponse);
   rpc QueryAudit(QueryAuditRequest) returns (QueryAuditResponse);
 }
 
@@ -39,6 +40,7 @@ message AnipFailure {
   string detail = 2;
   string resolution_json = 3;   // Optional, JSON string for resolution object
   bool retry = 4;
+  string context_json = 5;      // Optional, JSON object for protocol-specific failure metadata
 }
 
 // Budget represents an enforceable financial budget constraint.
@@ -137,6 +139,8 @@ message InvokeRequest {
   string task_id = 4;
   string parent_invocation_id = 5;
   string upstream_service = 6;      // v0.18: agent-supplied hint for cross-service reconstruction
+  string approval_grant = 7;        // v0.23: signed ApprovalGrant continuation id
+  repeated string requested_effects = 8; // v0.24: caller-requested canonical business effect ids
 }
 
 message InvokeResponse {
@@ -188,6 +192,24 @@ message FailedEvent {
   string parent_invocation_id = 5;
   BudgetContext budget_context = 6;  // v0.14: present when budget was evaluated
   string upstream_service = 7;      // v0.18: echoed from request
+}
+
+// ============================================================
+// Approval Grants
+// ============================================================
+
+message IssueApprovalGrantRequest {
+  string approval_request_id = 1;
+  string grant_type = 2;
+  string session_id = 3;
+  optional int32 expires_in_seconds = 4;
+  optional int32 max_uses = 5;
+}
+
+message IssueApprovalGrantResponse {
+  bool success = 1;
+  string grant_json = 2;            // Full signed ApprovalGrant JSON when success
+  AnipFailure failure = 3;          // When !success
 }
 
 // ============================================================
