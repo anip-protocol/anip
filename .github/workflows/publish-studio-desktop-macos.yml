@@ -125,7 +125,10 @@ jobs:
           cache-dependency-path: studio/package-lock.json
 
       - name: Install Studio dependencies
-        run: npm --prefix studio ci
+        run: |
+          set -euo pipefail
+          npm --prefix studio ci
+          npm --prefix packages/typescript/vue install --include=dev --no-package-lock
 
       - name: Select Rust stable toolchain
         run: |
