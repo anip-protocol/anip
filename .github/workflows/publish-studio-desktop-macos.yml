@@ -193,10 +193,31 @@ jobs:
           cargo_lock_path.write_text(cargo_lock)
           PY
 
+      - name: Build and sign Studio desktop sidecar
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          npm --prefix studio run build:desktop-api
+          TARGET_TRIPLE="$(rustc -vV | awk '/^host:/ {print $2}')"
+          SIDECAR_PATH="studio/src-tauri/bin/anip-studio-api-${TARGET_TRIPLE}"
+          if [ ! -f "$SIDECAR_PATH" ]; then
+            echo "::error::Missing Studio API sidecar at $SIDECAR_PATH"
+            exit 1
+          fi
+          codesign \
+            --force \
+            --options runtime \
+            --timestamp \
+            --sign "$APPLE_SIGNING_IDENTITY" \
+            "$SIDECAR_PATH"
+          codesign --verify --strict --verbose=2 "$SIDECAR_PATH"
+          codesign --display --verbose=4 "$SIDECAR_PATH"
+
       - name: Build Studio desktop app
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: npm --prefix studio run desktop:build
+        run: npm --prefix studio exec -- tauri build
 
       - name: Locate desktop artifacts
         id: artifacts
