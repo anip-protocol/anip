@@ -30,6 +30,7 @@ import {
   getRuntimeStatus,
 } from './project-api'
 import { designStore, validateDraft } from './store'
+import { studioDesktopMode } from './desktop-mode'
 import { hydrateAnswersFromArtifact } from './guided/mappings'
 import { evaluateCompleteness } from './guided/hints'
 import { hydrateScenarioAnswers } from './guided/scenario-mappings'
@@ -62,6 +63,7 @@ interface ProjectState {
   pendingIntentDraft: PendingIntentDraft | null
   loading: boolean
   error: string | null
+  dbChecking: boolean
   dbAvailable: boolean
   runtimeStatus: RuntimeStatus | null
 }
@@ -89,11 +91,19 @@ export const projectStore = reactive<ProjectState>({
   pendingIntentDraft: null,
   loading: false,
   error: null,
+  dbChecking: false,
   dbAvailable: false,
   runtimeStatus: null,
 })
 
 let activeProjectLoadVersion = 0
+const DESKTOP_API_STARTUP_ATTEMPTS = 40
+const DESKTOP_API_STARTUP_RETRY_MS = 250
+let dbAvailabilityCheckId = 0
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
 
 function observedMetadataSelectionStorageKey(projectId: string): string {
   return `studio.selectedObservedMetadata.${projectId}`
@@ -277,12 +287,29 @@ function autoSelectActiveIds(): void {
 
 /** Check if the Studio API is reachable. Sets dbAvailable. Never throws. */
 export async function checkDbAvailable(): Promise<void> {
-  try {
-    await listWorkspaces()
-    projectStore.dbAvailable = true
-  } catch {
-    projectStore.dbAvailable = false
+  const checkId = ++dbAvailabilityCheckId
+  const attempts = studioDesktopMode ? DESKTOP_API_STARTUP_ATTEMPTS : 1
+  let available = false
+
+  projectStore.dbChecking = true
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await listWorkspaces()
+      available = true
+      break
+    } catch {
+      if (attempt < attempts - 1) {
+        await sleep(DESKTOP_API_STARTUP_RETRY_MS)
+      }
+    }
   }
+
+  if (checkId === dbAvailabilityCheckId) {
+    projectStore.dbAvailable = available
+    projectStore.dbChecking = false
+  }
+
   try {
     projectStore.runtimeStatus = await getRuntimeStatus()
   } catch {

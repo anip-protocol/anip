@@ -44,6 +44,7 @@ const deletingProjectId = ref<string | null>(null)
 const cleaningJunk = ref(false)
 
 const dbAvailable = computed(() => projectStore.dbAvailable)
+const dbChecking = computed(() => projectStore.dbChecking)
 const apiUnavailableMessage = computed(() => studioApiUnavailableMessage())
 const projects = computed(() => projectStore.projects)
 const loading = computed(() => projectStore.loading)
@@ -55,6 +56,8 @@ const readOnlyReason = computed(
     projectStore.runtimeStatus?.read_only_reason ||
     'Studio is running in read-only mode. Explore the design here, then run Studio locally to make changes.',
 )
+const startupMessage = 'Starting local Studio API...'
+const startupDetail = 'Studio is launching the bundled API, opening the local database, applying migrations, and loading showcase projects.'
 const junkProjects = computed(() =>
   projects.value.filter(project =>
     project.id.startsWith('proj-') &&
@@ -442,7 +445,11 @@ async function handleCleanJunkProjects() {
 
 <template>
   <div class="project-list">
-    <template v-if="!dbAvailable">
+    <template v-if="dbChecking">
+      <div class="banner banner-warning">{{ startupMessage }}</div>
+      <p class="fallback-note">{{ startupDetail }}</p>
+    </template>
+    <template v-else-if="!dbAvailable">
       <div class="banner banner-warning">{{ apiUnavailableMessage }}</div>
     </template>
     <template v-else>
@@ -794,6 +801,13 @@ async function handleCleanJunkProjects() {
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.3);
   color: #fbbf24;
+}
+
+.fallback-note {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .banner-error {

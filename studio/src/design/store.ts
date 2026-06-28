@@ -15,6 +15,7 @@ import { evaluateCompleteness } from './guided/hints'
 import { hydrateScenarioAnswers, applyScenarioAnswer } from './guided/scenario-mappings'
 import { evaluateScenarioCompleteness } from './guided/scenario-hints'
 import { checkHealth } from './api'
+import { studioDesktopMode } from './desktop-mode'
 import { validateProposal, validateRequirements, validateScenario } from './schemas'
 
 interface DesignState {
@@ -71,8 +72,34 @@ export const designStore = reactive<DesignState>({
   activeArtifact: null,
 })
 
+const DESKTOP_API_STARTUP_ATTEMPTS = 40
+const DESKTOP_API_STARTUP_RETRY_MS = 250
+let apiAvailabilityCheckId = 0
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 export async function checkApiAvailability(): Promise<void> {
-  designStore.apiAvailable = await checkHealth()
+  const checkId = ++apiAvailabilityCheckId
+  const attempts = studioDesktopMode ? DESKTOP_API_STARTUP_ATTEMPTS : 1
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (await checkHealth()) {
+      if (checkId === apiAvailabilityCheckId) {
+        designStore.apiAvailable = true
+      }
+      return
+    }
+
+    if (attempt < attempts - 1) {
+      await sleep(DESKTOP_API_STARTUP_RETRY_MS)
+    }
+  }
+
+  if (checkId === apiAvailabilityCheckId) {
+    designStore.apiAvailable = false
+  }
 }
 
 export function setPendingRuntimeObservation(observation: RuntimeObservation | null): void {

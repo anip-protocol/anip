@@ -16,6 +16,7 @@ const deletingWorkspaceId = ref<string | null>(null)
 const cleaningWorkspaces = ref(false)
 
 const dbAvailable = computed(() => projectStore.dbAvailable)
+const dbChecking = computed(() => projectStore.dbChecking)
 const workspaces = computed(() => projectStore.workspaces)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
@@ -25,10 +26,14 @@ const readOnlyReason = computed(
     projectStore.runtimeStatus?.read_only_reason ||
     'Studio is running in read-only mode. Explore the design here, then run Studio locally to make changes.',
 )
-const pageTitle = computed(() => dbAvailable.value ? 'Workspaces' : 'Showcase Examples')
+const startupMessage = 'Starting local Studio API...'
+const startupDetail = 'Studio is launching the bundled API, opening the local database, applying migrations, and loading showcase projects.'
+const pageTitle = computed(() => dbAvailable.value || dbChecking.value ? 'Workspaces' : 'Showcase Examples')
 const pageDescription = computed(() =>
   dbAvailable.value
     ? 'Organize multiple design projects under a shared workspace, then move into service shaping and evaluation inside each project.'
+    : dbChecking.value
+      ? 'Preparing the local Studio workspace. This usually takes a few seconds on first launch.'
     : 'Studio cannot reach its API right now, so you are looking at read-only example packs instead of real workspaces and projects.',
 )
 const apiUnavailableMessage = computed(() => studioApiUnavailableMessage())
@@ -150,7 +155,12 @@ async function handleCleanWorkspaces() {
     <h1 class="page-title">{{ pageTitle }}</h1>
     <p class="page-desc">{{ pageDescription }}</p>
 
-    <template v-if="!dbAvailable">
+    <template v-if="dbChecking">
+      <div class="banner banner-warning">{{ startupMessage }}</div>
+      <p class="fallback-note">{{ startupDetail }}</p>
+    </template>
+
+    <template v-else-if="!dbAvailable">
       <div class="banner banner-warning">{{ apiUnavailableMessage }}</div>
       <p class="fallback-note">
         Workspaces, projects, service shaping, and evaluation require the Studio API. Bring the backend back up to keep working in Studio.
