@@ -2,7 +2,7 @@ use std::{
     env,
     fs::{self, OpenOptions},
     io::Write,
-    net::{SocketAddr, TcpStream},
+    net::{SocketAddr, TcpListener, TcpStream},
     path::PathBuf,
     process::{Child, Command, Stdio},
     sync::{Mutex, OnceLock},
@@ -12,16 +12,36 @@ use std::{
 use tauri::{path::BaseDirectory, Manager};
 
 static STUDIO_API_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
+static STUDIO_API_PORT: OnceLock<u16> = OnceLock::new();
 const ALLOWED_EXTERNAL_URLS: &[&str] = &[
     "https://anip.dev",
     "https://anip.dev/",
 ];
 
-fn studio_api_port() -> u16 {
+fn configured_studio_api_port() -> Option<u16> {
     env::var("STUDIO_DESKTOP_API_PORT")
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
+}
+
+fn allocate_studio_api_port() -> u16 {
+    if let Some(port) = configured_studio_api_port() {
+        return port;
+    }
+
+    TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .ok()
+        .and_then(|listener| listener.local_addr().ok())
+        .map(|addr| addr.port())
         .unwrap_or(8100)
+}
+
+fn studio_api_port() -> u16 {
+    *STUDIO_API_PORT.get_or_init(allocate_studio_api_port)
+}
+
+fn studio_api_base() -> String {
+    format!("http://127.0.0.1:{}", studio_api_port())
 }
 
 fn studio_api_is_running() -> bool {
@@ -111,7 +131,7 @@ fn start_studio_api_if_configured(app: &tauri::App) {
         return;
     }
     if studio_api_is_running() {
-        append_desktop_log("Studio API already running on configured desktop port");
+        append_desktop_log(&format!("Studio API already running on {}", studio_api_base()));
         return;
     }
 
@@ -124,7 +144,11 @@ fn start_studio_api_if_configured(app: &tauri::App) {
         return;
     };
 
-    append_desktop_log(&format!("Launching Studio API sidecar: {}", launcher.display()));
+    append_desktop_log(&format!(
+        "Launching Studio API sidecar on {}: {}",
+        studio_api_base(),
+        launcher.display()
+    ));
     let log_file = desktop_log_path().and_then(|path| {
         if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
@@ -165,6 +189,11 @@ fn start_studio_api_if_configured(app: &tauri::App) {
 }
 
 #[tauri::command]
+fn studio_api_base_url() -> String {
+    studio_api_base()
+}
+
+#[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     if !ALLOWED_EXTERNAL_URLS.contains(&url.as_str()) {
         return Err("external URL is not allowed".to_string());
@@ -195,7 +224,7 @@ fn open_external_url(url: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_external_url])
+        .invoke_handler(tauri::generate_handler![open_external_url, studio_api_base_url])
         .setup(|app| {
             start_studio_api_if_configured(app);
             Ok(())

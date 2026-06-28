@@ -1,5 +1,5 @@
 import type { Evaluation } from './types'
-import { studioApiUrl } from './api-base'
+import { ensureStudioApiUrl } from './api-base'
 
 function extractValidationError(body: string): string {
   let detail = body
@@ -28,7 +28,7 @@ export async function runValidation(
   proposal: Record<string, any>,
   scenario: Record<string, any>,
 ): Promise<Evaluation> {
-  const resp = await fetch(studioApiUrl('/api/validate'), {
+  const resp = await fetch(await ensureStudioApiUrl('/api/validate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ requirements, proposal, scenario }),
@@ -45,7 +45,7 @@ export async function runShapeValidation(
   shape: Record<string, any>,
   scenario: Record<string, any>,
 ): Promise<Evaluation> {
-  const resp = await fetch(studioApiUrl('/api/validate-shape'), {
+  const resp = await fetch(await ensureStudioApiUrl('/api/validate-shape'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ requirements, shape, scenario }),
@@ -59,7 +59,7 @@ export async function runShapeValidation(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const resp = await fetch(studioApiUrl('/api/health'))
+    const resp = await fetch(await ensureStudioApiUrl('/api/health'))
     return resp.ok
   } catch {
     return false

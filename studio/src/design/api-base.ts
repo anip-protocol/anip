@@ -1,4 +1,4 @@
-import { studioApiBase } from './desktop-mode'
+import { ensureStudioApiBase, studioApiBase } from './desktop-mode'
 
 const ABSOLUTE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i
 
@@ -13,4 +13,9 @@ export function resolveStudioApiUrl(path: string, configuredBase: string | undef
 
 export function studioApiUrl(path: string): string {
   return resolveStudioApiUrl(path, studioApiBase)
+}
+
+export async function ensureStudioApiUrl(path: string): Promise<string> {
+  await ensureStudioApiBase()
+  return studioApiUrl(path)
 }
