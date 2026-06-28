@@ -295,9 +295,17 @@ jobs:
         if: inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           set -euo pipefail
-          gh release upload "${{ inputs.release_tag }}" "${{ steps.artifacts.outputs.dmg_path }}" --clobber
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --target "$SOURCE_REF" \
+              --title "ANIP Studio Desktop ${VERSION}" \
+              --notes "Signed and notarized ANIP Studio Desktop ${VERSION} for macOS."
+          fi
+          gh release upload "$RELEASE_TAG" "${{ steps.artifacts.outputs.dmg_path }}" --clobber
 
       - name: Delete temporary keychain
         if: always()
