@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -77,6 +78,14 @@ func toAnipFailure(anipErr *core.ANIPError) *pb.AnipFailure {
 			f.ResolutionJson = string(resJSON)
 		}
 	}
+	if anipErr.ApprovalRequired != nil {
+		contextJSON, err := json.Marshal(map[string]any{
+			"approval_required": anipErr.ApprovalRequired,
+		})
+		if err == nil {
+			f.ContextJson = string(contextJSON)
+		}
+	}
 	return f
 }
 
@@ -98,7 +107,26 @@ func mapToAnipFailure(m map[string]any) *pb.AnipFailure {
 			f.ResolutionJson = string(resJSON)
 		}
 	}
+	contextData := map[string]any{}
+	for key, value := range m {
+		switch key {
+		case "type", "detail", "retry", "resolution":
+			continue
+		default:
+			contextData[key] = value
+		}
+	}
+	if len(contextData) > 0 {
+		contextJSON, err := json.Marshal(contextData)
+		if err == nil {
+			f.ContextJson = string(contextJSON)
+		}
+	}
 	return f
+}
+
+func simpleFailure(failureType, detail string) *pb.AnipFailure {
+	return &pb.AnipFailure{Type: failureType, Detail: detail}
 }
 
 // mapToBudgetContext converts a map[string]any budget_context to protobuf BudgetContext.
@@ -284,17 +312,19 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		ParentInvocationID: req.ParentInvocationId,
 		UpstreamService:    req.UpstreamService,
 		Budget:             budget,
+		ApprovalGrant:      req.ApprovalGrant,
+		RequestedEffects:   req.RequestedEffects,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
 		if ok := isANIPError(err, &anipErr); ok {
 			return &pb.InvokeResponse{
-				Success:             false,
-				ClientReferenceId:   req.ClientReferenceId,
-				Failure:             toAnipFailure(anipErr),
-				TaskId:              req.TaskId,
-				ParentInvocationId:  req.ParentInvocationId,
-				UpstreamService:     req.UpstreamService,
+				Success:            false,
+				ClientReferenceId:  req.ClientReferenceId,
+				Failure:            toAnipFailure(anipErr),
+				TaskId:             req.TaskId,
+				ParentInvocationId: req.ParentInvocationId,
+				UpstreamService:    req.UpstreamService,
 			}, nil
 		}
 		return nil, status.Errorf(codes.Internal, "invoke: %v", err)
@@ -376,6 +406,8 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 		ParentInvocationID: req.ParentInvocationId,
 		UpstreamService:    req.UpstreamService,
 		Stream:             true,
+		ApprovalGrant:      req.ApprovalGrant,
+		RequestedEffects:   req.RequestedEffects,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
@@ -384,8 +416,11 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			failedEvent := &pb.InvokeEvent{
 				Event: &pb.InvokeEvent_Failed{
 					Failed: &pb.FailedEvent{
-						ClientReferenceId: req.ClientReferenceId,
-						Failure:           toAnipFailure(anipErr),
+						ClientReferenceId:  req.ClientReferenceId,
+						TaskId:             req.TaskId,
+						ParentInvocationId: req.ParentInvocationId,
+						UpstreamService:    req.UpstreamService,
+						Failure:            toAnipFailure(anipErr),
 					},
 				},
 			}
@@ -492,6 +527,121 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 	}
 
 	return nil
+}
+
+// IssueApprovalGrant issues a signed ApprovalGrant for a pending approval request.
+func (s *AnipGrpcServer) IssueApprovalGrant(ctx context.Context, req *pb.IssueApprovalGrantRequest) (*pb.IssueApprovalGrantResponse, error) {
+	token, err := s.resolveJWT(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if failure := validateIssueApprovalGrantRequest(req); failure != nil {
+		return &pb.IssueApprovalGrantResponse{Success: false, Failure: failure}, nil
+	}
+
+	approvalReq, err := s.service.GetApprovalRequest(req.ApprovalRequestId)
+	if err != nil {
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(core.FailureInternalError, "lookup failed"),
+		}, nil
+	}
+	if approvalReq == nil {
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(service.FailureApprovalRequestNotFound, fmt.Sprintf("approval_request_id %q not found", req.ApprovalRequestId)),
+		}, nil
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if approvalReq.Status != core.ApprovalRequestStatusPending {
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(service.FailureApprovalRequestAlreadyDone, fmt.Sprintf("approval_request %q status=%s", req.ApprovalRequestId, approvalReq.Status)),
+		}, nil
+	}
+	if approvalReq.ExpiresAt <= now {
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(service.FailureApprovalRequestExpired, fmt.Sprintf("approval_request %q expired", req.ApprovalRequestId)),
+		}, nil
+	}
+
+	if !hasApproverScope(token.Scope, approvalReq.Capability) {
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(service.FailureApproverNotAuthorized, fmt.Sprintf("token lacks approver:%s scope", approvalReq.Capability)),
+		}, nil
+	}
+
+	var expiresInSeconds *int
+	if req.ExpiresInSeconds != nil {
+		value := int(req.GetExpiresInSeconds())
+		expiresInSeconds = &value
+	}
+	var maxUses *int
+	if req.MaxUses != nil {
+		value := int(req.GetMaxUses())
+		maxUses = &value
+	}
+	grant, err := s.service.IssueApprovalGrant(req.ApprovalRequestId, req.GrantType, map[string]any{
+		"subject":        token.Subject,
+		"root_principal": token.RootPrincipal,
+	}, service.IssueApprovalGrantOpts{
+		SessionID:        req.SessionId,
+		ExpiresInSeconds: expiresInSeconds,
+		MaxUses:          maxUses,
+	})
+	if err != nil {
+		var anipErr *core.ANIPError
+		if ok := isANIPError(err, &anipErr); ok {
+			return &pb.IssueApprovalGrantResponse{Success: false, Failure: toAnipFailure(anipErr)}, nil
+		}
+		return &pb.IssueApprovalGrantResponse{
+			Success: false,
+			Failure: simpleFailure(core.FailureInternalError, "issuance failed"),
+		}, nil
+	}
+
+	grantJSON, err := json.Marshal(grant)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "marshal approval grant: %v", err)
+	}
+	return &pb.IssueApprovalGrantResponse{Success: true, GrantJson: string(grantJSON)}, nil
+}
+
+func validateIssueApprovalGrantRequest(req *pb.IssueApprovalGrantRequest) *pb.AnipFailure {
+	if req.ApprovalRequestId == "" {
+		return simpleFailure(core.FailureInvalidParameters, "approval_request_id: required")
+	}
+	switch req.GrantType {
+	case core.GrantTypeOneTime, core.GrantTypeSessionBound:
+	default:
+		return simpleFailure(core.FailureInvalidParameters, "grant_type: must be one_time or session_bound")
+	}
+	if req.GrantType == core.GrantTypeSessionBound && req.SessionId == "" {
+		return simpleFailure(core.FailureInvalidParameters, "session_id: required when grant_type=session_bound")
+	}
+	if req.GrantType == core.GrantTypeOneTime && req.SessionId != "" {
+		return simpleFailure(core.FailureInvalidParameters, "session_id: must not be set when grant_type=one_time")
+	}
+	if req.ExpiresInSeconds != nil && req.GetExpiresInSeconds() < 1 {
+		return simpleFailure(core.FailureInvalidParameters, "expires_in_seconds: must be a positive integer")
+	}
+	if req.MaxUses != nil && req.GetMaxUses() < 1 {
+		return simpleFailure(core.FailureInvalidParameters, "max_uses: must be a positive integer")
+	}
+	return nil
+}
+
+func hasApproverScope(scopes []string, capability string) bool {
+	for _, scope := range scopes {
+		if scope == "approver:*" || scope == "approver:"+capability {
+			return true
+		}
+	}
+	return false
 }
 
 // QueryAudit queries audit entries scoped to the authenticated token.

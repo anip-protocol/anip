@@ -17,6 +17,12 @@ from concurrent import futures  # noqa: E402
 
 from anip_service import ANIPService  # noqa: E402
 from anip_service.types import ANIPError  # noqa: E402
+from anip_service.v023 import (  # noqa: E402
+    FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+    FAILURE_APPROVAL_REQUEST_EXPIRED,
+    FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+    FAILURE_APPROVER_NOT_AUTHORIZED,
+)
 
 from anip_grpc.generated.anip.v1 import anip_pb2  # noqa: E402
 from anip_grpc.generated.anip.v1 import anip_pb2_grpc  # noqa: E402
@@ -40,12 +46,56 @@ def _make_anip_failure(failure: dict[str, Any]) -> anip_pb2.AnipFailure:
     resolution_json = ""
     if resolution is not None:
         resolution_json = json.dumps(resolution) if not isinstance(resolution, str) else resolution
+    context = {
+        key: value
+        for key, value in failure.items()
+        if key not in {"type", "detail", "resolution", "retry"}
+    }
     return anip_pb2.AnipFailure(
         type=failure.get("type", ""),
         detail=failure.get("detail", ""),
         resolution_json=resolution_json,
         retry=failure.get("retry", False),
+        context_json=json.dumps(context) if context else "",
     )
+
+
+def _make_anip_error_failure(exc: ANIPError) -> anip_pb2.AnipFailure:
+    """Build a protobuf AnipFailure from an ANIPError."""
+    failure = {
+        "type": exc.error_type,
+        "detail": exc.detail,
+        "retry": exc.retry,
+    }
+    if exc.resolution is not None:
+        failure["resolution"] = exc.resolution
+    if exc.approval_required is not None:
+        failure["approval_required"] = exc.approval_required
+    return _make_anip_failure(failure)
+
+
+def _simple_failure(failure_type: str, detail: str) -> anip_pb2.AnipFailure:
+    return anip_pb2.AnipFailure(type=failure_type, detail=detail)
+
+
+def _validate_issue_approval_grant_request(request) -> anip_pb2.AnipFailure | None:
+    if not request.approval_request_id:
+        return _simple_failure("invalid_parameters", "approval_request_id: required")
+    if request.grant_type not in {"one_time", "session_bound"}:
+        return _simple_failure("invalid_parameters", "grant_type: must be one_time or session_bound")
+    if request.grant_type == "session_bound" and not request.session_id:
+        return _simple_failure("invalid_parameters", "session_id: required when grant_type=session_bound")
+    if request.grant_type == "one_time" and request.session_id:
+        return _simple_failure("invalid_parameters", "session_id: must not be set when grant_type=one_time")
+    if request.HasField("expires_in_seconds") and request.expires_in_seconds < 1:
+        return _simple_failure("invalid_parameters", "expires_in_seconds: must be a positive integer")
+    if request.HasField("max_uses") and request.max_uses < 1:
+        return _simple_failure("invalid_parameters", "max_uses: must be a positive integer")
+    return None
+
+
+def _has_approver_scope(scopes: list[str], capability: str) -> bool:
+    return "approver:*" in scopes or f"approver:{capability}" in scopes
 
 
 def _run_async(coro):
@@ -152,11 +202,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         except ANIPError as exc:
             return anip_pb2.IssueTokenResponse(
                 issued=False,
-                failure=anip_pb2.AnipFailure(
-                    type=exc.error_type,
-                    detail=exc.detail,
-                    retry=exc.retry,
-                ),
+                failure=_make_anip_error_failure(exc),
             )
 
         resp = anip_pb2.IssueTokenResponse(
@@ -214,16 +260,14 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
+                approval_grant=request.approval_grant or None,
+                requested_effects=list(request.requested_effects),
             ))
         except ANIPError as exc:
             return anip_pb2.InvokeResponse(
                 success=False,
                 client_reference_id=client_reference_id or "",
-                failure=anip_pb2.AnipFailure(
-                    type=exc.error_type,
-                    detail=exc.detail,
-                    retry=exc.retry,
-                ),
+                failure=_make_anip_error_failure(exc),
                 task_id=request.task_id or "",
                 parent_invocation_id=request.parent_invocation_id or "",
                 upstream_service=request.upstream_service or "",
@@ -290,6 +334,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
                 stream=True,
+                approval_grant=request.approval_grant or None,
+                requested_effects=list(request.requested_effects),
                 _progress_sink=_progress_sink,
             )
 
@@ -300,11 +346,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 failed=anip_pb2.FailedEvent(
                     invocation_id="",
                     client_reference_id=client_reference_id or "",
-                    failure=anip_pb2.AnipFailure(
-                        type=exc.error_type,
-                        detail=exc.detail,
-                        retry=exc.retry,
-                    ),
+                    failure=_make_anip_error_failure(exc),
                     task_id=task_id or "",
                     parent_invocation_id=parent_invocation_id or "",
                     upstream_service=upstream_service or "",
@@ -367,6 +409,71 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 failed.budget_context.CopyFrom(pb_budget_ctx)
             yield anip_pb2.InvokeEvent(failed=failed)
 
+    def IssueApprovalGrant(self, request, context):
+        token = self._resolve_jwt(context)
+
+        validation_failure = _validate_issue_approval_grant_request(request)
+        if validation_failure is not None:
+            return anip_pb2.IssueApprovalGrantResponse(success=False, failure=validation_failure)
+
+        approval_request = _run_async(
+            self._service._storage.get_approval_request(request.approval_request_id)
+        )
+        if approval_request is None:
+            return anip_pb2.IssueApprovalGrantResponse(
+                success=False,
+                failure=_simple_failure(
+                    FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+                    f"approval_request_id {request.approval_request_id!r} not found",
+                ),
+            )
+        if approval_request["status"] != "pending":
+            return anip_pb2.IssueApprovalGrantResponse(
+                success=False,
+                failure=_simple_failure(
+                    FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+                    f"approval_request {request.approval_request_id!r} status={approval_request['status']!r}",
+                ),
+            )
+        from anip_service.v023 import utc_now_iso
+
+        if approval_request["expires_at"] <= utc_now_iso():
+            return anip_pb2.IssueApprovalGrantResponse(
+                success=False,
+                failure=_simple_failure(
+                    FAILURE_APPROVAL_REQUEST_EXPIRED,
+                    f"approval_request {request.approval_request_id!r} expired",
+                ),
+            )
+        if not _has_approver_scope(list(token.scope), approval_request["capability"]):
+            return anip_pb2.IssueApprovalGrantResponse(
+                success=False,
+                failure=_simple_failure(
+                    FAILURE_APPROVER_NOT_AUTHORIZED,
+                    f"token lacks approver:{approval_request['capability']} scope",
+                ),
+            )
+
+        try:
+            grant = _run_async(self._service.issue_approval_grant(
+                request.approval_request_id,
+                request.grant_type,
+                {
+                    "subject": token.subject,
+                    "root_principal": token.root_principal or token.subject,
+                },
+                session_id=request.session_id or None,
+                expires_in_seconds=request.expires_in_seconds if request.HasField("expires_in_seconds") else None,
+                max_uses=request.max_uses if request.HasField("max_uses") else None,
+            ))
+        except ANIPError as exc:
+            return anip_pb2.IssueApprovalGrantResponse(
+                success=False,
+                failure=_make_anip_error_failure(exc),
+            )
+
+        return anip_pb2.IssueApprovalGrantResponse(success=True, grant_json=json.dumps(grant))
+
     def QueryAudit(self, request, context):
         token = self._resolve_jwt(context)
 
@@ -393,11 +500,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         except ANIPError as exc:
             return anip_pb2.QueryAuditResponse(
                 success=False,
-                failure=anip_pb2.AnipFailure(
-                    type=exc.error_type,
-                    detail=exc.detail,
-                    retry=exc.retry,
-                ),
+                failure=_make_anip_error_failure(exc),
             )
 
         return anip_pb2.QueryAuditResponse(

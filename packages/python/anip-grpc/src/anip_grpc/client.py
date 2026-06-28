@@ -17,6 +17,21 @@ from anip_grpc.generated.anip.v1 import anip_pb2  # noqa: E402
 from anip_grpc.generated.anip.v1 import anip_pb2_grpc  # noqa: E402
 
 
+def _failure_to_dict(failure) -> dict:
+    result = {
+        "type": failure.type,
+        "detail": failure.detail,
+        "retry": failure.retry,
+    }
+    if failure.resolution_json:
+        result["resolution"] = json.loads(failure.resolution_json)
+    if failure.context_json:
+        context = json.loads(failure.context_json)
+        if isinstance(context, dict):
+            result.update(context)
+    return result
+
+
 class AnipGrpcClient:
     """gRPC client for the ANIP protocol.
 
@@ -142,13 +157,7 @@ class AnipGrpcClient:
         if resp.expires:
             result["expires"] = resp.expires
         if resp.HasField("failure"):
-            result["failure"] = {
-                "type": resp.failure.type,
-                "detail": resp.failure.detail,
-                "retry": resp.failure.retry,
-            }
-            if resp.failure.resolution_json:
-                result["failure"]["resolution"] = json.loads(resp.failure.resolution_json)
+            result["failure"] = _failure_to_dict(resp.failure)
         return result
 
     # ------------------------------------------------------------------
@@ -176,6 +185,11 @@ class AnipGrpcClient:
         capability: str,
         parameters: dict,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
+        approval_grant: str | None = None,
+        requested_effects: list[str] | None = None,
     ) -> dict:
         """Call Invoke and return the parsed response dict.
 
@@ -184,11 +198,21 @@ class AnipGrpcClient:
             capability: Capability name to invoke.
             parameters: Input parameters dict.
             client_reference_id: Optional client-side correlation ID.
+            task_id: Optional task/work-order correlation ID.
+            parent_invocation_id: Optional parent invocation ID.
+            upstream_service: Optional upstream service hint.
+            approval_grant: Optional ApprovalGrant continuation ID.
+            requested_effects: Optional canonical business effect IDs requested by the caller.
         """
         req = anip_pb2.InvokeRequest(
             capability=capability,
             parameters_json=json.dumps(parameters),
             client_reference_id=client_reference_id or "",
+            task_id=task_id or "",
+            parent_invocation_id=parent_invocation_id or "",
+            upstream_service=upstream_service or "",
+            approval_grant=approval_grant or "",
+            requested_effects=requested_effects or [],
         )
         resp = self._stub.Invoke(
             req,
@@ -198,6 +222,9 @@ class AnipGrpcClient:
             "success": resp.success,
             "invocation_id": resp.invocation_id,
             "client_reference_id": resp.client_reference_id,
+            "task_id": resp.task_id,
+            "parent_invocation_id": resp.parent_invocation_id,
+            "upstream_service": resp.upstream_service,
         }
         if resp.success:
             if resp.result_json:
@@ -206,13 +233,7 @@ class AnipGrpcClient:
                 result["cost_actual"] = json.loads(resp.cost_actual_json)
         else:
             if resp.HasField("failure"):
-                result["failure"] = {
-                    "type": resp.failure.type,
-                    "detail": resp.failure.detail,
-                    "retry": resp.failure.retry,
-                }
-                if resp.failure.resolution_json:
-                    result["failure"]["resolution"] = json.loads(resp.failure.resolution_json)
+                result["failure"] = _failure_to_dict(resp.failure)
         return result
 
     def invoke_stream(
@@ -221,6 +242,11 @@ class AnipGrpcClient:
         capability: str,
         parameters: dict,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
+        approval_grant: str | None = None,
+        requested_effects: list[str] | None = None,
     ) -> Iterator[dict]:
         """Call InvokeStream and yield event dicts.
 
@@ -236,11 +262,21 @@ class AnipGrpcClient:
             capability: Capability name to invoke.
             parameters: Input parameters dict.
             client_reference_id: Optional client-side correlation ID.
+            task_id: Optional task/work-order correlation ID.
+            parent_invocation_id: Optional parent invocation ID.
+            upstream_service: Optional upstream service hint.
+            approval_grant: Optional ApprovalGrant continuation ID.
+            requested_effects: Optional canonical business effect IDs requested by the caller.
         """
         req = anip_pb2.InvokeRequest(
             capability=capability,
             parameters_json=json.dumps(parameters),
             client_reference_id=client_reference_id or "",
+            task_id=task_id or "",
+            parent_invocation_id=parent_invocation_id or "",
+            upstream_service=upstream_service or "",
+            approval_grant=approval_grant or "",
+            requested_effects=requested_effects or [],
         )
         stream = self._stub.InvokeStream(
             req,
@@ -260,6 +296,9 @@ class AnipGrpcClient:
                     "type": "completed",
                     "invocation_id": c.invocation_id,
                     "client_reference_id": c.client_reference_id,
+                    "task_id": c.task_id,
+                    "parent_invocation_id": c.parent_invocation_id,
+                    "upstream_service": c.upstream_service,
                 }
                 if c.result_json:
                     entry["result"] = json.loads(c.result_json)
@@ -268,19 +307,57 @@ class AnipGrpcClient:
                 yield entry
             elif event.HasField("failed"):
                 f = event.failed
-                failure: dict = {
-                    "type": f.failure.type,
-                    "detail": f.failure.detail,
-                    "retry": f.failure.retry,
-                }
-                if f.failure.resolution_json:
-                    failure["resolution"] = json.loads(f.failure.resolution_json)
+                failure = _failure_to_dict(f.failure)
                 yield {
                     "type": "failed",
                     "invocation_id": f.invocation_id,
                     "client_reference_id": f.client_reference_id,
+                    "task_id": f.task_id,
+                    "parent_invocation_id": f.parent_invocation_id,
+                    "upstream_service": f.upstream_service,
                     "failure": failure,
                 }
+
+    def issue_approval_grant(
+        self,
+        bearer: str,
+        approval_request_id: str,
+        grant_type: str,
+        **kwargs,
+    ) -> dict:
+        """Call IssueApprovalGrant and return the parsed response dict.
+
+        Args:
+            bearer: JWT bearer token with approver scope.
+            approval_request_id: Pending ApprovalRequest ID.
+            grant_type: ``one_time`` or ``session_bound``.
+
+        Keyword args:
+            session_id (str): Required for session_bound grants.
+            expires_in_seconds (int): Optional policy-clamped TTL.
+            max_uses (int): Optional policy-clamped use limit.
+        """
+        req = anip_pb2.IssueApprovalGrantRequest(
+            approval_request_id=approval_request_id,
+            grant_type=grant_type,
+        )
+        if kwargs.get("session_id"):
+            req.session_id = kwargs["session_id"]
+        if kwargs.get("expires_in_seconds") is not None:
+            req.expires_in_seconds = kwargs["expires_in_seconds"]
+        if kwargs.get("max_uses") is not None:
+            req.max_uses = kwargs["max_uses"]
+
+        resp = self._stub.IssueApprovalGrant(
+            req,
+            metadata=[("authorization", f"Bearer {bearer}")],
+        )
+        result: dict = {"success": resp.success}
+        if resp.grant_json:
+            result["grant"] = json.loads(resp.grant_json)
+        if not resp.success and resp.HasField("failure"):
+            result["failure"] = _failure_to_dict(resp.failure)
+        return result
 
     def query_audit(self, bearer: str, **kwargs) -> dict:
         """Call QueryAudit and return the parsed response dict.
@@ -293,6 +370,8 @@ class AnipGrpcClient:
             since (str): ISO timestamp lower bound.
             invocation_id (str): Filter by invocation ID.
             client_reference_id (str): Filter by client reference ID.
+            task_id (str): Filter by task/work-order ID.
+            parent_invocation_id (str): Filter by parent invocation ID.
             event_class (str): Filter by event class.
             limit (int): Maximum number of entries.
         """
@@ -305,6 +384,10 @@ class AnipGrpcClient:
             req.invocation_id = kwargs["invocation_id"]
         if kwargs.get("client_reference_id"):
             req.client_reference_id = kwargs["client_reference_id"]
+        if kwargs.get("task_id"):
+            req.task_id = kwargs["task_id"]
+        if kwargs.get("parent_invocation_id"):
+            req.parent_invocation_id = kwargs["parent_invocation_id"]
         if kwargs.get("event_class"):
             req.event_class = kwargs["event_class"]
         if kwargs.get("limit") is not None:
@@ -318,9 +401,5 @@ class AnipGrpcClient:
         if resp.json:
             result.update(json.loads(resp.json))
         if not resp.success and resp.HasField("failure"):
-            result["failure"] = {
-                "type": resp.failure.type,
-                "detail": resp.failure.detail,
-                "retry": resp.failure.retry,
-            }
+            result["failure"] = _failure_to_dict(resp.failure)
         return result

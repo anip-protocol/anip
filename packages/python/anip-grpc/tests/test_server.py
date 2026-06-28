@@ -9,11 +9,12 @@ import pytest
 import grpc
 from concurrent import futures
 
-from anip_service import ANIPService, Capability, InvocationContext
+from anip_service import ANIPError, ANIPService, Capability, InvocationContext
 from anip_core import (
     CapabilityDeclaration,
     CapabilityInput,
     CapabilityOutput,
+    GrantPolicy,
     PROTOCOL_VERSION,
     ResponseMode,
     SideEffect,
@@ -37,7 +38,11 @@ from anip_grpc.generated.anip.v1 import anip_pb2_grpc
 
 def _echo_capability() -> Capability:
     async def handler(ctx: InvocationContext, params: dict) -> dict:
-        return {"echo": params.get("message", ""), "invocation_id": ctx.invocation_id}
+        return {
+            "echo": params.get("message", ""),
+            "invocation_id": ctx.invocation_id,
+            "requested_effects": ctx.requested_effects,
+        }
 
     return Capability(
         declaration=CapabilityDeclaration(
@@ -48,6 +53,38 @@ def _echo_capability() -> Capability:
             side_effect=SideEffect(type=SideEffectType.READ),
             minimum_scope=["echo"],
             response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
+        ),
+        handler=handler,
+    )
+
+
+def _approval_required_capability() -> Capability:
+    async def handler(ctx: InvocationContext, params: dict) -> dict:
+        if params.get("amount", 0) > 10000:
+            raise ANIPError(
+                "approval_required",
+                "needs approval",
+                approval_required={"preview": {"amount": params["amount"], "to_account": params["to_account"]}},
+            )
+        return {"transfer_id": "tx"}
+
+    return Capability(
+        declaration=CapabilityDeclaration(
+            name="transfer_funds",
+            description="High-value transfer",
+            inputs=[
+                CapabilityInput(name="amount", type="number", required=True, description="amount"),
+                CapabilityInput(name="to_account", type="string", required=True, description="destination"),
+            ],
+            output=CapabilityOutput(type="transfer_confirmation", fields=["transfer_id"]),
+            side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
+            minimum_scope=["finance.write"],
+            grant_policy=GrantPolicy(
+                allowed_grant_types=["one_time", "session_bound"],
+                default_grant_type="one_time",
+                expires_in_seconds=900,
+                max_uses=1,
+            ),
         ),
         handler=handler,
     )
@@ -108,6 +145,46 @@ def _issue_token(stub: anip_pb2_grpc.AnipServiceStub) -> str:
     assert resp.issued is True, f"Token issuance failed: {resp}"
     assert resp.token != ""
     return resp.token
+
+
+def _issue_capability_token(stub: anip_pb2_grpc.AnipServiceStub, *, scope: list[str], capability: str) -> str:
+    resp = stub.IssueToken(
+        anip_pb2.IssueTokenRequest(
+            subject="agent:test-agent",
+            scope=scope,
+            capability=capability,
+            caller_class="internal",
+        ),
+        metadata=_auth_metadata("test-api-key"),
+    )
+    assert resp.issued is True, f"Token issuance failed: {resp}"
+    assert resp.token != ""
+    return resp.token
+
+
+@pytest.fixture
+def approval_stub():
+    async def authenticate(token: str) -> str | None:
+        if token == "test-api-key":
+            return "human:test@example.com"
+        return None
+
+    service = ANIPService(
+        service_id="test-grpc-finance-service",
+        capabilities=[_approval_required_capability()],
+        storage=":memory:",
+        authenticate=authenticate,
+    )
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
+    anip_pb2_grpc.add_AnipServiceServicer_to_server(AnipGrpcServicer(service), server)
+    port = server.add_insecure_port("[::]:0")
+    server.start()
+    channel = grpc.insecure_channel(f"localhost:{port}")
+    try:
+        yield anip_pb2_grpc.AnipServiceStub(channel)
+    finally:
+        channel.close()
+        server.stop(grace=0)
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +272,20 @@ class TestInvoke:
         result = json.loads(resp.result_json)
         assert result["echo"] == "hello"
 
+    def test_invoke_carries_requested_effects(self, stub):
+        token = _issue_token(stub)
+        resp = stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="echo",
+                parameters_json=json.dumps({"message": "effects"}),
+                requested_effects=["data.read", "content.summary"],
+            ),
+            metadata=_auth_metadata(token),
+        )
+        assert resp.success is True
+        result = json.loads(resp.result_json)
+        assert result["requested_effects"] == ["data.read", "content.summary"]
+
     def test_invoke_without_auth_returns_unauthenticated(self, stub):
         with pytest.raises(grpc.RpcError) as exc_info:
             stub.Invoke(anip_pb2.InvokeRequest(
@@ -215,6 +306,58 @@ class TestInvoke:
         # ANIP failures are returned as successful gRPC responses with failure field
         assert resp.success is False
         assert resp.failure.type != ""
+
+    def test_approval_grant_flow_preserves_failure_context_and_continuation(self, approval_stub):
+        requester = _issue_capability_token(
+            approval_stub, scope=["finance.write"], capability="transfer_funds",
+        )
+        first = approval_stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="transfer_funds",
+                parameters_json=json.dumps({"amount": 50000, "to_account": "x"}),
+            ),
+            metadata=_auth_metadata(requester),
+        )
+        assert first.success is False
+        assert first.failure.type == "approval_required"
+        context_data = json.loads(first.failure.context_json)
+        request_id = context_data["approval_required"]["approval_request_id"]
+        assert request_id
+
+        approver = _issue_capability_token(
+            approval_stub, scope=["finance.write", "approver:*"], capability="transfer_funds",
+        )
+        grant_resp = approval_stub.IssueApprovalGrant(
+            anip_pb2.IssueApprovalGrantRequest(
+                approval_request_id=request_id,
+                grant_type="one_time",
+            ),
+            metadata=_auth_metadata(approver),
+        )
+        assert grant_resp.success is True
+        grant = json.loads(grant_resp.grant_json)
+        grant_id = grant["grant_id"]
+
+        second = approval_stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="transfer_funds",
+                parameters_json=json.dumps({"amount": 50000, "to_account": "x"}),
+                approval_grant=grant_id,
+            ),
+            metadata=_auth_metadata(requester),
+        )
+        assert second.success is False
+
+        third = approval_stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="transfer_funds",
+                parameters_json=json.dumps({"amount": 50000, "to_account": "x"}),
+                approval_grant=grant_id,
+            ),
+            metadata=_auth_metadata(requester),
+        )
+        assert third.success is False
+        assert third.failure.type == "grant_consumed"
 
 
 class TestInvokeStream:

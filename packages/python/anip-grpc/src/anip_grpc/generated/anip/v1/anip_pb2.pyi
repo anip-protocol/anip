@@ -7,16 +7,18 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AnipFailure(_message.Message):
-    __slots__ = ("type", "detail", "resolution_json", "retry")
+    __slots__ = ("type", "detail", "resolution_json", "retry", "context_json")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     RESOLUTION_JSON_FIELD_NUMBER: _ClassVar[int]
     RETRY_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_JSON_FIELD_NUMBER: _ClassVar[int]
     type: str
     detail: str
     resolution_json: str
     retry: bool
-    def __init__(self, type: _Optional[str] = ..., detail: _Optional[str] = ..., resolution_json: _Optional[str] = ..., retry: bool = ...) -> None: ...
+    context_json: str
+    def __init__(self, type: _Optional[str] = ..., detail: _Optional[str] = ..., resolution_json: _Optional[str] = ..., retry: _Optional[bool] = ..., context_json: _Optional[str] = ...) -> None: ...
 
 class Budget(_message.Message):
     __slots__ = ("currency", "max_amount")
@@ -40,7 +42,7 @@ class BudgetContext(_message.Message):
     cost_certainty: str
     cost_actual: float
     within_budget: bool
-    def __init__(self, budget_max: _Optional[float] = ..., budget_currency: _Optional[str] = ..., cost_check_amount: _Optional[float] = ..., cost_certainty: _Optional[str] = ..., cost_actual: _Optional[float] = ..., within_budget: bool = ...) -> None: ...
+    def __init__(self, budget_max: _Optional[float] = ..., budget_currency: _Optional[str] = ..., cost_check_amount: _Optional[float] = ..., cost_certainty: _Optional[str] = ..., cost_actual: _Optional[float] = ..., within_budget: _Optional[bool] = ...) -> None: ...
 
 class DiscoveryRequest(_message.Message):
     __slots__ = ()
@@ -108,7 +110,7 @@ class IssueTokenResponse(_message.Message):
     expires: str
     failure: AnipFailure
     budget: Budget
-    def __init__(self, issued: bool = ..., token_id: _Optional[str] = ..., token: _Optional[str] = ..., expires: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., budget: _Optional[_Union[Budget, _Mapping]] = ...) -> None: ...
+    def __init__(self, issued: _Optional[bool] = ..., token_id: _Optional[str] = ..., token: _Optional[str] = ..., expires: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., budget: _Optional[_Union[Budget, _Mapping]] = ...) -> None: ...
 
 class PermissionsRequest(_message.Message):
     __slots__ = ()
@@ -122,23 +124,27 @@ class PermissionsResponse(_message.Message):
     success: bool
     json: str
     failure: AnipFailure
-    def __init__(self, success: bool = ..., json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
+    def __init__(self, success: _Optional[bool] = ..., json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
 
 class InvokeRequest(_message.Message):
-    __slots__ = ("capability", "parameters_json", "client_reference_id", "task_id", "parent_invocation_id", "upstream_service")
+    __slots__ = ("capability", "parameters_json", "client_reference_id", "task_id", "parent_invocation_id", "upstream_service", "approval_grant", "requested_effects")
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_JSON_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     UPSTREAM_SERVICE_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_GRANT_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_EFFECTS_FIELD_NUMBER: _ClassVar[int]
     capability: str
     parameters_json: str
     client_reference_id: str
     task_id: str
     parent_invocation_id: str
     upstream_service: str
-    def __init__(self, capability: _Optional[str] = ..., parameters_json: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ..., upstream_service: _Optional[str] = ...) -> None: ...
+    approval_grant: str
+    requested_effects: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, capability: _Optional[str] = ..., parameters_json: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ..., upstream_service: _Optional[str] = ..., approval_grant: _Optional[str] = ..., requested_effects: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class InvokeResponse(_message.Message):
     __slots__ = ("success", "invocation_id", "client_reference_id", "result_json", "cost_actual_json", "failure", "task_id", "parent_invocation_id", "budget_context", "upstream_service")
@@ -162,7 +168,7 @@ class InvokeResponse(_message.Message):
     parent_invocation_id: str
     budget_context: BudgetContext
     upstream_service: str
-    def __init__(self, success: bool = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ..., budget_context: _Optional[_Union[BudgetContext, _Mapping]] = ..., upstream_service: _Optional[str] = ...) -> None: ...
+    def __init__(self, success: _Optional[bool] = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ..., budget_context: _Optional[_Union[BudgetContext, _Mapping]] = ..., upstream_service: _Optional[str] = ...) -> None: ...
 
 class InvokeEvent(_message.Message):
     __slots__ = ("progress", "completed", "failed")
@@ -220,6 +226,30 @@ class FailedEvent(_message.Message):
     upstream_service: str
     def __init__(self, invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ..., budget_context: _Optional[_Union[BudgetContext, _Mapping]] = ..., upstream_service: _Optional[str] = ...) -> None: ...
 
+class IssueApprovalGrantRequest(_message.Message):
+    __slots__ = ("approval_request_id", "grant_type", "session_id", "expires_in_seconds", "max_uses")
+    APPROVAL_REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    GRANT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_IN_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_USES_FIELD_NUMBER: _ClassVar[int]
+    approval_request_id: str
+    grant_type: str
+    session_id: str
+    expires_in_seconds: int
+    max_uses: int
+    def __init__(self, approval_request_id: _Optional[str] = ..., grant_type: _Optional[str] = ..., session_id: _Optional[str] = ..., expires_in_seconds: _Optional[int] = ..., max_uses: _Optional[int] = ...) -> None: ...
+
+class IssueApprovalGrantResponse(_message.Message):
+    __slots__ = ("success", "grant_json", "failure")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    GRANT_JSON_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    grant_json: str
+    failure: AnipFailure
+    def __init__(self, success: _Optional[bool] = ..., grant_json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
+
 class QueryAuditRequest(_message.Message):
     __slots__ = ("capability", "since", "invocation_id", "client_reference_id", "event_class", "limit", "task_id", "parent_invocation_id")
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
@@ -248,7 +278,7 @@ class QueryAuditResponse(_message.Message):
     success: bool
     json: str
     failure: AnipFailure
-    def __init__(self, success: bool = ..., json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
+    def __init__(self, success: _Optional[bool] = ..., json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
 
 class ListCheckpointsRequest(_message.Message):
     __slots__ = ("limit",)
@@ -272,7 +302,7 @@ class GetCheckpointRequest(_message.Message):
     include_proof: bool
     leaf_index: int
     consistency_from: str
-    def __init__(self, id: _Optional[str] = ..., include_proof: bool = ..., leaf_index: _Optional[int] = ..., consistency_from: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., include_proof: _Optional[bool] = ..., leaf_index: _Optional[int] = ..., consistency_from: _Optional[str] = ...) -> None: ...
 
 class GetCheckpointResponse(_message.Message):
     __slots__ = ("json",)
