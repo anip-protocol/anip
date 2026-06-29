@@ -57,12 +57,19 @@ jobs:
           cache: npm
           cache-dependency-path: studio/package-lock.json
 
-      - name: Install Studio dependencies
+      - name: Install Studio web dependencies
         shell: bash
+        working-directory: studio
         run: |
           set -euo pipefail
-          npm --prefix studio ci
-          npm --prefix packages/typescript/vue install --include=dev --no-package-lock
+          npm ci
+
+      - name: Install ANIP Vue package dependencies
+        shell: bash
+        working-directory: packages/typescript/vue
+        run: |
+          set -euo pipefail
+          npm install --include=dev --no-package-lock
 
       - name: Select Rust stable toolchain
         shell: bash
