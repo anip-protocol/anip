@@ -1,5 +1,7 @@
 """Tests for Studio showcase seed profile selection."""
 
+import json
+
 from studio.server import seed
 from studio.server import project_snapshots
 from studio.server.seed_catalog import SEED_PROJECTS
@@ -70,3 +72,61 @@ def test_local_demo_profile_keeps_legacy_issue_tracker_showcase():
     }
 
     assert project_ids == {"project-issue-tracker-fronting-showcase"}
+
+
+def test_public_showcase_seed_skips_snapshot_import_when_manifest_matches(monkeypatch, tmp_path):
+    manifest_path = tmp_path / "seed-manifest.json"
+    expected_manifest = {
+        "profile": "public_showcase",
+        "snapshots": [{"name": "demo.json", "size": 10}],
+    }
+    manifest_path.write_text(json.dumps(expected_manifest, sort_keys=True), encoding="utf-8")
+    import_calls = []
+
+    monkeypatch.setattr(seed, "_showcase_snapshot_manifest", lambda: expected_manifest)
+    monkeypatch.setattr(seed, "_seed_manifest_path", lambda: manifest_path)
+    monkeypatch.setattr(
+        seed,
+        "import_showcase_snapshots_from_disk",
+        lambda *args, **kwargs: import_calls.append(kwargs),
+    )
+
+    result = seed._seed_public_showcase_snapshots(object())
+
+    assert import_calls == []
+    assert result["status"] == "skipped_unchanged"
+
+
+def test_public_showcase_seed_imports_and_records_manifest_when_manifest_changes(monkeypatch, tmp_path):
+    manifest_path = tmp_path / "seed-manifest.json"
+    old_manifest = {
+        "profile": "public_showcase",
+        "snapshots": [{"name": "old.json", "size": 1}],
+    }
+    new_manifest = {
+        "profile": "public_showcase",
+        "snapshots": [{"name": "new.json", "size": 2}],
+    }
+    manifest_path.write_text(json.dumps(old_manifest, sort_keys=True), encoding="utf-8")
+    import_calls = []
+
+    monkeypatch.setattr(seed, "_showcase_snapshot_manifest", lambda: new_manifest)
+    monkeypatch.setattr(seed, "_seed_manifest_path", lambda: manifest_path)
+
+    def fake_import(*args, **kwargs):
+        import_calls.append(kwargs)
+        return {"imported": 1, "skipped": 0, "snapshots": []}
+
+    monkeypatch.setattr(seed, "import_showcase_snapshots_from_disk", fake_import)
+
+    result = seed._seed_public_showcase_snapshots(object())
+
+    assert import_calls == [
+        {
+            "replace_existing": True,
+            "latest_only": True,
+            "workspace_override": seed.PUBLIC_SHOWCASE_WORKSPACE,
+        }
+    ]
+    assert result["status"] == "imported"
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == new_manifest

@@ -9,14 +9,15 @@ use std::{
     time::Duration,
 };
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use tauri::{path::BaseDirectory, Manager};
 
 static STUDIO_API_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 static STUDIO_API_PORT: OnceLock<u16> = OnceLock::new();
-const ALLOWED_EXTERNAL_URLS: &[&str] = &[
-    "https://anip.dev",
-    "https://anip.dev/",
-];
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+const ALLOWED_EXTERNAL_URLS: &[&str] = &["https://anip.dev", "https://anip.dev/"];
 
 fn configured_studio_api_port() -> Option<u16> {
     env::var("STUDIO_DESKTOP_API_PORT")
@@ -57,7 +58,12 @@ fn configured_api_launcher() -> Option<PathBuf> {
 
 fn desktop_log_path() -> Option<PathBuf> {
     let home = env::var_os("HOME").map(PathBuf::from)?;
-    Some(home.join("Library").join("Logs").join("ANIP Studio").join("desktop-api.log"))
+    Some(
+        home.join("Library")
+            .join("Logs")
+            .join("ANIP Studio")
+            .join("desktop-api.log"),
+    )
 }
 
 fn append_desktop_log(message: &str) {
@@ -70,6 +76,22 @@ fn append_desktop_log(message: &str) {
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(file, "{message}");
     }
+}
+
+fn stop_studio_api_sidecar() {
+    let Some(child_slot) = STUDIO_API_CHILD.get() else {
+        return;
+    };
+    let Ok(mut guard) = child_slot.lock() else {
+        return;
+    };
+    let Some(mut child) = guard.take() else {
+        return;
+    };
+
+    append_desktop_log("Stopping Studio API sidecar process");
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 fn target_triple() -> &'static str {
@@ -131,7 +153,10 @@ fn start_studio_api_if_configured(app: &tauri::App) {
         return;
     }
     if studio_api_is_running() {
-        append_desktop_log(&format!("Studio API already running on {}", studio_api_base()));
+        append_desktop_log(&format!(
+            "Studio API already running on {}",
+            studio_api_base()
+        ));
         return;
     }
 
@@ -160,11 +185,10 @@ fn start_studio_api_if_configured(app: &tauri::App) {
         .and_then(|file| file.try_clone().ok())
         .map(Stdio::from)
         .unwrap_or_else(Stdio::null);
-    let stderr = log_file
-        .map(Stdio::from)
-        .unwrap_or_else(Stdio::null);
+    let stderr = log_file.map(Stdio::from).unwrap_or_else(Stdio::null);
 
-    let Ok(child) = Command::new(&launcher)
+    let mut command = Command::new(&launcher);
+    command
         .env("STUDIO_MODE", "desktop")
         .env("STUDIO_DB_BACKEND", "sqlite")
         .env("STUDIO_SEED_SHOWCASES", "1")
@@ -173,10 +197,16 @@ fn start_studio_api_if_configured(app: &tauri::App) {
         .env("STUDIO_DESKTOP_API_PORT", studio_api_port().to_string())
         .stdin(Stdio::null())
         .stdout(stdout)
-        .stderr(stderr)
-        .spawn()
-    else {
-        append_desktop_log(&format!("Failed to spawn Studio API sidecar: {}", launcher.display()));
+        .stderr(stderr);
+
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    let Ok(child) = command.spawn() else {
+        append_desktop_log(&format!(
+            "Failed to spawn Studio API sidecar: {}",
+            launcher.display()
+        ));
         return;
     };
 
@@ -203,9 +233,7 @@ fn open_external_url(url: String) -> Result<(), String> {
     let status = Command::new("open").arg(&url).status();
 
     #[cfg(target_os = "windows")]
-    let status = Command::new("cmd")
-        .args(["/C", "start", "", &url])
-        .status();
+    let status = Command::new("cmd").args(["/C", "start", "", &url]).status();
 
     #[cfg(all(unix, not(target_os = "macos")))]
     let status = Command::new("xdg-open").arg(&url).status();
@@ -223,12 +251,24 @@ fn open_external_url(url: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_external_url, studio_api_base_url])
+    let app = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            open_external_url,
+            studio_api_base_url
+        ])
         .setup(|app| {
             start_studio_api_if_configured(app);
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("failed to run ANIP Studio desktop shell");
+        .build(tauri::generate_context!())
+        .expect("failed to build ANIP Studio desktop shell");
+
+    app.run(|_app_handle, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
+        ) {
+            stop_studio_api_sidecar();
+        }
+    });
 }
