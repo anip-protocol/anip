@@ -63,6 +63,7 @@ add_data_arg() {
   --add-data "$(add_data_arg "${REPO_ROOT}/studio/server/vocabulary_defaults.json" "studio/server")" \
   --add-data "$(add_data_arg "${REPO_ROOT}/docs/examples" "docs/examples")" \
   --hidden-import anip_design_validate \
+  --hidden-import jwt \
   --hidden-import psycopg_binary \
   "${REPO_ROOT}/studio/server/desktop_entry.py"
 
