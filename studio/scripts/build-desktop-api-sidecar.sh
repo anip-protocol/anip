@@ -13,10 +13,12 @@ case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT)
     PYINSTALLER="${PYINSTALLER:-${REPO_ROOT}/.venv/Scripts/pyinstaller.exe}"
     ADD_DATA_SEPARATOR=";"
+    NATIVE_PATH_CONVERTER="cygpath -w"
     ;;
   *)
     PYINSTALLER="${PYINSTALLER:-${REPO_ROOT}/.venv/bin/pyinstaller}"
     ADD_DATA_SEPARATOR=":"
+    NATIVE_PATH_CONVERTER=""
     ;;
 esac
 
@@ -26,6 +28,18 @@ if [[ ! -x "${PYINSTALLER}" ]]; then
 fi
 
 mkdir -p "${DIST_DIR}"
+
+native_path() {
+  if [[ -n "${NATIVE_PATH_CONVERTER}" ]]; then
+    ${NATIVE_PATH_CONVERTER} "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+
+add_data_arg() {
+  printf '%s%s%s' "$(native_path "$1")" "${ADD_DATA_SEPARATOR}" "$2"
+}
 
 "${PYINSTALLER}" \
   --noconfirm \
@@ -42,12 +56,12 @@ mkdir -p "${DIST_DIR}"
   --paths "${REPO_ROOT}/packages/python/anip-server/src" \
   --paths "${REPO_ROOT}/packages/python/anip-service/src" \
   --paths "${REPO_ROOT}/packages/python/anip-fastapi/src" \
-  --add-data "${REPO_ROOT}/tooling/schemas${ADD_DATA_SEPARATOR}tooling/schemas" \
-  --add-data "${REPO_ROOT}/studio/server/migrations${ADD_DATA_SEPARATOR}studio/server/migrations" \
-  --add-data "${REPO_ROOT}/studio/server/seed_data${ADD_DATA_SEPARATOR}studio/server/seed_data" \
-  --add-data "${REPO_ROOT}/studio/server/showcase_snapshots${ADD_DATA_SEPARATOR}studio/server/showcase_snapshots" \
-  --add-data "${REPO_ROOT}/studio/server/vocabulary_defaults.json${ADD_DATA_SEPARATOR}studio/server" \
-  --add-data "${REPO_ROOT}/docs/examples${ADD_DATA_SEPARATOR}docs/examples" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/tooling/schemas" "tooling/schemas")" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/studio/server/migrations" "studio/server/migrations")" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/studio/server/seed_data" "studio/server/seed_data")" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/studio/server/showcase_snapshots" "studio/server/showcase_snapshots")" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/studio/server/vocabulary_defaults.json" "studio/server")" \
+  --add-data "$(add_data_arg "${REPO_ROOT}/docs/examples" "docs/examples")" \
   --hidden-import anip_design_validate \
   --hidden-import psycopg_binary \
   "${REPO_ROOT}/studio/server/desktop_entry.py"
