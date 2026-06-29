@@ -8,10 +8,20 @@ SIDECAR_NAME="anip-studio-api-${TARGET_TRIPLE}"
 DIST_DIR="${REPO_ROOT}/studio/src-tauri/bin"
 WORK_DIR="${REPO_ROOT}/studio/src-tauri/pyinstaller-work"
 SPEC_DIR="${REPO_ROOT}/studio/src-tauri/pyinstaller-spec"
-PYINSTALLER="${PYINSTALLER:-${REPO_ROOT}/.venv/bin/pyinstaller}"
+
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    PYINSTALLER="${PYINSTALLER:-${REPO_ROOT}/.venv/Scripts/pyinstaller.exe}"
+    ADD_DATA_SEPARATOR=";"
+    ;;
+  *)
+    PYINSTALLER="${PYINSTALLER:-${REPO_ROOT}/.venv/bin/pyinstaller}"
+    ADD_DATA_SEPARATOR=":"
+    ;;
+esac
 
 if [[ ! -x "${PYINSTALLER}" ]]; then
-  echo "Missing ${PYINSTALLER}. Run: ${REPO_ROOT}/.venv/bin/python -m pip install -r ${REPO_ROOT}/studio/server/desktop-build-requirements.txt" >&2
+  echo "Missing ${PYINSTALLER}. Create .venv and install ${REPO_ROOT}/studio/server/desktop-build-requirements.txt first." >&2
   exit 1
 fi
 
@@ -32,12 +42,12 @@ mkdir -p "${DIST_DIR}"
   --paths "${REPO_ROOT}/packages/python/anip-server/src" \
   --paths "${REPO_ROOT}/packages/python/anip-service/src" \
   --paths "${REPO_ROOT}/packages/python/anip-fastapi/src" \
-  --add-data "${REPO_ROOT}/tooling/schemas:tooling/schemas" \
-  --add-data "${REPO_ROOT}/studio/server/migrations:studio/server/migrations" \
-  --add-data "${REPO_ROOT}/studio/server/seed_data:studio/server/seed_data" \
-  --add-data "${REPO_ROOT}/studio/server/showcase_snapshots:studio/server/showcase_snapshots" \
-  --add-data "${REPO_ROOT}/studio/server/vocabulary_defaults.json:studio/server" \
-  --add-data "${REPO_ROOT}/docs/examples:docs/examples" \
+  --add-data "${REPO_ROOT}/tooling/schemas${ADD_DATA_SEPARATOR}tooling/schemas" \
+  --add-data "${REPO_ROOT}/studio/server/migrations${ADD_DATA_SEPARATOR}studio/server/migrations" \
+  --add-data "${REPO_ROOT}/studio/server/seed_data${ADD_DATA_SEPARATOR}studio/server/seed_data" \
+  --add-data "${REPO_ROOT}/studio/server/showcase_snapshots${ADD_DATA_SEPARATOR}studio/server/showcase_snapshots" \
+  --add-data "${REPO_ROOT}/studio/server/vocabulary_defaults.json${ADD_DATA_SEPARATOR}studio/server" \
+  --add-data "${REPO_ROOT}/docs/examples${ADD_DATA_SEPARATOR}docs/examples" \
   --hidden-import anip_design_validate \
   --hidden-import psycopg_binary \
   "${REPO_ROOT}/studio/server/desktop_entry.py"
