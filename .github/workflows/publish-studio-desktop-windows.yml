@@ -146,7 +146,8 @@ jobs:
 
       - name: Build Studio desktop app
         shell: bash
-        run: npm --prefix studio exec -- tauri build
+        working-directory: studio
+        run: npm exec -- tauri build
 
       - name: Locate Windows artifacts
         id: artifacts
