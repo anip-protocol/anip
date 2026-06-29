@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import repository
+from . import project_snapshots
 from .project_snapshots import import_showcase_snapshots_from_disk
 from .runtime_paths import repo_root
 from .seed_catalog import SEED_PROJECTS
@@ -956,6 +957,75 @@ def _remove_empty_default_workspace_for_public_showcase(conn: Any) -> None:
     conn.commit()
 
 
+def _seed_manifest_path() -> Path | None:
+    configured = os.getenv("STUDIO_SEED_MANIFEST_PATH", "").strip()
+    if configured:
+        return Path(configured)
+    data_dir = os.getenv("ANIP_STUDIO_DESKTOP_DATA_DIR", "").strip()
+    if data_dir:
+        return Path(data_dir) / "public-showcase-seed-manifest.json"
+    return None
+
+
+def _showcase_snapshot_manifest() -> dict[str, Any]:
+    snapshot_dir = project_snapshots._DEFAULT_SNAPSHOT_DIR
+    snapshots = []
+    if snapshot_dir.exists():
+        for path in sorted(snapshot_dir.glob("*.studio-project-snapshot.json")):
+            stat = path.stat()
+            snapshots.append(
+                {
+                    "name": path.name,
+                    "size": stat.st_size,
+                }
+            )
+    return {
+        "profile": "public_showcase",
+        "snapshots": snapshots,
+    }
+
+
+def _read_seed_manifest(path: Path | None) -> dict[str, Any] | None:
+    if path is None or not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _write_seed_manifest(path: Path | None, manifest: dict[str, Any]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+    tmp_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _seed_public_showcase_snapshots(conn: Any) -> dict[str, Any]:
+    manifest = _showcase_snapshot_manifest()
+    manifest_path = _seed_manifest_path()
+    if _read_seed_manifest(manifest_path) == manifest:
+        return {
+            "status": "skipped_unchanged",
+            "snapshot_dir": str(project_snapshots._DEFAULT_SNAPSHOT_DIR),
+            "imported": 0,
+            "skipped": 0,
+            "snapshots": [],
+        }
+
+    result = import_showcase_snapshots_from_disk(
+        conn,
+        replace_existing=True,
+        latest_only=True,
+        workspace_override=PUBLIC_SHOWCASE_WORKSPACE,
+    )
+    _write_seed_manifest(manifest_path, manifest)
+    return {"status": "imported", **result}
+
+
 def seed_from_examples(conn: Any) -> dict:
     """Create curated seed projects for local demos.
 
@@ -999,12 +1069,7 @@ def seed_from_examples(conn: Any) -> dict:
 
     snapshot_result: dict[str, Any] | None = None
     if profile == "public_showcase":
-        snapshot_result = import_showcase_snapshots_from_disk(
-            conn,
-            replace_existing=True,
-            latest_only=True,
-            workspace_override=PUBLIC_SHOWCASE_WORKSPACE,
-        )
+        snapshot_result = _seed_public_showcase_snapshots(conn)
     if profile in {"all", "*"}:
         snapshot_result = import_showcase_snapshots_from_disk(conn, replace_existing=True, latest_only=True)
     if profile in {"showcase_snapshots", "snapshot_showcase", "snapshots"}:
