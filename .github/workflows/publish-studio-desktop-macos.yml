@@ -175,6 +175,7 @@ jobs:
           macos = bundle.setdefault("macOS", {})
           macos["signingIdentity"] = signing_identity
           macos["hardenedRuntime"] = True
+          macos["entitlements"] = "entitlements.plist"
           tauri_config_path.write_text(json.dumps(tauri_config, indent=2) + "\n")
 
           cargo_toml_path = root / "studio/src-tauri/Cargo.toml"
@@ -208,6 +209,7 @@ jobs:
           codesign \
             --force \
             --options runtime \
+            --entitlements studio/src-tauri/entitlements.plist \
             --timestamp \
             --sign "$APPLE_SIGNING_IDENTITY" \
             "$SIDECAR_PATH"
