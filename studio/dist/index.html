@@ -12,14 +12,78 @@
         background: #0f0f1a;
         color: #e8e8f0;
       }
+      .studio-boot-shell {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(66, 153, 225, 0.18), transparent 34rem),
+          radial-gradient(circle at 80% 10%, rgba(72, 187, 120, 0.12), transparent 28rem),
+          #0f0f1a;
+      }
+      .studio-boot-card {
+        width: min(28rem, calc(100vw - 3rem));
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1.25rem;
+        background: rgba(18, 24, 38, 0.88);
+        box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.35);
+      }
+      .studio-boot-kicker {
+        color: #8fd3a8;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .studio-boot-title {
+        margin-top: 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .studio-boot-copy {
+        margin-top: 0.5rem;
+        color: #b8c3d6;
+        line-height: 1.5;
+      }
+      .studio-boot-bar {
+        position: relative;
+        height: 0.35rem;
+        margin-top: 1.5rem;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+      }
+      .studio-boot-bar::after {
+        position: absolute;
+        inset: 0;
+        width: 42%;
+        content: '';
+        border-radius: inherit;
+        background: linear-gradient(90deg, #8fd3a8, #5bb7e5);
+        animation: studio-boot-slide 1.2s ease-in-out infinite;
+      }
+      @keyframes studio-boot-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(250%); }
+      }
     </style>
-    <script type="module" crossorigin src="/studio/assets/index-ko3WEm3y.js"></script>
+    <script type="module" crossorigin src="/studio/assets/index-AoROCnSj.js"></script>
     <link rel="modulepreload" crossorigin href="/studio/assets/_plugin-vue_export-helper-BWMjdCUf.js">
-    <link rel="modulepreload" crossorigin href="/studio/assets/store-DYKOms1K.js">
+    <link rel="modulepreload" crossorigin href="/studio/assets/store-CK_CB9ne.js">
     <link rel="modulepreload" crossorigin href="/studio/assets/api-M9fCOTuI.js">
     <link rel="stylesheet" crossorigin href="/studio/assets/index-B20Of4am.css">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="studio-boot-shell">
+        <div class="studio-boot-card">
+          <div class="studio-boot-kicker">ANIP Studio</div>
+          <div class="studio-boot-title">Starting local workspace</div>
+          <div class="studio-boot-copy">Loading the desktop shell and preparing the local Studio API.</div>
+          <div class="studio-boot-bar" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
