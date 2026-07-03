@@ -19,7 +19,21 @@
         "minWidth": 1024,
         "minHeight": 720,
         "resizable": true,
+        "visible": false,
         "fullscreen": false
+      },
+      {
+        "label": "splashscreen",
+        "title": "ANIP Studio",
+        "url": "splashscreen.html",
+        "width": 460,
+        "height": 300,
+        "resizable": false,
+        "decorations": false,
+        "center": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": true
       }
     ],
     "security": {
