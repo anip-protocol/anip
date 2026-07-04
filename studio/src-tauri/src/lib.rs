@@ -11,7 +11,7 @@ use std::{
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use tauri::{path::BaseDirectory, Manager};
+use tauri::{path::BaseDirectory, webview::PageLoadEvent, Manager};
 
 static STUDIO_API_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 static STUDIO_API_PORT: OnceLock<u16> = OnceLock::new();
@@ -256,6 +256,19 @@ pub fn run() {
             open_external_url,
             studio_api_base_url
         ])
+        .on_page_load(|webview, payload| {
+            if webview.label() != "main" || payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+
+            if let Some(main) = webview.get_webview_window("main") {
+                let _ = main.show();
+                let _ = main.set_focus();
+            }
+            if let Some(splashscreen) = webview.get_webview_window("splashscreen") {
+                let _ = splashscreen.close();
+            }
+        })
         .setup(|app| {
             start_studio_api_if_configured(app);
             Ok(())
