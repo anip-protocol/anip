@@ -173,7 +173,8 @@ jobs:
       - name: Build GTM Agent desktop app
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: npm --prefix "$APP_DIR" exec -- tauri build
+        working-directory: examples/showcase/gtm/desktop
+        run: npm exec -- tauri build
 
       - name: Locate desktop artifacts
         id: artifacts
