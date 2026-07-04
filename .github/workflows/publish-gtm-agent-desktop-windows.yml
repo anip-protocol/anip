@@ -37,6 +37,20 @@ jobs:
             exit 1
           fi
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install desktop runtime build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          . .venv/Scripts/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r "$APP_DIR/sidecar/desktop-build-requirements.txt"
+
       - name: Set up Node 22
         uses: actions/setup-node@v6
         with:
@@ -55,6 +69,19 @@ jobs:
           rustup default stable
           rustup show active-toolchain
           cargo --version
+
+      - name: Build GTM Agent desktop sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$APP_DIR/scripts/build-desktop-sidecar.sh"
+          TARGET_TRIPLE="$(rustc -vV | awk '/^host:/ {print $2}')"
+          SIDECAR_PATH="$APP_DIR/src-tauri/bin/gtm-agent-desktop-runtime-${TARGET_TRIPLE}.exe"
+          if [ ! -f "$SIDECAR_PATH" ]; then
+            echo "::error::Missing GTM Agent desktop sidecar at $SIDECAR_PATH"
+            exit 1
+          fi
+          file "$SIDECAR_PATH"
 
       - name: Set GTM Agent desktop release metadata
         shell: bash

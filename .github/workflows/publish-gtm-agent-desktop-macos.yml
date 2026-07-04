@@ -105,6 +105,19 @@ jobs:
           chmod 600 "$API_KEY_PATH"
           echo "path=$API_KEY_PATH" >> "$GITHUB_OUTPUT"
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install desktop runtime build dependencies
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r "$APP_DIR/sidecar/desktop-build-requirements.txt"
+
       - name: Set up Node 22
         uses: actions/setup-node@v6
         with:
@@ -121,6 +134,28 @@ jobs:
           rustup default stable
           rustup show active-toolchain
           cargo --version
+
+      - name: Build and sign GTM Agent desktop sidecar
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          "$APP_DIR/scripts/build-desktop-sidecar.sh"
+          TARGET_TRIPLE="$(rustc -vV | awk '/^host:/ {print $2}')"
+          SIDECAR_PATH="$APP_DIR/src-tauri/bin/gtm-agent-desktop-runtime-${TARGET_TRIPLE}"
+          if [ ! -f "$SIDECAR_PATH" ]; then
+            echo "::error::Missing GTM Agent desktop sidecar at $SIDECAR_PATH"
+            exit 1
+          fi
+          codesign \
+            --force \
+            --options runtime \
+            --entitlements "$APP_DIR/src-tauri/entitlements.plist" \
+            --timestamp \
+            --sign "$APPLE_SIGNING_IDENTITY" \
+            "$SIDECAR_PATH"
+          codesign --verify --strict --verbose=2 "$SIDECAR_PATH"
+          codesign --display --verbose=4 "$SIDECAR_PATH"
 
       - name: Set GTM Agent desktop release metadata
         env:
