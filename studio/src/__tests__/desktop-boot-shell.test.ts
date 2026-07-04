@@ -21,6 +21,7 @@ describe('desktop boot shell', () => {
 
     expect(windows.main).toMatchObject({
       visible: false,
+      backgroundColor: '#f6efe1',
     })
     expect(windows.splashscreen).toMatchObject({
       title: 'ANIP Studio',
@@ -28,6 +29,17 @@ describe('desktop boot shell', () => {
       decorations: false,
       resizable: false,
       skipTaskbar: true,
+      backgroundColor: '#f6efe1',
     })
+  })
+
+  it('renders the desktop splash as a static image asset', () => {
+    const html = readFileSync(resolve(__dirname, '../../public/splashscreen.html'), 'utf-8')
+    const svg = readFileSync(resolve(__dirname, '../../public/splashscreen.svg'), 'utf-8')
+
+    expect(html).toContain('src="./splashscreen.svg"')
+    expect(html).toContain('background: #f6efe1')
+    expect(svg).toContain('Starting ANIP Studio')
+    expect(svg).toContain('Preparing local workspace and embedded API')
   })
 })
