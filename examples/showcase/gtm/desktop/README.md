@@ -10,7 +10,10 @@ learning Docker Compose.
 
 - Runs the GTM Agent UI locally.
 - Starts embedded local ANIP service sidecars automatically.
-- Uses bundled sample GTM data.
+- Supports an OpenAI-compatible API key through `ANIP_AGENT_API_KEY` or
+  `OPENAI_API_KEY`.
+- Can point the generated GTM services at an external Postgres-compatible GTM
+  mart database with `GTM_DESKTOP_DATABASE_URL` or `DATABASE_URL`.
 - Supports questions, approvals, evidence, and runbook views.
 - Uses one canonical generated implementation for the embedded demo.
 
@@ -18,6 +21,8 @@ learning Docker Compose.
 
 - Running all five language implementations inside the desktop app.
 - Bundling Metabase.
+- Bundling the GTM mart data artifact. SQLite/DuckDB data portability is the
+  next desktop milestone.
 - Replacing the Docker Compose full-stack architecture proof.
 
 ## Relationship to Docker Compose
