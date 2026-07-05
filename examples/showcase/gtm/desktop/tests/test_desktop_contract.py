@@ -52,6 +52,8 @@ def test_sidecar_exposes_desktop_health_and_runtime_contract():
 def test_sidecar_build_packages_generated_runtime_assets():
     script = (ROOT / "scripts" / "build-desktop-sidecar.sh").read_text()
     windows_workflow = (ROOT.parents[3] / ".github" / "workflows" / "publish-gtm-agent-desktop-windows.yml").read_text()
+    build_requirements = (ROOT / "sidecar" / "desktop-build-requirements.txt").read_text().splitlines()
+    runtime_requirements = (ROOT / "sidecar" / "requirements.txt").read_text()
 
     assert "generated/language-parity/python/src" in script
     assert "generated/language-parity/python/agent-consumption" in script
@@ -59,6 +61,11 @@ def test_sidecar_build_packages_generated_runtime_assets():
     assert "--hidden-import gtm_pipeline_q2_review.services.gtm_outreach_service.app" in script
     assert 'SIDECAR_FILE="${SIDECAR_NAME}.exe"' in script
     assert "gtm-agent-desktop-runtime-${TARGET_TRIPLE}.exe" in windows_workflow
+    assert "-r requirements.txt" in build_requirements
+    assert "uvicorn" in runtime_requirements
+    assert "fastapi" in runtime_requirements
+    assert "psycopg[binary]" in runtime_requirements
+    assert (ROOT / "src-tauri" / "bin" / "gtm-agent-desktop-runtime-placeholder").exists()
 
 
 def test_tauri_launches_runtime_sidecar():
