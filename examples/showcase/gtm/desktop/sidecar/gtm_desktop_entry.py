@@ -19,6 +19,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 SERVICE_MODULES = [
@@ -50,6 +51,7 @@ def _configure_import_paths(root: Path) -> None:
         generated_dir / "src",
         root / "packages" / "python" / "anip-core" / "src",
         root / "packages" / "python" / "anip-crypto" / "src",
+        root / "packages" / "python" / "anip-server" / "src",
         root / "packages" / "python" / "anip-service" / "src",
         root / "packages" / "python" / "anip-fastapi" / "src",
         root / "packages" / "python" / "anip-runtime-utils" / "src",
@@ -136,11 +138,11 @@ def _actors_json(generated_dir: Path) -> str:
     return json.dumps(actors)
 
 
-def _ensure_key_file(generated_dir: Path) -> None:
+def _ensure_key_file(data_dir: Path) -> None:
     from anip_crypto import KeyManager
 
-    generated_dir.mkdir(parents=True, exist_ok=True)
-    key_path = generated_dir / "anip-keys"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    key_path = data_dir / "anip-keys"
     if key_path.exists():
         try:
             json.loads(key_path.read_text())
@@ -221,6 +223,12 @@ def _build_agent_app(root: Path, generated_dir: Path, service_ports: dict[str, i
     _configure_agent_environment(root, generated_dir, service_ports)
     module = importlib.import_module("app")
     app: FastAPI = module.app
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^(tauri://localhost|https?://tauri\.localhost|https?://localhost(:\d+)?|https?://127\.0\.0\.1(:\d+)?)$",
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     @app.get("/desktop/health")
     def desktop_health() -> dict[str, Any]:
@@ -246,8 +254,10 @@ def _build_agent_app(root: Path, generated_dir: Path, service_ports: dict[str, i
 def main() -> None:
     root = _runtime_root()
     _configure_import_paths(root)
+    data_dir = _data_dir()
+    os.chdir(data_dir)
     generated_dir = _generated_dir(root)
-    _ensure_key_file(generated_dir)
+    _ensure_key_file(data_dir)
 
     os.environ["ANIP_API_KEYS_JSON"] = _api_keys_json(generated_dir)
 

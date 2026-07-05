@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,10 @@ def test_sidecar_exposes_desktop_health_and_runtime_contract():
     assert 'fallback = "gtm_pipeline_q2_review"' in sidecar
     assert "gtm_agent_app" in sidecar
     assert "ANIP_AGENT_SERVICES_JSON" in sidecar
+    assert "CORSMiddleware" in sidecar
+    assert "tauri://localhost" in sidecar
+    assert "os.chdir(data_dir)" in sidecar
+    assert "_ensure_key_file(data_dir)" in sidecar
     assert "SQLite/DuckDB local marts are the next desktop data-portability milestone" in sidecar
 
 
@@ -57,6 +62,7 @@ def test_sidecar_build_packages_generated_runtime_assets():
 
     assert "generated/language-parity/python/src" in script
     assert "generated/language-parity/python/agent-consumption" in script
+    assert "packages/python/anip-server/src" in script
     assert "--hidden-import gtm_pipeline_q2_review.app" in script
     assert "--hidden-import gtm_pipeline_q2_review.services.gtm_outreach_service.app" in script
     assert 'SIDECAR_FILE="${SIDECAR_NAME}.exe"' in script
@@ -64,6 +70,7 @@ def test_sidecar_build_packages_generated_runtime_assets():
     assert "-r requirements.txt" in build_requirements
     assert "uvicorn" in runtime_requirements
     assert "fastapi" in runtime_requirements
+    assert "PyJWT[crypto]" in runtime_requirements
     assert "psycopg[binary]" in runtime_requirements
     assert (ROOT / "src-tauri" / "bin" / "gtm-agent-desktop-runtime-placeholder").exists()
 
@@ -78,6 +85,10 @@ def test_tauri_launches_runtime_sidecar():
     assert "CREATE_NO_WINDOW" in source
     assert "LOCALAPPDATA" in source
     assert "stop_runtime_sidecar" in source
+    assert "external_link_navigation_plugin" in source
+    assert "open_external_url" in source
+    assert "https://anip.dev/" in source
+    assert "https://github.com/anip-protocol/anip/" in source
     assert "bin/gtm-agent-desktop-runtime-*" in config
     assert "gtm_agent_base_url" in boot
     assert "/desktop/health" in boot
@@ -89,3 +100,14 @@ def test_data_portability_document_defines_sqlite_or_duckdb_path():
     assert "Postgres remains the Docker verification path" in doc
     assert "SQLite" in doc or "DuckDB" in doc
     assert "dbt marts must be prebuilt" in doc
+
+
+def test_desktop_sources_do_not_embed_llm_api_keys():
+    secret_pattern = re.compile(r"sk-[A-Za-z0-9_-]{20,}")
+    checked_suffixes = {".html", ".json", ".md", ".py", ".rs", ".sh", ".toml", ".ts", ".txt"}
+
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or path.suffix not in checked_suffixes:
+            continue
+        relative = path.relative_to(ROOT)
+        assert not secret_pattern.search(path.read_text(errors="ignore")), relative

@@ -55,6 +55,7 @@ add_data_arg() {
   --paths "${REPO_ROOT}" \
   --paths "${REPO_ROOT}/packages/python/anip-core/src" \
   --paths "${REPO_ROOT}/packages/python/anip-crypto/src" \
+  --paths "${REPO_ROOT}/packages/python/anip-server/src" \
   --paths "${REPO_ROOT}/packages/python/anip-service/src" \
   --paths "${REPO_ROOT}/packages/python/anip-fastapi/src" \
   --paths "${REPO_ROOT}/packages/python/anip-runtime-utils/src" \
