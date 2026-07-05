@@ -1,2 +1,2 @@
-- requirements.txt
+-r requirements.txt
 pyinstaller>=6.21,<7

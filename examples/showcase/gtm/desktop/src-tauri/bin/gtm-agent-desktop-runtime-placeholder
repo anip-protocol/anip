@@ -1,0 +1,2 @@
+This placeholder keeps the Tauri sidecar resource glob valid before release
+workflows build the real PyInstaller runtime binary.

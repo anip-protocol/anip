@@ -1,6 +1,7 @@
 dist/
 node_modules/
 src-tauri/bin/*
+!src-tauri/bin/
 !src-tauri/bin/gtm-agent-desktop-runtime-placeholder
 src-tauri/pyinstaller-spec/
 src-tauri/pyinstaller-work/
