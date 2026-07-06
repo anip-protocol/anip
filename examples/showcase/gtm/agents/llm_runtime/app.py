@@ -25,6 +25,7 @@ from anip_runtime_utils.agent_consumption import (
     conversation_text_from_history,
     normalize_clarification_continuation_plan,
     normalize_invocation_plan,
+    validate_invocation_plan_for_fallback,
 )
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
@@ -827,6 +828,14 @@ def _normalize_planner_candidate(
     candidate_ids = compact_stats.get("compact_candidate_ids")
     if isinstance(candidate_ids, list) and candidate_ids and capability not in {str(item) for item in candidate_ids}:
         return plan, f"selected capability {capability!r} is outside compact candidate set"
+    fallback_reasons = validate_invocation_plan_for_fallback(
+        plan,
+        conversation,
+        metadata,
+        compact_candidate_ids=[str(item) for item in candidate_ids] if isinstance(candidate_ids, list) else None,
+    )
+    if fallback_reasons:
+        return plan, "; ".join(fallback_reasons)
     return plan, None
 
 
