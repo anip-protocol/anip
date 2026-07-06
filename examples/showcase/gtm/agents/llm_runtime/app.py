@@ -78,6 +78,7 @@ SHOWCASE_LANGUAGE = (os.getenv("ANIP_AGENT_LANGUAGE") or "").strip()
 SHOWCASE_METABASE_URL = (os.getenv("ANIP_AGENT_METABASE_URL") or "").strip()
 SHOWCASE_README_URL = (os.getenv("ANIP_AGENT_README_URL") or "").strip()
 SHOWCASE_DOCS_BASE_URL = (os.getenv("ANIP_AGENT_DOCS_BASE_URL") or "https://anip.dev").rstrip("/")
+AGENT_SETTINGS_PATH = (os.getenv("ANIP_AGENT_SETTINGS_PATH") or "").strip()
 CATALOG_CACHE: dict[str, Any] = {"expires_at": 0.0, "catalog": None}
 PLANNER_LOOP_COUNT = 1
 SERVICE_INVOKE_LOOP_COUNT = 1
@@ -111,6 +112,59 @@ DEFAULT_APP_PROFILE: dict[str, Any] = {
     "runtime_customization": {},
 }
 APP_PROFILE = DEFAULT_APP_PROFILE | {}
+
+
+def _settings_path() -> Path | None:
+    if not AGENT_SETTINGS_PATH:
+        return None
+    return Path(AGENT_SETTINGS_PATH).expanduser()
+
+
+def _load_settings() -> dict[str, Any]:
+    path = _settings_path()
+    if not path or not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_settings(settings: dict[str, Any]) -> None:
+    path = _settings_path()
+    if not path:
+        raise HTTPException(status_code=403, detail="Runtime settings are not enabled for this deployment")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2))
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _current_api_key() -> str:
+    env_key = (os.getenv("ANIP_AGENT_API_KEY") or os.getenv("OPENAI_API_KEY") or OPENAI_API_KEY).strip()
+    if env_key:
+        return env_key
+    settings_key = str(_load_settings().get("api_key") or "").strip()
+    return settings_key
+
+
+def _current_model() -> str:
+    env_model = (os.getenv("ANIP_AGENT_MODEL") or os.getenv("OPENAI_MODEL") or OPENAI_MODEL).strip()
+    settings_model = str(_load_settings().get("model") or "").strip()
+    return settings_model or env_model
+
+
+def _current_base_url() -> str:
+    env_base_url = (os.getenv("ANIP_AGENT_BASE_URL") or os.getenv("OPENAI_BASE_URL") or OPENAI_BASE_URL).strip()
+    settings_base_url = str(_load_settings().get("base_url") or "").strip()
+    return (settings_base_url or env_base_url).rstrip("/")
+
+
+def _current_fallback_api_key() -> str:
+    return (os.getenv("ANIP_AGENT_FALLBACK_API_KEY") or os.getenv("OPENAI_FALLBACK_API_KEY") or FALLBACK_API_KEY or _current_api_key()).strip()
 
 
 def _merge_dicts(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
@@ -239,6 +293,12 @@ class ApprovalActionRequest(BaseModel):
     actor_id: str
     approval_request_id: str
     service: str | None = None
+
+
+class RuntimeSettingsRequest(BaseModel):
+    api_key: str
+    model: str
+    base_url: str | None = None
 
 
 def _json_env(name: str, default: Any) -> Any:
@@ -419,8 +479,8 @@ def _preflight_denial_result(question: str, history: list[dict[str, str]] | None
                 "total_loops": 0,
             },
             "planner": {
-                "model": OPENAI_MODEL,
-                "base_url": OPENAI_BASE_URL,
+                "model": _current_model(),
+                "base_url": _current_base_url(),
                 "rationale": rule.get("rationale") or "App preflight denied the request before invocation.",
                 "user_message": rule.get("user_message") or detail,
             },
@@ -636,7 +696,7 @@ def _parse_json_object(text: str) -> dict[str, Any]:
 
 
 def _fallback_model_enabled() -> bool:
-    return bool(FALLBACK_MODEL and FALLBACK_API_KEY)
+    return bool(FALLBACK_MODEL and _current_fallback_api_key())
 
 
 def _usage_int(usage: dict[str, Any], key: str) -> int:
@@ -691,9 +751,9 @@ async def _call_model_json(
     base_url: str | None = None,
     api_key: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    selected_model = (model or OPENAI_MODEL).strip()
-    selected_base_url = (base_url or OPENAI_BASE_URL).rstrip("/")
-    selected_api_key = (api_key or OPENAI_API_KEY).strip()
+    selected_model = (model or _current_model()).strip()
+    selected_base_url = (base_url or _current_base_url()).rstrip("/")
+    selected_api_key = (api_key or _current_api_key()).strip()
     if not selected_model:
         raise HTTPException(status_code=503, detail="ANIP_AGENT_MODEL or OPENAI_MODEL is not configured")
     if not selected_api_key:
@@ -801,7 +861,7 @@ async def _plan_with_model(question: str, history: list[dict[str, Any]] | None =
                 user_prompt,
                 model=FALLBACK_MODEL,
                 base_url=FALLBACK_BASE_URL,
-                api_key=FALLBACK_API_KEY,
+                api_key=_current_fallback_api_key(),
             )
             plan, second_reason = _normalize_planner_candidate(
                 fallback_raw_plan,
@@ -827,14 +887,14 @@ async def _plan_with_model(question: str, history: list[dict[str, Any]] | None =
         "metadata": metadata[capability],
         "capability_brief": capability_brief,
         "catalog_stats": stats,
-        "model": FALLBACK_MODEL if used_fallback else OPENAI_MODEL,
-        "base_url": FALLBACK_BASE_URL if used_fallback else OPENAI_BASE_URL,
+        "model": FALLBACK_MODEL if used_fallback else _current_model(),
+        "base_url": FALLBACK_BASE_URL if used_fallback else _current_base_url(),
         "planner_fallback": {
             "enabled": _fallback_model_enabled(),
             "used": used_fallback,
             "reason": fallback_reason if used_fallback else None,
-            "primary_model": OPENAI_MODEL,
-            "primary_base_url": OPENAI_BASE_URL,
+            "primary_model": _current_model(),
+            "primary_base_url": _current_base_url(),
             "fallback_model": FALLBACK_MODEL or None,
             "fallback_base_url": FALLBACK_BASE_URL if FALLBACK_MODEL else None,
         },
@@ -896,7 +956,7 @@ async def _plan_clarification_continuation(
                 user_prompt,
                 model=FALLBACK_MODEL,
                 base_url=FALLBACK_BASE_URL,
-                api_key=FALLBACK_API_KEY,
+                api_key=_current_fallback_api_key(),
             )
             plan = normalize_clarification_continuation_plan(
                 raw_plan,
@@ -918,14 +978,14 @@ async def _plan_clarification_continuation(
         "capability_brief": capability_brief,
         "catalog_stats": stats,
         "planner_mode": "clarification_continuation",
-        "model": FALLBACK_MODEL if used_fallback else OPENAI_MODEL,
-        "base_url": FALLBACK_BASE_URL if used_fallback else OPENAI_BASE_URL,
+        "model": FALLBACK_MODEL if used_fallback else _current_model(),
+        "base_url": FALLBACK_BASE_URL if used_fallback else _current_base_url(),
         "planner_fallback": {
             "enabled": _fallback_model_enabled(),
             "used": used_fallback,
             "reason": fallback_reason if used_fallback else None,
-            "primary_model": OPENAI_MODEL,
-            "primary_base_url": OPENAI_BASE_URL,
+            "primary_model": _current_model(),
+            "primary_base_url": _current_base_url(),
             "fallback_model": FALLBACK_MODEL or None,
             "fallback_base_url": FALLBACK_BASE_URL if FALLBACK_MODEL else None,
         },
@@ -1193,13 +1253,21 @@ def runtime_info():
     brief, metadata, services = _load_catalog()
     catalog = CATALOG_CACHE.get("catalog")
     catalog_stats = catalog.get("stats", {}) if isinstance(catalog, dict) else {}
+    database_url = (os.getenv("DATABASE_URL") or "").strip()
+    if database_url.startswith("sqlite:///"):
+        data_backend = {"kind": "sqlite", "configured": True}
+    elif database_url.startswith("postgres"):
+        data_backend = {"kind": "postgres", "configured": True}
+    else:
+        data_backend = {"kind": "not_configured", "configured": False}
+    deployment_profile = "desktop" if SHOWCASE_LANGUAGE == "desktop-python" or data_backend["kind"] == "sqlite" else "docker"
     return {
         "runtime": RUNTIME_NAME,
         "title": RUNTIME_TITLE,
         "services": services,
         "actors": _public_actor_profiles(),
-        "model": OPENAI_MODEL or None,
-        "base_url": OPENAI_BASE_URL,
+        "model": _current_model() or None,
+        "base_url": _current_base_url(),
         "model_optimization": {
             "compact_catalog": {
                 "enabled": COMPACT_CATALOG_ENABLED,
@@ -1216,6 +1284,9 @@ def runtime_info():
         "catalog_stats": catalog_stats,
         "showcase": {
             "language": SHOWCASE_LANGUAGE or None,
+            "deployment_profile": deployment_profile,
+            "data_backend": data_backend,
+            "metabase_available": bool(SHOWCASE_METABASE_URL) and deployment_profile != "desktop",
             "links": {
                 "agent": "/",
                 "metabase": SHOWCASE_METABASE_URL or None,
@@ -1224,7 +1295,7 @@ def runtime_info():
                 "architecture": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/architecture",
                 "capability_map": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/capability-map",
                 "questions": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/questions-and-extensions",
-                "question_bank": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/testing#490-question-bank",
+                "question_bank": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/testing#gtm-release-validation",
                 "docker_compose": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/docker-compose",
                 "generated_services": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/generated-services",
                 "testing": f"{SHOWCASE_DOCS_BASE_URL}/docs/showcases/gtm-agent/testing",
@@ -1237,8 +1308,38 @@ def runtime_info():
             "agent_consumption_kit_dir": AGENT_CONSUMPTION_KIT_DIR or None,
             "agent_consumption_kit": _agent_consumption_kit_available(),
         },
-        "configured": bool(OPENAI_MODEL and OPENAI_API_KEY),
+        "configured": bool(_current_model() and _current_api_key()),
     }
+
+
+@app.get("/api/settings")
+def runtime_settings():
+    return {
+        "api_key_configured": bool(_current_api_key()),
+        "model": _current_model() or None,
+        "base_url": _current_base_url() or None,
+        "settings_enabled": bool(_settings_path()),
+    }
+
+
+@app.post("/api/settings/api-key")
+def save_runtime_api_key(req: RuntimeSettingsRequest):
+    api_key = req.api_key.strip()
+    model = req.model.strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key is required")
+    if not model:
+        raise HTTPException(status_code=400, detail="model is required")
+    base_url = (req.base_url or "").strip() or OPENAI_BASE_URL
+    settings = _load_settings()
+    settings["api_key"] = api_key
+    settings["model"] = model
+    settings["base_url"] = base_url.rstrip("/")
+    _save_settings(settings)
+    os.environ["ANIP_AGENT_API_KEY"] = api_key
+    os.environ["ANIP_AGENT_MODEL"] = model
+    os.environ["ANIP_AGENT_BASE_URL"] = settings["base_url"]
+    return {"api_key_configured": True, "model": model, "base_url": settings["base_url"]}
 
 
 @app.get("/api/actors")
@@ -1340,8 +1441,8 @@ async def ask(req: AskRequest):
             "total_loops": PLANNER_LOOP_COUNT + SERVICE_INVOKE_LOOP_COUNT,
         },
         "planner": {
-            "model": planned.get("model") or OPENAI_MODEL,
-            "base_url": planned.get("base_url") or OPENAI_BASE_URL,
+            "model": planned.get("model") or _current_model(),
+            "base_url": planned.get("base_url") or _current_base_url(),
             "mode": planned.get("planner_mode") or "selection",
             "rationale": plan.get("rationale"),
             "user_message": plan.get("user_message"),
@@ -1387,8 +1488,8 @@ async def ask_stream(req: AskRequest):
                 "planner",
                 {
                     "mode": planned.get("planner_mode") or "selection",
-                    "model": planned.get("model") or OPENAI_MODEL,
-                    "base_url": planned.get("base_url") or OPENAI_BASE_URL,
+                    "model": planned.get("model") or _current_model(),
+                    "base_url": planned.get("base_url") or _current_base_url(),
                     "selected_capability": capability,
                     "selected_service": metadata.get("service_name"),
                     "parameters": parameters,
@@ -1451,8 +1552,8 @@ async def ask_stream(req: AskRequest):
                     "total_loops": PLANNER_LOOP_COUNT + SERVICE_INVOKE_LOOP_COUNT,
                 },
                 "planner": {
-                    "model": planned.get("model") or OPENAI_MODEL,
-                    "base_url": planned.get("base_url") or OPENAI_BASE_URL,
+                    "model": planned.get("model") or _current_model(),
+                    "base_url": planned.get("base_url") or _current_base_url(),
                     "mode": planned.get("planner_mode") or "selection",
                     "rationale": plan.get("rationale"),
                     "user_message": plan.get("user_message"),

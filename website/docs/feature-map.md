@@ -99,7 +99,7 @@ Framework selection is a generation-time choice. It should not change the ANIP c
 
 | Showcase | What it demonstrates | Where to read |
 |----------|----------------------|---------------|
-| GTM Agent | Studio-produced contract, 23 capabilities, Registry package, five generated language implementations, custom bundles, agent UI, approval UI, and 490-question behavioral bank. | [GTM showcase](/docs/showcases/overview#gtm-agent-showcase) |
+| GTM Agent | Studio-produced contract, 23 capabilities, Registry package, five generated language implementations, custom bundles, agent UI, approval UI, 540-case benchmark suite, and 24 hard-mode governance cases. | [GTM showcase](/docs/showcases/overview#gtm-agent-showcase) |
 | Jira fronting | Governed issue triage, search, comment, transition, and mutation approval over Jira REST. | [Fronting showcases](/docs/showcases/fronting) |
 | GitHub fronting | Governed repository and issue operations over GitHub APIs. | [Fronting showcases](/docs/showcases/fronting) |
 | GitLab fronting | Governed project, issue, merge-request, and repository operations over GitLab APIs. | [Fronting showcases](/docs/showcases/fronting) |

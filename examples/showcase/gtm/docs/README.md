@@ -14,5 +14,4 @@ Use this directory when you need exact file paths, commands, and release-mainten
 
 - `local-stack.md`: ports, compose files, images, and local startup commands.
 - `release-artifacts.md`: package, bundle, generated output, image, and snapshot locations.
-- `question-bank.md`: where the 350 + 140 question banks and run artifacts live.
-
+- `question-bank.md`: where the 540-case GTM benchmark suite, 24 hard-mode governance cases, and run artifacts live.

@@ -35,7 +35,7 @@ async function waitForRuntime(baseUrl: string) {
 }
 
 async function boot() {
-  render('Starting the embedded GTM Agent runtime and local ANIP services. No Docker is required for this desktop shell.')
+  render('Starting the embedded GTM Agent runtime, local ANIP services, and bundled GTM mart data.')
   const baseUrl = await invoke<string>('gtm_agent_base_url')
   await waitForRuntime(baseUrl)
   window.location.href = `${baseUrl}/`

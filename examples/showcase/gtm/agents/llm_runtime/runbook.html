@@ -44,9 +44,9 @@
           <strong>Questions docs</strong>
           Supported and unsupported request examples.
         </a>
-        <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/testing#490-question-bank" target="_blank" rel="noreferrer">
+        <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/testing#gtm-release-validation" target="_blank" rel="noreferrer">
           <strong>Question bank docs</strong>
-          The 350 + 140 release gate and how to rerun it.
+          The 540-case benchmark suite plus 24 hard-mode governance cases and how to rerun them.
         </a>
         <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/docker-compose" target="_blank" rel="noreferrer">
           <strong>Docker Compose docs</strong>
@@ -71,19 +71,24 @@ docker compose -p anip-gtm-local -f examples/showcase/gtm/docker-compose.languag
     </section>
 
     <section class="panel">
-      <h2>Run 350 + 140 Question Gate</h2>
-      <pre id="questionGateCommand">python3 examples/showcase/gtm/scripts/generated_stack/run_question_bank.py \
-  --runtime-url http://127.0.0.1:4310 \
-  --all
+      <h2>Run GTM Validation Banks</h2>
+      <pre id="questionGateCommand">python3 benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py \
+  --suite all \
+  --output /tmp/anip-benchmark/gtm-540-cases.json
 
-OUT=output/gtm-variation-question-runs
-mkdir -p "$OUT"
-for phase in 1 2 3 4 5 6 7; do
-  python3 examples/showcase/gtm/scripts/generated_stack/run_phase1_regression.py \
-    --runtime-url http://127.0.0.1:4310 \
-    --cases "docs/examples/gtm-showcase/variation-question-banks-v3/phase${phase}-variation-bank-20.json" \
-    --output-dir "$OUT"
-done</pre>
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases /tmp/anip-benchmark/gtm-540-cases.json \
+  --output-dir /tmp/anip-benchmark/anip-540 \
+  --timeout-seconds 180
+
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json \
+  --output-dir /tmp/anip-benchmark/anip-hard-mode \
+  --timeout-seconds 180</pre>
     </section>
 
     <section class="panel">
@@ -125,7 +130,7 @@ done</pre>
       document.getElementById('docsGrid').innerHTML = [
         ['Architecture docs', 'Full system map and data flow.', links.architecture],
         ['Questions docs', 'Supported and unsupported request examples.', links.questions],
-        ['Question bank docs', 'The 350 + 140 release gate and how to rerun it.', links.question_bank || links.testing],
+        ['Question bank docs', 'The 540-case benchmark suite plus 24 hard-mode governance cases and how to rerun them.', links.question_bank || links.testing],
         ['Docker Compose docs', 'Language stack selection, ports, entry page, and smoke scripts.', links.docker_compose],
         ['Generation docs', 'CLI commands and bundle references.', links.generated_services],
         ['Capability map', 'The 23 capabilities grouped by owning service.', links.capability_map],

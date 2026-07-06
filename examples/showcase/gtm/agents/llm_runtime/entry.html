@@ -75,9 +75,10 @@
   <main class="shell">
     <div class="eyebrow">ANIP GTM Showcase</div>
     <h1>Run the GTM Agent Demo</h1>
-    <p>
-      This local stack includes four generated ANIP services, an LLM agent UI,
-      Postgres, dbt, and bundled Metabase for BI verification.
+    <p id="stackDescription">
+      This stack includes four generated ANIP services and an LLM agent UI.
+      Runtime metadata will identify whether it is using Docker Metabase or
+      desktop bundled local marts.
     </p>
 
     <div class="grid">
@@ -85,9 +86,9 @@
         <strong>Open GTM Agent</strong>
         Ask questions. The agent selects the right ANIP capability and service.
       </a>
-      <a class="card" href="/metabase">
-        <strong>Metabase BI</strong>
-        Setup status, login credentials, and the explicit Metabase launch link.
+      <a class="card" id="biCard" href="/metabase">
+        <strong id="biCardTitle">Data Verification</strong>
+        <span id="biCardBody">Runtime-specific data and BI verification status.</span>
       </a>
       <a class="card" href="/questions">
         <strong>Suggested Questions</strong>
@@ -112,15 +113,15 @@
       <div class="grid" id="docsGrid">
         <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/architecture" target="_blank" rel="noreferrer">
           <strong>Architecture</strong>
-          Agent, services, Postgres, dbt, Cube, and Metabase.
+          Agent, services, data backend, and BI verification architecture.
         </a>
         <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/questions-and-extensions" target="_blank" rel="noreferrer">
           <strong>Questions</strong>
           Supported, approval-gated, denied, restricted, and extension examples.
         </a>
-        <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/testing#490-question-bank" target="_blank" rel="noreferrer">
+        <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/testing#gtm-release-validation" target="_blank" rel="noreferrer">
           <strong>Question Bank</strong>
-          The 350 + 140 question release gate and what it validates.
+          The 540-case GTM benchmark suite plus 24 hard-mode governance cases used for release validation.
         </a>
         <a class="card" href="https://anip.dev/docs/showcases/gtm-agent/capability-map" target="_blank" rel="noreferrer">
           <strong>Capability Map</strong>
@@ -149,10 +150,18 @@
       const capabilityCount = stats.capability_count || Object.keys(data.capabilities || {}).length || 0;
       const language = data.showcase?.language ? `${data.showcase.language} stack` : 'local stack';
       const links = data.showcase?.links || {};
+      const isDesktop = data.showcase?.deployment_profile === 'desktop';
+      document.getElementById('stackDescription').textContent = isDesktop
+        ? 'This desktop stack includes four generated ANIP services, an LLM agent UI, and bundled local GTM mart data. No Docker, Postgres, dbt, or Metabase setup is required.'
+        : 'This local stack includes four generated ANIP services, an LLM agent UI, Postgres, dbt, and bundled Metabase for BI verification.';
+      document.getElementById('biCardTitle').textContent = isDesktop ? 'Local Data Verification' : 'Metabase BI';
+      document.getElementById('biCardBody').textContent = isDesktop
+        ? 'Verify that the desktop runtime is using the bundled GTM mart artifact.'
+        : 'Setup status, login credentials, and the explicit Metabase launch link.';
       const docs = [
-        ['Architecture', 'Agent, services, Postgres, dbt, Cube, and Metabase.', links.architecture],
+        ['Architecture', isDesktop ? 'Agent, services, bundled local marts, and the Docker verification path.' : 'Agent, services, Postgres, dbt, Cube, and Metabase.', links.architecture],
         ['Questions', 'Supported, approval-gated, denied, restricted, and extension examples.', links.questions],
-        ['Question Bank', 'The 350 + 140 question release gate and what it validates.', links.question_bank || links.testing],
+        ['Question Bank', 'The 540-case GTM benchmark suite plus 24 hard-mode governance cases used for release validation.', links.question_bank || links.testing],
         ['Capability Map', 'The 23 capabilities grouped by owning service.', links.capability_map],
         ['Run Locally', 'Compose files, language selection, ports, and smoke scripts.', links.docker_compose],
         ['Generate Services', 'Full CLI commands and custom-code bundle references.', links.generated_services],

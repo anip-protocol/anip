@@ -21,20 +21,19 @@
 <body>
   <main class="shell">
     <div class="eyebrow"><a href="/">ANIP GTM Showcase</a></div>
-    <h1>Metabase BI Verification</h1>
-    <p>
-      Metabase is bundled with the GTM showcase. It is initialized by the
-      <code>gtm-metabase-setup</code> compose service, which creates the GTM
-      warehouse connection, saved questions, and verification dashboard.
+    <h1 id="pageTitle">Data Verification</h1>
+    <p id="pageIntro">
+      Runtime metadata will identify whether this showcase is using Docker
+      Metabase or desktop bundled local marts.
     </p>
 
-    <section class="panel">
+    <section class="panel" id="openPanel">
       <h2>Open Metabase</h2>
       <p>Use this button to open Metabase. Credentials below are plain text so they can be copied without navigating.</p>
       <a id="metabaseLink" class="button" href="#" target="_blank" rel="noreferrer">Open Metabase</a>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="loginPanel">
       <h2>Login</h2>
       <pre>Email: admin@anip.local
 Password: Anip-Demo-Admin-2026!</pre>
@@ -62,6 +61,23 @@ Password: Anip-Demo-Admin-2026!</pre>
     async function loadRuntime() {
       const response = await fetch('/api/runtime');
       const data = await response.json();
+      const isDesktop = data.showcase?.deployment_profile === 'desktop';
+      const dataBackend = data.showcase?.data_backend || {};
+      if (isDesktop) {
+        document.getElementById('pageTitle').textContent = 'Local Data Verification';
+        document.getElementById('pageIntro').textContent =
+          'The desktop app uses bundled local GTM mart data so the generated ANIP services can answer pipeline and enrichment questions without Docker, Postgres, dbt, or Metabase setup.';
+        document.getElementById('openPanel').style.display = 'none';
+        document.getElementById('loginPanel').style.display = 'none';
+        document.getElementById('runtimeMeta').textContent =
+          `Configured data backend: ${dataBackend.kind || 'unknown'} (${dataBackend.configured ? 'ready' : 'not ready'})`;
+        document.getElementById('setupCommand').textContent =
+          'Docker Compose remains the full Postgres + dbt + Metabase verification path. The desktop app runs against bundled local marts.';
+        return;
+      }
+      document.getElementById('pageTitle').textContent = 'Metabase BI Verification';
+      document.getElementById('pageIntro').innerHTML =
+        'Metabase is bundled with the GTM showcase. It is initialized by the <code>gtm-metabase-setup</code> compose service, which creates the GTM warehouse connection, saved questions, and verification dashboard.';
       const metabase = data.showcase?.links?.metabase || 'http://127.0.0.1:3041';
       document.getElementById('metabaseLink').href = metabase;
       document.getElementById('runtimeMeta').textContent = `Configured Metabase URL: ${metabase}`;

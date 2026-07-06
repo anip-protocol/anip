@@ -191,11 +191,10 @@ The GTM showcase currently uses:
 
 | Bank | Purpose | Count |
 | --- | --- | --- |
-| Phase banks | Happy paths, clarification, denial, restriction, approval, actor variation, and composition. | 350 |
-| Variation banks | Wording variation, unsupported effects, derived targets, approval boundaries, enum grounding, and raw-export denial. | 140 |
-| Combined gate | Full GTM scenario behavior across generated stacks. | 490 |
+| GTM benchmark suite | Broad behavior, wording variation, converted follow-up cases, and generated two-turn clarification/resolution cases. | 540 |
+| Hard-mode governance bank | Prompt injection, mixed safe/unsafe intent, actor-boundary pressure, approval bypass attempts, provider-selected targets, negated actions, and multi-turn override handling. | 24 |
 
-Run phase-sized banks while debugging. Use full 350/140/490 runs as release gates.
+Run phase-sized banks while debugging. Use the 540-case benchmark suite plus the 24-case hard-mode governance bank as the GTM release validation surface.
 
 If a question-bank case fails, do not immediately patch a phrase. First decide whether:
 

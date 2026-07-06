@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import sqlite3
 from typing import Any
 
 import psycopg
@@ -21,6 +22,22 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://anip:anip@localhost:5454/
 
 def _connect():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+def _sqlite_database_path() -> str | None:
+    if not DATABASE_URL.startswith("sqlite:///"):
+        return None
+    return DATABASE_URL.removeprefix("sqlite:///")
+
+
+def _connect_sqlite() -> sqlite3.Connection:
+    path = _sqlite_database_path()
+    if not path:
+        raise RuntimeError("SQLite database URL is not configured")
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("attach database ? as analytics_gtm", (path,))
+    return conn
 
 
 def _fail(kind: str, detail: str, resolution: dict[str, Any] | None = None) -> None:
@@ -83,6 +100,11 @@ def _round2(value: object) -> float:
 
 
 def _query(sql: str, params: list[Any]) -> list[dict[str, Any]]:
+    if _sqlite_database_path():
+        sqlite_sql, sqlite_params = _sqlite_sql(sql, params)
+        with _connect_sqlite() as conn:
+            cursor = conn.execute(sqlite_sql, sqlite_params)
+            return [dict(row) for row in cursor.fetchall()]
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(_psycopg_sql(sql), params)
         return [dict(row) for row in cur.fetchall()]
@@ -90,6 +112,32 @@ def _query(sql: str, params: list[Any]) -> list[dict[str, Any]]:
 
 def _psycopg_sql(sql: str) -> str:
     return re.sub(r"\$\d+", "%s", sql)
+
+
+def _sqlite_sql(sql: str, params: list[Any]) -> tuple[str, list[Any]]:
+    translated = sql
+    translated = translated.replace("string_agg(distinct sales_agent_name, ', ' order by sales_agent_name)", "group_concat(distinct sales_agent_name)")
+    translated = re.sub(r"::(?:int|float|text|numeric(?:\([^)]*\))?)", "", translated)
+    translated = re.sub(r"\btrue\b", "1", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bfalse\b", "0", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\s+nulls\s+last", "", translated, flags=re.IGNORECASE)
+    translated = translated.replace("trim(account_name) <> ''", "trim(account_name) != ''")
+
+    if "account_name = any($1)" in translated:
+        names = list(params[0] if params else [])
+        placeholders = ", ".join("?" for _ in names) or "null"
+        translated = translated.replace("account_name = any($1)", f"account_name in ({placeholders})")
+        translated = translated.replace("$2", "?")
+        return translated, [*names, params[1]]
+
+    ordered_params: list[Any] = []
+
+    def replace_placeholder(match: re.Match[str]) -> str:
+        index = int(match.group(0)[1:]) - 1
+        ordered_params.append(params[index])
+        return "?"
+
+    return re.sub(r"\$\d+", replace_placeholder, translated), ordered_params
 
 
 def _apply_financial_visibility(payload: dict[str, Any], actor: dict[str, Any]) -> dict[str, Any]:

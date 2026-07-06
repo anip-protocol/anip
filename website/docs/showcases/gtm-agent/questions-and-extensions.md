@@ -7,17 +7,26 @@ description: Example GTM Agent questions, supported and unsupported request patt
 
 The GTM Agent showcase is not a generic chatbot over CRM data. It supports a declared set of governed revenue-operations questions and stops when a request crosses the contract boundary.
 
-This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.4` package supports, what it intentionally does not support, and how the project can be extended.
+This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.5` package supports, what it intentionally does not support, and how the project can be extended.
 
 ## Question Bank Shape
 
-The release gate has two parts:
+The release validation surface has two main parts:
 
 | Bank | Count | Source |
 | --- | ---: | --- |
-| Main phase banks | 350 | `docs/examples/gtm-showcase/question-banks/` |
-| Wording variation banks | 140 | `docs/examples/gtm-showcase/variation-question-banks-v3/phase*-variation-bank-20.json` |
-| Combined release gate | 490 | Main banks plus phase variation banks |
+| GTM benchmark suite | 540 | Built by `benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py` from main banks, variation banks, converted follow-up cases, and generated two-turn cases |
+| Hard-mode governance bank | 24 | `benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json` |
+| Release validation surface | 564 | Benchmark suite plus hard-mode governance bank |
+
+The 540-case benchmark suite is composed of:
+
+| Component | Count |
+| --- | ---: |
+| Non-follow-up main phase cases | 345 |
+| Wording variation cases | 140 |
+| Converted follow-up cases | 5 |
+| Generated two-turn clarification/resolution cases | 50 |
 
 The 350 main questions cover these outcomes:
 
@@ -41,9 +50,7 @@ The 140 wording-variation questions cover these outcomes:
 
 The point of the bank is not just "does the service return something?" It validates routing, parameter grounding, actor scope, approval stops, denial, restricted visibility, composed service behavior, and unsupported-effect handling.
 
-The benchmark suite also includes a separate 24-case hard-mode governance bank. In `0.4.4`, that bank is part of the official GTM release gate alongside the 490-question broad behavior bank.
-
-For runtime and model-tier benchmarking, the project also expands multi-turn coverage into a 540-case benchmark suite. The builder converts the five existing clarification-follow-up entries from the main bank into explicit two-turn cases and adds 50 generated two-turn clarification/resolution cases. Those extra cases stress whether the agent carries structured state between turns instead of treating assistant prose as policy.
+The hard-mode governance bank is part of the official GTM release validation surface alongside the 540-case benchmark suite. The multi-turn cases stress whether the agent carries structured state between turns instead of treating assistant prose as policy.
 
 ## Supported Examples
 

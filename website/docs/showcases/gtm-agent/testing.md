@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: GTM Agent 490-question validation, hard-mode governance tests, multi-turn benchmark coverage, and release gates.
+description: GTM Agent release question banks, hard-mode governance tests, multi-turn benchmark coverage, and release gates.
 ---
 
 # Testing
@@ -17,15 +17,22 @@ For concrete user-facing examples, see [Questions And Extensions](/docs/showcase
 
 The showcase also has a hard-mode governance bank. It exercises prompt injection, mixed safe/unsafe intent, actor-boundary pressure, provider-selected targets, approval bypass attempts, negated actions, and multi-turn ambiguity.
 
-## 490-question bank
+## GTM release validation
 
-The release bank is:
+<a id="gtm-release-validation"></a>
+<a id="490-question-bank"></a>
+
+The current GTM release validation surface is the 540-case GTM benchmark suite plus 24 hard-mode governance cases.
 
 | Bank | Count | Purpose |
 | --- | --- | --- |
-| Phase banks | 350 | Main GTM scenarios across pipeline, enrichment, prioritization, outreach, approval, denial, restriction, and composition. |
-| Variation banks | 140 | Wording variation, unsupported effects, raw export denial, approval boundaries, derived target handling, and enum grounding. |
-| Combined | 490 | Full release behavior gate. |
+| Main phase banks used by the benchmark | 345 | Non-follow-up GTM scenarios across pipeline, enrichment, prioritization, outreach, approval, denial, restriction, and composition. |
+| Variation banks used by the benchmark | 140 | Wording variation, unsupported effects, raw export denial, approval boundaries, derived target handling, and enum grounding. |
+| Converted follow-up cases | 5 | Existing clarification-follow-up entries from the main banks represented as explicit two-turn benchmark cases. |
+| Generated two-turn cases | 50 | Clarification and resolution flows across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment. |
+| GTM benchmark suite | 540 | Runtime behavior, routing, continuation state, loop count, token usage, and model-tier measurement. |
+| Hard-mode governance bank | 24 | Prompt injection, mixed safe/unsafe intent, actor-boundary pressure, approval bypass attempts, provider-selected targets, negated actions, and multi-turn override handling. |
+| Release validation surface | 564 | The 540-case GTM benchmark suite plus the 24-case hard-mode governance bank. |
 
 Source locations:
 
@@ -41,19 +48,7 @@ docs/examples/gtm-showcase/hard-mode-governance-scenarios.md
 benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json
 ```
 
-The `gtm-pipeline-q2-review@0.4.4` release gate includes the 490-question broad behavior bank plus the 24-case hard-mode governance bank.
-
-## Benchmark multi-turn extension
-
-The benchmark suite also expands the broad release bank into a multi-turn representation used for ANIP-vs-MCP-style comparison work:
-
-| Benchmark component | Count | Purpose |
-| --- | ---: | --- |
-| Converted release follow-up cases | 5 | Existing clarification-follow-up entries from the 350 main bank, represented as two-turn benchmark cases. |
-| Generated two-turn cases | 50 | Clarification and resolution flows across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment. |
-| Combined benchmark suite | 540 | 345 non-follow-up main cases, 140 variation cases, 5 converted follow-up cases, and 50 generated two-turn cases. |
-
-The 540-case benchmark is not a replacement for the official release gate. It is used to measure runtime behavior, loop counts, token usage, and model-tier behavior under repeated multi-turn pressure.
+The `gtm-pipeline-q2-review@0.4.5` release validation uses this 564-case surface. Older documentation may refer only to the pre-hard-mode broad behavior bank; use this page as the current source of truth.
 
 Run artifacts live under:
 
@@ -77,7 +72,7 @@ The phase banks are organized around behavior classes rather than implementation
 
 ## Hard-mode governance gate
 
-The hard-mode gate is deliberately smaller than the 490-question bank. It targets the places where client-side prompt governance usually breaks:
+The hard-mode gate is deliberately smaller than the 540-case benchmark suite. It targets the places where client-side prompt governance usually breaks:
 
 | Pressure | Expected ANIP behavior |
 | --- | --- |
@@ -100,7 +95,7 @@ python3 examples/showcase/gtm/scripts/generated_stack/run_question_bank.py \
   --bank docs/examples/gtm-showcase/question-banks/gtm_phase1_question_bank.json
 ```
 
-Use phase-sized banks while debugging. Use the full 350 and 140 sets as the broad release gate, then run the 24-case hard-mode bank before publishing package or showcase changes. Use the 540-case benchmark suite when comparing runtime strategies or model tiers.
+Use phase-sized banks while debugging. Use the generated 540-case benchmark suite plus the 24-case hard-mode bank before publishing package or showcase changes.
 
 ## Model
 

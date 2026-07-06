@@ -11,12 +11,17 @@ use std::{
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use tauri::{path::BaseDirectory, Manager};
+use tauri::{path::BaseDirectory, plugin::Builder as PluginBuilder, Manager, Runtime, Webview};
 
 static GTM_RUNTIME_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 static GTM_RUNTIME_PORT: OnceLock<u16> = OnceLock::new();
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+const ALLOWED_EXTERNAL_URL_PREFIXES: &[&str] = &[
+    "https://anip.dev/",
+    "https://registry.anip.dev/",
+    "https://github.com/anip-protocol/anip/",
+];
 
 fn configured_runtime_port() -> Option<u16> {
     env::var("GTM_DESKTOP_API_PORT")
@@ -42,6 +47,71 @@ fn runtime_port() -> u16 {
 
 fn runtime_base_url() -> String {
     format!("http://127.0.0.1:{}", runtime_port())
+}
+
+fn is_loopback_runtime_url(url: &str) -> bool {
+    url.starts_with("http://127.0.0.1:") || url.starts_with("http://localhost:")
+}
+
+fn is_allowed_external_url(url: &str) -> bool {
+    ALLOWED_EXTERNAL_URL_PREFIXES
+        .iter()
+        .any(|prefix| url == prefix.trim_end_matches('/') || url.starts_with(prefix))
+}
+
+fn open_external_url_impl(url: &str) -> Result<(), String> {
+    if !is_allowed_external_url(url) {
+        return Err("external URL is not allowed".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    let status = Command::new("open").arg(url).status();
+
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd").args(["/C", "start", "", url]).status();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let status = Command::new("xdg-open").arg(url).status();
+
+    status
+        .map_err(|err| format!("failed to open external URL: {err}"))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("failed to open external URL: status {status}"))
+            }
+        })
+}
+
+fn external_link_navigation_plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    PluginBuilder::new("gtm-external-links")
+        .js_init_script(
+            r#"
+            document.addEventListener('click', function (event) {
+              var target = event.target;
+              var anchor = target && target.closest ? target.closest('a[href]') : null;
+              if (!anchor) return;
+              var href = anchor.href || '';
+              if (!href || href.startsWith('http://127.0.0.1:') || href.startsWith('http://localhost:')) return;
+              if (!href.startsWith('http://') && !href.startsWith('https://')) return;
+              event.preventDefault();
+              window.location.href = href;
+            }, true);
+            "#,
+        )
+        .on_navigation(|_webview: &Webview<R>, url| {
+            let value = url.as_str();
+            if is_loopback_runtime_url(value) || value.starts_with("tauri://") {
+                return true;
+            }
+            if is_allowed_external_url(value) {
+                let _ = open_external_url_impl(value);
+                return false;
+            }
+            false
+        })
+        .build()
 }
 
 fn runtime_is_running() -> bool {
@@ -233,11 +303,20 @@ fn gtm_agent_base_url() -> String {
     runtime_base_url()
 }
 
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    open_external_url_impl(&url)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![gtm_agent_base_url])
+        .plugin(external_link_navigation_plugin())
+        .invoke_handler(tauri::generate_handler![
+            gtm_agent_base_url,
+            open_external_url
+        ])
         .setup(|app| {
             start_runtime_if_configured(app);
             Ok(())

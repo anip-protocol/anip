@@ -31,6 +31,7 @@ if [[ ! -x "${PYINSTALLER}" ]]; then
 fi
 
 mkdir -p "${DIST_DIR}"
+python3 "${APP_DIR}/scripts/build_desktop_data.py"
 
 native_path() {
   if [[ -n "${NATIVE_PATH_CONVERTER}" ]]; then
@@ -55,6 +56,7 @@ add_data_arg() {
   --paths "${REPO_ROOT}" \
   --paths "${REPO_ROOT}/packages/python/anip-core/src" \
   --paths "${REPO_ROOT}/packages/python/anip-crypto/src" \
+  --paths "${REPO_ROOT}/packages/python/anip-server/src" \
   --paths "${REPO_ROOT}/packages/python/anip-service/src" \
   --paths "${REPO_ROOT}/packages/python/anip-fastapi/src" \
   --paths "${REPO_ROOT}/packages/python/anip-runtime-utils/src" \
@@ -63,6 +65,7 @@ add_data_arg() {
   --add-data "$(add_data_arg "${REPO_ROOT}/examples/showcase/gtm/agents/llm_runtime" "examples/showcase/gtm/agents/llm_runtime")" \
   --add-data "$(add_data_arg "${REPO_ROOT}/examples/showcase/gtm/generated/language-parity/python/src" "examples/showcase/gtm/generated/language-parity/python/src")" \
   --add-data "$(add_data_arg "${REPO_ROOT}/examples/showcase/gtm/generated/language-parity/python/agent-consumption" "examples/showcase/gtm/generated/language-parity/python/agent-consumption")" \
+  --add-data "$(add_data_arg "${APP_DIR}/data/gtm_desktop.sqlite" "examples/showcase/gtm/desktop/data")" \
   --hidden-import app \
   --hidden-import gtm_agent_app \
   --hidden-import gtm_pipeline_q2_review.app \

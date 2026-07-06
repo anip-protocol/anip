@@ -35,11 +35,11 @@
       "bin/gtm-agent-desktop-runtime-*"
     ],
     "icon": [
-      "../../../../../studio/src-tauri/icons/32x32.png",
-      "../../../../../studio/src-tauri/icons/128x128.png",
-      "../../../../../studio/src-tauri/icons/128x128@2x.png",
-      "../../../../../studio/src-tauri/icons/icon.icns",
-      "../../../../../studio/src-tauri/icons/icon.ico"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ],
     "shortDescription": "Installable GTM Agent showcase for ANIP",
     "longDescription": "A local GTM Agent demo that runs governed ANIP services without Docker."
