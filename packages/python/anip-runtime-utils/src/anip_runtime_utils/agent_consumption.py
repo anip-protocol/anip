@@ -1587,6 +1587,60 @@ def missing_required_input_names(
     return missing
 
 
+def validate_invocation_plan_for_fallback(
+    plan: dict[str, Any],
+    conversation: str,
+    metadata: dict[str, dict[str, Any]],
+    *,
+    compact_candidate_ids: list[str] | None = None,
+) -> list[str]:
+    """Return deterministic reasons a primary planner result should escalate.
+
+    This validator is intentionally conservative. Missing inputs are normally a
+    valid ANIP clarification path, and explicit unsupported effects are normally
+    a valid denial path. Escalation is reserved for cases where the primary
+    model appears to have failed routing, binding, or effect classification
+    before the service can enforce its declared contract.
+    """
+
+    reasons: list[str] = []
+    capability = str(plan.get("selected_capability") or "").strip()
+    if not capability:
+        return ["selected capability is missing"]
+    capability_metadata = metadata.get(capability)
+    if capability_metadata is None:
+        return [f"selected capability is not discovered: {capability}"]
+    if compact_candidate_ids and capability not in {str(item) for item in compact_candidate_ids}:
+        reasons.append(f"selected capability is outside compact candidate set: {capability}")
+
+    parameters = plan.get("parameters")
+    if not isinstance(parameters, dict):
+        reasons.append("parameters payload is not an object")
+        parameters = {}
+
+    unsupported_effects = requested_unsupported_effects(conversation, capability_metadata)
+    if unsupported_effects:
+        # A declared forbidden-effect request is a valid governed denial. Do not
+        # spend fallback tokens trying to make the same unsafe request pass.
+        return reasons
+
+    missing = missing_required_input_names(conversation, capability_metadata, parameters)
+    if missing and _missing_required_inputs_are_referenced(conversation, capability_metadata, missing):
+        reasons.append("missing required input(s) appear present but unbound: " + ", ".join(sorted(missing)))
+
+    requested_effect = requested_primary_content_effect(conversation)
+    produced = capability_produces(capability_metadata)
+    if (
+        requested_effect
+        and requested_effect not in produced
+        and not is_approval_capability(capability_metadata)
+        and not is_conditional_approval_boundary_active(capability_metadata, parameters)
+    ):
+        reasons.append(f"selected capability does not produce requested primary effect: {requested_effect}")
+
+    return reasons
+
+
 def _missing_required_inputs_are_referenced(
     conversation: str,
     capability_metadata: dict[str, Any],

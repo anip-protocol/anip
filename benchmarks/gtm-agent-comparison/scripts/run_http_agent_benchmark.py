@@ -89,6 +89,23 @@ def _usage(payload: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _planner(payload: dict[str, Any]) -> dict[str, Any]:
+    value = payload.get("planner")
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _planner_fallback(payload: dict[str, Any]) -> dict[str, Any]:
+    planner = _planner(payload)
+    value = planner.get("fallback")
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _planner_usage(payload: dict[str, Any], key: str) -> dict[str, Any]:
+    planner = _planner(payload)
+    value = planner.get(key)
+    return dict(value) if isinstance(value, dict) else {}
+
+
 def _prompt_stats(payload: dict[str, Any]) -> dict[str, Any]:
     planner = payload.get("planner")
     if isinstance(planner, dict) and isinstance(planner.get("prompt_stats"), dict):
@@ -142,6 +159,45 @@ def _estimate_cost(usage: dict[str, Any], pricing: dict[str, Any] | None, model:
     }
 
 
+def _estimate_response_cost(payload: dict[str, Any], pricing: dict[str, Any] | None, model: str | None) -> dict[str, Any] | None:
+    fallback = _planner_fallback(payload)
+    primary_usage = _planner_usage(payload, "primary_usage")
+    fallback_usage = _planner_usage(payload, "fallback_usage")
+    if fallback and (primary_usage or fallback_usage):
+        currency = pricing.get("currency") if isinstance(pricing, dict) else "USD"
+        parts: list[dict[str, Any]] = []
+        primary_model = str(fallback.get("primary_model") or model or "")
+        fallback_model = str(fallback.get("fallback_model") or "")
+        for label, usage, usage_model in (
+            ("primary", primary_usage, primary_model),
+            ("fallback", fallback_usage, fallback_model),
+        ):
+            if not usage or not usage_model:
+                continue
+            cost = _estimate_cost(usage, pricing, usage_model)
+            if cost:
+                parts.append({"tier": label, **cost})
+        if parts:
+            return {
+                "currency": currency or "USD",
+                "total_cost": round(sum(float(part["total_cost"]) for part in parts), 8),
+                "parts": parts,
+            }
+    return _estimate_cost(_usage(payload), pricing, model)
+
+
+def _sum_estimated_costs(costs: list[dict[str, Any] | None]) -> dict[str, Any] | None:
+    valid = [cost for cost in costs if isinstance(cost, dict) and cost.get("total_cost") is not None]
+    if not valid:
+        return None
+    currency = next((str(cost.get("currency")) for cost in valid if cost.get("currency")), "USD")
+    return {
+        "currency": currency,
+        "total_cost": round(sum(float(cost["total_cost"]) for cost in valid), 8),
+        "parts": valid,
+    }
+
+
 def _usage_token_totals(usage: dict[str, Any]) -> dict[str, int]:
     prompt_details = usage.get("prompt_tokens_details")
     completion_details = usage.get("completion_tokens_details")
@@ -189,6 +245,19 @@ def _selected(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _result_fallback_summary(response: dict[str, Any]) -> dict[str, Any]:
+    fallback = _planner_fallback(response)
+    return {
+        "enabled": bool(fallback.get("enabled")),
+        "used": bool(fallback.get("used")),
+        "reason": fallback.get("reason"),
+        "primary_model": fallback.get("primary_model"),
+        "fallback_model": fallback.get("fallback_model"),
+        "primary_usage": _planner_usage(response, "primary_usage"),
+        "fallback_usage": _planner_usage(response, "fallback_usage"),
+    }
+
+
 def _run_case(
     agent: str,
     agent_url: str,
@@ -211,6 +280,7 @@ def _run_case(
     prompt_stats = _prompt_stats(response)
     usage = _usage(response)
     model = _model(response)
+    estimated_cost = _estimate_response_cost(response, pricing, model)
     return {
         "id": case["id"],
         "category": case.get("category"),
@@ -227,7 +297,8 @@ def _run_case(
         "selected": _selected(response),
         "failure_type": _failure_type(response),
         "usage": usage,
-        "estimated_cost": _estimate_cost(usage, pricing, model),
+        "estimated_cost": estimated_cost,
+        "fallback": _result_fallback_summary(response),
         "prompt_stats": prompt_stats,
         "estimated_prompt_tokens": _estimated_tokens_from_prompt_stats(prompt_stats),
         "raw_response": response,
@@ -272,6 +343,7 @@ def _run_multi_turn_case(
         prompt_stats = _prompt_stats(response)
         usage = _usage(response)
         model = _model(response)
+        estimated_cost = _estimate_response_cost(response, pricing, model)
         turn_result = {
             "turn": index,
             "question": question,
@@ -285,7 +357,8 @@ def _run_multi_turn_case(
             "selected": _selected(response),
             "failure_type": _failure_type(response),
             "usage": usage,
-            "estimated_cost": _estimate_cost(usage, pricing, model),
+            "estimated_cost": estimated_cost,
+            "fallback": _result_fallback_summary(response),
             "prompt_stats": prompt_stats,
             "estimated_prompt_tokens": _estimated_tokens_from_prompt_stats(prompt_stats),
             "raw_response": response,
@@ -308,6 +381,9 @@ def _run_multi_turn_case(
     estimated_prompt_tokens = sum(int(item.get("estimated_prompt_tokens") or 0) for item in turn_results)
     usage = _sum_usage([dict(item.get("usage") or {}) for item in turn_results])
     model = final_turn.get("model")
+    primary_usage = _sum_usage([dict((item.get("fallback") or {}).get("primary_usage") or {}) for item in turn_results])
+    fallback_usage = _sum_usage([dict((item.get("fallback") or {}).get("fallback_usage") or {}) for item in turn_results])
+    fallback_turns = [item for item in turn_results if (item.get("fallback") or {}).get("used")]
     return {
         "id": case["id"],
         "category": case.get("category"),
@@ -325,7 +401,19 @@ def _run_multi_turn_case(
         "selected": final_turn.get("selected"),
         "failure_type": final_turn.get("failure_type"),
         "usage": usage,
-        "estimated_cost": _estimate_cost(usage, pricing, str(model) if model else None),
+        "estimated_cost": _sum_estimated_costs([item.get("estimated_cost") for item in turn_results]),
+        "fallback": {
+            "enabled": any(bool((item.get("fallback") or {}).get("enabled")) for item in turn_results),
+            "used": bool(fallback_turns),
+            "turns": len(fallback_turns),
+            "reasons": [
+                str((item.get("fallback") or {}).get("reason"))
+                for item in fallback_turns
+                if (item.get("fallback") or {}).get("reason")
+            ],
+            "primary_usage": primary_usage,
+            "fallback_usage": fallback_usage,
+        },
         "prompt_stats": {},
         "estimated_prompt_tokens": estimated_prompt_tokens or None,
         "turn_results": turn_results,
@@ -338,7 +426,19 @@ def _summarize(agent: str, suite: str, cases: list[dict[str, Any]], results: lis
     elapsed_total = sum(float(item["elapsed_ms"]) for item in results)
     estimated_prompt_tokens = sum(int(item.get("estimated_prompt_tokens") or 0) for item in results)
     usage_totals = _sum_usage([dict(item.get("usage") or {}) for item in results])
+    primary_usage_totals = _sum_usage([dict((item.get("fallback") or {}).get("primary_usage") or {}) for item in results])
+    fallback_usage_totals = _sum_usage([dict((item.get("fallback") or {}).get("fallback_usage") or {}) for item in results])
     has_usage = any(value > 0 for value in usage_totals.values())
+    fallback_items = [item for item in results if (item.get("fallback") or {}).get("used")]
+    fallback_reasons: dict[str, int] = {}
+    for item in fallback_items:
+        fallback = item.get("fallback") if isinstance(item.get("fallback"), dict) else {}
+        reasons = fallback.get("reasons") if isinstance(fallback.get("reasons"), list) else [fallback.get("reason")]
+        for reason in reasons:
+            if not reason:
+                continue
+            reason_text = str(reason)
+            fallback_reasons[reason_text] = fallback_reasons.get(reason_text, 0) + 1
     total_cost = 0.0
     has_cost = False
     currency = None
@@ -360,6 +460,37 @@ def _summarize(agent: str, suite: str, cases: list[dict[str, Any]], results: lis
         "total_elapsed_ms": round(elapsed_total, 2),
         "average_elapsed_ms": round(elapsed_total / len(cases), 2) if cases else 0.0,
         "estimated_prompt_tokens": estimated_prompt_tokens or None,
+        "fallback": {
+            "count": len(fallback_items),
+            "rate": round(len(fallback_items) / len(cases), 4) if cases else 0.0,
+            "reasons": fallback_reasons,
+            "primary_usage": (
+                {
+                    **primary_usage_totals,
+                    "average_total_tokens": round(primary_usage_totals["total_tokens"] / len(cases), 2) if cases else 0.0,
+                    "cached_token_ratio": (
+                        round(primary_usage_totals["cached_tokens"] / primary_usage_totals["prompt_tokens"], 4)
+                        if primary_usage_totals["prompt_tokens"] > 0
+                        else 0.0
+                    ),
+                }
+                if any(value > 0 for value in primary_usage_totals.values())
+                else None
+            ),
+            "fallback_usage": (
+                {
+                    **fallback_usage_totals,
+                    "average_total_tokens": round(fallback_usage_totals["total_tokens"] / len(cases), 2) if cases else 0.0,
+                    "cached_token_ratio": (
+                        round(fallback_usage_totals["cached_tokens"] / fallback_usage_totals["prompt_tokens"], 4)
+                        if fallback_usage_totals["prompt_tokens"] > 0
+                        else 0.0
+                    ),
+                }
+                if any(value > 0 for value in fallback_usage_totals.values())
+                else None
+            ),
+        },
         "usage": (
             {
                 **usage_totals,

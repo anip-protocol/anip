@@ -147,6 +147,37 @@ python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
   --timeout-seconds 180
 ```
 
+## Run Runtime-Native Mixed Model Routing
+
+Issue `#221` is about moving nano-to-mini routing out of the benchmark oracle and into the ANIP runtime itself.
+
+Use the normal HTTP benchmark runner against an ANIP agent configured with a primary model and fallback model:
+
+```bash
+export ANIP_AGENT_MODEL=gpt-5.4-nano
+export ANIP_AGENT_FALLBACK_MODEL=gpt-5.4-mini
+export ANIP_AGENT_COMPACT_CATALOG=true
+export ANIP_AGENT_COMPACT_CATALOG_TOP_N=16
+
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip-runtime-mixed \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases /tmp/anip-benchmark/gtm-540-cases.json \
+  --output-dir /tmp/anip-benchmark/anip-runtime-mixed-540 \
+  --pricing benchmarks/gtm-agent-comparison/config/openai-pricing.example.json \
+  --timeout-seconds 180
+```
+
+The runtime fallback decision is based on deterministic validation of the planner output, not expected benchmark answers. Current fallback reasons include invalid planner JSON, unsupported selected capability, selection outside the compact candidate set, missing required inputs that appear present but unbound, and selected capability/output-effect mismatch.
+
+The normal benchmark output now records:
+
+- fallback count and fallback rate;
+- fallback reasons;
+- primary and fallback model usage split;
+- prompt, cached prompt, completion, total, and reasoning tokens when reported by the provider;
+- split model-cost estimates when a pricing file is supplied.
+
 Before running the full suite against the MCP-style baseline, run a stratified sample. The baseline can fail for two different reasons that should be kept separate:
 
 - the raw backend/tool surface is missing functionality;
@@ -245,6 +276,7 @@ Mixed nano-to-mini routing experiment from earlier local runs:
 
 - The mixed runner first sends each request to a compact ANIP runtime using `gpt-5.4-nano`, then falls back to compact ANIP on `gpt-5.4-mini` only when the benchmark acceptance check fails.
 - This is an engineering opportunity measurement, not a production routing policy. The fallback decision uses the benchmark's expected outcome oracle, so these results must not be presented as evidence that the runtime already has safe automatic nano-to-mini routing.
+- For current issue `#221` work, prefer the runtime-native fallback path above. Keep the oracle runner only as a historical experiment and for controlled comparison against earlier raw artifacts.
 - A production mixed-model router must make the escalation decision from contract posture, requested effects, schema validity, confidence, clarification state, actor/scope boundaries, approval/denial/masking outcomes, and structured continuation state.
 - On the hard-mode suite, mixed nano-to-mini passed `24/24` with `0` fallbacks.
 - On the full 540-case benchmark, mixed nano-to-mini passed `540/540` with `7` fallbacks, a `1.3%` fallback rate.

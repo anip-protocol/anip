@@ -61,6 +61,7 @@ from .agent_consumption import (
     text_tokens,
     token_score,
     user_authored_conversation_text,
+    validate_invocation_plan_for_fallback,
 )
 from .normalization import (
     apply_input_metadata_defaults_and_enums,
@@ -137,4 +138,5 @@ __all__ = [
     "text_tokens",
     "token_score",
     "user_authored_conversation_text",
+    "validate_invocation_plan_for_fallback",
 ]

@@ -28,6 +28,7 @@ from anip_runtime_utils.agent_consumption import (
     requested_unsupported_effects,
     select_consumable_capability,
     should_clear_planner_unsupported_for_approval_boundary,
+    validate_invocation_plan_for_fallback,
     user_authored_conversation_text,
 )
 
@@ -1353,6 +1354,102 @@ def test_normalize_invocation_plan_applies_selection_parameters_and_unsupported_
     assert plan["parameters"] == {"target_ref": "Acme Corporation"}
     assert plan["unsupported"] is True
     assert "external_dispatch" in plan["unsupported_reason"]
+
+
+def test_validate_invocation_plan_accepts_valid_unsupported_boundary() -> None:
+    metadata = {
+        "gtm.draft_outreach_message": {
+            "description": "Draft outreach content.",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+            "input_specs": [{"name": "target_ref"}],
+            "app_profile": {"reference_catalogs": {"target_ref": ["Acme Corporation"]}},
+        }
+    }
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.draft_outreach_message",
+            "parameters": {"target_ref": "Acme Corporation"},
+            "unsupported": False,
+        },
+        "Draft outreach for Acme Corporation and send it now.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        plan,
+        "Draft outreach for Acme Corporation and send it now.",
+        metadata,
+    ) == []
+
+
+def test_validate_invocation_plan_accepts_missing_context_clarification() -> None:
+    metadata = {
+        "gtm.lookalike_accounts": {
+            "description": "Find lookalike accounts for a reference account.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [{"name": "reference_account", "required": True}],
+        }
+    }
+    plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.lookalike_accounts", "parameters": {}, "unsupported": False},
+        "Find lookalike accounts for our best customer.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        plan,
+        "Find lookalike accounts for our best customer.",
+        metadata,
+    ) == []
+
+
+def test_validate_invocation_plan_fallbacks_when_provided_context_was_not_bound() -> None:
+    metadata = {
+        "workflow.approval_case_status": {
+            "description": "Summarize the status of a specific approval case.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["system.mutation"]},
+            "input_specs": [
+                {
+                    "name": "approval_case_id",
+                    "required": True,
+                    "description": "Approval case identifier.",
+                    "resolution": {"mode": "closed_values", "on_missing": "clarify"},
+                }
+            ],
+        }
+    }
+    plan = normalize_invocation_plan(
+        {"selected_capability": "workflow.approval_case_status", "parameters": {}, "unsupported": False},
+        "Show the status for approval case id CASE-123.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        plan,
+        "Show the status for approval case id CASE-123.",
+        metadata,
+    ) == ["missing required input(s) appear present but unbound: approval_case_id"]
+
+
+def test_validate_invocation_plan_fallbacks_on_requested_effect_mismatch() -> None:
+    metadata = {
+        "gtm.pipeline_summary": {
+            "description": "Summarize bounded pipeline health.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [{"name": "quarter", "required": True}],
+        }
+    }
+    plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.pipeline_summary", "parameters": {"quarter": "2017-Q2"}, "unsupported": False},
+        "Draft outreach for the top 2017-Q2 account.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        plan,
+        "Draft outreach for the top 2017-Q2 account.",
+        metadata,
+    ) == ["selected capability does not produce requested primary effect: content.draft"]
 
 
 def test_normalize_invocation_plan_clears_planner_unsupported_for_missing_required_context() -> None:
