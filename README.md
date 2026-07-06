@@ -8,6 +8,26 @@ The value is not "agents can call APIs better." The value is "agents can reason 
 
 ---
 
+## Try ANIP Now
+
+The fastest way to understand ANIP is to run a governed agent workflow, then inspect the contract that made it safe.
+
+| Path | Time | Start here |
+|------|------|------------|
+| **See the value** | 5 minutes | Run the **GTM Agent Desktop** showcase from [GitHub Releases](https://github.com/anip-protocol/anip/releases), ask a supported GTM question, and inspect how approval, denial, masking, and bounded execution behave. |
+| **Design visually** | 10-15 minutes | Run **ANIP Studio Desktop** from [GitHub Releases](https://github.com/anip-protocol/anip/releases), open the preloaded showcase projects, and inspect the Product Design, Developer Design, package, and validation evidence. |
+| **Generate code** | 15 minutes | Browse [registry.anip.dev](https://registry.anip.dev/registry/packages), choose a package or template, verify it with the CLI, and generate a service in Python, TypeScript, Go, Java, or C#. |
+| **Go deep** | Full exploration | Follow the [docs](https://anip.dev/docs/intro), run Studio + Registry locally, publish a package, generate services, and test the runtime behavior. |
+
+Prefer the hosted path first? Open the [read-only Studio showcase](https://studio.anip.dev/design) or browse the [public Registry](https://registry.anip.dev/registry/packages).
+
+## Choose Your Path
+
+- **I want to see what ANIP does** — start with the GTM Agent showcase and the flight-booking escalation example below.
+- **I want to build quickly** — install the CLI, generate from a Registry package, and run a minimal service.
+- **I want PM/business and developers aligned** — use Studio to turn scenarios, actors, approvals, and side effects into a reviewable capability contract.
+- **I want the technical contract** — read the protocol docs and inspect how generated runtimes enforce authority, failures, audit, and recovery.
+
 ## Why "ANIP"?
 
 **Agent-Native Interface Protocol.** Two words do different work:
