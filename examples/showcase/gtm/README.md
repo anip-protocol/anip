@@ -90,8 +90,9 @@ The agent UI does not ask users to choose a backend service. It discovers the
 ANIP catalog, chooses a bounded capability, obtains a scoped token, and lets
 the selected service enforce the governed outcome.
 
-The release contract for this showcase is validated against a 490-question
-bank across the five generated runtime stacks.
+The release contract for this showcase is validated against a 540-case GTM
+benchmark suite plus 24 hard-mode governance cases across the generated runtime
+stacks.
 
 Good first questions:
 
@@ -298,27 +299,32 @@ and custom bundles before it is treated as official showcase behavior. Runtime
 patches that only repair a benchmark phrase should be quarantined until the
 deterministic routing gate proves they are contract-derived.
 
-## Running The 490-Question Gate
+## Running The GTM Validation Banks
 
-The 490-question gate is split into the original 350-question bank and the
-140-question variation bank. Run it against the agent UI for the language stack
-you started.
+The current validation flow uses the generated 540-case benchmark suite plus
+the 24-case hard-mode governance bank. Run it against the agent UI for the
+language stack you started.
 
 For Python:
 
 ```bash
-python3 examples/showcase/gtm/scripts/generated_stack/run_question_bank.py \
-  --runtime-url http://127.0.0.1:4310 \
-  --all
+python3 benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py \
+  --suite all \
+  --output /tmp/anip-benchmark/gtm-540-cases.json
 
-OUT=output/gtm-variation-question-runs
-mkdir -p "$OUT"
-for phase in 1 2 3 4 5 6 7; do
-  python3 examples/showcase/gtm/scripts/generated_stack/run_phase1_regression.py \
-    --runtime-url http://127.0.0.1:4310 \
-    --cases "docs/examples/gtm-showcase/variation-question-banks-v3/phase${phase}-variation-bank-20.json" \
-    --output-dir "$OUT"
-done
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases /tmp/anip-benchmark/gtm-540-cases.json \
+  --output-dir /tmp/anip-benchmark/anip-540 \
+  --timeout-seconds 180
+
+python3 benchmarks/gtm-agent-comparison/scripts/run_http_agent_benchmark.py \
+  --agent anip \
+  --agent-url http://127.0.0.1:4310/api/ask \
+  --cases benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json \
+  --output-dir /tmp/anip-benchmark/anip-hard-mode \
+  --timeout-seconds 180
 ```
 
 Use the corresponding agent UI port for the other language stacks:

@@ -76,6 +76,34 @@ def _data_dir() -> Path:
     return path
 
 
+def _settings_json() -> dict[str, Any]:
+    path = _data_dir() / "settings.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _bundled_sqlite_path(root: Path) -> Path:
+    return root / "examples" / "showcase" / "gtm" / "desktop" / "data" / "gtm_desktop.sqlite"
+
+
+def _configure_local_data_backend(root: Path) -> str:
+    if os.getenv("DATABASE_URL") or os.getenv("GTM_DESKTOP_DATABASE_URL"):
+        url = os.getenv("GTM_DESKTOP_DATABASE_URL") or os.getenv("DATABASE_URL") or ""
+        os.environ["DATABASE_URL"] = url
+        return "external-postgres" if url.startswith("postgres") else "sqlite" if url.startswith("sqlite") else "custom"
+    sqlite_path = _bundled_sqlite_path(root)
+    if not sqlite_path.exists():
+        os.environ.setdefault("DATABASE_URL", "")
+        return "not_configured"
+    os.environ["DATABASE_URL"] = f"sqlite:///{sqlite_path}"
+    return "sqlite"
+
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -210,10 +238,8 @@ def _configure_agent_environment(root: Path, generated_dir: Path, service_ports:
     if os.getenv("OPENAI_API_KEY") and not os.getenv("ANIP_AGENT_API_KEY"):
         os.environ["ANIP_AGENT_API_KEY"] = os.environ["OPENAI_API_KEY"]
 
-    # The current generated GTM adapter still uses Postgres for mart-backed
-    # pipeline/enrichment queries. A local SQLite/DuckDB adapter is the next
-    # desktop milestone; for now the desktop runtime supports an external DB URL.
-    os.environ.setdefault("DATABASE_URL", os.getenv("GTM_DESKTOP_DATABASE_URL", ""))
+    _configure_local_data_backend(root)
+    os.environ.setdefault("ANIP_AGENT_SETTINGS_PATH", str(_data_dir() / "settings.json"))
     os.environ.setdefault("GTM_APPROVAL_STORE_PATH", str(_data_dir() / "approvals.json"))
     os.environ.setdefault("GTM_GENERATED_DIR", str(generated_dir))
     os.environ.setdefault("GTM_DESKTOP_RUNTIME_ROOT", str(root))
@@ -232,19 +258,20 @@ def _build_agent_app(root: Path, generated_dir: Path, service_ports: dict[str, i
 
     @app.get("/desktop/health")
     def desktop_health() -> dict[str, Any]:
+        data_backend_kind = _configure_local_data_backend(root)
         return {
             "status": "ok",
             "runtime": "gtm-agent-desktop",
             "agent_url": f"http://127.0.0.1:{_configured_runtime_port()}",
             "services": _service_config(service_ports),
             "data_backend": {
-                "kind": "external-postgres" if os.getenv("DATABASE_URL") else "not_configured",
-                "configured": bool(os.getenv("DATABASE_URL")),
-                "note": "SQLite/DuckDB local marts are the next desktop data-portability milestone.",
+                "kind": data_backend_kind,
+                "configured": data_backend_kind != "not_configured",
             },
             "llm": {
-                "model": os.getenv("ANIP_AGENT_MODEL"),
-                "api_key_configured": bool(os.getenv("ANIP_AGENT_API_KEY")),
+                "model": str(_settings_json().get("model") or os.getenv("ANIP_AGENT_MODEL") or ""),
+                "base_url": str(_settings_json().get("base_url") or os.getenv("ANIP_AGENT_BASE_URL") or os.getenv("OPENAI_BASE_URL") or ""),
+                "api_key_configured": bool(os.getenv("ANIP_AGENT_API_KEY") or _settings_json().get("api_key")),
             },
         }
 

@@ -197,7 +197,10 @@
       color: #9fb0c3;
       font-size: 14px;
     }
-    select {
+    select,
+    input[type="text"],
+    input[type="url"],
+    input[type="password"] {
       background: #0d1117;
       color: #e6edf3;
       border: 1px solid #30363d;
@@ -205,6 +208,26 @@
       padding: 10px 12px;
       font: inherit;
       min-width: 240px;
+    }
+    input[type="text"],
+    input[type="url"],
+    input[type="password"] {
+      width: min(520px, 100%);
+      box-sizing: border-box;
+    }
+    .settings-panel {
+      display: none;
+      border-color: #8b6f2f;
+      background:
+        radial-gradient(circle at top right, rgba(255, 171, 0, 0.14), transparent 34%),
+        #161b22;
+    }
+    .settings-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
     }
     .controls {
       display: flex;
@@ -324,6 +347,26 @@
       Ask one business question. The agent reads the ANIP capability catalog, selects the correct GTM service, gets a scoped token, and lets the service enforce clarification, denial, approval, and audit behavior.
     </div>
 
+    <div class="panel settings-panel" id="settingsPanel">
+      <h2 class="section-heading">Configure LLM Access</h2>
+      <p class="section-copy">
+        Enter an OpenAI-compatible API key and model to run the local desktop agent.
+        ANIP GTM Agent was tested with <code>gpt-5.4-mini</code>. A ChatGPT subscription
+        does not automatically provide API access; use an API key from a provider account
+        that has access to the selected model. Leave the Base URL as
+        <code>https://api.openai.com/v1</code> for OpenAI; change it only for another
+        OpenAI-compatible provider. Settings are stored in the local user data directory
+        for this app, not in the app bundle.
+      </p>
+      <div class="settings-row">
+        <input id="apiKeyInput" type="password" autocomplete="off" placeholder="OpenAI-compatible API key" />
+        <input id="modelInput" type="text" autocomplete="off" value="gpt-5.4-mini" />
+        <input id="baseUrlInput" type="url" autocomplete="off" value="https://api.openai.com/v1" />
+        <button id="saveApiKeyButton" type="button">Save LLM Settings Locally</button>
+      </div>
+      <div class="status" id="settingsStatus"></div>
+    </div>
+
     <div class="panel">
       <div class="controls">
         <label for="actorSelect">Actor</label>
@@ -358,6 +401,12 @@
     const approvalPageButton = document.getElementById('approvalPageButton');
     const approveButton = document.getElementById('approveButton');
     const streamToggle = document.getElementById('streamToggle');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const modelInput = document.getElementById('modelInput');
+    const baseUrlInput = document.getElementById('baseUrlInput');
+    const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+    const settingsStatus = document.getElementById('settingsStatus');
     let chatHistory = [];
     let lastQuestion = '';
     let activeView = 'agent';
@@ -676,7 +725,50 @@
       const serviceCount = stats.service_count || (data.services || []).length || 0;
       const capabilityCount = stats.capability_count || Object.keys(data.capabilities || {}).length || 0;
       const language = data.showcase?.language ? `${data.showcase.language} stack. ` : '';
+      if (data.model) {
+        modelInput.value = data.model;
+        modelInput.placeholder = data.model;
+      }
+      if (data.base_url) {
+        baseUrlInput.value = data.base_url;
+        baseUrlInput.placeholder = data.base_url;
+      }
+      settingsPanel.style.display = data.configured ? 'none' : 'block';
+      askButton.disabled = !data.configured;
+      askButton.textContent = data.configured ? 'Ask LLM Runtime' : 'Configure LLM Settings First';
       statusEl.textContent = `Ready. ${language}ANIP catalog exposes ${capabilityCount} capabilities across ${serviceCount} services; the runtime selects the service automatically.`;
+    }
+
+    async function saveApiKey() {
+      const apiKey = apiKeyInput.value.trim();
+      const model = modelInput.value.trim();
+      const baseUrl = baseUrlInput.value.trim();
+      if (!apiKey) {
+        settingsStatus.textContent = 'Enter an API key first.';
+        return;
+      }
+      if (!model) {
+        settingsStatus.textContent = 'Enter a model name first.';
+        return;
+      }
+      if (!baseUrl) {
+        settingsStatus.textContent = 'Enter a provider Base URL first.';
+        return;
+      }
+      settingsStatus.textContent = 'Saving LLM settings locally...';
+      const response = await fetch('/api/settings/api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, model, base_url: baseUrl }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        settingsStatus.textContent = error.detail || 'Failed to save API key.';
+        return;
+      }
+      apiKeyInput.value = '';
+      settingsStatus.textContent = `LLM settings saved locally for ${model}.`;
+      await loadRuntime();
     }
 
     async function ask() {
@@ -905,6 +997,11 @@
     }
 
     askButton.addEventListener('click', ask);
+    saveApiKeyButton.addEventListener('click', () => {
+      saveApiKey().catch((error) => {
+        settingsStatus.textContent = String(error);
+      });
+    });
     auditButton.addEventListener('click', loadAudit);
     approvalsButton.addEventListener('click', loadApprovals);
     approveButton.addEventListener('click', () => {

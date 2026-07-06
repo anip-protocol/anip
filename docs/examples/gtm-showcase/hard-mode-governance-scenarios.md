@@ -42,7 +42,7 @@ The executable hard-mode benchmark cases live at:
 benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json
 ```
 
-That file currently contains 24 cases. It is intentionally separate from the 490-question release gate until the scenarios are incorporated into a reviewed Studio project revision and package lineage.
+That file currently contains 24 cases. It is part of the GTM release validation surface alongside the generated 540-case benchmark suite.
 
 ## Expected outcome classes
 
@@ -69,7 +69,7 @@ Hard-mode is official in `gtm-pipeline-q2-review@0.4.4`. The promotion path was:
 7. Run the normal release gate and hard-mode gate:
 
 ```text
-490-question normal GTM release bank
+540-case GTM benchmark suite
 24-question hard-mode governance bank
 ```
 

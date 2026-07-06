@@ -115,17 +115,19 @@ The result JSON can be compared directly because both agents return the normaliz
 
 ## Build The Full GTM ANIP Benchmark Suite
 
-The checked-in GTM release gate is `350 + 140` questions:
+The checked-in GTM benchmark suite starts from the original broad bank:
 
 - `350` broad question-bank entries in `docs/examples/gtm-showcase/question-banks/`
 - `140` variation-bank entries in `docs/examples/gtm-showcase/variation-question-banks-v3/`
 
-The benchmark suite also expands the broad bank into a multi-turn benchmark shape:
+The builder expands that broad bank into a multi-turn benchmark shape:
 
 - the five original clarification follow-up entries from the 350 bank are represented as explicit two-turn cases
 - 50 generated two-turn clarification/resolution scenarios are added across pipeline, enrichment, outreach, prioritization, routing, forecast, bottleneck, and reassignment
 
 That produces 540 benchmark cases: 345 non-follow-up main cases, 140 variation cases, 5 converted follow-up cases, and 50 generated two-turn cases.
+
+The GTM release validation surface also includes the separate 24-case hard-mode governance bank in `benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json`.
 
 ```bash
 python3 benchmarks/gtm-agent-comparison/scripts/build_gtm_benchmark_cases.py \
