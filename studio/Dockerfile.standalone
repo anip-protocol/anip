@@ -6,6 +6,7 @@ COPY studio/package.json studio/package-lock.json ./
 RUN npm ci
 
 COPY studio/src/ src/
+COPY studio/public/ public/
 COPY studio/index.html studio/vite.config.ts studio/tsconfig.json studio/tsconfig.app.json studio/tsconfig.node.json ./
 
 # Copy adapter packages resolved by vite.config.ts aliases

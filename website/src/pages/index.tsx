@@ -33,16 +33,85 @@ function HomepageHeader() {
             conformance suites, templates, showcase systems, and verification workflows.
           </p>
           <div className={styles.ctaRow}>
-            <Link className="button button--primary button--lg" to="/docs/getting-started/quickstart">
-              Get started
+            <Link className="button button--primary button--lg" to="https://github.com/anip-protocol/anip/releases">
+              Download Desktop Studio
             </Link>
-            <Link className="button button--outline button--lg" to="/docs/intro">
-              Read the docs
+            <Link className="button button--outline button--lg" to="/docs/showcases/gtm-agent/overview">
+              Try the GTM Agent
             </Link>
           </div>
         </div>
       </div>
     </header>
+  );
+}
+
+function ExperienceANIP() {
+  return (
+    <section className={clsx(styles.section, styles.experienceSection)}>
+      <div className="container">
+        <div className={styles.sectionHeader}>
+          <Heading as="h2">Experience ANIP before reading the whole spec.</Heading>
+          <p>
+            Start with something concrete: run a governed agent, inspect a reviewed
+            Studio project, or generate services from a signed package. The protocol
+            details matter, but the first impression should be executable.
+          </p>
+        </div>
+
+        <div className={styles.experienceGrid}>
+          <div className={styles.experienceCard}>
+            <div className={styles.experienceKicker}>5 minutes</div>
+            <Heading as="h3">Run the GTM Agent Desktop showcase</Heading>
+            <p>
+              Ask GTM questions, see bounded answers, approval stops, masking, denial,
+              and audit-oriented outputs without installing Docker.
+            </p>
+            <Link to="/docs/showcases/gtm-agent/overview">Open the GTM showcase docs</Link>
+          </div>
+          <div className={styles.experienceCard}>
+            <div className={styles.experienceKicker}>10-15 minutes</div>
+            <Heading as="h3">Open ANIP Studio Desktop</Heading>
+            <p>
+              Inspect how Product Design and Developer Design become a packageable,
+              verifiable capability contract that agents can consume safely.
+            </p>
+            <Link to="https://github.com/anip-protocol/anip/releases">Download desktop builds</Link>
+          </div>
+          <div className={styles.experienceCard}>
+            <div className={styles.experienceKicker}>15 minutes</div>
+            <Heading as="h3">Generate from the Registry</Heading>
+            <p>
+              Browse signed packages and starter templates, verify a package, lock it,
+              and generate a service in Python, TypeScript, Go, Java, or C#.
+            </p>
+            <Link to="https://registry.anip.dev/registry/packages">Browse the Registry</Link>
+          </div>
+        </div>
+
+        <div className={styles.pathPanel}>
+          <Heading as="h3">Choose your path</Heading>
+          <div className={styles.pathGrid}>
+            <Link className={styles.pathCard} to="/docs/showcases/overview">
+              <span>I want to see what ANIP can do</span>
+              <small>Showcases, GTM Agent, and governed fronting apps.</small>
+            </Link>
+            <Link className={styles.pathCard} to="/docs/getting-started/first-10-minutes">
+              <span>I want to build something quickly</span>
+              <small>Start small, generate a service, then inspect the contract.</small>
+            </Link>
+            <Link className={styles.pathCard} to="/docs/studio/overview">
+              <span>I want to design capabilities visually</span>
+              <small>Studio for PM/business intent, developer evidence, and package review.</small>
+            </Link>
+            <Link className={styles.pathCard} to="/docs/intro">
+              <span>I want the technical details</span>
+              <small>Protocol, lifecycle, transports, trust, and generated runtimes.</small>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -606,6 +675,7 @@ export default function Home(): ReactNode {
       description="ANIP is the control layer that makes cost, authority, side effects, and recovery explicit before an agent executes.">
       <HomepageHeader />
       <main>
+        <ExperienceANIP />
         <TheProblem />
         <TheGap />
         <AlignmentLayer />
