@@ -2,8 +2,8 @@
 
 This directory is generated from signed ANIP package metadata. It is framework-agnostic and can be loaded by LangGraph, Mastra, CrewAI, or custom agents.
 
-- Package: `gtm-pipeline-q2-review@0.4.4`
-- Contract signature: `sha256:b0e364d79548de1566dad9d53b23c181d5a34f99a4360807f446e5b1e61102c0`
+- Package: `gtm-pipeline-q2-review@0.4.5`
+- Contract signature: `57736b4fe62d4d9a3b5a4b57d0c1daeb217d470904b64cd8568d8532ae1d8bd4`
 - Consumability schema: `anip-agent-consumability/v0`
 - Capability hints: `23`
 - Required app glue items: `0`

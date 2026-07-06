@@ -153,7 +153,14 @@ services:
       ANIP_AGENT_README_URL: https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm
       ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-gpt-5.4-mini}
       ANIP_AGENT_API_KEY: ${ANIP_AGENT_API_KEY:-}
+      ANIP_AGENT_BASE_URL: ${ANIP_AGENT_BASE_URL:-}
+      ANIP_AGENT_FALLBACK_MODEL: ${ANIP_AGENT_FALLBACK_MODEL:-}
+      ANIP_AGENT_FALLBACK_API_KEY: ${ANIP_AGENT_FALLBACK_API_KEY:-}
+      ANIP_AGENT_FALLBACK_BASE_URL: ${ANIP_AGENT_FALLBACK_BASE_URL:-}
+      ANIP_AGENT_COMPACT_CATALOG: ${ANIP_AGENT_COMPACT_CATALOG:-}
+      ANIP_AGENT_COMPACT_CATALOG_TOP_N: ${ANIP_AGENT_COMPACT_CATALOG_TOP_N:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_FALLBACK_API_KEY: ${OPENAI_FALLBACK_API_KEY:-}
       ANIP_AGENT_ACTORS_JSON: >-
         [
           {"actor_id":"sales_leader","display_name":"Alex King","label":"Alex King · Sales Leader","role":"sales_leader","bearer_token":"demo-sales-leader-key"},

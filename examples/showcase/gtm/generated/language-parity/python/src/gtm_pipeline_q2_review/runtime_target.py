@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 RUNTIME_TARGET = json.loads(r'''{
-  "system_name": "GTM Pipeline Q2 Review",
+  "system_name": "GTM Pipeline Q2 Review 0.4.5 Final RC 2",
   "domain_name": "gtm",
   "delivery_model": "multiple_coordinated_services",
   "architecture_shape": "multi_service_estate",
@@ -108,32 +108,223 @@ RUNTIME_TARGET = json.loads(r'''{
         "claim": "actor_id",
         "equals": "sales_leader"
       },
-      "business_area": "operational_previews",
-      "business_area_label": "Operational Previews",
+      "business_area": "pipeline_analytics",
+      "business_area_label": "Pipeline Analytics",
       "service_ids": [
         "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.at_risk_followup_preparation"
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
       ],
       "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
         "gtm.at_risk_followup_preparation",
-        "gtm.prepare_followup_tasks"
+        "gtm.at_risk_reassignment_preparation"
       ],
-      "decision": "approval_required",
-      "business_rule": "Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation.",
-      "enforcement_notes": "sales_leader approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation. Supported by the umbrella spec and preview-specific specs that distinguish preparation from execution."
+      "decision": "allow_with_limits",
+      "business_rule": "Return bounded pipeline, forecast, bottleneck, team, product, stalled-opportunity, and account-risk summaries for declared scope without exposing raw row-level CRM data.",
+      "enforcement_notes": "sales_leader bounded access to Pipeline Analytics should return direct_result. Return bounded pipeline, forecast, bottleneck, team, product, stalled-opportunity, and account-risk summaries for declared scope without exposing raw row-level CRM data. Supports bounded GTM reads while preserving denial of raw exports."
     },
     {
       "id": "policy_permission_rule_1",
       "source_permission_id": "permission_rule_1",
-      "actor_id": "rev_ops_manager",
+      "actor_id": "account_manager_east",
       "principal_selector": {
         "claim": "actor_id",
-        "equals": "rev_ops_manager"
+        "equals": "account_manager_east"
       },
-      "business_area": "operational_previews",
-      "business_area_label": "Operational Previews",
+      "business_area": "actor_aware_access",
+      "business_area_label": "Actor-Aware Access",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope.",
+      "enforcement_notes": "account_manager_east restricted access to Actor-Aware Access should return masked_or_restricted_result. Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope. Natural-language role claims must not expand authority."
+    },
+    {
+      "id": "policy_permission_rule_2",
+      "source_permission_id": "permission_rule_2",
+      "actor_id": "account_manager_west",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "account_manager_west"
+      },
+      "business_area": "actor_aware_access",
+      "business_area_label": "Actor-Aware Access",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope.",
+      "enforcement_notes": "account_manager_west restricted access to Actor-Aware Access should return masked_or_restricted_result. Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope. Symmetric regional boundary to the East account manager posture."
+    },
+    {
+      "id": "policy_permission_rule_3",
+      "source_permission_id": "permission_rule_3",
+      "actor_id": "sales_analyst",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_analyst"
+      },
+      "business_area": "actor_aware_access",
+      "business_area_label": "Actor-Aware Access",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Return bounded summaries with masked financial values where the actor may see business shape but not exact revenue or forecast numbers.",
+      "enforcement_notes": "sales_analyst bounded access to Actor-Aware Access should return masked_or_restricted_result. Return bounded summaries with masked financial values where the actor may see business shape but not exact revenue or forecast numbers. Requests to reveal exact masked values should not be honored."
+    },
+    {
+      "id": "policy_permission_rule_4",
+      "source_permission_id": "permission_rule_4",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "bounded_explanations_and_safe_evidence",
+      "business_area_label": "Bounded Explanations and Safe Evidence",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "required_scopes": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Return bounded rationale and explainable evidence for risk, prioritization, enrichment, and target selection without exposing raw scoring features, model weights, hidden records, or feature dumps.",
+      "enforcement_notes": "sales_leader bounded access to Bounded Explanations and Safe Evidence should return bounded_result. Return bounded rationale and explainable evidence for risk, prioritization, enrichment, and target selection without exposing raw scoring features, model weights, hidden records, or feature dumps. Explanation is supported only through bounded evidence."
+    },
+    {
+      "id": "policy_permission_rule_5",
+      "source_permission_id": "permission_rule_5",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "input_resolution_and_target_selection",
+      "business_area_label": "Input Resolution and Target Selection",
       "service_ids": [
         "gtm-pipeline-service"
       ],
@@ -148,183 +339,31 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.prepare_reassignment_plan"
       ],
       "decision": "approval_required",
-      "business_rule": "Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation.",
-      "enforcement_notes": "rev_ops_manager approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of follow-up, reassignment, or routing previews, but stop before any downstream execution or mutation. Applies to reassignment preview, routing preparation, and other write-adjacent preparation flows."
+      "business_rule": "When the contract owns provider-selected target selection for a bounded cohort, the system may prepare the next governed step but must stop at approval when the composed flow becomes write-adjacent or preview-bound.",
+      "enforcement_notes": "sales_leader approval_required access to Input Resolution and Target Selection should return approval_stop. When the contract owns provider-selected target selection for a bounded cohort, the system may prepare the next governed step but must stop at approval when the composed flow becomes write-adjacent or preview-bound. Do not guess vague references; only contract-owned target selection may resolve the target."
     },
     {
-      "id": "policy_permission_rule_2",
-      "source_permission_id": "permission_rule_2",
-      "actor_id": "account_manager_east",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "account_manager_east"
-      },
-      "business_area": "actor_aware_governance",
-      "business_area_label": "Actor-Aware Governance",
-      "service_ids": [
-        "gtm-pipeline-service"
-      ],
-      "capability_ids": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "required_scopes": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "decision": "allow_with_limits",
-      "business_rule": "When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope.",
-      "enforcement_notes": "account_manager_east restricted access to Actor-Aware Governance should return masked_or_restricted_result. When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope. The source repeatedly requires actor-aware restriction for region requests beyond allowed boundaries."
-    },
-    {
-      "id": "policy_permission_rule_3",
-      "source_permission_id": "permission_rule_3",
-      "actor_id": "account_manager_west",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "account_manager_west"
-      },
-      "business_area": "actor_aware_governance",
-      "business_area_label": "Actor-Aware Governance",
-      "service_ids": [
-        "gtm-pipeline-service"
-      ],
-      "capability_ids": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "required_scopes": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "decision": "allow_with_limits",
-      "business_rule": "When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope.",
-      "enforcement_notes": "account_manager_west restricted access to Actor-Aware Governance should return masked_or_restricted_result. When a request exceeds the actor's allowed regional boundary, return a restricted result rather than exposing the broader scope. The source repeatedly requires actor-aware restriction for region requests beyond allowed boundaries."
-    },
-    {
-      "id": "policy_permission_rule_4",
-      "source_permission_id": "permission_rule_4",
-      "actor_id": "sales_analyst",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "sales_analyst"
-      },
-      "business_area": "actor_aware_governance",
-      "business_area_label": "Actor-Aware Governance",
-      "service_ids": [
-        "gtm-pipeline-service"
-      ],
-      "capability_ids": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "required_scopes": [
-        "gtm.pipeline_summary",
-        "gtm.pipeline_forecast_summary",
-        "gtm.stage_bottleneck_summary",
-        "gtm.sales_team_performance_summary",
-        "gtm.product_pipeline_summary",
-        "gtm.stalled_opportunity_review",
-        "gtm.account_risk_summary",
-        "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
-      ],
-      "decision": "allow_with_limits",
-      "business_rule": "Allow bounded analytic visibility where permitted, but mask financial values when the actor can see shape or trends without full numbers.",
-      "enforcement_notes": "sales_analyst bounded access to Actor-Aware Governance should return masked_or_restricted_result. Allow bounded analytic visibility where permitted, but mask financial values when the actor can see shape or trends without full numbers. The forecast, bottleneck, team-performance, and product-pipeline specs all require actor-aware masking for some actors."
-    },
-    {
-      "id": "policy_permission_rule_5",
-      "source_permission_id": "permission_rule_5",
+      "id": "policy_permission_rule_6",
+      "source_permission_id": "permission_rule_6",
       "actor_id": "sales_leader",
       "principal_selector": {
         "claim": "actor_id",
         "equals": "sales_leader"
       },
-      "business_area": "pipeline_review_analytics",
-      "business_area_label": "Pipeline Review Analytics",
+      "business_area": "input_resolution_and_target_selection",
+      "business_area_label": "Input Resolution and Target Selection",
       "service_ids": [
-        "gtm-pipeline-service"
+        "gtm-outreach-service"
       ],
       "capability_ids": [
-        "gtm.prepare_followup_tasks"
+        "gtm.bottleneck_account_outreach_draft"
       ],
       "required_scopes": [
-        "gtm.prepare_followup_tasks"
+        "gtm.bottleneck_account_outreach_draft"
       ],
       "decision": "clarify",
-      "business_rule": "If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing.",
-      "enforcement_notes": "sales_leader bounded access to Pipeline Review Analytics should return clarification_required. If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing. Applies to bounded analytics reads where quarter is a required input."
-    },
-    {
-      "id": "policy_permission_rule_6",
-      "source_permission_id": "permission_rule_6",
-      "actor_id": "rev_ops_manager",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "rev_ops_manager"
-      },
-      "business_area": "pipeline_review_analytics",
-      "business_area_label": "Pipeline Review Analytics",
-      "service_ids": [
-        "gtm-pipeline-service"
-      ],
-      "capability_ids": [
-        "gtm.prepare_followup_tasks"
-      ],
-      "required_scopes": [
-        "gtm.prepare_followup_tasks"
-      ],
-      "decision": "clarify",
-      "business_rule": "If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing.",
-      "enforcement_notes": "rev_ops_manager bounded access to Pipeline Review Analytics should return clarification_required. If a forecast, bottleneck, team-performance, or product-pipeline request is missing a critical quarter, ask for clarification instead of guessing. Applies to bounded analytics reads where quarter is a required input."
+      "business_rule": "Require clarification when quarter, cohort, ranking basis, account reference, persona, channel, or outreach target is missing or ambiguous.",
+      "enforcement_notes": "sales_leader bounded access to Input Resolution and Target Selection should return clarification_required. Require clarification when quarter, cohort, ranking basis, account reference, persona, channel, or outreach target is missing or ambiguous. The system must not guess unresolved targets or scope."
     },
     {
       "id": "policy_permission_rule_7",
@@ -334,110 +373,115 @@ RUNTIME_TARGET = json.loads(r'''{
         "claim": "actor_id",
         "equals": "sales_leader"
       },
-      "business_area": "account_enrichment",
-      "business_area_label": "Account Enrichment",
+      "business_area": "outreach_drafting",
+      "business_area_label": "Outreach Drafting",
       "service_ids": [
-        "gtm-enrichment-service"
+        "gtm-outreach-service"
       ],
       "capability_ids": [
-        "gtm.account_enrichment_summary",
-        "gtm.lookalike_accounts"
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
       ],
       "required_scopes": [
-        "gtm.account_enrichment_summary",
-        "gtm.lookalike_accounts"
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft"
       ],
-      "decision": "deny",
-      "business_rule": "Deny raw bulk enrichment export, unsupported source exposure, outreach-only requests, lead-scoring requests, and downstream mutation requests in the enrichment service.",
-      "enforcement_notes": "sales_leader denied access to Account Enrichment should return deny_request. Deny raw bulk enrichment export, unsupported source exposure, outreach-only requests, lead-scoring requests, and downstream mutation requests in the enrichment service. The enrichment service is bounded, read-only, and must not expose raw unconstrained enrichment exports."
+      "decision": "allow_with_limits",
+      "business_rule": "Allow bounded draft-only outreach generation for an explicit or contract-owned bounded target and stop before any outbound send action.",
+      "enforcement_notes": "sales_leader bounded access to Outreach Drafting should return direct_result. Allow bounded draft-only outreach generation for an explicit or contract-owned bounded target and stop before any outbound send action. Drafting is in scope; sending is not."
     },
     {
       "id": "policy_permission_rule_8",
       "source_permission_id": "permission_rule_8",
-      "actor_id": "rev_ops_manager",
+      "actor_id": "sales_leader",
       "principal_selector": {
         "claim": "actor_id",
-        "equals": "rev_ops_manager"
+        "equals": "sales_leader"
       },
-      "business_area": "work_prioritization_and_routing",
-      "business_area_label": "Work Prioritization and Routing",
+      "business_area": "approval_and_denial_governance",
+      "business_area_label": "Approval and Denial Governance",
       "service_ids": [
-        "gtm-prioritization-service"
+        "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.route_leads"
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
-        "gtm.route_leads"
+        "gtm.at_risk_followup_preparation",
+        "gtm.prepare_followup_tasks",
+        "gtm.at_risk_reassignment_preparation",
+        "gtm.prepare_reassignment_plan"
       ],
-      "decision": "approval_required",
-      "business_rule": "Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation.",
-      "enforcement_notes": "rev_ops_manager approval_required access to Work Prioritization and Routing should return approval_stop. Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation. The prioritization service distinguishes recommendation from execution."
+      "decision": "deny",
+      "business_rule": "Deny requests that attempt raw row export, direct-send outreach, hidden internal evidence disclosure, prompt-injection override, or silent fallback to unsafe detail.",
+      "enforcement_notes": "sales_leader denied access to Approval and Denial Governance should return deny_request. Deny requests that attempt raw row export, direct-send outreach, hidden internal evidence disclosure, prompt-injection override, or silent fallback to unsafe detail. Unsafe sub-intent should not be repaired by consumer-side prompt logic."
     },
     {
       "id": "policy_permission_rule_9",
       "source_permission_id": "permission_rule_9",
-      "actor_id": "sales_leader",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "sales_leader"
-      },
-      "business_area": "work_prioritization_and_routing",
-      "business_area_label": "Work Prioritization and Routing",
-      "service_ids": [
-        "gtm-prioritization-service"
-      ],
-      "capability_ids": [
-        "gtm.route_leads"
-      ],
-      "required_scopes": [
-        "gtm.route_leads"
-      ],
-      "decision": "approval_required",
-      "business_rule": "Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation.",
-      "enforcement_notes": "sales_leader approval_required access to Work Prioritization and Routing should return approval_stop. Allow bounded scoring, ranking, and routing recommendation preparation, but stop at approval before route execution or CRM mutation. The prioritization service distinguishes recommendation from execution."
-    },
-    {
-      "id": "policy_permission_rule_10",
-      "source_permission_id": "permission_rule_10",
-      "actor_id": "sales_leader",
-      "principal_selector": {
-        "claim": "actor_id",
-        "equals": "sales_leader"
-      },
-      "business_area": "outreach_drafting",
-      "business_area_label": "Outreach Drafting",
-      "service_ids": [
-        "gtm-outreach-service"
-      ],
-      "capability_ids": [
-        "gtm.draft_outreach_message",
-        "gtm.suggest_followup_content",
-        "gtm.objection_response_variants",
-        "gtm.prioritized_outreach_draft",
-        "gtm.bottleneck_account_outreach_draft"
-      ],
-      "required_scopes": [
-        "gtm.draft_outreach_message",
-        "gtm.suggest_followup_content",
-        "gtm.objection_response_variants",
-        "gtm.prioritized_outreach_draft",
-        "gtm.bottleneck_account_outreach_draft"
-      ],
-      "decision": "allow_with_limits",
-      "business_rule": "Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content.",
-      "enforcement_notes": "sales_leader bounded access to Outreach Drafting should return bounded_result. Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content. The outreach service is draft-only in the first cut."
-    },
-    {
-      "id": "policy_permission_rule_11",
-      "source_permission_id": "permission_rule_11",
       "actor_id": "rev_ops_manager",
       "principal_selector": {
         "claim": "actor_id",
         "equals": "rev_ops_manager"
       },
-      "business_area": "outreach_drafting",
-      "business_area_label": "Outreach Drafting",
+      "business_area": "operational_previews",
+      "business_area_label": "Operational Previews",
+      "service_ids": [
+        "gtm-pipeline-service"
+      ],
+      "capability_ids": [
+        "gtm.at_risk_followup_preparation"
+      ],
+      "required_scopes": [
+        "gtm.at_risk_followup_preparation",
+        "gtm.prepare_followup_tasks"
+      ],
+      "decision": "approval_required",
+      "business_rule": "Allow bounded preparation of reassignment, routing, or follow-up previews and return approval_required before any downstream mutation is executed.",
+      "enforcement_notes": "rev_ops_manager approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of reassignment, routing, or follow-up previews and return approval_required before any downstream mutation is executed. Preparation and execution are distinct governed steps."
+    },
+    {
+      "id": "policy_permission_rule_10",
+      "source_permission_id": "permission_rule_10",
+      "actor_id": "rev_ops_manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "rev_ops_manager"
+      },
+      "business_area": "approval_and_denial_governance",
+      "business_area_label": "Approval and Denial Governance",
+      "service_ids": [
+        "gtm-outreach-service"
+      ],
+      "capability_ids": [
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "required_scopes": [
+        "gtm.bottleneck_account_outreach_draft"
+      ],
+      "decision": "deny",
+      "business_rule": "Deny requests to apply reassignment, routing, or other operational changes immediately when the contract requires approval first, even if the user claims an override or prior verbal agreement.",
+      "enforcement_notes": "rev_ops_manager denied access to Approval and Denial Governance should return deny_request. Deny requests to apply reassignment, routing, or other operational changes immediately when the contract requires approval first, even if the user claims an override or prior verbal agreement. Approval bypass attempts must not mutate state."
+    },
+    {
+      "id": "policy_permission_rule_11",
+      "source_permission_id": "permission_rule_11",
+      "actor_id": "sales_leader",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "sales_leader"
+      },
+      "business_area": "governed_multi_service_composition",
+      "business_area_label": "Governed Multi-Service Composition",
       "service_ids": [
         "gtm-outreach-service"
       ],
@@ -456,8 +500,8 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.bottleneck_account_outreach_draft"
       ],
       "decision": "allow_with_limits",
-      "business_rule": "Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content.",
-      "enforcement_notes": "rev_ops_manager bounded access to Outreach Drafting should return bounded_result. Allow bounded draft generation and variants for an explicit target and purpose, but do not send messages or expose raw transcript or training-corpus content. The outreach service is draft-only in the first cut."
+      "business_rule": "Allow compound GTM flows across pipeline, enrichment, prioritization, and outreach only when each step remains within declared service-owned boundaries and preserves mid-chain clarification, restriction, denial, and approval stops.",
+      "enforcement_notes": "sales_leader bounded access to Governed Multi-Service Composition should return bounded_result. Allow compound GTM flows across pipeline, enrichment, prioritization, and outreach only when each step remains within declared service-owned boundaries and preserves mid-chain clarification, restriction, denial, and approval stops. Composition must not move policy into app glue or prompts."
     },
     {
       "id": "policy_permission_rule_12",
@@ -467,8 +511,8 @@ RUNTIME_TARGET = json.loads(r'''{
         "claim": "actor_id",
         "equals": "sales_leader"
       },
-      "business_area": "auditability_and_validation",
-      "business_area_label": "Auditability and Validation",
+      "business_area": "auditability_and_reviewability",
+      "business_area_label": "Auditability and Reviewability",
       "service_ids": [
         "gtm-pipeline-service"
       ],
@@ -499,8 +543,8 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.at_risk_reassignment_preparation"
       ],
       "decision": "allow_with_limits",
-      "business_rule": "Governed calls must remain reconstructable with actor identity, capability used, normalized parameters, outcome type, and explanation for actor-specific differences.",
-      "enforcement_notes": "sales_leader bounded access to Auditability and Validation should return direct_result. Governed calls must remain reconstructable with actor identity, capability used, normalized parameters, outcome type, and explanation for actor-specific differences. This is a cross-cutting trust requirement rather than a user-facing business action."
+      "business_rule": "Governed calls must remain reviewable with actor identity, capability used, normalized parameters, and the resulting governed outcome visible for later audit.",
+      "enforcement_notes": "sales_leader bounded access to Auditability and Reviewability should return direct_result. Governed calls must remain reviewable with actor identity, capability used, normalized parameters, and the resulting governed outcome visible for later audit. Auditability is part of the business trust posture."
     }
   ],
   "authority": {

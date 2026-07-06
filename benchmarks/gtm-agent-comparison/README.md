@@ -178,6 +178,18 @@ The normal benchmark output now records:
 - prompt, cached prompt, completion, total, and reasoning tokens when reported by the provider;
 - split model-cost estimates when a pricing file is supplied.
 
+Latest local runtime-native verification:
+
+- Full GTM benchmark: `540/540` passed with runtime-native nano-to-mini fallback.
+- Full GTM output artifact: `/tmp/anip-benchmark/runtime-mixed/full-540-045-final2/anip-runtime-mixed-20260706T222554Z.json`.
+- Full GTM fallback profile: `2` fallback cases, `0.37%` fallback rate.
+- Full GTM fallback reasons: `primary clarification response did not produce a continuation plan` once, and `selected capability does not produce requested primary effect: content.draft` once.
+- Full GTM usage: `1,461,506` total tokens, `1,383,768` prompt tokens, `465,920` cached prompt tokens, `77,738` completion tokens, `1,188` loops, average latency `2166.72ms`.
+- Hard-mode GTM benchmark: `24/24` passed with runtime-native nano-to-mini fallback.
+- Hard-mode output artifact: `/tmp/anip-benchmark/runtime-mixed/hard-045-final/anip-runtime-mixed-20260706T224544Z.json`.
+- Hard-mode fallback profile: `0` fallback cases.
+- Hard-mode usage: `71,741` total tokens, `67,706` prompt tokens, `7,168` cached prompt tokens, `4,035` completion tokens, `56` loops, average latency `2333.97ms`.
+
 Before running the full suite against the MCP-style baseline, run a stratified sample. The baseline can fail for two different reasons that should be kept separate:
 
 - the raw backend/tool surface is missing functionality;

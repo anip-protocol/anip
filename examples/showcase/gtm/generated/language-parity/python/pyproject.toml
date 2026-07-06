@@ -1,15 +1,15 @@
 [project]
 name = "gtm-pipeline-q2-review"
 version = "0.1.0"
-description = "Generated ANIP Python host with self-contained GTM native implementation"
+description = "Generated ANIP Python host"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core==0.24.5",
-    "anip-service==0.24.5",
-    "anip-fastapi==0.24.5",
+    "anip-core==0.24.12",
+    "anip-service==0.24.12",
+    "anip-fastapi==0.24.12",
     "fastapi>=0.115.0",
-    "psycopg[binary]>=3.2.0",
     "uvicorn>=0.30.0",
+    "psycopg[binary]>=3.2.0",
 ]
 
 [project.optional-dependencies]

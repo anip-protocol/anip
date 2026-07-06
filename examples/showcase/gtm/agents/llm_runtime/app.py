@@ -839,6 +839,21 @@ def _normalize_planner_candidate(
     return plan, None
 
 
+def _unsupported_plan_from_validation_failure(plan: dict[str, Any], reason: str) -> dict[str, Any] | None:
+    if not str(reason or "").startswith("selected capability does not produce requested primary effect:"):
+        return None
+    unsupported = dict(plan)
+    unsupported["parameters"] = dict(plan.get("parameters") or {})
+    unsupported["unsupported"] = True
+    unsupported["unsupported_reason"] = (
+        "The selected ANIP capability does not declare support for the requested output or action "
+        f"({reason})."
+    )
+    unsupported.setdefault("rationale", reason)
+    unsupported.setdefault("user_message", unsupported["unsupported_reason"])
+    return unsupported
+
+
 async def _plan_with_model(question: str, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     routing_brief, metadata, _ = _load_catalog()
     capability_brief, compact_stats = _planner_capability_brief(question, history, routing_brief, metadata)
@@ -881,9 +896,15 @@ async def _plan_with_model(question: str, history: list[dict[str, Any]] | None =
         except ValueError as exc:
             raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback planner failed validation: {exc}") from exc
         if second_reason:
-            raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback planner failed validation: {second_reason}")
+            unsupported_plan = _unsupported_plan_from_validation_failure(plan, second_reason)
+            if unsupported_plan is None:
+                raise HTTPException(status_code=502, detail=f"{fallback_reason}; fallback planner failed validation: {second_reason}")
+            plan = unsupported_plan
     elif fallback_reason:
-        raise HTTPException(status_code=502, detail=fallback_reason)
+        unsupported_plan = _unsupported_plan_from_validation_failure(plan, fallback_reason)
+        if unsupported_plan is None:
+            raise HTTPException(status_code=502, detail=fallback_reason)
+        plan = unsupported_plan
 
     capability = str(plan["selected_capability"])
     catalog = CATALOG_CACHE.get("catalog")

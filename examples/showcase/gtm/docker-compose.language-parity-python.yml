@@ -83,8 +83,8 @@ services:
   gtm-pipeline-service:
     image: "anipprotocol/showcase-gtm-python:${ANIP_GTM_IMAGE_TAG:-0.4.4}"
     build:
-      context: ../../..
-      dockerfile: examples/showcase/gtm/generated/language-parity/python/Dockerfile
+      context: ./generated/language-parity/python
+      dockerfile: services/gtm_pipeline_service/Dockerfile
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
@@ -98,8 +98,8 @@ services:
 
   gtm-enrichment-service:
     build:
-      context: ../../..
-      dockerfile: examples/showcase/gtm/generated/language-parity/python/Dockerfile
+      context: ./generated/language-parity/python
+      dockerfile: services/gtm_enrichment_service/Dockerfile
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
@@ -113,8 +113,8 @@ services:
 
   gtm-prioritization-service:
     build:
-      context: ../../..
-      dockerfile: examples/showcase/gtm/generated/language-parity/python/Dockerfile
+      context: ./generated/language-parity/python
+      dockerfile: services/gtm_prioritization_service/Dockerfile
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
@@ -128,8 +128,8 @@ services:
 
   gtm-outreach-service:
     build:
-      context: ../../..
-      dockerfile: examples/showcase/gtm/generated/language-parity/python/Dockerfile
+      context: ./generated/language-parity/python
+      dockerfile: services/gtm_outreach_service/Dockerfile
     depends_on:
       gtm-dbt:
         condition: service_completed_successfully
@@ -168,8 +168,15 @@ services:
       ANIP_AGENT_README_URL: https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm
       ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-}
       ANIP_AGENT_API_KEY: ${ANIP_AGENT_API_KEY:-}
+      ANIP_AGENT_BASE_URL: ${ANIP_AGENT_BASE_URL:-}
+      ANIP_AGENT_FALLBACK_MODEL: ${ANIP_AGENT_FALLBACK_MODEL:-}
+      ANIP_AGENT_FALLBACK_API_KEY: ${ANIP_AGENT_FALLBACK_API_KEY:-}
+      ANIP_AGENT_FALLBACK_BASE_URL: ${ANIP_AGENT_FALLBACK_BASE_URL:-}
+      ANIP_AGENT_COMPACT_CATALOG: ${ANIP_AGENT_COMPACT_CATALOG:-}
+      ANIP_AGENT_COMPACT_CATALOG_TOP_N: ${ANIP_AGENT_COMPACT_CATALOG_TOP_N:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_FALLBACK_API_KEY: ${OPENAI_FALLBACK_API_KEY:-}
       ANIP_AGENT_ACTORS_JSON: >-
         [
           {"actor_id":"sales_leader","display_name":"Alex King","label":"Alex King · Sales Leader","role":"sales_leader","bearer_token":"demo-sales-leader-key"},
