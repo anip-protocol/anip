@@ -15,6 +15,7 @@ const sidebars: SidebarsConfig = {
         'concepts/architecture',
         'concepts/ecosystem',
         'concepts/anip-vs-mcp',
+        'concepts/mixed-model-execution',
         'concepts/lifecycle-and-revisions',
         'concepts/scenario-driven-execution',
         'concepts/execution-scenario-validation',
@@ -91,6 +92,7 @@ const sidebars: SidebarsConfig = {
       label: 'Testing & Validation',
       items: [
         'testing/conformance-contract-testing',
+        'testing/benchmarks',
       ],
     },
     {

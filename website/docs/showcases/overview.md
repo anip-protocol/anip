@@ -63,6 +63,8 @@ That is an ANIP advantage. If the package, manifest, input-resolution rules, app
 
 This is not a promise that any small model works for every task. It is a design goal the showcases are meant to make visible: use stronger models for contract authoring when needed, then let smaller agents consume governed capabilities.
 
+For the runtime architecture behind this pattern, see [Mixed Model Execution](/docs/concepts/mixed-model-execution). For current benchmark evidence and limitations, see [Benchmarks](/docs/testing/benchmarks).
+
 ## GTM Agent showcase
 
 The GTM showcase is the deepest example. It models a revenue-operations agent that can answer pipeline, forecast, bottleneck, product pipeline, team performance, account risk, enrichment, outreach, follow-up, and routing questions through governed ANIP capabilities.

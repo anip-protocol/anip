@@ -154,6 +154,8 @@ The model still reasons, but it reasons over a smaller, governed action space. T
 
 This is not theoretical. The GTM Agent showcase uses generated ANIP services across five languages and runs the agent layer with `gpt-5.4-mini` against a large question bank because the contract and services carry much of the execution structure that would otherwise have to live in the prompt.
 
+The newer mixed-mode runtime path goes further: it can start with `gpt-5.4-nano` and fall back to `gpt-5.4-mini` when deterministic ANIP contract validation says the smaller model's plan is not grounded enough. See [Mixed Model Execution](/docs/concepts/mixed-model-execution) and [Benchmarks](/docs/testing/benchmarks).
+
 ## The gap
 
 APIs and tool protocols describe *how* to call systems. They do not, by themselves, define the governed execution contract:

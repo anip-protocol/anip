@@ -57,6 +57,8 @@ For cross-approach benchmark comparison, use the dedicated benchmark repository:
 
 The current report compares runtime-native ANIP mixed `gpt-5.4-nano -> gpt-5.4-mini` against an engineered MCP-style skills/recipes baseline. The MCP-style baseline includes consumer-side guardrails and is not a raw or intentionally weak tool-calling straw man.
 
+For the reusable runtime pattern, see [Mixed Model Execution](/docs/concepts/mixed-model-execution). For benchmark interpretation, scope, and limitations, see [Benchmarks](/docs/testing/benchmarks).
+
 Run artifacts live under:
 
 ```text

@@ -76,6 +76,8 @@ Current headline result:
 
 The ANIP mixed lane uses deterministic contract validation to decide when to fall back from `gpt-5.4-nano` to `gpt-5.4-mini`. The fallback decision is part of runtime validation, not benchmark-oracle knowledge.
 
+For the general architecture pattern behind this lane, see [Mixed Model Execution](/docs/concepts/mixed-model-execution). For how to read the benchmark methodology and limitations, see [Benchmarks](/docs/testing/benchmarks).
+
 ## How to read this section
 
 Use these pages in order if you are new to the showcase:
