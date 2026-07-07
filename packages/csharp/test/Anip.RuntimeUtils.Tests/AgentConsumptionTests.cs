@@ -44,8 +44,50 @@ public class AgentConsumptionTests
         }
     }
 
+    [Fact]
+    public async Task SharedPlannerFallbackValidationFixturesPass()
+    {
+        var fixturePath = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "..",
+                "..",
+                "agent-consumption-fixtures",
+                "planner-fallback-validation.json"));
+        var fixtureJson = await File.ReadAllTextAsync(fixturePath);
+        using var fixture = JsonDocument.Parse(fixtureJson);
+
+        foreach (var testCase in fixture.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            var id = testCase.GetProperty("id").GetString();
+            var conversation = testCase.GetProperty("conversation").GetString()!;
+            var plan = testCase.GetProperty("plan");
+            var metadata = testCase.GetProperty("metadata");
+            var compactCandidateIds = testCase.TryGetProperty("compact_candidate_ids", out var candidateElement)
+                ? candidateElement.EnumerateArray().Select(item => item.GetString()!).ToArray()
+                : [];
+
+            Assert.Equal(
+                ExpectedStrings(testCase.GetProperty("expected_reasons")),
+                AgentConsumption.ValidateInvocationPlanForFallback(
+                    plan,
+                    conversation,
+                    metadata,
+                    new AgentConsumption.FallbackValidationOptions(compactCandidateIds)).ToArray());
+        }
+    }
+
     private static string[] SortedStrings(JsonElement value)
     {
         return value.EnumerateArray().Select(item => item.GetString()!).Order().ToArray();
+    }
+
+    private static string[] ExpectedStrings(JsonElement value)
+    {
+        return value.EnumerateArray().Select(item => item.GetString()!).ToArray();
     }
 }

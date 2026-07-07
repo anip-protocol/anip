@@ -21,6 +21,9 @@ export interface CapabilityMetadata {
     produces?: unknown[];
     does_not_produce?: unknown[];
   };
+  approval?: {
+    required?: boolean;
+  };
   input_specs?: InputSpec[];
   app_profile?: {
     capability_framing?: string;
@@ -427,4 +430,155 @@ export function selectConsumableCapability(
   return bestCapability !== selectedCapability && bestScore >= Math.max(0.12, selectedScore + 0.08)
     ? bestCapability
     : selectedCapability;
+}
+
+export interface FallbackValidationOptions {
+  compactCandidateIds?: string[];
+}
+
+export function requestedPrimaryContentEffect(conversation: string): string | null {
+  const tokens = textTokens(conversation);
+  const orderedTokens = orderedTextTokens(conversation);
+  const hasUnnegated = (terms: string[]) =>
+    terms.some((term) => tokens.has(term) && !termIsNegated(orderedTokens, term));
+  if (hasUnnegated(["recommend", "recommendation", "recommendations"])) {
+    return "content.recommendation";
+  }
+  if (hasUnnegated(["draft", "email", "outreach", "message", "variant", "variants", "option", "options"])) {
+    return "content.draft";
+  }
+  if (hasUnnegated(["summarize", "summary"])) {
+    return "content.summary";
+  }
+  return null;
+}
+
+export function isApprovalCapability(rawMetadata: CapabilityMetadata | unknown): boolean {
+  const metadata = metadataRecord(rawMetadata);
+  const produced = capabilityProduces(metadata);
+  if (produced.has("approval.request") || produced.has("system.preview_mutation")) {
+    return true;
+  }
+  const approval = isRecord(metadata.approval) ? metadata.approval : undefined;
+  return approval?.required === true;
+}
+
+function isConditionalApprovalBoundaryActive(
+  rawMetadata: CapabilityMetadata | unknown,
+  _parameters: Record<string, unknown>,
+): boolean {
+  return isApprovalCapability(rawMetadata);
+}
+
+function missingInputHasConcreteEvidence(
+  conversation: string,
+  spec: InputSpec,
+  metadata: CapabilityMetadata,
+): boolean {
+  const inputName = String(spec.name ?? "").toLowerCase();
+  const semanticType = String(spec.semantic_type ?? "").toLowerCase();
+  const rawType = String((spec as Record<string, unknown>).type ?? "").toLowerCase();
+  if (inputName.includes("id") || semanticType.endsWith("_id")) {
+    return /\b[A-Z][A-Z0-9]+-[A-Z0-9]+\b|\b[A-Za-z]+-\d+\b/.test(conversation);
+  }
+  if (
+    semanticType === "time_scope" ||
+    ["quarter", "period", "date"].some((token) => inputName.includes(token))
+  ) {
+    return /\b(?:19|20)\d{2}-Q[1-4]\b/i.test(conversation) || /\bQ[1-4]\s+(?:FY)?(?:19|20)?\d{2,4}\b/i.test(conversation);
+  }
+  if (
+    ["integer", "number", "float"].includes(rawType) ||
+    ["limit", "count"].some((token) => inputName.includes(token))
+  ) {
+    return /\b\d+\b/.test(conversation);
+  }
+  const allowedValues = stringList(spec.allowed_values);
+  if (allowedValues.length > 0) {
+    return allowedValues.some((value) => conversationContainsValue(conversation, value));
+  }
+  const inputTokens = inputReferenceTokens(metadata, String(spec.name ?? ""));
+  return inputTokens.size > 0 && [...inputTokens].some((token) => textTokens(conversation).has(token)) && /[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){1,3}|[_-]|\d/.test(conversation);
+}
+
+function missingRequiredInputsAreConcretelyReferenced(
+  conversation: string,
+  metadata: CapabilityMetadata,
+  missingInputs: string[],
+): boolean {
+  if (missingInputs.length === 0) {
+    return false;
+  }
+  const specs = new Map(
+    (metadata.input_specs ?? [])
+      .filter((item): item is InputSpec => isRecord(item))
+      .map((item) => [String(item.name ?? ""), item]),
+  );
+  return missingInputs.every((inputName) => {
+    const spec = specs.get(inputName);
+    if (!spec) {
+      return false;
+    }
+    const tokens = inputReferenceTokens(metadata, inputName);
+    return (
+      tokens.size > 0 &&
+      [...tokens].some((token) => textTokens(conversation).has(token)) &&
+      missingInputHasConcreteEvidence(conversation, spec, metadata)
+    );
+  });
+}
+
+export function validateInvocationPlanForFallback(
+  plan: Record<string, unknown>,
+  conversation: string,
+  rawMetadata: CapabilityCatalog,
+  options: FallbackValidationOptions = {},
+): string[] {
+  const reasons: string[] = [];
+  const capability = String(plan.selected_capability ?? "").trim();
+  if (!capability) {
+    return ["selected capability is missing"];
+  }
+  const metadata = metadataRecord(rawMetadata[capability]);
+  if (Object.keys(metadata).length === 0) {
+    return [`selected capability is not discovered: ${capability}`];
+  }
+  if (
+    options.compactCandidateIds &&
+    options.compactCandidateIds.length > 0 &&
+    !options.compactCandidateIds.map((item) => String(item)).includes(capability)
+  ) {
+    reasons.push(`selected capability is outside compact candidate set: ${capability}`);
+  }
+
+  let parameters: Record<string, unknown> = {};
+  if (!isRecord(plan.parameters)) {
+    reasons.push("parameters payload is not an object");
+  } else {
+    parameters = plan.parameters;
+  }
+
+  if (requestedUnsupportedEffects(conversation, metadata).length > 0) {
+    return reasons;
+  }
+
+  const missing = missingRequiredInputNames(conversation, metadata).filter(
+    (inputName) => !(inputName in parameters),
+  );
+  if (missingRequiredInputsAreConcretelyReferenced(conversation, metadata, missing)) {
+    reasons.push(`missing required input(s) appear present but unbound: ${[...missing].sort().join(", ")}`);
+  }
+
+  const requestedEffect = requestedPrimaryContentEffect(conversation);
+  const produced = capabilityProduces(metadata);
+  if (
+    requestedEffect &&
+    !produced.has(requestedEffect) &&
+    !isApprovalCapability(metadata) &&
+    !isConditionalApprovalBoundaryActive(metadata, parameters)
+  ) {
+    reasons.push(`selected capability does not produce requested primary effect: ${requestedEffect}`);
+  }
+
+  return reasons;
 }

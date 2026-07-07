@@ -2,6 +2,7 @@ package runtimeutils
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -10,6 +11,10 @@ import (
 var (
 	tokenPattern          = regexp.MustCompile(`[a-z0-9]+`)
 	semanticTextPattern   = regexp.MustCompile(`[^a-z0-9]+`)
+	identifierPattern     = regexp.MustCompile(`\b[A-Z][A-Z0-9]+-[A-Z0-9]+\b|\b[A-Za-z]+-\d+\b`)
+	quarterPattern        = regexp.MustCompile(`(?i)\b(?:19|20)\d{2}-Q[1-4]\b|\bQ[1-4]\s+(?:FY)?(?:19|20)?\d{2,4}\b`)
+	numberPattern         = regexp.MustCompile(`\b\d+\b`)
+	concreteEntityPattern = regexp.MustCompile(`[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){1,3}|[_-]|\d`)
 	capabilityEffectTerms = map[string]map[string]bool{
 		"approval.execute": {
 			"approve": true, "apply": true, "commit": true, "execute": true, "perform": true,
@@ -39,6 +44,11 @@ var (
 
 // CapabilityMetadata is contract-derived metadata for one capability.
 type CapabilityMetadata map[string]any
+
+// FallbackValidationOptions configures deterministic planner fallback validation.
+type FallbackValidationOptions struct {
+	CompactCandidateIDs []string
+}
 
 // SemanticTextKey normalizes text for compact substring checks.
 func SemanticTextKey(value string) string {
@@ -219,6 +229,78 @@ func SelectConsumableCapability(conversation string, selectedCapability string, 
 		return bestCapability
 	}
 	return selectedCapability
+}
+
+// RequestedPrimaryContentEffect returns the primary content effect requested by conversation text.
+func RequestedPrimaryContentEffect(conversation string) string {
+	tokens := TextTokens(conversation)
+	orderedTokens := orderedTextTokens(conversation)
+	if hasUnnegatedToken(tokens, orderedTokens, []string{"recommend", "recommendation", "recommendations"}) {
+		return "content.recommendation"
+	}
+	if hasUnnegatedToken(tokens, orderedTokens, []string{"draft", "email", "outreach", "message", "variant", "variants", "option", "options"}) {
+		return "content.draft"
+	}
+	if hasUnnegatedToken(tokens, orderedTokens, []string{"summarize", "summary"}) {
+		return "content.summary"
+	}
+	return ""
+}
+
+// IsApprovalCapability reports whether a capability is an approval boundary.
+func IsApprovalCapability(metadata CapabilityMetadata) bool {
+	produced := capabilityProduces(metadata)
+	if produced["approval.request"] || produced["system.preview_mutation"] {
+		return true
+	}
+	return boolValue(record(metadata["approval"])["required"])
+}
+
+// ValidateInvocationPlanForFallback returns deterministic reasons a primary planner result should escalate.
+func ValidateInvocationPlanForFallback(plan CapabilityMetadata, conversation string, metadata map[string]CapabilityMetadata, options FallbackValidationOptions) []string {
+	reasons := []string{}
+	capability := strings.TrimSpace(stringValue(plan["selected_capability"]))
+	if capability == "" {
+		return []string{"selected capability is missing"}
+	}
+	capabilityMetadata, ok := metadata[capability]
+	if !ok || len(capabilityMetadata) == 0 {
+		return []string{fmt.Sprintf("selected capability is not discovered: %s", capability)}
+	}
+	if len(options.CompactCandidateIDs) > 0 && !containsString(options.CompactCandidateIDs, capability) {
+		reasons = append(reasons, fmt.Sprintf("selected capability is outside compact candidate set: %s", capability))
+	}
+
+	parameters := record(plan["parameters"])
+	if _, ok := plan["parameters"].(map[string]any); !ok {
+		if _, ok := plan["parameters"].(CapabilityMetadata); !ok {
+			reasons = append(reasons, "parameters payload is not an object")
+			parameters = CapabilityMetadata{}
+		}
+	}
+
+	if len(RequestedUnsupportedEffects(conversation, capabilityMetadata)) > 0 {
+		return reasons
+	}
+
+	missing := []string{}
+	for _, inputName := range MissingRequiredInputNames(conversation, capabilityMetadata) {
+		if _, ok := parameters[inputName]; !ok {
+			missing = append(missing, inputName)
+		}
+	}
+	if missingRequiredInputsAreConcretelyReferenced(conversation, capabilityMetadata, missing) {
+		sort.Strings(missing)
+		reasons = append(reasons, "missing required input(s) appear present but unbound: "+strings.Join(missing, ", "))
+	}
+
+	requestedEffect := RequestedPrimaryContentEffect(conversation)
+	produced := capabilityProduces(capabilityMetadata)
+	if requestedEffect != "" && !produced[requestedEffect] && !IsApprovalCapability(capabilityMetadata) {
+		reasons = append(reasons, fmt.Sprintf("selected capability does not produce requested primary effect: %s", requestedEffect))
+	}
+
+	return reasons
 }
 
 func orderedTextTokens(value string) []string {
@@ -506,11 +588,114 @@ func missingRequiredInputsAreReferenced(conversation string, metadata Capability
 	return true
 }
 
+func missingRequiredInputsAreConcretelyReferenced(conversation string, metadata CapabilityMetadata, missingInputs []string) bool {
+	if len(missingInputs) == 0 {
+		return false
+	}
+	specs := map[string]CapabilityMetadata{}
+	for _, rawSpec := range anyList(metadata["input_specs"]) {
+		spec := record(rawSpec)
+		name := stringValue(spec["name"])
+		if name != "" {
+			specs[name] = spec
+		}
+	}
+	conversationTokens := TextTokens(conversation)
+	for _, inputName := range missingInputs {
+		spec := specs[inputName]
+		tokens := inputReferenceTokens(metadata, inputName)
+		matched := false
+		for token := range tokens {
+			if conversationTokens[token] {
+				matched = true
+				break
+			}
+		}
+		if !matched || !missingInputHasConcreteEvidence(conversation, spec, metadata) {
+			return false
+		}
+	}
+	return true
+}
+
+func missingInputHasConcreteEvidence(conversation string, spec CapabilityMetadata, metadata CapabilityMetadata) bool {
+	inputName := strings.ToLower(stringValue(spec["name"]))
+	semanticType := strings.ToLower(stringValue(spec["semantic_type"]))
+	rawType := strings.ToLower(stringValue(spec["type"]))
+	if strings.Contains(inputName, "id") || strings.HasSuffix(semanticType, "_id") {
+		return identifierPattern.MatchString(conversation)
+	}
+	if semanticType == "time_scope" || strings.Contains(inputName, "quarter") || strings.Contains(inputName, "period") || strings.Contains(inputName, "date") {
+		return quarterPattern.MatchString(conversation)
+	}
+	if rawType == "integer" || rawType == "number" || rawType == "float" || strings.Contains(inputName, "limit") || strings.Contains(inputName, "count") {
+		return numberPattern.MatchString(conversation)
+	}
+	if values := stringList(spec["allowed_values"]); len(values) > 0 {
+		for _, value := range values {
+			if conversationContainsValue(conversation, value) {
+				return true
+			}
+		}
+		return false
+	}
+	tokens := inputReferenceTokens(metadata, stringValue(spec["name"]))
+	if len(tokens) == 0 || !concreteEntityPattern.MatchString(conversation) {
+		return false
+	}
+	conversationTokens := TextTokens(conversation)
+	for token := range tokens {
+		if conversationTokens[token] {
+			return true
+		}
+	}
+	return false
+}
+
+func conversationContainsValue(conversation string, value string) bool {
+	valueKey := SemanticTextKey(value)
+	if valueKey == "" {
+		return false
+	}
+	if strings.Contains(SemanticTextKey(conversation), valueKey) {
+		return true
+	}
+	conversationTokens := TextTokens(conversation)
+	valueTokens := TextTokens(value)
+	if len(valueTokens) == 0 {
+		return false
+	}
+	for token := range valueTokens {
+		if !conversationTokens[token] {
+			return false
+		}
+	}
+	return true
+}
+
 func sameEffectClass(first CapabilityMetadata, second CapabilityMetadata) bool {
 	firstProduces := capabilityProduces(first)
 	secondProduces := capabilityProduces(second)
 	for effect := range firstProduces {
 		if secondProduces[effect] {
+			return true
+		}
+	}
+	return false
+}
+
+func hasUnnegatedToken(tokens map[string]bool, orderedTokens []string, terms []string) bool {
+	for _, term := range terms {
+		if tokens[term] && !termIsNegated(orderedTokens, term) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
 			return true
 		}
 	}

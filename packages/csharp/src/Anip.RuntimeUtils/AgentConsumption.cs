@@ -9,6 +9,12 @@ namespace Anip.RuntimeUtils;
 /// </summary>
 public static partial class AgentConsumption
 {
+    /// <summary>
+    /// Options for deterministic planner fallback validation.
+    /// </summary>
+    /// <param name="CompactCandidateIds">Optional compact candidate capability identifiers that the planner was allowed to choose from.</param>
+    public sealed record FallbackValidationOptions(IReadOnlyList<string>? CompactCandidateIds = null);
+
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> EffectTerms =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
@@ -249,6 +255,107 @@ public static partial class AgentConsumption
         return bestCapability != selectedCapability && bestScore >= Math.Max(0.12, selectedScore + 0.08)
             ? bestCapability
             : selectedCapability;
+    }
+
+    /// <summary>
+    /// Returns the primary content effect requested by the conversation, when detectable.
+    /// </summary>
+    /// <param name="conversation">The user conversation or request text.</param>
+    /// <returns>The requested content effect identifier, or null.</returns>
+    public static string? RequestedPrimaryContentEffect(string conversation)
+    {
+        var tokens = TextTokens(conversation);
+        var orderedTokens = OrderedTextTokens(conversation);
+        if (HasUnnegatedToken(tokens, orderedTokens, ["recommend", "recommendation", "recommendations"]))
+        {
+            return "content.recommendation";
+        }
+
+        if (HasUnnegatedToken(tokens, orderedTokens, ["draft", "email", "outreach", "message", "variant", "variants", "option", "options"]))
+        {
+            return "content.draft";
+        }
+
+        return HasUnnegatedToken(tokens, orderedTokens, ["summarize", "summary"]) ? "content.summary" : null;
+    }
+
+    /// <summary>
+    /// Reports whether a capability is an approval boundary.
+    /// </summary>
+    /// <param name="metadata">Contract-derived metadata for one capability.</param>
+    /// <returns>True when the capability produces approval or preview effects, or declares approval as required.</returns>
+    public static bool IsApprovalCapability(object? metadata)
+    {
+        var safeMetadata = MapValue(metadata);
+        var produced = CapabilityProduces(safeMetadata);
+        return produced.Contains("approval.request")
+            || produced.Contains("system.preview_mutation")
+            || BoolValue(GetValue(MapValue(GetValue(safeMetadata, "approval")), "required"));
+    }
+
+    /// <summary>
+    /// Returns deterministic reasons a primary planner result should escalate to a fallback model.
+    /// </summary>
+    /// <param name="plan">The planner result to validate.</param>
+    /// <param name="conversation">The user conversation or request text.</param>
+    /// <param name="metadata">Capability metadata keyed by capability identifier.</param>
+    /// <param name="options">Optional fallback validation settings.</param>
+    /// <returns>Fallback reasons. An empty list means the plan can proceed to service-side enforcement.</returns>
+    public static IReadOnlyList<string> ValidateInvocationPlanForFallback(
+        object? plan,
+        string conversation,
+        object? metadata,
+        FallbackValidationOptions? options = null)
+    {
+        var reasons = new List<string>();
+        var safePlan = MapValue(plan);
+        var capability = StringValue(GetValue(safePlan, "selected_capability"));
+        if (capability.Length == 0)
+        {
+            return ["selected capability is missing"];
+        }
+
+        var metadataByCapability = MapValue(metadata);
+        var capabilityMetadata = MapValue(GetValue(metadataByCapability, capability));
+        if (capabilityMetadata.Count == 0)
+        {
+            return [$"selected capability is not discovered: {capability}"];
+        }
+
+        var compactCandidateIds = options?.CompactCandidateIds ?? [];
+        if (compactCandidateIds.Count > 0 && !compactCandidateIds.Contains(capability))
+        {
+            reasons.Add($"selected capability is outside compact candidate set: {capability}");
+        }
+
+        var parameters = MapValue(GetValue(safePlan, "parameters"));
+        if (!IsObjectValue(GetValue(safePlan, "parameters")))
+        {
+            reasons.Add("parameters payload is not an object");
+            parameters = new Dictionary<string, object?>(StringComparer.Ordinal);
+        }
+
+        if (RequestedUnsupportedEffects(conversation, capabilityMetadata).Count > 0)
+        {
+            return reasons;
+        }
+
+        var missing = MissingRequiredInputNames(conversation, capabilityMetadata)
+            .Where(inputName => !parameters.ContainsKey(inputName))
+            .ToArray();
+        if (MissingRequiredInputsAreConcretelyReferenced(conversation, capabilityMetadata, missing))
+        {
+            reasons.Add($"missing required input(s) appear present but unbound: {string.Join(", ", missing.Order(StringComparer.Ordinal))}");
+        }
+
+        var requestedEffect = RequestedPrimaryContentEffect(conversation);
+        var produced = CapabilityProduces(capabilityMetadata);
+        if (requestedEffect is not null && !produced.Contains(requestedEffect) && !IsApprovalCapability(capabilityMetadata))
+        {
+            reasons.Add($"selected capability does not produce requested primary effect: {requestedEffect}");
+        }
+
+        return reasons;
     }
 
     private static List<string> OrderedTextTokens(object? value)
@@ -493,6 +600,24 @@ public static partial class AgentConsumption
         return false;
     }
 
+    private static bool ConversationContainsValue(string conversation, string value)
+    {
+        var valueKey = SemanticTextKey(value);
+        if (valueKey.Length == 0)
+        {
+            return false;
+        }
+
+        if (SemanticTextKey(conversation).Contains(valueKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var conversationTokens = TextTokens(conversation);
+        var valueTokens = TextTokens(value);
+        return valueTokens.Count > 0 && valueTokens.All(conversationTokens.Contains);
+    }
+
     private static IReadOnlySet<string> CapabilityProduces(IReadOnlyDictionary<string, object?> metadata)
     {
         return StringList(GetValue(MapValue(GetValue(metadata, "business_effects")), "produces")).ToHashSet(StringComparer.Ordinal);
@@ -588,11 +713,100 @@ public static partial class AgentConsumption
         return true;
     }
 
+    private static bool MissingRequiredInputsAreConcretelyReferenced(
+        string conversation,
+        IReadOnlyDictionary<string, object?> metadata,
+        IReadOnlyList<string> missingInputs)
+    {
+        if (missingInputs.Count == 0)
+        {
+            return false;
+        }
+
+        var specs = new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.Ordinal);
+        foreach (var rawSpec in ListValue(GetValue(metadata, "input_specs")))
+        {
+            var spec = MapValue(rawSpec);
+            var name = StringValue(GetValue(spec, "name"));
+            if (name.Length > 0)
+            {
+                specs[name] = spec;
+            }
+        }
+
+        var conversationTokens = TextTokens(conversation);
+        foreach (var inputName in missingInputs)
+        {
+            if (!specs.TryGetValue(inputName, out var spec))
+            {
+                return false;
+            }
+
+            var tokens = InputReferenceTokens(metadata, inputName);
+            if (tokens.Count == 0
+                || !tokens.Any(conversationTokens.Contains)
+                || !MissingInputHasConcreteEvidence(conversation, spec, metadata))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool MissingInputHasConcreteEvidence(
+        string conversation,
+        IReadOnlyDictionary<string, object?> spec,
+        IReadOnlyDictionary<string, object?> metadata)
+    {
+        var inputName = StringValue(GetValue(spec, "name")).ToLowerInvariant();
+        var semanticType = StringValue(GetValue(spec, "semantic_type")).ToLowerInvariant();
+        var rawType = StringValue(GetValue(spec, "type")).ToLowerInvariant();
+        if (inputName.Contains("id", StringComparison.Ordinal) || semanticType.EndsWith("_id", StringComparison.Ordinal))
+        {
+            return IdentifierRegex().IsMatch(conversation);
+        }
+
+        if (semanticType == "time_scope"
+            || inputName.Contains("quarter", StringComparison.Ordinal)
+            || inputName.Contains("period", StringComparison.Ordinal)
+            || inputName.Contains("date", StringComparison.Ordinal))
+        {
+            return QuarterRegex().IsMatch(conversation);
+        }
+
+        if (rawType is "integer" or "number" or "float"
+            || inputName.Contains("limit", StringComparison.Ordinal)
+            || inputName.Contains("count", StringComparison.Ordinal))
+        {
+            return NumberRegex().IsMatch(conversation);
+        }
+
+        var allowedValues = StringList(GetValue(spec, "allowed_values"));
+        if (allowedValues.Count > 0)
+        {
+            return allowedValues.Any(value => ConversationContainsValue(conversation, value));
+        }
+
+        return InputReferenceTokens(metadata, StringValue(GetValue(spec, "name"))).Count > 0
+            && ConcreteEntityRegex().IsMatch(conversation);
+    }
+
     private static bool SameEffectClass(IReadOnlyDictionary<string, object?> first, IReadOnlyDictionary<string, object?> second)
     {
         var firstProduces = CapabilityProduces(first);
         var secondProduces = CapabilityProduces(second);
         return firstProduces.Any(secondProduces.Contains);
+    }
+
+    private static bool HasUnnegatedToken(IReadOnlySet<string> tokens, IReadOnlyList<string> orderedTokens, IReadOnlyList<string> terms)
+    {
+        return terms.Any(term => tokens.Contains(term) && !TermIsNegated(orderedTokens, term));
+    }
+
+    private static bool IsObjectValue(object? value)
+    {
+        return value is IDictionary || value is JsonElement { ValueKind: JsonValueKind.Object };
     }
 
     private static int Overlap(IReadOnlySet<string> first, IReadOnlySet<string> second)
@@ -612,4 +826,16 @@ public static partial class AgentConsumption
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SemanticTextRegex();
+
+    [GeneratedRegex(@"\b[A-Z][A-Z0-9]+-[A-Z0-9]+\b|\b[A-Za-z]+-\d+\b")]
+    private static partial Regex IdentifierRegex();
+
+    [GeneratedRegex(@"\b(?:19|20)\d{2}-Q[1-4]\b|\bQ[1-4]\s+(?:FY)?(?:19|20)?\d{2,4}\b", RegexOptions.IgnoreCase)]
+    private static partial Regex QuarterRegex();
+
+    [GeneratedRegex(@"\b\d+\b")]
+    private static partial Regex NumberRegex();
+
+    [GeneratedRegex(@"[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){1,3}|[_-]|\d")]
+    private static partial Regex ConcreteEntityRegex();
 }

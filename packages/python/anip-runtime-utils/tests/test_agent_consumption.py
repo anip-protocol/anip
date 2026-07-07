@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from pathlib import Path
 
 from anip_runtime_utils.agent_consumption import (
     build_agent_capability_catalog,
@@ -1609,6 +1610,23 @@ def test_validate_invocation_plan_fallbacks_on_requested_effect_mismatch() -> No
         "Draft outreach for the top 2017-Q2 account.",
         metadata,
     ) == ["selected capability does not produce requested primary effect: content.draft"]
+
+
+def test_shared_planner_fallback_validation_fixtures() -> None:
+    fixture_path = (
+        Path(__file__).resolve().parents[3]
+        / "agent-consumption-fixtures"
+        / "planner-fallback-validation.json"
+    )
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    for item in fixture["cases"]:
+        assert validate_invocation_plan_for_fallback(
+            item["plan"],
+            item["conversation"],
+            item["metadata"],
+            compact_candidate_ids=item.get("compact_candidate_ids") or None,
+        ) == item["expected_reasons"], item["id"]
 
 
 def test_normalize_invocation_plan_clears_planner_unsupported_for_missing_required_context() -> None:
