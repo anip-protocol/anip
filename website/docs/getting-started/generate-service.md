@@ -56,7 +56,7 @@ Use this path when consuming a trusted Registry package:
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
   --package-id gtm-pipeline-q2-review \
-  --package-version 0.4.4 \
+  --package-version 0.4.5 \
   --target go \
   --transport http \
   --dependency-source registry \
@@ -70,7 +70,7 @@ For production use, also write and commit a lock:
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
   --package-id gtm-pipeline-q2-review \
-  --package-version 0.4.4 \
+  --package-version 0.4.5 \
   --target go \
   --write-lock ./anip-package-lock.json \
   --output ./generated/gtm-pipeline \

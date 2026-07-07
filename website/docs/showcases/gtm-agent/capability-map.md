@@ -10,7 +10,7 @@ The GTM package exposes 23 ANIP capabilities across four services. This page is 
 Package:
 
 ```text
-gtm-pipeline-q2-review@0.4.4
+gtm-pipeline-q2-review@0.4.5
 ```
 
 ## Pipeline service
@@ -63,4 +63,3 @@ Read capabilities are not automatically unrestricted. They still carry actor sco
 Approval-gated capabilities do not perform the downstream write. They prepare a bounded preview and return an approval-required outcome. Approval execution is explicitly not produced by the first-cut GTM package.
 
 Composed capabilities preserve service ownership and step boundaries. They should not hide clarification, restriction, denial, or approval stops inside a single opaque result.
-

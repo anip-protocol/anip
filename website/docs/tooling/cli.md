@@ -227,7 +227,7 @@ anip generate \
 
 ```bash
 anip generate \
-  --package-bundle ./gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ./gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target python \
   --custom-code-bundle ./custom-code-bundles/python \
   --verify-custom-code-bundle-digest sha256:<digest> \

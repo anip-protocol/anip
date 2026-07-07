@@ -59,6 +59,23 @@ That matters. Without ANIP, the agent would need a much larger prompt, skill fil
 
 The 540-case GTM benchmark suite and 24-case hard-mode governance bank are designed to test that boundary. They are not testing whether a model can improvise GTM policy. They test whether a smaller model can consume governed services whose behavior, authority, denial, approval, and recovery semantics are already explicit.
 
+## Benchmark evidence
+
+The reproducible benchmark harness and raw result artifacts live in the dedicated benchmark repository:
+
+- [anip-protocol/anip-benchmarks](https://github.com/anip-protocol/anip-benchmarks)
+- [GTM Agent cost and governance report](https://github.com/anip-protocol/anip-benchmarks/tree/main/reports/2026-06-gtm-agent-cost-comparison)
+
+Current headline result:
+
+| Lane | Normal suite | Hard-mode suite | Normal-suite tokens | Normal-suite loops |
+| --- | ---: | ---: | ---: | ---: |
+| ANIP runtime-native mixed `nano -> mini` | 540/540 | 24/24 | 1,461,506 | 1,188 |
+| MCP-style skills/recipes on `mini` | 538/540 | 19/24 | 1,669,780 | 1,785 |
+| MCP-style skills/recipes on `nano` | 515/540 | 18/24 | 1,780,090 | 1,785 |
+
+The ANIP mixed lane uses deterministic contract validation to decide when to fall back from `gpt-5.4-nano` to `gpt-5.4-mini`. The fallback decision is part of runtime validation, not benchmark-oracle knowledge.
+
 ## How to read this section
 
 Use these pages in order if you are new to the showcase:

@@ -3,16 +3,16 @@
 Canonical package:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json
 ```
 
 Related package files:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-service-definition.json
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-manifest.json
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-lock.json
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4-publish-request.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5-service-definition.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5-manifest.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5-lock.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5-publish-request.json
 ```
 
 Generated language outputs:
@@ -43,7 +43,7 @@ examples/showcase/gtm/custom-code-bundles/bundle-catalog.json
 
 Before publishing or rebuilding Docker images:
 
-- verify the package version is `0.4.4`;
+- verify the package version is `0.4.5`;
 - verify all generated outputs come from the same package;
 - verify bundle reports are present;
 - run compose smoke;

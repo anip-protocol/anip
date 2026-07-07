@@ -119,12 +119,12 @@ STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
 The GTM showcase is the release-quality deep example:
 
 - Studio-produced contract.
-- Registry package: `gtm-pipeline-q2-review@0.4.4`.
+- Registry package: `gtm-pipeline-q2-review@0.4.5`.
 - Generated native services in Python, TypeScript, Go, Java, and C#.
 - Full-stack compose per language.
 - Published Docker images for each language stack and the shared agent UI:
-  `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.4`
-  and `anipprotocol/showcase-gtm-agent-ui:0.4.4`.
+  `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.5`
+  and `anipprotocol/showcase-gtm-agent-ui:0.4.5`.
 - Agent UI and approval UI.
 - 23 formalized capabilities.
 - Custom bundle catalog with digest verification.
