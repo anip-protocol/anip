@@ -50,6 +50,13 @@ benchmarks/gtm-agent-comparison/cases/gtm-hard-mode.json
 
 The `gtm-pipeline-q2-review@0.4.5` release validation uses this 564-case surface. Older documentation may refer only to the pre-hard-mode broad behavior bank; use this page as the current source of truth.
 
+For cross-approach benchmark comparison, use the dedicated benchmark repository:
+
+- [anip-protocol/anip-benchmarks](https://github.com/anip-protocol/anip-benchmarks)
+- [GTM Agent cost and governance report](https://github.com/anip-protocol/anip-benchmarks/tree/main/reports/2026-06-gtm-agent-cost-comparison)
+
+The current report compares runtime-native ANIP mixed `gpt-5.4-nano -> gpt-5.4-mini` against an engineered MCP-style skills/recipes baseline. The MCP-style baseline includes consumer-side guardrails and is not a raw or intentionally weak tool-calling straw man.
+
 Run artifacts live under:
 
 ```text
@@ -111,7 +118,7 @@ This matters because the showcase should not require a very large model to compe
 
 When a question fails, triage in this order:
 
-1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.4`.
+1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.5`.
 2. Confirm the expected language service exposes 23 capabilities.
 3. Confirm the agent runtime is pointed at the selected language stack.
 4. Confirm the dbt models and Metabase views return sane values.

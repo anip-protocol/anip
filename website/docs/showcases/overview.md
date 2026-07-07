@@ -48,7 +48,7 @@ Useful source links:
 | GTM showcase root | [examples/showcase/gtm](https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm) |
 | GTM Go Docker Compose file | [docker-compose.language-parity-go.yml](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/docker-compose.language-parity-go.yml) |
 | GTM custom bundles | [examples/showcase/gtm/custom-code-bundles](https://github.com/anip-protocol/anip/tree/main/examples/showcase/gtm/custom-code-bundles) |
-| GTM Registry package | [gtm-pipeline-q2-review-0.4.4.anip-package.json](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json) |
+| GTM Registry package | [gtm-pipeline-q2-review-0.4.5.anip-package.json](https://github.com/anip-protocol/anip/blob/main/examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json) |
 | Fronting showcase folders | [examples/showcase](https://github.com/anip-protocol/anip/tree/main/examples/showcase) |
 
 ## Model Choice Is Part Of The Proof
@@ -70,7 +70,7 @@ The GTM showcase is the deepest example. It models a revenue-operations agent th
 Key properties:
 
 - Contract generated from Studio-produced project state.
-- Strict `anip/0.24` package: `gtm-pipeline-q2-review@0.4.4`.
+- Strict `anip/0.24` package: `gtm-pipeline-q2-review@0.4.5`.
 - Native generated services in five languages: Python, TypeScript, Go, Java, C#.
 - Four-service topology.
 - Agent UI for asking questions.

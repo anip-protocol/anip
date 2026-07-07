@@ -70,7 +70,7 @@ https://registry.anip.dev/registry/packages
 Open the GTM Agent package:
 
 ```text
-https://registry.anip.dev/registry/packages/gtm-pipeline-q2-review/0.4.4
+https://registry.anip.dev/registry/packages/gtm-pipeline-q2-review/0.4.5
 ```
 
 Look for:
@@ -92,7 +92,7 @@ If you already installed the CLI, verify the package from Registry:
 ```bash
 anip verify \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package gtm-pipeline-q2-review@0.4.4 \
+  --package gtm-pipeline-q2-review@0.4.5 \
   --require-registry-mode production \
   --trusted-registry-key-id anip-protocol-registry-root-2026-q2
 ```
@@ -113,7 +113,7 @@ Generate a local service project from the same package:
 ```bash
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package gtm-pipeline-q2-review@0.4.4 \
+  --package gtm-pipeline-q2-review@0.4.5 \
   --target python \
   --transport http,stdio \
   --dependency-source registry \
@@ -135,7 +135,7 @@ Regenerating later with the lock should fail if the package digest changes:
 ```bash
 anip generate \
   --registry-url https://registry.anip.dev/registry-api/v1 \
-  --package gtm-pipeline-q2-review@0.4.4 \
+  --package gtm-pipeline-q2-review@0.4.5 \
   --lock-file /tmp/anip-gtm-package-lock.json \
   --target python \
   --output /tmp/anip-gtm-generated \

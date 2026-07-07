@@ -10,6 +10,7 @@ from anip_runtime_utils.agent_consumption import (
     clarification_continuation_from_history,
     capability_match_score,
     compact_capability_match_score,
+    concrete_reference_value_from_text,
     contains_deictic_reference,
     conversation_text_from_history,
     conversation_supports_canonical_value,
@@ -158,6 +159,35 @@ def test_compact_agent_capability_brief_prefers_read_bottleneck_for_read_intent(
     assert stats["compact_candidate_ids"] == ["gtm.stage_bottleneck_summary"]
     assert "gtm.stage_bottleneck_summary" in brief
     assert "gtm.at_risk_followup_preparation" not in brief
+
+
+def test_compact_agent_capability_brief_matches_ed_inflection_for_bottleneck_read_intent() -> None:
+    metadata = {
+        "gtm.stage_bottleneck_summary": {
+            "description": "Return bounded bottleneck evidence without exporting raw rows.",
+            "service_name": "pipeline",
+            "input_specs": [{"name": "quarter", "required": True}],
+            "side_effect": "read",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+        },
+        "gtm.bottleneck_account_outreach_draft": {
+            "description": "Select a bounded bottleneck target, draft outreach, and stop at approval.",
+            "service_name": "outreach",
+            "input_specs": [{"name": "quarter", "required": True}, {"name": "target_ref", "required": False}],
+            "side_effect": "write",
+            "grant_policy": {"allowed_grant_types": ["one_time"]},
+            "business_effects": {
+                "produces": ["approval.request", "system.preview_mutation", "content.draft"],
+                "does_not_produce": ["external_dispatch", "system.mutation", "raw_data_export"],
+            },
+        },
+    }
+
+    brief, stats = build_compact_agent_capability_brief("Where are we bottlenecked?", metadata, top_n=1)
+
+    assert stats["compact_candidate_ids"] == ["gtm.stage_bottleneck_summary"]
+    assert "gtm.stage_bottleneck_summary" in brief
+    assert "gtm.bottleneck_account_outreach_draft" not in brief
 
 
 def test_capability_match_score_prefers_less_specialized_tie() -> None:
@@ -1135,8 +1165,25 @@ def test_requested_unsupported_effect_denies_explicit_approval_bypass() -> None:
     assert requested_unsupported_effects("Prepare the routing preview for approval.", metadata) == set()
 
 
-def test_requested_primary_content_effect_prefers_variants_over_draft_wording() -> None:
-    assert requested_primary_content_effect("Draft objection response variants for pricing.") == "content.recommendation"
+def test_requested_unsupported_effect_denies_direct_dispatch_when_capability_does_not_produce_it() -> None:
+    metadata = {
+        "business_effects": {
+            "produces": ["content.summary", "content.recommendation"],
+            "does_not_produce": ["raw_data_export"],
+        }
+    }
+
+    assert requested_unsupported_effects(
+        "Score the inbound leads and send them directly to sales without approval.",
+        metadata,
+    ) == {"approval.execute", "external_dispatch"}
+    assert requested_unsupported_effects("Send me the top lead scores.", metadata) == set()
+
+
+def test_requested_primary_content_effect_treats_variants_as_draft_content() -> None:
+    assert requested_primary_content_effect("Draft objection response variants for pricing.") == "content.draft"
+    assert requested_primary_content_effect("Give me objection-response variants for pricing.") == "content.draft"
+    assert requested_primary_content_effect("Recommend the best routing option.") == "content.recommendation"
     assert requested_primary_content_effect("Draft a first-touch email.") == "content.draft"
     assert requested_primary_content_effect("Find lookalike accounts and explain the match basis.") is None
 
@@ -1403,6 +1450,118 @@ def test_validate_invocation_plan_accepts_missing_context_clarification() -> Non
     ) == []
 
 
+def test_validate_invocation_plan_accepts_vague_missing_entity_clarification() -> None:
+    metadata = {
+        "gtm.draft_outreach_message": {
+            "description": "Draft outreach for a target account.",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+            "input_specs": [
+                {
+                    "name": "target_ref",
+                    "required": True,
+                    "description": "Lead or account reference.",
+                    "semantic_type": "entity_reference",
+                    "resolution": {"mode": "clarify", "on_missing": "clarify"},
+                }
+            ],
+        }
+    }
+    plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.draft_outreach_message", "parameters": {}, "unsupported": False},
+        "Draft outreach for the account.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        plan,
+        "Draft outreach for the account.",
+        metadata,
+    ) == []
+
+
+def test_validate_invocation_plan_accepts_vague_imperative_missing_entity_clarification() -> None:
+    metadata = {
+        "gtm.suggest_followup_content": {
+            "description": "Suggest follow-up content for a target account.",
+            "business_effects": {"produces": ["content.draft"], "does_not_produce": ["external_dispatch"]},
+            "input_specs": [
+                {
+                    "name": "target_ref",
+                    "required": True,
+                    "description": "Lead or account reference.",
+                    "semantic_type": "entity_reference",
+                    "resolution": {"mode": "clarify", "on_missing": "clarify"},
+                }
+            ],
+        }
+    }
+    conversation = "Suggest follow-up content for that account."
+    plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.suggest_followup_content", "parameters": {}, "unsupported": False},
+        conversation,
+        metadata,
+    )
+
+    assert concrete_reference_value_from_text(conversation) is None
+    assert validate_invocation_plan_for_fallback(plan, conversation, metadata) == []
+
+
+def test_concrete_reference_value_trims_leading_request_verbs() -> None:
+    assert concrete_reference_value_from_text("Use Codehow.") == "Codehow"
+    assert concrete_reference_value_from_text("Draft Acme Corporation with a follow-up objective.") == "Acme Corporation"
+    assert concrete_reference_value_from_text("Suggest follow-up content for that account.") is None
+
+
+def test_validate_invocation_plan_accepts_vague_missing_time_and_cohort_clarification() -> None:
+    metadata = {
+        "gtm.account_risk_summary": {
+            "description": "Summarize account risk for a quarter.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [
+                {
+                    "name": "quarter",
+                    "required": True,
+                    "description": "Quarter label like 2017-Q2.",
+                    "semantic_type": "time_scope",
+                    "resolution": {"mode": "clarify", "on_missing": "clarify"},
+                }
+            ],
+        },
+        "gtm.score_leads": {
+            "description": "Score a bounded lead cohort.",
+            "business_effects": {"produces": ["content.summary"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [
+                {
+                    "name": "cohort_ref",
+                    "required": True,
+                    "description": "Lead cohort reference.",
+                    "semantic_type": "cohort_reference",
+                    "allowed_values": ["inbound_last_week", "webinar_q2"],
+                    "resolution": {"mode": "closed_values", "on_missing": "clarify"},
+                }
+            ],
+        },
+    }
+
+    risk_plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.account_risk_summary", "parameters": {}, "unsupported": False},
+        "Which deals are at risk this quarter, and why?",
+        metadata,
+    )
+    score_plan = normalize_invocation_plan(
+        {"selected_capability": "gtm.score_leads", "parameters": {}, "unsupported": False},
+        "Score these leads.",
+        metadata,
+    )
+
+    assert validate_invocation_plan_for_fallback(
+        risk_plan,
+        "Which deals are at risk this quarter, and why?",
+        metadata,
+    ) == []
+    assert validate_invocation_plan_for_fallback(score_plan, "Score these leads.", metadata) == []
+
+
 def test_validate_invocation_plan_fallbacks_when_provided_context_was_not_bound() -> None:
     metadata = {
         "workflow.approval_case_status": {
@@ -1505,6 +1664,38 @@ def test_normalize_invocation_plan_clears_model_only_unsupported_when_declared_e
         metadata,
     )
 
+    assert plan["unsupported"] is False
+    assert plan["unsupported_reason"] is None
+
+
+def test_normalize_invocation_plan_clears_model_only_unsupported_when_required_inputs_are_bound() -> None:
+    metadata = {
+        "gtm.score_leads": {
+            "description": "Score a bounded lead cohort with explainable rationale.",
+            "business_effects": {"produces": ["content.summary", "content.recommendation"], "does_not_produce": ["raw_data_export"]},
+            "input_specs": [
+                {
+                    "name": "cohort_ref",
+                    "required": True,
+                    "allowed_values": ["inbound_last_week", "webinar_q2"],
+                    "semantic_type": "cohort_reference",
+                }
+            ],
+        }
+    }
+
+    plan = normalize_invocation_plan(
+        {
+            "selected_capability": "gtm.score_leads",
+            "parameters": {"cohort_ref": "inbound_last_week"},
+            "unsupported": True,
+            "unsupported_reason": "Missing required cohort_ref value (webinar_q2) for this capability.",
+        },
+        "Give me explainable priority bands for inbound_last_week.",
+        metadata,
+    )
+
+    assert plan["parameters"] == {"cohort_ref": "inbound_last_week"}
     assert plan["unsupported"] is False
     assert plan["unsupported_reason"] is None
 

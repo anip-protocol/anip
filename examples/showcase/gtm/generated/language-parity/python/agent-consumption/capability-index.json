@@ -6,21 +6,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -85,10 +71,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -149,21 +131,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -268,10 +236,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -359,21 +323,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -474,10 +424,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -567,29 +513,7 @@
           "unsupported_effects": [
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -710,10 +634,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -815,29 +735,7 @@
           "unsupported_effects": [
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -958,10 +856,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -1065,37 +959,7 @@
             "system.mutation",
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "external_dispatch": [
-              "send it now",
-              "send now",
-              "send the draft immediately",
-              "emergency override",
-              "do not mention approval",
-              "dispatch the message"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -1270,10 +1134,6 @@
             "result"
           ],
           "style": "Show generated draft content first, then rationale and evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -1418,34 +1278,7 @@
             "external_dispatch",
             "system.mutation",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "external_dispatch": [
-              "send it now",
-              "send now",
-              "send the draft immediately",
-              "emergency override",
-              "do not mention approval",
-              "dispatch the message"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ],
-            "system.mutation": [
-              "update crm",
-              "change owner now",
-              "execute the reassignment"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -1581,10 +1414,6 @@
             "result"
           ],
           "style": "Show generated draft content first, then rationale and evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -1684,21 +1513,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -1763,10 +1578,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -1829,34 +1640,7 @@
             "external_dispatch",
             "system.mutation",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "external_dispatch": [
-              "send it now",
-              "send now",
-              "send the draft immediately",
-              "emergency override",
-              "do not mention approval",
-              "dispatch the message"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ],
-            "system.mutation": [
-              "update crm",
-              "change owner now",
-              "execute the reassignment"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -1961,10 +1745,6 @@
             "result"
           ],
           "style": "Show generated draft content first, then rationale and evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -2046,21 +1826,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -2171,10 +1937,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -2264,21 +2026,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -2368,10 +2116,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -2447,29 +2191,7 @@
           "unsupported_effects": [
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -2585,10 +2307,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -2690,29 +2408,7 @@
           "unsupported_effects": [
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -2829,10 +2525,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -2934,21 +2626,7 @@
           "unsupported_effects": [
             "raw_model_features",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -3067,10 +2745,6 @@
             "result"
           ],
           "style": "Show recommendations or variants with concise rationale."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -3169,42 +2843,7 @@
             "system.mutation",
             "approval.execute",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "external_dispatch": [
-              "send it now",
-              "send now",
-              "send the draft immediately",
-              "emergency override",
-              "do not mention approval",
-              "dispatch the message"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ],
-            "system.mutation": [
-              "update crm",
-              "change owner now",
-              "execute the reassignment"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -3403,10 +3042,6 @@
             "result"
           ],
           "style": "Show generated draft content first, then rationale and evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -3558,29 +3193,7 @@
             "approval.execute",
             "raw_model_features",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -3714,10 +3327,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -3824,21 +3433,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -3935,10 +3530,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -4031,29 +3622,7 @@
             "approval.execute",
             "raw_model_features",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "approval.execute": [
-              "bypass approval",
-              "ignore approval",
-              "without approval",
-              "execute without approval",
-              "approve this routing plan yourself",
-              "return it as approved"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "approval": {
           "approval_effect": "approval.request",
@@ -4171,10 +3740,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -4267,21 +3832,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -4387,10 +3938,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -4480,21 +4027,7 @@
           "unsupported_effects": [
             "raw_model_features",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -4592,10 +4125,6 @@
             "result"
           ],
           "style": "Show recommendations or variants with concise rationale."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -4675,21 +4204,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -4800,10 +4315,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -4893,21 +4404,7 @@
         "app_boundaries": {
           "unsupported_effects": [
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -5001,10 +4498,6 @@
             "result"
           ],
           "style": "Show the bounded summary and key supporting evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {
@@ -5093,34 +4586,7 @@
             "external_dispatch",
             "system.mutation",
             "raw_data_export"
-          ],
-          "unsupported_terms": {
-            "external_dispatch": [
-              "send it now",
-              "send now",
-              "send the draft immediately",
-              "emergency override",
-              "do not mention approval",
-              "dispatch the message"
-            ],
-            "raw_data_export": [
-              "raw opportunity rows",
-              "internal CRM IDs",
-              "raw row-level records",
-              "masked financial detail",
-              "even if my role normally gets masked values",
-              "bypass masked values",
-              "override masked values",
-              "ignore masked values",
-              "unmasked financial values",
-              "unmasked revenue values"
-            ],
-            "system.mutation": [
-              "update crm",
-              "change owner now",
-              "execute the reassignment"
-            ]
-          }
+          ]
         },
         "business_effects": {
           "does_not_produce": [
@@ -5204,10 +4670,6 @@
             "result"
           ],
           "style": "Show generated draft content first, then rationale and evidence."
-        },
-        "review": {
-          "reviewed_at": "2026-06-15T00:00:00Z",
-          "source": "manual_review"
         }
       },
       "business_effects": {

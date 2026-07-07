@@ -132,6 +132,7 @@ APPROVAL_INTENT_TERMS = {
 }
 
 NEGATION_TERMS = {"avoid", "do", "dont", "do not", "exclude", "no", "not", "without"}
+ED_INFLECTION_STOP_TOKENS = {"selected"}
 
 def semantic_text_key(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
@@ -218,6 +219,11 @@ def _apply_basic_inflection_variants(tokens: set[str]) -> set[str]:
             continue
         if token.endswith("ies") and len(token) > 4:
             variants.add(f"{token[:-3]}y")
+        if token.endswith("ied") and len(token) > 4:
+            variants.add(f"{token[:-3]}y")
+        if token.endswith("ed") and len(token) > 4 and token not in ED_INFLECTION_STOP_TOKENS:
+            variants.add(token[:-1])
+            variants.add(token[:-2])
         if token.endswith("es") and len(token) > 4:
             variants.add(token[:-2])
         if token.endswith("s") and len(token) > 4:
@@ -808,22 +814,39 @@ def concrete_reference_value_from_text(text: str) -> str | None:
         "And",
         "CRM",
         "CSV",
+        "Draft",
         "East",
         "Find",
         "For",
         "GTM",
+        "Give",
+        "How",
         "North",
         "Q1",
         "Q2",
         "Q3",
         "Q4",
+        "Prepare",
+        "Prioritize",
+        "Rank",
         "Route",
+        "Score",
         "Show",
         "South",
+        "Suggest",
+        "Summarize",
+        "Use",
+        "What",
+        "When",
+        "Where",
+        "Which",
+        "Who",
+        "Why",
         "West",
     }
     for match in re.finditer(r"\b[A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,3}\b", str(text or "")):
         candidate = match.group(0).strip()
+        candidate = _trim_leading_reference_stop_terms(candidate, stop_terms)
         if not candidate or candidate in stop_terms:
             continue
         if re.fullmatch(r"Q[1-4]|FY\d{2,4}|\d{4}", candidate):
@@ -831,6 +854,13 @@ def concrete_reference_value_from_text(text: str) -> str | None:
         if looks_like_concrete_reference_value(candidate):
             return candidate
     return None
+
+
+def _trim_leading_reference_stop_terms(candidate: str, stop_terms: set[str]) -> str:
+    parts = str(candidate or "").split()
+    while parts and parts[0] in stop_terms:
+        parts = parts[1:]
+    return " ".join(parts)
 
 
 def capability_produces(capability_metadata: dict[str, Any]) -> set[str]:
@@ -1343,8 +1373,9 @@ def requested_unsupported_effects(conversation: str, capability_metadata: dict[s
     ordered_tokens = ordered_text_tokens(conversation)
     blocked = capability_does_not_produce(capability_metadata)
     produced = capability_produces(capability_metadata)
+    approval_boundary_declared = bool(produced & {"approval.request", "system.preview_mutation"})
     requested: set[str] = set()
-    if "approval.execute" in blocked and requests_approval_bypass(conversation):
+    if "approval.execute" not in produced and requests_approval_bypass(conversation):
         requested.add("approval.execute")
     unsupported_terms = app_boundaries_for(capability_metadata).get("unsupported_terms")
     if isinstance(unsupported_terms, dict):
@@ -1366,7 +1397,13 @@ def requested_unsupported_effects(conversation: str, capability_metadata: dict[s
         if (
             effect in blocked
             or (effect == "raw_data_export" and "raw_data_export" not in produced)
-            or (effect == "external_dispatch" and "content.draft" in produced)
+            or (
+                effect == "external_dispatch"
+                and "external_dispatch" not in produced
+                and requests_external_dispatch(conversation)
+                and not ("approval.execute" in requested and approval_boundary_declared)
+            )
+            or (effect not in {"external_dispatch", "raw_data_export"} and effect not in produced)
         ):
             requested.add(effect)
     for rule in matching_rules:
@@ -1387,17 +1424,25 @@ def requests_approval_bypass(conversation: str) -> bool:
     )
 
 
+def requests_external_dispatch(conversation: str) -> bool:
+    lowered = str(conversation or "").lower()
+    return bool(
+        re.search(r"\b(?:send|dispatch|deliver|ship|publish)\b.+\bto\s+(?!me\b|my\b|us\b|our\b)[a-z0-9][a-z0-9_-]*", lowered)
+        or re.search(r"\b(?:publish|ship|dispatch|deliver)\b", lowered)
+    )
+
+
 def requested_primary_content_effect(conversation: str) -> str | None:
     tokens = text_tokens(conversation)
     ordered_tokens = ordered_text_tokens(conversation)
     if any(
         token in tokens and not _term_is_negated(ordered_tokens, token)
-        for token in {"recommend", "recommendation", "recommendations", "variant", "variants", "option", "options"}
+        for token in {"recommend", "recommendation", "recommendations"}
     ):
         return "content.recommendation"
     if any(
         token in tokens and not _term_is_negated(ordered_tokens, token)
-        for token in {"draft", "email", "outreach", "message"}
+        for token in {"draft", "email", "outreach", "message", "variant", "variants", "option", "options"}
     ):
         return "content.draft"
     if any(token in tokens and not _term_is_negated(ordered_tokens, token) for token in {"summarize", "summary"}):
@@ -1625,7 +1670,12 @@ def validate_invocation_plan_for_fallback(
         return reasons
 
     missing = missing_required_input_names(conversation, capability_metadata, parameters)
-    if missing and _missing_required_inputs_are_referenced(conversation, capability_metadata, missing):
+    if missing and _missing_required_inputs_are_referenced(
+        conversation,
+        capability_metadata,
+        missing,
+        require_concrete_reference=True,
+    ):
         reasons.append("missing required input(s) appear present but unbound: " + ", ".join(sorted(missing)))
 
     requested_effect = requested_primary_content_effect(conversation)
@@ -1645,6 +1695,8 @@ def _missing_required_inputs_are_referenced(
     conversation: str,
     capability_metadata: dict[str, Any],
     missing_inputs: set[str],
+    *,
+    require_concrete_reference: bool = False,
 ) -> bool:
     if not missing_inputs:
         return False
@@ -1670,7 +1722,43 @@ def _missing_required_inputs_are_referenced(
         input_tokens = text_tokens(input_text) - weak_tokens
         if not input_tokens or not (conversation_tokens & input_tokens):
             return False
+        if require_concrete_reference and not _missing_input_has_concrete_evidence(
+            conversation,
+            input_spec,
+            capability_metadata,
+        ):
+            return False
     return True
+
+
+def _missing_input_has_concrete_evidence(
+    conversation: str,
+    input_spec: dict[str, Any],
+    capability_metadata: dict[str, Any],
+) -> bool:
+    input_name = str(input_spec.get("name") or "").lower()
+    semantic_type = str(input_spec.get("semantic_type") or "").lower()
+    raw_type = str(input_spec.get("type") or "").lower()
+    conversation_text = str(conversation or "")
+    if "id" in input_name or semantic_type.endswith("_id"):
+        return bool(re.search(r"\b[A-Z][A-Z0-9]+-[A-Z0-9]+\b|\b[A-Za-z]+-\d+\b", conversation_text))
+    if semantic_type == "time_scope" or any(token in input_name for token in ("quarter", "period", "date")):
+        return bool(
+            re.search(r"\b(?:19|20)\d{2}-Q[1-4]\b", conversation_text, re.IGNORECASE)
+            or re.search(r"\bQ[1-4]\s+(?:FY)?(?:19|20)?\d{2,4}\b", conversation_text, re.IGNORECASE)
+        )
+    if raw_type in {"integer", "number", "float"} or any(token in input_name for token in ("limit", "count")):
+        return bool(re.search(r"\b\d+\b", conversation_text))
+    allowed_values = input_spec.get("allowed_values")
+    if isinstance(allowed_values, list) and allowed_values:
+        customization = runtime_customization_for(capability_metadata)
+        for value in allowed_values:
+            if conversation_supports_canonical_value(conversation_text, str(value), {str(value): value}, customization):
+                return True
+        return False
+    if requires_declared_grounding(input_spec, capability_metadata):
+        return concrete_reference_value_from_text(conversation_text) is not None
+    return False
 
 
 def _same_effect_class(first: dict[str, Any], second: dict[str, Any]) -> bool:
@@ -2056,6 +2144,9 @@ def normalize_invocation_plan(
         metadata[capability],
         requested_effects=unsupported_effects,
     ):
+        normalized_plan["unsupported"] = False
+        normalized_plan["unsupported_reason"] = None
+    elif normalized_plan.get("unsupported") is True and not unsupported_effects and not missing_required:
         normalized_plan["unsupported"] = False
         normalized_plan["unsupported_reason"] = None
     elif (

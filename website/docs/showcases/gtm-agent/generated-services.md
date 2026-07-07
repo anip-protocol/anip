@@ -8,7 +8,7 @@ description: How the GTM package and custom bundles generate five native service
 The GTM services are generated from one package:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json
 ```
 
 The package defines the signed ANIP behavior contract. The custom-code bundles fill implementation seams for each language.
@@ -56,14 +56,14 @@ Bundles must not implement:
 
 ## Generate Locally
 
-Run generation from `packages/go`. These commands generate from the same `gtm-pipeline-q2-review@0.4.4` package and attach the reviewed language-specific custom bundle.
+Run generation from `packages/go`. These commands generate from the same `gtm-pipeline-q2-review@0.4.5` package and attach the reviewed language-specific custom bundle.
 
 ### Python
 
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target python \
   --transport http \
   --dependency-source registry \
@@ -77,7 +77,7 @@ go run ./cmd/anip generate \
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target typescript \
   --transport http \
   --dependency-source registry \
@@ -91,7 +91,7 @@ go run ./cmd/anip generate \
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target go \
   --transport http \
   --dependency-source registry \
@@ -105,7 +105,7 @@ go run ./cmd/anip generate \
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target java \
   --transport http \
   --dependency-source registry \
@@ -119,7 +119,7 @@ go run ./cmd/anip generate \
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target csharp \
   --transport http \
   --dependency-source registry \
@@ -141,7 +141,7 @@ Then pass it as `--verify-custom-code-bundle-digest`. Example for Go:
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target go \
   --transport http \
   --dependency-source registry \
@@ -158,7 +158,7 @@ The shorter form is useful for quick experiments:
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
   --target go \
   --transport http \
   --dependency-source registry \
@@ -174,15 +174,15 @@ For release work, include bundle digest verification.
 The generated services are packaged as:
 
 ```text
-anipprotocol/showcase-gtm-python:0.4.4
-anipprotocol/showcase-gtm-typescript:0.4.4
-anipprotocol/showcase-gtm-go:0.4.4
-anipprotocol/showcase-gtm-java:0.4.4
-anipprotocol/showcase-gtm-csharp:0.4.4
+anipprotocol/showcase-gtm-python:0.4.5
+anipprotocol/showcase-gtm-typescript:0.4.5
+anipprotocol/showcase-gtm-go:0.4.5
+anipprotocol/showcase-gtm-java:0.4.5
+anipprotocol/showcase-gtm-csharp:0.4.5
 ```
 
 The shared agent UI image is:
 
 ```text
-anipprotocol/showcase-gtm-agent-ui:0.4.4
+anipprotocol/showcase-gtm-agent-ui:0.4.5
 ```
