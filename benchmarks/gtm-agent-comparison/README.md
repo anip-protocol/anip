@@ -311,6 +311,19 @@ MCP-style mixed nano-to-mini comparison:
 - MCP-style mixed did not fix hard-mode reliability. It passed `19/24` on hard-mode with `7` fallbacks, compared with MCP-style mini-only at `20/24` and MCP-style standard at `19/24`.
 - The apples-to-apples conclusion is that mixed-model routing is possible in both approaches, but the economics differ. ANIP mixed used fewer tokens, fewer loops, lower latency, fewer fallbacks, and lower estimated cost because the smaller model consumed a compact governed capability contract instead of carrying policy and recovery behavior in consumer-side skills/recipes.
 
+Fresh MCP-style baseline comparison against the runtime-native ANIP mixed run:
+
+- MCP-style `gpt-5.4-mini` full GTM benchmark artifact: `/tmp/anip-benchmark/mcp-skill-mini-full-540/mcp-skill-mini-20260706T231834Z.json`.
+- MCP-style `gpt-5.4-mini` full GTM result: `538/540`, `2` failures, `1,669,780` total tokens, `1,785` loops, average latency `3249.70ms`.
+- MCP-style `gpt-5.4-mini` hard-mode artifact: `/tmp/anip-benchmark/mcp-skill-mini-hard/mcp-skill-mini-20260706T234816Z.json`.
+- MCP-style `gpt-5.4-mini` hard-mode result: `19/24`, `5` failures, `74,734` total tokens, `84` loops, average latency `2984.54ms`.
+- MCP-style `gpt-5.4-nano` hard-mode artifact: `/tmp/anip-benchmark/mcp-skill-nano-hard/mcp-skill-nano-20260706T235451Z.json`.
+- MCP-style `gpt-5.4-nano` hard-mode result: `18/24`, `6` failures, `80,302` total tokens, `84` loops, average latency `4968.94ms`.
+- MCP-style `gpt-5.4-nano` full GTM artifact: `/tmp/anip-benchmark/mcp-skill-nano-full-540/mcp-skill-nano-20260706T235711Z.json`.
+- MCP-style `gpt-5.4-nano` full GTM result: `515/540`, `25` failures, `1,780,090` total tokens, `1,785` loops, average latency `5067.70ms`.
+- Direct comparison: runtime-native ANIP mixed passed `540/540` and `24/24` with `1,461,506` full-suite tokens, `71,741` hard-mode tokens, `1,188` full-suite loops, and `56` hard-mode loops.
+- Interpretation: the MCP-style baseline is not raw or intentionally weak. It includes client-side skills, recipes, and guardrails. The remaining failures are the measured repair burden of putting execution policy on the consumer side rather than in a service-owned governed capability contract.
+
 ## Environment Variables
 
 Use `OPENAI_API_KEY` and `OPENAI_MODEL` as the canonical benchmark variables.
