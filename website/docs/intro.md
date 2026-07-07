@@ -107,6 +107,8 @@ The showcase agents intentionally use `gpt-5.4-mini` where an LLM is used to con
 
 This is one of the practical advantages of ANIP: teams can use stronger models where they are designing governed contracts, then let smaller agents consume those contracts through bounded, verifiable service-owned capabilities.
 
+For the runtime pattern, including `nano -> mini` fallback based on deterministic contract validation, see [Mixed Model Execution](/docs/concepts/mixed-model-execution).
+
 ## The protocol surface
 
 An ANIP service exposes standard protocol operations:
