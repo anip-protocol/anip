@@ -6,6 +6,7 @@ import {
   missingRequiredInputNames,
   requestedUnsupportedEffects,
   selectConsumableCapability,
+  validateInvocationPlanForFallback,
 } from "../src/index.js";
 
 interface FixtureCase {
@@ -45,6 +46,34 @@ describe("shared agent-consumption fixtures", () => {
           item.metadata[item.selected_capability],
         ).sort(),
       ).toEqual([...item.expected_unsupported_effects].sort());
+    });
+  }
+});
+
+interface FallbackFixtureCase {
+  id: string;
+  conversation: string;
+  plan: Record<string, unknown>;
+  compact_candidate_ids?: string[];
+  expected_reasons: string[];
+  metadata: Record<string, unknown>;
+}
+
+const fallbackFixture = JSON.parse(
+  readFileSync(
+    resolve(__dirname, "../../../agent-consumption-fixtures/planner-fallback-validation.json"),
+    "utf8",
+  ),
+) as { cases: FallbackFixtureCase[] };
+
+describe("shared planner fallback validation fixtures", () => {
+  for (const item of fallbackFixture.cases) {
+    test(item.id, () => {
+      expect(
+        validateInvocationPlanForFallback(item.plan, item.conversation, item.metadata, {
+          compactCandidateIds: item.compact_candidate_ids,
+        }),
+      ).toEqual(item.expected_reasons);
     });
   }
 });

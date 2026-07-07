@@ -17,6 +17,10 @@ import java.util.regex.Pattern;
 public final class AgentConsumption {
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[a-z0-9]+");
     private static final Pattern SEMANTIC_TEXT_PATTERN = Pattern.compile("[^a-z0-9]+");
+    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("\\b[A-Z][A-Z0-9]+-[A-Z0-9]+\\b|\\b[A-Za-z]+-\\d+\\b");
+    private static final Pattern QUARTER_PATTERN = Pattern.compile("\\b(?:19|20)\\d{2}-Q[1-4]\\b|\\bQ[1-4]\\s+(?:FY)?(?:19|20)?\\d{2,4}\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("\\b\\d+\\b");
+    private static final Pattern CONCRETE_ENTITY_PATTERN = Pattern.compile("[A-Z][A-Za-z0-9]+(?:\\s+[A-Z][A-Za-z0-9]+){1,3}|[_-]|\\d");
 
     private static final Map<String, Set<String>> EFFECT_TERMS = Map.of(
             "approval.execute", Set.of("approve", "apply", "commit", "execute", "perform"),
@@ -30,6 +34,12 @@ public final class AgentConsumption {
             "id", "ids", "input", "name", "names", "ref", "reference", "value", "values");
 
     private AgentConsumption() {
+    }
+
+    public record FallbackValidationOptions(List<String> compactCandidateIds) {
+        public FallbackValidationOptions {
+            compactCandidateIds = compactCandidateIds == null ? List.of() : List.copyOf(compactCandidateIds);
+        }
     }
 
     public static String semanticTextKey(Object value) {
@@ -192,6 +202,80 @@ public final class AgentConsumption {
         return selectedCapability;
     }
 
+    public static String requestedPrimaryContentEffect(String conversation) {
+        Set<String> tokens = textTokens(conversation);
+        List<String> orderedTokens = orderedTextTokens(conversation);
+        if (hasUnnegatedToken(tokens, orderedTokens, List.of("recommend", "recommendation", "recommendations"))) {
+            return "content.recommendation";
+        }
+        if (hasUnnegatedToken(tokens, orderedTokens, List.of("draft", "email", "outreach", "message", "variant", "variants", "option", "options"))) {
+            return "content.draft";
+        }
+        if (hasUnnegatedToken(tokens, orderedTokens, List.of("summarize", "summary"))) {
+            return "content.summary";
+        }
+        return "";
+    }
+
+    public static boolean isApprovalCapability(Map<String, Object> metadata) {
+        Map<String, Object> safeMetadata = mapValue(metadata);
+        Set<String> produced = capabilityProduces(safeMetadata);
+        if (produced.contains("approval.request") || produced.contains("system.preview_mutation")) {
+            return true;
+        }
+        return Boolean.TRUE.equals(mapValue(safeMetadata.get("approval")).get("required"));
+    }
+
+    public static List<String> validateInvocationPlanForFallback(
+            Map<String, Object> plan,
+            String conversation,
+            Map<String, Map<String, Object>> metadata,
+            FallbackValidationOptions options) {
+        List<String> reasons = new ArrayList<>();
+        Map<String, Object> safePlan = mapValue(plan);
+        String capability = stringValue(safePlan.get("selected_capability")).trim();
+        if (capability.isEmpty()) {
+            return List.of("selected capability is missing");
+        }
+        Map<String, Object> capabilityMetadata = metadata == null ? Map.of() : metadata.get(capability);
+        if (capabilityMetadata == null || capabilityMetadata.isEmpty()) {
+            return List.of("selected capability is not discovered: " + capability);
+        }
+        FallbackValidationOptions safeOptions = options == null ? new FallbackValidationOptions(List.of()) : options;
+        if (!safeOptions.compactCandidateIds().isEmpty() && !safeOptions.compactCandidateIds().contains(capability)) {
+            reasons.add("selected capability is outside compact candidate set: " + capability);
+        }
+
+        Map<String, Object> parameters = mapValue(safePlan.get("parameters"));
+        if (!(safePlan.get("parameters") instanceof Map<?, ?>)) {
+            reasons.add("parameters payload is not an object");
+            parameters = Map.of();
+        }
+
+        if (!requestedUnsupportedEffects(conversation, capabilityMetadata).isEmpty()) {
+            return reasons;
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String inputName : missingRequiredInputNames(conversation, capabilityMetadata)) {
+            if (!parameters.containsKey(inputName)) {
+                missing.add(inputName);
+            }
+        }
+        if (missingRequiredInputsAreConcretelyReferenced(conversation, capabilityMetadata, missing)) {
+            Collections.sort(missing);
+            reasons.add("missing required input(s) appear present but unbound: " + String.join(", ", missing));
+        }
+
+        String requestedEffect = requestedPrimaryContentEffect(conversation);
+        Set<String> produced = capabilityProduces(capabilityMetadata);
+        if (!requestedEffect.isEmpty() && !produced.contains(requestedEffect) && !isApprovalCapability(capabilityMetadata)) {
+            reasons.add("selected capability does not produce requested primary effect: " + requestedEffect);
+        }
+
+        return reasons;
+    }
+
     private static List<String> orderedTextTokens(Object value) {
         String normalized = stringValue(value).toLowerCase(Locale.ROOT).replace('_', ' ');
         Matcher matcher = TOKEN_PATTERN.matcher(normalized);
@@ -324,6 +408,19 @@ public final class AgentConsumption {
         return false;
     }
 
+    private static boolean conversationContainsValue(String conversation, String value) {
+        String valueKey = semanticTextKey(value);
+        if (valueKey.isEmpty()) {
+            return false;
+        }
+        if (semanticTextKey(conversation).contains(valueKey)) {
+            return true;
+        }
+        Set<String> conversationTokens = textTokens(conversation);
+        Set<String> valueTokens = textTokens(value);
+        return !valueTokens.isEmpty() && conversationTokens.containsAll(valueTokens);
+    }
+
     private static Set<String> capabilityProduces(Map<String, Object> metadata) {
         return new HashSet<>(stringList(mapValue(metadata.get("business_effects")).get("produces")));
     }
@@ -400,10 +497,82 @@ public final class AgentConsumption {
         return true;
     }
 
+    private static boolean missingRequiredInputsAreConcretelyReferenced(
+            String conversation,
+            Map<String, Object> metadata,
+            List<String> missingInputs) {
+        if (missingInputs.isEmpty()) {
+            return false;
+        }
+        Map<String, Map<String, Object>> specs = new HashMap<>();
+        for (Object rawSpec : listValue(metadata.get("input_specs"))) {
+            Map<String, Object> spec = mapValue(rawSpec);
+            String name = stringValue(spec.get("name"));
+            if (!name.isEmpty()) {
+                specs.put(name, spec);
+            }
+        }
+        Set<String> conversationTokens = textTokens(conversation);
+        for (String inputName : missingInputs) {
+            Map<String, Object> spec = specs.get(inputName);
+            Set<String> tokens = inputReferenceTokens(metadata, inputName);
+            if (spec == null || tokens.isEmpty() || Collections.disjoint(tokens, conversationTokens)
+                    || !missingInputHasConcreteEvidence(conversation, spec, metadata)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean missingInputHasConcreteEvidence(
+            String conversation,
+            Map<String, Object> spec,
+            Map<String, Object> metadata) {
+        String inputName = stringValue(spec.get("name")).toLowerCase(Locale.ROOT);
+        String semanticType = stringValue(spec.get("semantic_type")).toLowerCase(Locale.ROOT);
+        String rawType = stringValue(spec.get("type")).toLowerCase(Locale.ROOT);
+        if (inputName.contains("id") || semanticType.endsWith("_id")) {
+            return IDENTIFIER_PATTERN.matcher(conversation).find();
+        }
+        if ("time_scope".equals(semanticType)
+                || inputName.contains("quarter")
+                || inputName.contains("period")
+                || inputName.contains("date")) {
+            return QUARTER_PATTERN.matcher(conversation).find();
+        }
+        if ("integer".equals(rawType)
+                || "number".equals(rawType)
+                || "float".equals(rawType)
+                || inputName.contains("limit")
+                || inputName.contains("count")) {
+            return NUMBER_PATTERN.matcher(conversation).find();
+        }
+        List<String> allowedValues = stringList(spec.get("allowed_values"));
+        if (!allowedValues.isEmpty()) {
+            for (String value : allowedValues) {
+                if (conversationContainsValue(conversation, value)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return !inputReferenceTokens(metadata, stringValue(spec.get("name"))).isEmpty()
+                && CONCRETE_ENTITY_PATTERN.matcher(conversation).find();
+    }
+
     private static boolean sameEffectClass(Map<String, Object> first, Map<String, Object> second) {
         Set<String> firstProduces = capabilityProduces(first);
         Set<String> secondProduces = capabilityProduces(second);
         return !Collections.disjoint(firstProduces, secondProduces);
+    }
+
+    private static boolean hasUnnegatedToken(Set<String> tokens, List<String> orderedTokens, List<String> terms) {
+        for (String term : terms) {
+            if (tokens.contains(term) && !termIsNegated(orderedTokens, term)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int overlap(Set<String> first, Set<String> second) {

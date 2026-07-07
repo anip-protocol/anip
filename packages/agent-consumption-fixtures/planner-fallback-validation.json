@@ -1,0 +1,227 @@
+{
+  "schema_version": "anip-agent-consumption-fallback-fixtures/v1",
+  "cases": [
+    {
+      "id": "missing_selected_capability_falls_back",
+      "conversation": "Summarize the account.",
+      "plan": {
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": ["selected capability is missing"],
+      "metadata": {}
+    },
+    {
+      "id": "undiscovered_selected_capability_falls_back",
+      "conversation": "Summarize the account.",
+      "plan": {
+        "selected_capability": "records.unknown_summary",
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": ["selected capability is not discovered: records.unknown_summary"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": []
+        }
+      }
+    },
+    {
+      "id": "selected_capability_outside_compact_candidates_falls_back",
+      "conversation": "Summarize the account.",
+      "plan": {
+        "selected_capability": "records.account_summary",
+        "parameters": {}
+      },
+      "compact_candidate_ids": ["records.pipeline_summary"],
+      "expected_reasons": ["selected capability is outside compact candidate set: records.account_summary"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": []
+        },
+        "records.pipeline_summary": {
+          "capability_id": "records.pipeline_summary",
+          "description": "Return a bounded pipeline summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": []
+        }
+      }
+    },
+    {
+      "id": "non_object_parameters_falls_back",
+      "conversation": "Summarize the account.",
+      "plan": {
+        "selected_capability": "records.account_summary",
+        "parameters": "account-123"
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": ["parameters payload is not an object"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": []
+        }
+      }
+    },
+    {
+      "id": "declared_unsupported_effect_is_valid_denial_not_fallback",
+      "conversation": "Draft a notification and send it immediately.",
+      "plan": {
+        "selected_capability": "records.notification_draft",
+        "parameters": {
+          "record_ref": "account-123"
+        }
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": [],
+      "metadata": {
+        "records.notification_draft": {
+          "capability_id": "records.notification_draft",
+          "description": "Draft notification content for one explicit record.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch", "system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "record_ref",
+              "type": "string",
+              "required": true,
+              "semantic_type": "record_reference",
+              "resolution": {"mode": "explicit_only", "on_missing": "clarify"}
+            }
+          ],
+          "app_profile": {
+            "capability_framing": "Draft content only. Sending is outside this capability.",
+            "app_boundaries": {
+              "unsupported_effects": ["external_dispatch", "system.mutation"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "missing_referenced_required_input_falls_back",
+      "conversation": "Show the status for approval case id CASE-123.",
+      "plan": {
+        "selected_capability": "workflow.approval_case_status",
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": ["missing required input(s) appear present but unbound: approval_case_id"],
+      "metadata": {
+        "workflow.approval_case_status": {
+          "capability_id": "workflow.approval_case_status",
+          "description": "Summarize the status of a specific approval case.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["system.mutation"]
+          },
+          "input_specs": [
+            {
+              "name": "approval_case_id",
+              "type": "string",
+              "required": true,
+              "description": "Approval case identifier.",
+              "semantic_type": "case_identifier",
+              "resolution": {"mode": "closed_values", "on_missing": "clarify"}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "missing_vague_required_input_does_not_fallback",
+      "conversation": "Draft a notification for the account.",
+      "plan": {
+        "selected_capability": "records.notification_draft",
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": [],
+      "metadata": {
+        "records.notification_draft": {
+          "capability_id": "records.notification_draft",
+          "description": "Draft notification content for a target account.",
+          "business_effects": {
+            "produces": ["content.draft"],
+            "does_not_produce": ["external_dispatch"]
+          },
+          "input_specs": [
+            {
+              "name": "target_ref",
+              "type": "string",
+              "required": true,
+              "description": "Account reference.",
+              "semantic_type": "entity_reference",
+              "resolution": {"mode": "explicit_only", "on_missing": "clarify"}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "requested_primary_effect_mismatch_falls_back",
+      "conversation": "Draft outreach for the top account.",
+      "plan": {
+        "selected_capability": "records.account_summary",
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": ["selected capability does not produce requested primary effect: content.draft"],
+      "metadata": {
+        "records.account_summary": {
+          "capability_id": "records.account_summary",
+          "description": "Return a bounded account summary.",
+          "business_effects": {
+            "produces": ["content.summary"],
+            "does_not_produce": ["raw_data_export"]
+          },
+          "input_specs": []
+        }
+      }
+    },
+    {
+      "id": "approval_boundary_can_satisfy_write_adjacent_intent",
+      "conversation": "Prepare a reassignment preview for account-123.",
+      "plan": {
+        "selected_capability": "workflow.reassignment_preview",
+        "parameters": {}
+      },
+      "compact_candidate_ids": [],
+      "expected_reasons": [],
+      "metadata": {
+        "workflow.reassignment_preview": {
+          "capability_id": "workflow.reassignment_preview",
+          "description": "Prepare a governed reassignment preview and stop for approval.",
+          "business_effects": {
+            "produces": ["approval.request", "system.preview_mutation"],
+            "does_not_produce": ["approval.execute", "system.mutation"]
+          },
+          "input_specs": [],
+          "approval": {"required": true}
+        }
+      }
+    }
+  ]
+}

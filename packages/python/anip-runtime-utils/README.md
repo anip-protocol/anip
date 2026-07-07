@@ -13,6 +13,7 @@ Current scope:
 - compact agent capability catalog construction from discovery + manifest payloads
 - generic phrase matching
 - generic denied-preflight payload construction
+- planner fallback validation for mixed-model agent runtimes
 
 Non-goals:
 
@@ -28,3 +29,10 @@ runtime while producing a compact routing brief for model prompts. Agent
 runtimes should not blindly send full manifests or package metadata to the LLM
 on every turn; they should send a purpose-built brief and keep the full metadata
 for deterministic normalization, token issuance, invocation, and audit.
+
+`validate_invocation_plan_for_fallback(...)` lets an agent runtime decide
+whether a primary model result should escalate to a stronger model before
+invocation. It only uses contract-derived metadata and checks planner shape,
+capability discovery, compact-candidate membership, concrete-but-unbound inputs,
+requested unsupported effects, and requested content-effect mismatches. Declared
+unsupported-effect requests are valid governed denials, not fallback triggers.

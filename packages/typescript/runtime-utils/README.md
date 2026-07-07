@@ -11,5 +11,11 @@ These helpers assist consuming agents with routing, compact prompt construction,
 - `selectConsumableCapability(conversation, selectedCapability, metadata)` chooses the strongest same-effect capability from available metadata.
 - `missingRequiredInputNames(conversation, capabilityMetadata)` returns required inputs that are not grounded in the conversation.
 - `requestedUnsupportedEffects(conversation, capabilityMetadata)` returns unsupported effects requested by the conversation.
+- `validateInvocationPlanForFallback(plan, conversation, metadata, options)` returns deterministic reasons a primary planner result should escalate to a fallback model.
 
 `detectUnsupportedEffects` is exported as an alias for `requestedUnsupportedEffects`.
+
+Fallback validation is intended for mixed-model agent runtimes, for example
+trying a small routing model first and escalating only when the planner result
+is structurally unsafe or inconsistent with the contract. It does not replace
+service-side ANIP enforcement.
