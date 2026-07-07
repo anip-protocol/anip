@@ -1,11 +1,11 @@
 [project]
 name = "anip-rest"
-version = "0.24.12"
+version = "0.24.13"
 description = "ANIP REST bindings — expose ANIPService capabilities as RESTful API endpoints"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.24.12",
-    "anip-fastapi==0.24.12",
+    "anip-service==0.24.13",
+    "anip-fastapi==0.24.13",
     "fastapi>=0.115.0",
 ]
 authors = [{ name = "ANIP Protocol", email = "team@anip.dev" }]
