@@ -27,6 +27,8 @@ If the service publishes those semantics as a governed interface, the model has 
 
 That changes the model-cost equation.
 
+> **Key takeaway:** when services publish clear execution contracts, smaller models stop wasting intelligence on rediscovering rules the service already knows.
+
 ## The usual pattern is backwards
 
 In many agent systems, the runtime starts with a broad tool surface and then tries to make it safe with more prompt.
@@ -43,6 +45,8 @@ user request
 ```
 
 This can work. A well-engineered MCP-style client, good tool descriptions, careful skills, strong evals, and model-specific prompting can produce useful systems.
+
+By "MCP-style skills/recipes," I mean the common pattern where a model discovers callable tools through a tool protocol, then relies on client-side prompt instructions, reusable skill files, workflow recipes, or application glue to decide how those tools should be used safely.
 
 But the burden is on the consuming side. The client has to reconstruct what the service already knows:
 
@@ -85,9 +89,29 @@ But the service-side contract remains the boundary either way. A better planner 
 
 That distinction matters. Mixed-model execution is a cost and reliability optimization. It is not the trust boundary.
 
+In simplified pseudocode, the runtime loop looks like this:
+
+```python
+plan = nano.plan(user_request, compact_capability_profile)
+fallback_reasons = validate_invocation_plan_for_fallback(
+    plan=plan,
+    conversation=user_request,
+    metadata=anip_agent_consumption_metadata,
+)
+
+if fallback_reasons:
+    plan = mini.plan(user_request, compact_capability_profile, fallback_reasons)
+
+result = anip.invoke(plan.capability_id, plan.parameters)
+```
+
+The helper is not deciding whether the user is authorized. It is deciding whether the small model's proposed invocation is grounded enough to send to the ANIP service. Authorization, approval, denial, side effects, audit, and recovery still happen at the service boundary.
+
 ## The benchmark result
 
 We tested this with the GTM Agent showcase: a revenue-operations agent backed by generated ANIP services, a multi-service capability contract, approval-gated behavior, denial behavior, multi-turn flows, and hard-mode governance cases.
+
+The GTM benchmark suite covers realistic revenue-operations requests across pipeline summaries, forecasts, bottlenecks, account risk, enrichment, prioritization, routing previews, outreach drafts, approval-required follow-up preparation, actor boundaries, clarification flows, denial behavior, and multi-turn continuation.
 
 The current public benchmark surface is:
 
@@ -265,6 +289,24 @@ Stop wasting model intelligence on preventable ambiguity.
 ```
 
 That is the core ANIP argument.
+
+## Try it
+
+If you want to inspect the evidence rather than just read the argument:
+
+- Read the [Mixed Model Execution](/docs/concepts/mixed-model-execution) docs for the runtime pattern and SDK helper names.
+- Read the [Benchmarks](/docs/testing/benchmarks) docs for methodology, limitations, and interpretation.
+- Inspect the [GTM Agent Showcase](/docs/showcases/gtm-agent/overview) to see the package, services, question banks, and hard-mode governance surface.
+- Review the benchmark repository: [anip-protocol/anip-benchmarks](https://github.com/anip-protocol/anip-benchmarks).
+- Install the CLI and generate services from ANIP packages:
+
+```bash
+brew tap anip-protocol/anip
+brew install anip
+anip version
+```
+
+If you want the visual authoring path, use [ANIP Studio](/docs/studio/overview). If you want the runnable showcase path, start with the [GTM Agent local run docs](/docs/showcases/gtm-agent/docker-compose).
 
 ## Read more
 
