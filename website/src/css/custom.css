@@ -32,8 +32,14 @@
 }
 
 .navbar {
-  backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(16, 42, 67, 0.08);
+}
+
+/* Filters create a containing block that traps Docusaurus's fixed mobile drawer. */
+@media (min-width: 997px) {
+  .navbar {
+    backdrop-filter: blur(12px);
+  }
 }
 
 [data-theme='dark'] .navbar {
