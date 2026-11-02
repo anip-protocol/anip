@@ -1,0 +1,88 @@
+name: CI - Generated Projects
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/go/**"
+      - "packages/python/**"
+      - "packages/typescript/**"
+      - "packages/java/**"
+      - "packages/csharp/**"
+      - ".github/workflows/ci-generator.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/go/**"
+      - "packages/python/**"
+      - "packages/typescript/**"
+      - "packages/java/**"
+      - "packages/csharp/**"
+      - ".github/workflows/ci-generator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  executable-conformance:
+    name: "generated projects (${{ matrix.target }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [go, python, typescript, java, csharp]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: packages/go/go.sum
+      - uses: actions/setup-python@v6
+        if: matrix.target == 'python'
+        with:
+          python-version: "3.12"
+      - name: Install local Python SDK and test dependencies
+        if: matrix.target == 'python'
+        run: |
+          python -m pip install pytest pytest-asyncio httpx httpx2 uvicorn \
+            -e packages/python/anip-core \
+            -e packages/python/anip-crypto \
+            -e packages/python/anip-server \
+            -e packages/python/anip-service \
+            -e packages/python/anip-fastapi \
+            -e packages/python/anip-stdio
+      - uses: actions/setup-node@v6
+        if: matrix.target == 'typescript'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/typescript/package-lock.json
+      - name: Build local TypeScript SDK dependencies
+        if: matrix.target == 'typescript'
+        working-directory: packages/typescript
+        run: |
+          npm ci --ignore-scripts
+          npx --no-install tsc -p core/tsconfig.json
+          npx --no-install tsc -p crypto/tsconfig.json
+          npx --no-install tsc -p server/tsconfig.json
+          npx --no-install tsc -p service/tsconfig.json
+          npx --no-install tsc -p hono/tsconfig.json
+          npx --no-install tsc -p stdio/tsconfig.json
+      - uses: actions/setup-java@v5
+        if: matrix.target == 'java'
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-dotnet@v5
+        if: matrix.target == 'csharp'
+        with:
+          dotnet-version: "10.0.x"
+      - name: Execute generated project regression tests
+        working-directory: packages/go
+        env:
+          ANIP_GENERATOR_EXECUTABLE_CONFORMANCE: "1"
+          ANIP_GENERATOR_EXECUTABLE_CONFORMANCE_SKIP: ""
+          TARGET: ${{ matrix.target }}
+        run: go test ./generator -run "^TestGeneratorConformance(Generated|BackendOnly)ProjectsExecute$/${TARGET}$" -count=1 -v -timeout=15m

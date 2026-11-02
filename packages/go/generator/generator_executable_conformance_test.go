@@ -15,11 +15,23 @@ import (
 )
 
 func TestGeneratorConformanceGeneratedProjectsExecute(t *testing.T) {
+	runGeneratorExecutableConformance(t, false)
+}
+
+func TestGeneratorConformanceBackendOnlyProjectsExecute(t *testing.T) {
+	runGeneratorExecutableConformance(t, true)
+}
+
+func runGeneratorExecutableConformance(t *testing.T, backendOnly bool) {
+	t.Helper()
 	if os.Getenv("ANIP_GENERATOR_EXECUTABLE_CONFORMANCE") != "1" {
 		t.Skip("set ANIP_GENERATOR_EXECUTABLE_CONFORMANCE=1 to build and run generated projects for all target toolchains")
 	}
 
 	definition := mustReadGeneratorConformanceDefinition(t, "generator-conformance-definition.json")
+	if backendOnly {
+		definition = backendOnlyConformanceDefinition(t)
+	}
 	repoRoot := mustRepoRoot(t)
 	targets := []struct {
 		name  string
@@ -53,7 +65,7 @@ func TestGeneratorConformanceGeneratedProjectsExecute(t *testing.T) {
 			},
 			run: func(t *testing.T, outputDir string) {
 				env := withBehaviorMatrixActorKeys(os.Environ())
-				runConformanceCommand(t, outputDir, env, "npm", "install", "--ignore-scripts", "--prefer-offline")
+				installConformanceTypeScriptTools(t, outputDir, repoRoot, env)
 				runConformanceCommand(t, outputDir, env, "npm", "test")
 				runGeneratedStdioSmoke(t, "typescript", outputDir, repoRoot)
 			},
@@ -108,8 +120,11 @@ func TestGeneratorConformanceGeneratedProjectsExecute(t *testing.T) {
 			if err := WriteGeneratedProject(project, outputDir, true); err != nil {
 				t.Fatalf("write generated %s project: %v", target.name, err)
 			}
-			writeExecutableBehaviorMatrixTest(t, target.name, outputDir)
+			writeExecutableBehaviorMatrixTest(t, target.name, outputDir, backendOnly)
 			target.run(t, outputDir)
+			if backendOnly {
+				runGeneratedBackendOnlyStdio(t, target.name, outputDir, repoRoot)
+			}
 		})
 	}
 }
@@ -215,7 +230,7 @@ func startGeneratedStdioProcess(t *testing.T, dir string, command generatedStdio
 	t.Helper()
 	if _, err := exec.LookPath(command.name); err != nil {
 		if _, statErr := os.Stat(command.name); statErr != nil {
-			t.Skipf("%s not available: %v", command.name, err)
+			t.Fatalf("required executable %s not available: %v", command.name, err)
 		}
 	}
 	cmd := exec.Command(command.name, command.args...)
@@ -321,7 +336,7 @@ func (client *stdioRPCClient) close() {
 	_ = client.cmd.Wait()
 }
 
-func writeExecutableBehaviorMatrixTest(t *testing.T, targetName string, outputDir string) {
+func writeExecutableBehaviorMatrixTest(t *testing.T, targetName string, outputDir string, backendOnly bool) {
 	t.Helper()
 	var path string
 	var content string
@@ -344,6 +359,9 @@ func writeExecutableBehaviorMatrixTest(t *testing.T, targetName string, outputDi
 	default:
 		t.Fatalf("unsupported executable behavior matrix target %q", targetName)
 	}
+	if backendOnly {
+		content = backendOnlyAdapterTest(t, targetName, content)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("create behavior matrix test directory for %s: %v", targetName, err)
 	}
@@ -355,7 +373,7 @@ func writeExecutableBehaviorMatrixTest(t *testing.T, targetName string, outputDi
 func runConformanceCommand(t *testing.T, dir string, env []string, name string, args ...string) {
 	t.Helper()
 	if _, err := exec.LookPath(name); err != nil {
-		t.Skipf("%s not available: %v", name, err)
+		t.Fatalf("required executable %s not available: %v", name, err)
 	}
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
