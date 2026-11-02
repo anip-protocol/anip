@@ -575,7 +575,7 @@ func buildGeneratedPythonCapabilitiesModule(defaultServiceID string) string {
 		"        child_capability = step.get('capability')",
 		"        if not step_id or not child_capability:",
 		"            raise ANIPError('temporarily_unavailable', 'Generated composition step is missing id or capability.')",
-		"        child_params = dict(params)",
+		"        child_params = {}",
 		"        mapping = input_mapping.get(step_id) or {}",
 		"        mapping_root = {'input': params, 'steps': state['steps']}",
 		"        if isinstance(mapping, dict):",

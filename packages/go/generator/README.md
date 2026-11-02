@@ -196,6 +196,50 @@ go run ./cmd/anip generate \
 
 `anip-generate` remains available as a compatibility binary, but `anip generate` is the primary command shape for package managers such as Homebrew. `anip validate` is the primary validator entrypoint; `anip verify` and `anip-verify` remain compatibility aliases.
 
+## Executable Conformance
+
+Ordinary `go test ./generator` checks generation and validation. The opt-in
+executable suite also compiles and runs generated projects against the local
+Python, TypeScript, Go, Java and C# SDK sources. CI runs one target per job in
+`.github/workflows/ci-generator.yml`.
+
+From `packages/go`, run the matrix or select one target:
+
+```bash
+ANIP_GENERATOR_EXECUTABLE_CONFORMANCE=1 go test ./generator \
+  -run '^TestGeneratorConformance(Generated|BackendOnly)ProjectsExecute$' -count=1 -v -timeout=15m
+ANIP_GENERATOR_EXECUTABLE_CONFORMANCE=1 go test ./generator \
+  -run '^TestGeneratorConformance(Generated|BackendOnly)ProjectsExecute$/go$' -count=1 -v -timeout=15m
+```
+
+Use the toolchain versions and dependency setup in that workflow. Python uses
+the repository's `.venv/bin/python` when present, otherwise `python3`. TypeScript
+requires built local SDK packages. Java and C# compile local SDK sources as part
+of the generated project. Package managers may download dependencies: local SDK
+sources do not imply an offline run.
+
+The backend-only variant removes `change_reason` from public inputs and the
+composition mapping while retaining it as a required backend input. This tests
+the distinction between public contracts and backend adapter requirements without
+changing the protocol or handwritten SDK semantics. Generated Python compositions
+now match the SDK's mapped-only child input behavior: parent values are not
+implicitly copied into every child. Regenerated services that depended on that
+implicit forwarding must declare the intended public child input and an explicit
+composition mapping; backend-only requirements are not public input declarations.
+
+The TypeScript harness installs Vitest, Vite, Rolldown and PostCSS versions from the SDK's
+committed lock without modifying the generated `package.json`. This measures
+generated-code behavior under that test toolchain, not whether the untouched
+floating dependency ranges resolve successfully. Other dependencies can still
+resolve newer versions; this is not a fully reproducible dependency lock.
+
+Confirm that both fixtures passed for all five targets (ten target subtests)
+before claiming full coverage.
+An explicitly requested executable suite fails on missing executables. The local
+`ANIP_GENERATOR_EXECUTABLE_CONFORMANCE_SKIP` option can skip targets; CI clears it.
+The tests use temporary projects and synthetic identities, not a live
+business service or model provider.
+
 Next steps:
 
 - make registry-mode Java and .NET dependency distribution practical outside the monorepo

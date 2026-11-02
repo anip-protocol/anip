@@ -97,6 +97,31 @@ func TestBuildPythonProject(t *testing.T) {
 	}
 }
 
+func TestBuildPythonProjectCompositionUsesOnlyMappedChildInputs(t *testing.T) {
+	project, err := BuildPythonProject(mustReadFixtureDefinition(t), BuildPythonProjectOptions{
+		DependencySource: DependencySourceLocal,
+		Port:             4100,
+	})
+	if err != nil {
+		t.Fatalf("BuildPythonProject: %v", err)
+	}
+
+	capabilities := fileContent(project.Files, "src/work_item_governance_service/capabilities.py")
+	if strings.Contains(capabilities, "child_params = dict(params)") {
+		t.Fatal("composition must not implicitly forward parent inputs to children")
+	}
+	for _, fragment := range []string{
+		"        child_params = {}\n        mapping = input_mapping.get(step_id) or {}",
+		"        mapping_root = {'input': params, 'steps': state['steps']}",
+		"                mapped_value = _resolve_json_path(mapping_root, source_path)\n                if mapped_value is not None:\n                    child_params[target_key] = mapped_value",
+		"        child_output = await _invoke_composition_child(capability_registry, child_capability, ctx, child_params)",
+	} {
+		if !strings.Contains(capabilities, fragment) {
+			t.Fatalf("composition missing mapped-input behavior: %q", fragment)
+		}
+	}
+}
+
 func TestBuildPythonProjectSplitsContractServices(t *testing.T) {
 	definition := mustReadFixtureDefinition(t)
 	secondCapability := definition.CapabilityFormalizations[0]

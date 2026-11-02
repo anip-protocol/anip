@@ -69,6 +69,12 @@ func TestGeneratorConformanceSuite(t *testing.T) {
 }
 
 func TestGeneratorConformancePreservesUnmappedBackendOnlyInput(t *testing.T) {
+	definition := backendOnlyConformanceDefinition(t)
+	buildGeneratorConformanceProjects(t, definition)
+}
+
+func backendOnlyConformanceDefinition(t *testing.T) *AnipServiceDefinition {
+	t.Helper()
 	suite := mustReadGeneratorConformanceSuite(t)
 	definition := mustReadGeneratorConformanceDefinition(t, suite.DefinitionFixture)
 	for i := range definition.CapabilityFormalizations {
@@ -111,7 +117,7 @@ func TestGeneratorConformancePreservesUnmappedBackendOnlyInput(t *testing.T) {
 	if !found {
 		t.Fatal("missing generated child capability")
 	}
-	buildGeneratorConformanceProjects(t, definition)
+	return definition
 }
 
 func mustReadGeneratorConformanceSuite(t *testing.T) generatorConformanceSuite {
