@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -14,6 +16,16 @@ import (
 // This does not test fresh resolution of the generated dependency ranges.
 func installConformanceTypeScriptTools(t *testing.T, outputDir, repoRoot string, env []string) {
 	t.Helper()
+	for _, name := range []string{"node", "npm"} {
+		cmd := exec.Command(name, "--version")
+		cmd.Dir = outputDir
+		cmd.Env = env
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("read %s version: %v\n%s", name, err, output)
+		}
+		t.Logf("conformance runtime toolchain: %s %s (%s)", name, strings.TrimSpace(string(output)), cmd.Path)
+	}
 	lockBytes, err := os.ReadFile(filepath.Join(repoRoot, "packages/typescript/package-lock.json"))
 	if err != nil {
 		t.Fatal(err)

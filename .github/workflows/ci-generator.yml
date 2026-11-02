@@ -58,6 +58,15 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: packages/typescript/package-lock.json
+      - name: Pin qualified npm toolchain
+        if: matrix.target == 'typescript'
+        run: |
+          # npm 10.9.9 crashes in Arborist peer resolution for the generated fixtures.
+          # Keep Node 22; npm 11.20.0 passes the same install without relaxing peers.
+          npm install --global npm@11.20.0 --ignore-scripts --no-audit --no-fund
+          node --version
+          npm --version
+          test "$(npm --version)" = "11.20.0"
       - name: Build local TypeScript SDK dependencies
         if: matrix.target == 'typescript'
         working-directory: packages/typescript
