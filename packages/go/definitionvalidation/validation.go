@@ -283,6 +283,21 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func declaredInputName(input map[string]any) string {
+	if name := stringField(input, "input_name"); name != "" {
+		return name
+	}
+	return stringField(input, "name")
+}
+
+func parentInputRoot(path string) string {
+	root := strings.TrimPrefix(path, "$.input.")
+	if idx := strings.Index(root, "."); idx >= 0 {
+		root = root[:idx]
+	}
+	return root
+}
+
 func isAllowedInputFormat(format string) bool {
 	switch format {
 	case "business_quarter", "date", "date_time", "email", "url", "uuid":
@@ -326,6 +341,17 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 	}
 
 	stepIndexByID := map[string]int{}
+	stepChildInputNames := map[string]map[string]bool{}
+	parentInputNames := map[string]bool{}
+	for _, parentItem := range sliceField(parent, "inputs") {
+		parentInput, ok := parentItem.(map[string]any)
+		if !ok {
+			continue
+		}
+		if name := declaredInputName(parentInput); name != "" {
+			parentInputNames[name] = true
+		}
+	}
 	emptySources := 0
 	for stepIndex, item := range steps {
 		step, ok := item.(map[string]any)
@@ -361,14 +387,16 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 			return fmt.Errorf("capability_formalizations[%d].composition.steps[%d].capability %q must be atomic; capability_formalizations[%d].kind is %q", index, stepIndex, stepCapability, capabilityIndexByID[stepCapability], stringField(child, "kind"))
 		}
 		childInputs := sliceField(child, "inputs")
+		declaredNames := map[string]bool{}
+		stepChildInputNames[stepID] = declaredNames
 		for inputIndex, item := range childInputs {
 			input, ok := item.(map[string]any)
 			if !ok {
 				return fmt.Errorf("capability_formalizations[%d].inputs[%d] must be an object", capabilityIndexByID[stepCapability], inputIndex)
 			}
-			inputName := stringField(input, "input_name")
-			if inputName == "" {
-				inputName = stringField(input, "name")
+			inputName := declaredInputName(input)
+			if inputName != "" {
+				declaredNames[inputName] = true
 			}
 			required, _ := input["required"].(bool)
 			if required {
@@ -409,6 +437,13 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 			refStep, hasRef, err := parsePath(path)
 			if err != nil {
 				return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q].%s contains malformed JSONPath %q", index, stepID, inputName, path)
+			}
+			if !stepChildInputNames[stepID][inputName] {
+				childCapabilityID := stringField(steps[stepPosition].(map[string]any), "capability")
+				return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q].%s is not a declared input of child capability %q", index, stepID, inputName, childCapabilityID)
+			}
+			if !hasRef && !parentInputNames[parentInputRoot(path)] {
+				return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q].%s references undeclared parent input %q", index, stepID, inputName, parentInputRoot(path))
 			}
 			refPosition, exists := stepIndexByID[refStep]
 			if hasRef && !exists {

@@ -68,6 +68,52 @@ func TestGeneratorConformanceSuite(t *testing.T) {
 	}
 }
 
+func TestGeneratorConformancePreservesUnmappedBackendOnlyInput(t *testing.T) {
+	suite := mustReadGeneratorConformanceSuite(t)
+	definition := mustReadGeneratorConformanceDefinition(t, suite.DefinitionFixture)
+	for i := range definition.CapabilityFormalizations {
+		capability := &definition.CapabilityFormalizations[i]
+		if capability.CapabilityID == "conformance.prepare_change" {
+			var inputs []CapabilityInputFormalization
+			for _, input := range capability.Inputs {
+				if input.InputName != "change_reason" {
+					inputs = append(inputs, input)
+				}
+			}
+			capability.Inputs = inputs
+		}
+		if capability.CapabilityID == "conformance.lookup_and_prepare" {
+			// Backend-only values remain legal, but cannot be composition targets.
+			delete(capability.Composition.InputMapping["prepare_change"], "change_reason")
+		}
+	}
+	model, err := BuildGenerationModel(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, capability := range model.Capabilities {
+		if capability.CapabilityID != "conformance.prepare_change" {
+			continue
+		}
+		found = true
+		if capability.BackendInputMode != "hybrid" || len(capability.ExplicitRequiredBackendInputs) != 1 || capability.ExplicitRequiredBackendInputs[0] != "change_reason" {
+			t.Fatalf("child backend requirement was lost: %#v", capability)
+		}
+		for _, inputs := range [][]CapabilityInputFormalization{capability.RequiredInputs, capability.OptionalInputs} {
+			for _, input := range inputs {
+				if input.InputName == "change_reason" {
+					t.Fatal("backend-only child input leaked into public input metadata")
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing generated child capability")
+	}
+	buildGeneratorConformanceProjects(t, definition)
+}
+
 func mustReadGeneratorConformanceSuite(t *testing.T) generatorConformanceSuite {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("testdata", "generator-conformance-cases.json"))

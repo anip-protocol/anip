@@ -166,6 +166,14 @@
             "on_ambiguous": "clarify",
             "on_unresolved": "deny"
           }
+        },
+        {
+          "input_name": "change_reason",
+          "input_type": "string",
+          "required": false,
+          "summary": "Reason passed by composition; backend execution still requires it.",
+          "default_value": "",
+          "allowed_values": []
         }
       ]
     },
