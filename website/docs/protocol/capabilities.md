@@ -26,7 +26,7 @@ Every capability in the manifest declares the behavior surface that agents and g
 | `control_requirements` | Token-evaluable preconditions | `[{ type: "cost_ceiling", enforcement: "reject" }]` |
 | `refresh_via` / `verify_via` | Same-service advisory workflow hints | `["search_flights"]` |
 | `cross_service` | Cross-service handoff, refresh, verify, and follow-up hints | `{ handoff_to: [{ service: "booking", capability: "book_flight" }] }` |
-| `composition` | Internal step graph for composed capabilities | `{ steps: [...], failure_policy: "stop_on_failure" }` |
+| `composition` | Internal step graph for composed capabilities | `{ steps: [...], failure_policy: { child_error: "fail_parent" } }` |
 | `contract_version` | Capability contract version | `"1.0"` |
 
 The manifest may also carry implementation and consumption metadata used by Studio, Registry, generators, and runtime adapters. That metadata can help consumers, but it must not contradict the signed capability declaration.
@@ -550,7 +550,9 @@ This is different from asking the agent to call several raw tools in order. The 
     "steps": [
       {
         "id": "risk",
-        "capability": "gtm.account_risk_summary"
+        "capability": "gtm.account_risk_summary",
+        "empty_result_source": true,
+        "empty_result_path": "$.accounts"
       },
       {
         "id": "enrichment",
@@ -565,11 +567,16 @@ This is different from asking the agent to call several raw tools in order. The 
       "accounts": "$.steps.enrichment.output.accounts"
     },
     "authority_boundary": "same_service",
-    "failure_policy": "stop_on_failure",
+    "failure_policy": {
+      "child_clarification": "propagate",
+      "child_denial": "propagate",
+      "child_approval_required": "propagate",
+      "child_error": "fail_parent"
+    },
     "empty_result_policy": "return_success_no_results",
     "empty_result_output": { "accounts": [] },
     "audit_policy": {
-      "link_child_invocations": true,
+      "record_child_invocations": true,
       "parent_task_lineage": true
     }
   }
