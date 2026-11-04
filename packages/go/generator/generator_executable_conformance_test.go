@@ -55,6 +55,11 @@ func runGeneratorExecutableConformance(t *testing.T, backendOnly bool) {
 					}, string(os.PathListSeparator)),
 				)
 				runConformanceCommand(t, outputDir, env, python, "-m", "pytest", "tests")
+				if !backendOnly {
+					t.Run("composition_empty_result_policies", func(t *testing.T) {
+						runGeneratedPythonCompositionEmptyResultPolicies(t, repoRoot)
+					})
+				}
 				runGeneratedStdioSmoke(t, "python", outputDir, repoRoot)
 			},
 		},
