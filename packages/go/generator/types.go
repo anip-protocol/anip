@@ -143,7 +143,7 @@ type Composition struct {
 	InputMapping      map[string]map[string]string `json:"input_mapping"`
 	OutputMapping     map[string]string            `json:"output_mapping"`
 	EmptyResultPolicy string                       `json:"empty_result_policy,omitempty"`
-	EmptyResultOutput map[string]any               `json:"empty_result_output,omitempty"`
+	EmptyResultOutput map[string]any               `json:"empty_result_output,omitzero"`
 	FailurePolicy     FailurePolicy                `json:"failure_policy"`
 	AuditPolicy       AuditPolicy                  `json:"audit_policy"`
 }

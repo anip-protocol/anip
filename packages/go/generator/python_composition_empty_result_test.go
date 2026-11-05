@@ -66,6 +66,11 @@ func runGeneratedPythonCompositionEmptyResultOutput(t *testing.T, repoRoot strin
 		expected map[string]any
 	}{
 		{
+			name:     "empty_mapping",
+			output:   map[string]any{},
+			expected: map[string]any{},
+		},
+		{
 			name:     "parent_input_reference",
 			output:   map[string]any{"query": "$.input.query"},
 			expected: map[string]any{"query": "CON-1"},
