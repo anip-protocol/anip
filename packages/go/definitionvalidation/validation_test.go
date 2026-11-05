@@ -39,6 +39,49 @@ func TestValidateServiceDefinitionAcceptsCanonicalCompatibilityFixture(t *testin
 	}
 }
 
+func TestValidateServiceDefinitionEmptyResultOutputPresence(t *testing.T) {
+	cases := []struct {
+		name    string
+		output  any
+		absent  bool
+		wantErr bool
+	}{
+		{name: "explicit empty object", output: map[string]any{}},
+		{name: "populated object", output: map[string]any{"count": float64(0)}},
+		{name: "absent", absent: true, wantErr: true},
+		{name: "null", output: nil, wantErr: true},
+		{name: "typed nil map", output: map[string]any(nil), wantErr: true},
+		{name: "array", output: []any{}, wantErr: true},
+		{name: "string", output: "no results", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			definition := loadCompatDefinition(t)
+			composed := definition["capability_formalizations"].([]any)[2].(map[string]any)
+			composition := composed["composition"].(map[string]any)
+			composition["empty_result_policy"] = "return_success_no_results"
+			if tc.absent {
+				delete(composition, "empty_result_output")
+			} else {
+				composition["empty_result_output"] = tc.output
+			}
+			err := ValidateServiceDefinition(definition)
+			if !tc.wantErr {
+				if err != nil {
+					t.Fatalf("ValidateServiceDefinition: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected empty_result_output validation error")
+			}
+			if !strings.Contains(err.Error(), "composition.empty_result_output is required") {
+				t.Fatalf("expected empty_result_output validation error, got: %v", err)
+			}
+		})
+	}
+}
+
 func TestValidateServiceDefinitionRejectsInvalidCurrentShapes(t *testing.T) {
 	cases := []struct {
 		name    string

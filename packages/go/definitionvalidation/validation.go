@@ -415,7 +415,7 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 	}
 	if stringField(composition, "empty_result_policy") == "return_success_no_results" {
 		output, ok := composition["empty_result_output"].(map[string]any)
-		if !ok || len(output) == 0 {
+		if !ok || output == nil {
 			return fmt.Errorf("capability_formalizations[%d].composition.empty_result_output is required when empty_result_policy is return_success_no_results", index)
 		}
 	}
