@@ -59,6 +59,9 @@ func runGeneratorExecutableConformance(t *testing.T, backendOnly bool) {
 					t.Run("composition_empty_result_policies", func(t *testing.T) {
 						runGeneratedPythonCompositionEmptyResultPolicies(t, repoRoot)
 					})
+					t.Run("composition_empty_result_output", func(t *testing.T) {
+						runGeneratedPythonCompositionEmptyResultOutput(t, repoRoot)
+					})
 				}
 				runGeneratedStdioSmoke(t, "python", outputDir, repoRoot)
 			},
