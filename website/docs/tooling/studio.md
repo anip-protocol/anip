@@ -112,7 +112,7 @@ The same separation is visible in the public showcases. Studio authoring has bee
 
 Studio also supports Anthropic and local/Ollama provider settings, but provider choice does not change the trust boundary. The saved Product Design, Developer Design, diagnostics, approvals, package signature, and verifier output remain the authoritative record.
 
-For setup questions or project-authoring feedback, use the [ANIP Discord](https://discord.gg/5Kx7tWUF). For reproducible Studio bugs, open a [GitHub issue](https://github.com/anip-protocol/anip/issues) with the Studio version, project type, authoring mode, diagnostics, and whether the deployment is read-only.
+For setup questions, project-authoring feedback, or reproducible Studio bugs, open a [GitHub issue](https://github.com/anip-protocol/anip/issues) with the Studio version, project type, authoring mode, diagnostics, and whether the deployment is read-only.
 
 ## Standard project flow
 

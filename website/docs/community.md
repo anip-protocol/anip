@@ -5,22 +5,9 @@ description: Where to ask ANIP questions, report issues, and discuss protocol, S
 
 # Community
 
-Join the ANIP community on Discord:
+ANIP discussion happens on GitHub:
 
-```text
-https://discord.gg/5Kx7tWUF
-```
-
-Use Discord for:
-
-- Questions about whether ANIP fits a use case.
-- Studio, Registry, CLI, package, and showcase setup help.
-- Feedback on protocol semantics, fronting patterns, and generated services.
-- Early discussion before opening a GitHub issue.
-
-Use GitHub for durable work:
-
-- [Issues](https://github.com/anip-protocol/anip/issues) for bugs, missing docs, release blockers, and feature requests.
+- [Issues](https://github.com/anip-protocol/anip/issues) for questions, setup help, feedback, bugs, missing docs, and feature requests. This covers whether ANIP fits a use case; Studio, Registry, CLI, package, and showcase setup; and protocol semantics, fronting patterns, and generated services.
 - [Pull requests](https://github.com/anip-protocol/anip/pulls) for concrete code or documentation changes.
 - [Security policy](https://github.com/anip-protocol/anip/blob/main/SECURITY.md) for vulnerability reporting.
 
@@ -33,4 +20,4 @@ When asking for help, include:
 - Error output or diagnostics.
 - Whether you are using local Docker, hosted Studio, hosted Registry, or generated services.
 
-Do not post secrets, API keys, Registry publish tokens, private source documents, or internal package bundles in Discord or GitHub issues.
+Do not post secrets, API keys, Registry publish tokens, private source documents, or internal package bundles in GitHub issues.

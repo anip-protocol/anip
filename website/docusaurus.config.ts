@@ -78,7 +78,6 @@ const config: Config = {
         {href: 'https://playground.anip.dev', label: 'Playground', position: 'right'},
         {href: 'https://registry.anip.dev/registry/packages', label: 'Registry', position: 'right'},
         {href: 'https://studio.anip.dev', label: 'Studio', position: 'right'},
-        {href: 'https://discord.gg/5Kx7tWUF', label: 'Discord', position: 'right'},
         {
           href: 'https://github.com/anip-protocol/anip',
           label: 'GitHub',
@@ -180,10 +179,6 @@ const config: Config = {
         {
           title: 'Community',
           items: [
-            {
-              label: 'Discord',
-              href: 'https://discord.gg/5Kx7tWUF',
-            },
             {
               label: 'GitHub',
               href: 'https://github.com/anip-protocol/anip',

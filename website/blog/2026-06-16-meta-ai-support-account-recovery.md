@@ -192,4 +192,4 @@ And that is why agent-native interfaces need to be designed for systems that act
 
 ---
 
-ANIP is open source: [github.com/anip-protocol/anip](https://github.com/anip-protocol/anip). Read the docs at [anip.dev/docs/intro](https://anip.dev/docs/intro), inspect packages at [registry.anip.dev](https://registry.anip.dev), or join the discussion on [Discord](https://discord.gg/5Kx7tWUF).
+ANIP is open source: [github.com/anip-protocol/anip](https://github.com/anip-protocol/anip). Read the docs at [anip.dev/docs/intro](https://anip.dev/docs/intro), inspect packages at [registry.anip.dev](https://registry.anip.dev), or open a [GitHub issue](https://github.com/anip-protocol/anip/issues) to discuss.
