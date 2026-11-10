@@ -3,7 +3,9 @@ package definitionvalidation
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/anip-protocol/anip/packages/go/core"
@@ -420,7 +422,10 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 		}
 	}
 
-	for stepID, mappingValue := range inputMapping {
+	// Maps are walked in sorted key order so that a definition with several
+	// problems always reports the same one; Go randomizes map iteration.
+	for _, stepID := range slices.Sorted(maps.Keys(inputMapping)) {
+		mappingValue := inputMapping[stepID]
 		stepPosition, ok := stepIndexByID[stepID]
 		if !ok {
 			return fmt.Errorf("capability_formalizations[%d].composition.input_mapping key %q is not a declared step", index, stepID)
@@ -429,7 +434,8 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 		if !ok {
 			return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q] must be an object", index, stepID)
 		}
-		for inputName, pathValue := range mapping {
+		for _, inputName := range slices.Sorted(maps.Keys(mapping)) {
+			pathValue := mapping[inputName]
 			path, ok := pathValue.(string)
 			if !ok {
 				return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q].%s must be a JSONPath string", index, stepID, inputName)
@@ -457,7 +463,8 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 	if len(outputMapping) == 0 {
 		return fmt.Errorf("capability_formalizations[%d].composition.output_mapping must contain at least one field", index)
 	}
-	for field, pathValue := range outputMapping {
+	for _, field := range slices.Sorted(maps.Keys(outputMapping)) {
+		pathValue := outputMapping[field]
 		if strings.TrimSpace(field) == "" {
 			return fmt.Errorf("capability_formalizations[%d].composition.output_mapping field name is required", index)
 		}
