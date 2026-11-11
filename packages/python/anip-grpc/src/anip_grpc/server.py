@@ -170,9 +170,10 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         if bearer is None:
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing authorization bearer token")
 
-        # Try bootstrap auth (API key) first, then ANIP JWT for sub-delegation
-        principal = _run_async(self._service.authenticate_bearer(bearer))
-        if principal is None:
+        # Bootstrap credential, or a delegation token issued by this service
+        # (accepted for sub-delegation only).
+        issuer = _run_async(self._service.authenticate_issuer(bearer))
+        if issuer is None:
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Bearer token not recognized")
 
         # Build the token request body from protobuf fields
@@ -198,7 +199,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             }
 
         try:
-            result = _run_async(self._service.issue_token(principal, body))
+            result = _run_async(self._service.issue_token_as(issuer, body))
         except ANIPError as exc:
             return anip_pb2.IssueTokenResponse(
                 issued=False,

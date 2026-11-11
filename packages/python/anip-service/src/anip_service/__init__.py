@@ -8,7 +8,7 @@ from .hooks import (
     MetricsHooks,
     TracingHooks,
 )
-from .types import Capability, InvocationContext, ANIPError, Handler
+from .types import Capability, InvocationContext, ANIPError, Handler, Issuer
 from .service import ANIPService
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "ANIPService",
     "AuditAggregator",
     "Capability",
+    "Issuer",
     "DiagnosticsHooks",
     "HealthReport",
     "InvocationContext",

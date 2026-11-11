@@ -112,6 +112,8 @@ from anip_server import (
     CheckpointSink,
 )
 
+from anip_core.constants import recovery_class_for_action
+
 from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .disclosure import resolve_disclosure_level
@@ -119,7 +121,30 @@ from .hooks import ANIPHooks, HealthReport
 from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .storage_redaction import storage_redact_entry
-from .types import ANIPError, Capability, InvocationContext
+from .types import ANIPError, Capability, InvocationContext, Issuer
+
+
+def _narrowed_child_scope(
+    caller_scope: list[str], required: list[str]
+) -> tuple[list[str], list[str]]:
+    """Scope for a composition child token, and the required scopes not covered.
+
+    Each required scope is taken from the caller's scope entry that covers it,
+    keeping that entry's constraint suffix: a caller holding
+    ``travel:max_$500`` gives a child needing ``travel.book`` the scope
+    ``travel.book:max_$500``. The child never gets more than the caller has.
+    """
+    child_scope: list[str] = []
+    missing: list[str] = []
+    for needed in required:
+        for held in caller_scope:
+            base = held.split(":")[0]
+            if needed == base or needed.startswith(base + "."):
+                child_scope.append(needed + held[len(base):])
+                break
+        else:
+            missing.append(needed)
+    return child_scope, missing
 
 
 class ANIPService:
@@ -384,15 +409,15 @@ class ANIPService:
         return self._keys.get_jwks()
 
     async def authenticate_bearer(self, bearer_value: str) -> str | None:
-        """Resolve a bearer token to an authenticated principal.
+        """Resolve a bootstrap credential (API key, external auth) to a principal.
 
-        Tries bootstrap authentication first (API keys, external auth),
-        then falls back to full ANIP JWT verification via resolve_bearer_token()
-        which includes claim-vs-store integrity checks and expiry validation.
-
-        Returns the principal string, or None if unauthenticated.
+        Returns the principal string, or None if the credential is not
+        recognized. A delegation token is *not* accepted here: use
+        :meth:`resolve_bearer_token` to invoke with one, and
+        :meth:`authenticate_issuer` on a token endpoint. Treating a token as
+        its chain's root principal would let any token holder act as the
+        human who started the chain.
         """
-        # Try bootstrap auth (API keys, external auth).
         # Supports both sync and async hooks: if the hook returns a coroutine,
         # we await it; otherwise we use the value directly.
         if self._authenticate:
@@ -404,15 +429,45 @@ class ANIPService:
                 principal = cast("str | None", result)
             if principal is not None:
                 return principal
-
-        # Try ANIP JWT — reuse resolve_bearer_token() for full trust checks
-        try:
-            stored = await self.resolve_bearer_token(bearer_value)
-            return await self._engine.get_root_principal(stored)
-        except ANIPError:
-            pass
-
         return None
+
+    async def authenticate_issuer(self, bearer_value: str) -> Issuer | None:
+        """Authenticate the bearer value presented to a token endpoint.
+
+        Accepts the bootstrap credential, or a delegation token issued by this
+        service (SPEC.md §6.3: "For delegation, the bearer value is an
+        existing JWT token issued by the service"). A token authenticates as
+        its *subject* — the holder — never as the chain's root principal.
+        """
+        principal = await self.authenticate_bearer(bearer_value)
+        if principal is not None:
+            return Issuer(principal=principal, via_token=False)
+        try:
+            token = await self.resolve_bearer_token(bearer_value)
+        except ANIPError:
+            return None
+        return Issuer(principal=token.subject, via_token=True)
+
+    async def issue_token_as(self, issuer: Issuer, request: dict[str, Any]) -> dict[str, Any]:
+        """Issue a token on behalf of an authenticated caller.
+
+        Transports use this for their token endpoint. A delegation token is a
+        credential for delegating only. Root issuance needs the bootstrap
+        credential: otherwise the holder of a narrowed token could mint itself
+        a fresh root token with any scope.
+        """
+        if issuer.via_token and not request.get("parent_token"):
+            raise ANIPError(
+                "insufficient_authority",
+                "A delegation token can only be used to delegate: the request must name a "
+                "parent_token held by the caller. Root token issuance requires the "
+                "bootstrap credential.",
+                resolution={
+                    "action": "provide_credentials",
+                    "recovery_class": recovery_class_for_action("provide_credentials"),
+                },
+            )
+        return await self.issue_token(issuer.principal, request)
 
     async def resolve_bearer_token(self, jwt_string: str) -> DelegationToken:
         """Verify a JWT and return the stored DelegationToken.
@@ -484,6 +539,79 @@ class ANIPService:
             )
 
         return stored
+
+    async def _invoke_composition_child(
+        self,
+        capability_name: str,
+        params: dict[str, Any],
+        *,
+        caller_token: DelegationToken,
+        parent_invocation_id: str,
+        task_id: str | None,
+        client_reference_id: str | None,
+        upstream_service: str | None,
+    ) -> dict[str, Any]:
+        """Invoke one child step of a composed capability.
+
+        The child runs with its own token: delegated from the caller's token,
+        bound to the child capability, and narrowed to the child's minimum
+        scope. That keeps purpose binding intact (the caller's token is bound
+        to the parent, not to its children) and means a caller whose token
+        does not cover a child's scope cannot reach that child through a
+        composition. The child's audit entry links to the parent invocation
+        and shares its task_id.
+
+        Failures are returned as response dicts so the composition's
+        ``failure_policy`` decides what the parent returns.
+        """
+        child = self._capabilities.get(capability_name)
+        if child is None:
+            raise ANIPError("unknown_capability", f"Composition child capability '{capability_name}' not found")
+
+        child_scope, missing = _narrowed_child_scope(
+            caller_token.scope, child.declaration.minimum_scope or [])
+        if missing:
+            return {
+                "success": False,
+                "failure": {
+                    "type": "scope_insufficient",
+                    "detail": (
+                        f"composition step '{capability_name}' needs scope(s) the caller's "
+                        f"token does not carry: {', '.join(missing)}"
+                    ),
+                    "resolution": {
+                        "action": "request_broader_scope",
+                        "recovery_class": recovery_class_for_action("request_broader_scope"),
+                        "requires": f"delegation.scope += {', '.join(missing)}",
+                    },
+                },
+            }
+
+        purpose_parameters = dict(caller_token.purpose.parameters or {})
+        if task_id:
+            purpose_parameters["task_id"] = task_id
+        try:
+            issued = await self.issue_token(caller_token.subject, {
+                "subject": caller_token.subject,
+                "capability": capability_name,
+                "scope": child_scope,
+                "parent_token": caller_token.token_id,
+                "purpose_parameters": purpose_parameters,
+                "ttl_hours": 1,
+            })
+        except ANIPError as e:
+            return {
+                "success": False,
+                "failure": {"type": e.error_type, "detail": e.detail, "resolution": e.resolution},
+            }
+        child_token = await self.resolve_bearer_token(issued["token"])
+        return await self.invoke(
+            capability_name, child_token, params,
+            client_reference_id=client_reference_id,
+            task_id=task_id,
+            parent_invocation_id=parent_invocation_id,
+            upstream_service=upstream_service,
+        )
 
     async def issue_token(
         self,
@@ -1496,6 +1624,22 @@ class ANIPService:
                     ctx.approval_grant = _reserved_grant
 
                 async def _run_handler() -> Any:
+                    # v0.23 §4.6: a composed capability is run by the SDK, not
+                    # by its registered handler. Each child step goes through
+                    # the normal invoke pipeline with its own token.
+                    if decl.kind == "composed":
+                        from .v023 import execute_composition
+                        return await execute_composition(
+                            capability_name, decl, params,
+                            invoke_step=lambda child, child_params: self._invoke_composition_child(
+                                child, child_params,
+                                caller_token=resolved_token,
+                                parent_invocation_id=invocation_id,
+                                task_id=effective_task_id,
+                                client_reference_id=client_reference_id,
+                                upstream_service=upstream_service,
+                            ),
+                        )
                     r = cap.handler(ctx, params)
                     if inspect.isawaitable(r):
                         r = await r

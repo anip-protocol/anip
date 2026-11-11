@@ -87,13 +87,13 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/tokens")
     async def issue_token(request: Request):
-        principal = await _extract_principal(request, service)
-        if principal is None:
+        issuer = await _extract_issuer(request, service)
+        if issuer is None:
             return _auth_failure_token_endpoint()
 
         body = await request.json()
         try:
-            result = await service.issue_token(principal, body)
+            result = await service.issue_token_as(issuer, body)
             return result
         except ANIPError as e:
             return _error_response(e)
@@ -440,27 +440,18 @@ def mount_anip(
             return service.get_health()
 
 
-async def _extract_principal(request: Request, service: ANIPService) -> str | None:
-    """Extract authenticated principal from the request.
+async def _extract_issuer(request: Request, service: ANIPService):
+    """Authenticate the caller of the token endpoint.
 
-    For token issuance, JWT delegation must authenticate as the *current token
-    subject*, not the chain root principal. That is what allows legitimate
-    sub-delegation via ``parent_token``.
-
-    Order:
-    1. Try ANIP JWT first and return ``token.subject``.
-    2. Fall back to bootstrap auth (API keys, external auth) for first-token
-       issuance before any ANIP tokens exist.
+    Accepts the bootstrap credential, or a delegation token issued by this
+    service. A token authenticates as its *subject* (the holder), which is
+    what allows legitimate sub-delegation via ``parent_token``; the service
+    refuses root issuance for such callers.
     """
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
-    bearer_value = auth[7:].strip()
-    try:
-        token = await service.resolve_bearer_token(bearer_value)
-        return token.subject
-    except ANIPError:
-        return await service.authenticate_bearer(bearer_value)
+    return await service.authenticate_issuer(auth[7:].strip())
 
 
 async def _resolve_token(request: Request, service: ANIPService):

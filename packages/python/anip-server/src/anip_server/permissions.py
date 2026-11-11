@@ -10,6 +10,8 @@ from anip_core import (
     RestrictedCapability,
 )
 
+from .delegation import scope_budget
+
 
 def discover_permissions(
     token: DelegationToken,
@@ -105,8 +107,8 @@ def discover_permissions(
         # All checks passed — capability is available
         constraints: dict = {}
         for scope_str in matched_scope_strs:
-            if ":max_$" in scope_str:
-                max_budget = float(scope_str.split(":max_$")[1])
+            _, max_budget = scope_budget(scope_str)
+            if max_budget is not None:
                 constraints["budget_remaining"] = max_budget
                 constraints["currency"] = "USD"
         # Include constraints-level budget info if present

@@ -38,6 +38,17 @@ class InvocationContext:
 Handler = Callable[[InvocationContext, dict[str, Any]], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 
+@dataclass(frozen=True)
+class Issuer:
+    """Who is asking for a token, and how they proved it.
+
+    ``via_token`` is true when the caller authenticated with a delegation
+    token issued by this service rather than with a bootstrap credential.
+    """
+    principal: str
+    via_token: bool = False
+
+
 @dataclass
 class Capability:
     """Bundles a capability declaration with its handler function."""

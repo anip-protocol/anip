@@ -139,6 +139,34 @@ class TestTokensIssue:
         assert "error" in resp
         assert resp["error"]["code"] == -32001
 
+    # A delegation token is a valid credential for delegating from a token
+    # the caller holds (SPEC.md §6.3), and for nothing else.
+
+    async def _held_token(self, server) -> dict:
+        resp = await server.handle_request(_req("anip.tokens.issue", {
+            "auth": {"bearer": "test-api-key"},
+            "subject": "agent:test-agent", "scope": ["echo"], "capability": "echo",
+        }))
+        return resp["result"]
+
+    async def test_holder_delegates_using_its_token_as_credential(self, server):
+        held = await self._held_token(server)
+        resp = await server.handle_request(_req("anip.tokens.issue", {
+            "auth": {"bearer": held["token"]},
+            "subject": "agent:sub-agent", "scope": ["echo"], "capability": "echo",
+            "parent_token": held["token_id"],
+        }))
+        assert resp["result"]["issued"] is True
+
+    async def test_token_credential_cannot_issue_a_root_token(self, server):
+        held = await self._held_token(server)
+        resp = await server.handle_request(_req("anip.tokens.issue", {
+            "auth": {"bearer": held["token"]},
+            "subject": "agent:test-agent", "scope": ["echo", "anything.else"], "capability": "echo",
+        }))
+        assert "error" in resp, "a delegation token was accepted as credential for root issuance"
+        assert "insufficient_authority" in str(resp["error"])
+
 
 class TestInvoke:
     async def test_invoke_with_jwt(self, server):
