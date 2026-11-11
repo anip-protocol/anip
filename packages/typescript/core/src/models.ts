@@ -31,7 +31,7 @@ export type SideEffect = z.infer<typeof SideEffect>;
 
 export const Purpose = z.object({
   capability: z.string(),
-  parameters: z.record(z.any()).default({}),
+  parameters: z.record(z.string(), z.any()).default({}),
   task_id: z.string().nullable().default(null),
 });
 export type Purpose = z.infer<typeof Purpose>;
@@ -60,7 +60,7 @@ export const DelegationToken = z.object({
   purpose: Purpose,
   parent: z.string().nullable().default(null),
   expires: z.string(),
-  constraints: DelegationConstraints.default({
+  constraints: DelegationConstraints.prefault({
     max_delegation_depth: 3,
     concurrent_branches: "allowed",
   }),
@@ -170,8 +170,8 @@ export const Cost = z.object({
   financial: FinancialCost.nullable().default(null),
   determined_by: z.string().nullable().default(null),
   factors: z.array(z.string()).nullable().default(null),
-  compute: z.record(z.any()).nullable().default(null),
-  rate_limit: z.record(z.any()).nullable().default(null),
+  compute: z.record(z.string(), z.any()).nullable().default(null),
+  rate_limit: z.record(z.string(), z.any()).nullable().default(null),
 });
 export type Cost = z.infer<typeof Cost>;
 
@@ -334,10 +334,10 @@ export type AuditPolicy = z.infer<typeof AuditPolicy>;
 export const Composition = z.object({
   authority_boundary: AuthorityBoundary,
   steps: z.array(CompositionStep).min(1),
-  input_mapping: z.record(z.record(z.string())),
-  output_mapping: z.record(z.string()),
+  input_mapping: z.record(z.string(), z.record(z.string(), z.string())),
+  output_mapping: z.record(z.string(), z.string()),
   empty_result_policy: EmptyResultPolicy.nullable().default(null),
-  empty_result_output: z.record(z.any()).nullable().default(null),
+  empty_result_output: z.record(z.string(), z.any()).nullable().default(null),
   failure_policy: FailurePolicy,
   audit_policy: AuditPolicy,
 });
@@ -390,15 +390,15 @@ export const ApprovalRequest = z
     approval_request_id: z.string().min(1),
     capability: z.string().min(1),
     scope: z.array(z.string()),
-    requester: z.record(z.any()),
+    requester: z.record(z.string(), z.any()),
     parent_invocation_id: z.string().nullable().default(null),
-    preview: z.record(z.any()),
+    preview: z.record(z.string(), z.any()),
     preview_digest: z.string().min(1),
-    requested_parameters: z.record(z.any()),
+    requested_parameters: z.record(z.string(), z.any()),
     requested_parameters_digest: z.string().min(1),
     grant_policy: GrantPolicy,
     status: ApprovalRequestStatus,
-    approver: z.record(z.any()).nullable().default(null),
+    approver: z.record(z.string(), z.any()).nullable().default(null),
     decided_at: z.string().nullable().default(null),
     created_at: z.string(),
     expires_at: z.string(),
@@ -447,8 +447,8 @@ export const ApprovalGrant = z
     scope: z.array(z.string()),
     approved_parameters_digest: z.string().min(1),
     preview_digest: z.string().min(1),
-    requester: z.record(z.any()),
-    approver: z.record(z.any()),
+    requester: z.record(z.string(), z.any()),
+    approver: z.record(z.string(), z.any()),
     issued_at: z.string(),
     expires_at: z.string(),
     max_uses: z.number().int().min(1),
@@ -545,7 +545,7 @@ export const CapabilityDeclaration = z
     cost: Cost.nullable().default(null),
     requires: z.array(CapabilityRequirement).default([]),
     composes_with: z.array(CapabilityComposition).default([]),
-    session: SessionInfo.default({ type: "stateless" }),
+    session: SessionInfo.prefault({ type: "stateless" }),
     observability: ObservabilityContract.nullable().default(null),
     response_modes: z.array(ResponseMode).min(1).default(["unary"]),
     requires_binding: z.array(BindingRequirement).default([]),
@@ -586,7 +586,7 @@ export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 export const AvailableCapability = z.object({
   capability: z.string(),
   scope_match: z.string(),
-  constraints: z.record(z.any()).default({}),
+  constraints: z.record(z.string(), z.any()).default({}),
 });
 export type AvailableCapability = z.infer<typeof AvailableCapability>;
 
@@ -667,7 +667,7 @@ export const AnchoringPolicy = z.object({
 export type AnchoringPolicy = z.infer<typeof AnchoringPolicy>;
 
 export const TrustPolicyTrigger = z.object({
-  trigger: z.record(z.unknown()),
+  trigger: z.record(z.string(), z.unknown()),
   action: z.string(),
 });
 export type TrustPolicyTrigger = z.infer<typeof TrustPolicyTrigger>;
@@ -726,7 +726,7 @@ export type ClientReferenceIdPosture = z.infer<typeof ClientReferenceIdPosture>;
 
 export const LineagePosture = z.object({
   invocation_id: z.boolean().default(true),
-  client_reference_id: ClientReferenceIdPosture.default({}),
+  client_reference_id: ClientReferenceIdPosture.prefault({}),
 });
 export type LineagePosture = z.infer<typeof LineagePosture>;
 
@@ -752,11 +752,11 @@ export const AnchoringPosture = z.object({
 export type AnchoringPosture = z.infer<typeof AnchoringPosture>;
 
 export const DiscoveryPosture = z.object({
-  audit: AuditPosture.default({}),
-  lineage: LineagePosture.default({}),
-  metadata_policy: MetadataPolicy.default({}),
-  failure_disclosure: FailureDisclosure.default({}),
-  anchoring: AnchoringPosture.default({}),
+  audit: AuditPosture.prefault({}),
+  lineage: LineagePosture.prefault({}),
+  metadata_policy: MetadataPolicy.prefault({}),
+  failure_disclosure: FailureDisclosure.prefault({}),
+  anchoring: AnchoringPosture.prefault({}),
 });
 export type DiscoveryPosture = z.infer<typeof DiscoveryPosture>;
 
@@ -795,7 +795,7 @@ export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 export const ANIPManifest = z.object({
   protocol: z.string().default("anip/0.24"),
   profile: ProfileVersions,
-  capabilities: z.record(CapabilityDeclaration),
+  capabilities: z.record(z.string(), CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
   service_identity: ServiceIdentity.nullable().default(null),
   trust: TrustPosture.nullable().default(null),
@@ -808,8 +808,8 @@ export type ANIPManifest = z.infer<typeof ANIPManifest>;
 
 export const InvokeRequest = z.object({
   token: z.string(),
-  parameters: z.record(z.any()).default({}),
-  budget: z.record(z.any()).nullable().default(null),
+  parameters: z.record(z.string(), z.any()).default({}),
+  budget: z.record(z.string(), z.any()).nullable().default(null),
   client_reference_id: z.string().max(256).nullable().default(null),
   stream: z.boolean().default(false),
   approval_grant: z.string().nullable().default(null),  // v0.23
@@ -829,10 +829,10 @@ export const InvokeResponse = z.object({
   success: z.boolean(),
   invocation_id: z.string().regex(/^inv-[0-9a-f]{12}$/),
   client_reference_id: z.string().max(256).nullable().default(null),
-  result: z.record(z.any()).nullable().default(null),
+  result: z.record(z.string(), z.any()).nullable().default(null),
   cost_actual: CostActual.nullable().default(null),
   failure: ANIPFailure.nullable().default(null),
-  session: z.record(z.any()).nullable().default(null),
+  session: z.record(z.string(), z.any()).nullable().default(null),
   stream_summary: StreamSummary.nullable().default(null),
   budget_context: BudgetContext.nullable().default(null),
 });
@@ -848,7 +848,7 @@ export const TokenRequest = z.object({
   capability: z.string(),
   /** Token ID string of the parent token (not a JWT). Used for delegated issuance. */
   parent_token: z.string().nullable().optional(),
-  purpose_parameters: z.record(z.any()).default({}),
+  purpose_parameters: z.record(z.string(), z.any()).default({}),
   ttl_hours: z.number().default(2),
   caller_class: z.string().nullable().optional(),
   /** v0.23: bind a session identity to the issued token for session_bound
@@ -882,9 +882,9 @@ export type CheckpointBody = z.infer<typeof CheckpointBody>;
 // ---------------------------------------------------------------------------
 
 export const CheckpointDetailResponse = z.object({
-  checkpoint: z.record(z.unknown()),
-  inclusion_proof: z.record(z.unknown()).nullable().default(null),
-  consistency_proof: z.record(z.unknown()).nullable().default(null),
+  checkpoint: z.record(z.string(), z.unknown()),
+  inclusion_proof: z.record(z.string(), z.unknown()).nullable().default(null),
+  consistency_proof: z.record(z.string(), z.unknown()).nullable().default(null),
   proof_unavailable: z.string().nullable().default(null),
   expires_hint: z.string().nullable().default(null),
 });
