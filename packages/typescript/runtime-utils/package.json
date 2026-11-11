@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/runtime-utils",
-  "version": "0.24.14",
+  "version": "0.24.15",
   "description": "ANIP agent-consumption helper utilities",
   "type": "module",
   "engines": {
