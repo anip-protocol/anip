@@ -6,7 +6,8 @@ The current ANIP protocol version is v0.24. Its security foundations are v0.2's 
 
 | Version | Status |
 |---------|--------|
-| v0.24 (packages 0.24.x) | Current — receives security fixes |
+| v0.24 (packages 0.24.18 and later) | Current — receives security fixes |
+| Packages 0.24.17 and earlier | Affected by [GHSA-h9rv-5v5h-pmr6](https://github.com/anip-protocol/anip/security/advisories/GHSA-h9rv-5v5h-pmr6) — upgrade |
 | v0.23 and earlier | Not supported — upgrade to the current release |
 
 ANIP is pre-1.0. Security fixes are made on the latest release only. See the [version history](https://anip.dev/docs/releases/version-history) for what each version added.
@@ -108,6 +109,16 @@ Only the security-relevant additions are listed here. The [version history](http
 - **Bootstrap authentication contract (v0.20)** — an explicit hook contract for authenticating the caller before token issuance, plus capability-targeted root issuance
 - **Parent token semantics (v0.22)** — `parent_token` is a token ID, not a JWT, consistently across runtimes
 - **Signed approval grants (v0.23)** — an approval is a signed, parameter-bound, finite-use grant (`one_time` or `session_bound`), signed like the manifest (ES256 JWS by default)
+
+## Delegation Enforcement Fix (packages 0.24.18)
+
+Packages up to 0.24.17 did not enforce several delegation rules the specification requires. Which rules were missing differed per runtime. Details are in advisory [GHSA-h9rv-5v5h-pmr6](https://github.com/anip-protocol/anip/security/advisories/GHSA-h9rv-5v5h-pmr6) and in the [0.24.18 release notes](https://anip.dev/docs/releases/delegation-enforcement-0-24-18).
+
+- **Go, Java, C#** — a token could invoke capabilities other than the one it was issued for; a delegated token could widen its parent's scope; any authenticated principal could delegate from another principal's token by its ID; delegation depth was not checked.
+- **Python, TypeScript** — a delegation token was accepted as the credential for root token issuance. In TypeScript, and in Python's stdio and gRPC transports, the caller was additionally treated as the root principal of the token's chain.
+- **All runtimes** — a budget carried by a scope could be shed when delegating.
+
+All five runtimes now enforce the same rules, and the conformance suite tests them (`conformance/test_delegation.py`). If you run an ANIP service with more than one principal or more than one capability, upgrade.
 
 ## What ANIP Does Not Yet Solve
 

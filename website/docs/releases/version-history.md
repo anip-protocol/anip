@@ -36,6 +36,12 @@ ANIP's version line tracks the progression of protocol capabilities. The current
 | **v0.2** | Cost and failures | Cost declaration and `cost_actual`; structured failures with resolution guidance |
 | **v0.1** | Core protocol | Discovery, manifest, capabilities, delegation, permissions, invoke, audit |
 
+## Security releases
+
+| Package version | What it fixed |
+|---|---|
+| **0.24.18** | Delegation enforcement: all five runtimes now enforce token purpose binding, holder-only delegation, scope and budget narrowing, and delegation depth, and refuse root issuance with a token credential. See the [release notes](./delegation-enforcement-0-24-18.md). |
+
 ## What's next
 
 - Federated trust — cross-service delegation chains and token exchange

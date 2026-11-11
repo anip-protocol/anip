@@ -96,6 +96,14 @@ Delegated tokens must not widen:
 - Purpose.
 - Delegation depth.
 
+What the service enforces, in every runtime:
+
+- **A token works for one capability.** A token invokes only the capability named in its `capability` field, even if its scope would cover others. A token issued without a capability cannot invoke anything. The failure is `purpose_mismatch`.
+- **Only the holder delegates.** Only the subject of a token can delegate from it. Knowing a token ID is not enough: any other caller gets `insufficient_authority`.
+- **A token is a credential for delegating, nothing else.** A caller that authenticates with a token must name a `parent_token` it holds. Asking for a root token that way fails with `insufficient_authority`; root issuance needs the bootstrap credential.
+- **Scope only narrows.** Each child scope must equal a parent scope or sit beneath it (`travel` covers `travel.search`). Anything else fails with `scope_escalation`.
+- **Depth is bounded.** A token deeper in the chain than `max_delegation_depth` is rejected with `delegation_depth_exceeded`.
+
 Runtime helpers such as capability-targeted root issuance and delegated capability-targeted issuance are convenience APIs. They do not change the protocol endpoint; they assemble token requests correctly and prevent common `purpose_mismatch` mistakes.
 
 ### Token structure
@@ -282,6 +290,13 @@ Starting in v0.14, delegation tokens can carry enforceable budget constraints vi
 ### Budget narrowing rule
 
 When an agent sub-delegates authority, the child token's budget must be less than or equal to the parent token's budget. A delegation request that attempts to set a higher budget than the parent will be rejected. This ensures that authority can only be narrowed, never expanded, as it flows through the delegation chain.
+
+### Scope budgets
+
+A scope string can also carry a budget, for example `travel.book:max_$500`. The same rule applies, with two details worth knowing:
+
+- A budget on a scope also bounds every scope beneath it. A token holding `travel:max_$500` can delegate `travel.book:max_$500` or `travel.book:max_$200`, but not `travel.book` without a budget.
+- The budget must be a finite, non-negative number. A child that drops the budget, raises it, or supplies something like `NaN` is refused with `scope_escalation`.
 
 ### Budget and permission discovery
 

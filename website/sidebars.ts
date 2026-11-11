@@ -165,6 +165,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'releases/what-ships-today',
         'releases/version-history',
+        'releases/delegation-enforcement-0-24-18',
       ],
     },
   ],
