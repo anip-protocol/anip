@@ -591,6 +591,9 @@ jobs:
   publish-csharp:
     needs: bump-and-validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # lets nuget.org verify this workflow (Trusted Publishing)
     steps:
       - uses: actions/checkout@v6
         with:
@@ -612,10 +615,20 @@ jobs:
           done
           echo "Packed $(ls nupkgs/*.nupkg | wc -l) packages"
 
+      # Trusted Publishing: nuget.org checks this workflow's identity against
+      # the policy for anip-protocol/anip + release.yml and returns an API key
+      # that lasts one hour. There is no stored key to expire. Keep this step
+      # directly before the push so the key is still valid.
+      - name: NuGet login (Trusted Publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }} # nuget.org profile name, not an email
+
       - name: Publish to NuGet
         working-directory: packages/csharp
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           ALLOW_ALREADY_PUBLISHED: ${{ inputs.allow_already_published }}
         run: |
           set -e
