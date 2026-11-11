@@ -14,6 +14,10 @@ on:
       - "packages/**"
       - "examples/**"
       - ".github/workflows/ci-conformance.yml"
+  # Weekly and on demand, so dependency drift is caught without a code change.
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
 
 jobs:
   conformance:
