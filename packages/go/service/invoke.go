@@ -1275,6 +1275,16 @@ func (s *Service) composedInvokeStep(token *core.DelegationToken, opts InvokeOpt
 				"Composition child capability '"+capability+"' not found")
 		}
 
+		// The child's scope comes from the caller's own scope, keeping any
+		// budget it carries. A caller whose token does not cover the child
+		// is told so, as it would be for a direct invocation.
+		childScope, missing := server.NarrowedScope(token.Scope, childDef.Declaration.MinimumScope)
+		if len(missing) > 0 {
+			return childFailureResponse(core.NewANIPError(core.FailureScopeInsufficient,
+				"composition step '"+capability+"' needs scope(s) the caller's token does not carry: "+
+					strings.Join(missing, ", ")).WithResolution("request_broader_scope")), nil
+		}
+
 		purposeParameters := map[string]any{}
 		for k, v := range token.Purpose.Parameters {
 			purposeParameters[k] = v
@@ -1285,7 +1295,7 @@ func (s *Service) composedInvokeStep(token *core.DelegationToken, opts InvokeOpt
 		issued, err := s.IssueToken(token.Subject, core.TokenRequest{
 			Subject:           token.Subject,
 			Capability:        capability,
-			Scope:             childDef.Declaration.MinimumScope,
+			Scope:             childScope,
 			ParentToken:       token.TokenID,
 			PurposeParameters: purposeParameters,
 			TTLHours:          1,

@@ -83,8 +83,13 @@ def _scope_narrowing_violation(
             )
 
         for parent_scope in parent_scopes:
+            # A budget on a parent scope applies to every scope beneath it:
+            # "travel:max_$500" also bounds "travel.book".
             parent_has_budget, parent_budget = scope_budget(parent_scope)
-            if not parent_has_budget or parent_scope.split(":")[0] != child_base:
+            parent_base = parent_scope.split(":")[0]
+            if not parent_has_budget or not (
+                child_base == parent_base or child_base.startswith(parent_base + ".")
+            ):
                 continue
             if parent_budget is None:
                 return (

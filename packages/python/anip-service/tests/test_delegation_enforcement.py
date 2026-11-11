@@ -212,6 +212,10 @@ async def test_bootstrap_credential_issues_a_root_token():
     ("travel.book:max_$500", "travel.book:max_$100", True),
     ("travel.book:max_$500", "travel.book", False),
     ("travel.book:max_$500", "travel.book:max_$900", False),
+    # A budget on a parent scope bounds every scope beneath it.
+    ("travel:max_$500", "travel.book:max_$500", True),
+    ("travel:max_$500", "travel.book", False),
+    ("travel:max_$500", "travel.book:max_$900", False),
     # A budget that is not a finite, non-negative number must fail closed:
     # NaN compares false against everything.
     ("travel.book:max_$500", "travel.book:max_$NaN", False),

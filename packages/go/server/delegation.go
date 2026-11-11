@@ -273,6 +273,34 @@ func scopeBase(scope string) string {
 	return strings.Split(scope, ":")[0]
 }
 
+// scopeCovers reports whether a held scope base covers a needed one:
+// "travel" covers "travel" and "travel.search", not "travelogue".
+func scopeCovers(heldBase, neededBase string) bool {
+	return neededBase == heldBase || strings.HasPrefix(neededBase, heldBase+".")
+}
+
+// NarrowedScope returns the scope a token derived from heldScope should carry
+// to cover required, and the required scopes heldScope does not cover. Each
+// entry keeps the constraint suffix of the held scope that covers it: holding
+// "travel:max_$500" gives "travel.book:max_$500" for a required "travel.book".
+func NarrowedScope(heldScope, required []string) (narrowed, missing []string) {
+	for _, needed := range required {
+		found := false
+		for _, held := range heldScope {
+			base := scopeBase(held)
+			if scopeCovers(base, needed) {
+				narrowed = append(narrowed, needed+held[len(base):])
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, needed)
+		}
+	}
+	return narrowed, missing
+}
+
 // scopeBudget reads the "max_$" amount carried by a scope string.
 // present reports whether the scope carries a budget at all; valid reports
 // whether that budget is a finite, non-negative number. NaN in particular
@@ -306,7 +334,7 @@ func validateScopeNarrowing(parent *core.DelegationToken, childScope []string) e
 		childBase := scopeBase(child)
 		covered := false
 		for _, parentBase := range parentBases {
-			if childBase == parentBase || strings.HasPrefix(childBase, parentBase+".") {
+			if scopeCovers(parentBase, childBase) {
 				covered = true
 				break
 			}
@@ -319,8 +347,10 @@ func validateScopeNarrowing(parent *core.DelegationToken, childScope []string) e
 		}
 
 		for _, parentScope := range parent.Scope {
+			// A budget on a parent scope applies to every scope beneath it:
+			// "travel:max_$500" also bounds "travel.book".
 			parentBudget, parentHasBudget, parentValid := scopeBudget(parentScope)
-			if !parentHasBudget || scopeBase(parentScope) != childBase {
+			if !parentHasBudget || !scopeCovers(scopeBase(parentScope), childBase) {
 				continue
 			}
 			if !parentValid {

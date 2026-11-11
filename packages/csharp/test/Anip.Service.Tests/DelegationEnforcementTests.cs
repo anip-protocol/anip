@@ -25,12 +25,17 @@ public class DelegationEnforcementTests : IDisposable
 {
     private const string Human = "human:test@example.com";
 
-    private readonly AnipService _service;
+    private AnipService _service;
     private readonly ConcurrentDictionary<string, DelegationToken> _seenTokens = new();
 
     public DelegationEnforcementTests()
     {
-        _service = new AnipService(new ServiceConfig
+        _service = BuildService(new() { "inv.read" });
+    }
+
+    private AnipService BuildService(List<string> enrichScope)
+    {
+        var service = new AnipService(new ServiceConfig
         {
             ServiceId = "test-service",
             Storage = ":memory:",
@@ -43,13 +48,14 @@ public class DelegationEnforcementTests : IDisposable
                     new() { ["booking_id"] = "BK-001" }),
                 Recording("select_cap", new() { "inv.read" }, streaming: false,
                     new() { ["items"] = new List<object?> { "a", "b" } }),
-                Recording("enrich_cap", new() { "inv.read" }, streaming: false,
+                Recording("enrich_cap", enrichScope, streaming: false,
                     new() { ["count"] = 2 }),
                 new(SummaryDeclaration(), (ctx, parameters) => new Dictionary<string, object?>()),
             },
             Authenticate = bearer => bearer == "test-key" ? Human : null,
         });
-        _service.Start();
+        service.Start();
+        return service;
     }
 
     public void Dispose() => _service.Dispose();
@@ -199,6 +205,10 @@ public class DelegationEnforcementTests : IDisposable
     [InlineData("lowers scope budget", "travel.book:max_$500", "travel.book:max_$100", true)]
     [InlineData("drops scope budget", "travel.book:max_$500", "travel.book", false)]
     [InlineData("raises scope budget", "travel.book:max_$500", "travel.book:max_$900", false)]
+    // A budget on a parent scope bounds every scope beneath it.
+    [InlineData("sub-scope keeps parent budget", "travel:max_$500", "travel.book:max_$500", true)]
+    [InlineData("sub-scope drops parent budget", "travel:max_$500", "travel.book", false)]
+    [InlineData("sub-scope raises parent budget", "travel:max_$500", "travel.book:max_$900", false)]
     // A budget that is not a finite, non-negative number must fail closed:
     // NaN compares false against everything.
     [InlineData("NaN scope budget", "travel.book:max_$500", "travel.book:max_$NaN", false)]
@@ -315,6 +325,37 @@ public class DelegationEnforcementTests : IDisposable
     }
 
     // --- composed capabilities -------------------------------------------------
+
+    [Fact]
+    public void ComposedInvocation_CannotReachChildBeyondCallersScope()
+    {
+        // The second child needs a scope the caller's token does not carry.
+        _service.Dispose();
+        _service = BuildService(new() { "inv.admin" });
+        var token = IssueBound("summary", new() { "inv.read" });
+
+        var result = _service.Invoke("summary", token,
+            new Dictionary<string, object?> { ["q"] = "x" }, new InvokeOpts());
+
+        Assert.Equal(false, result["success"]);
+        Assert.False(_seenTokens.ContainsKey("enrich_cap"), "the child handler must not run");
+        // Default failure_policy propagates a child denial unchanged: the
+        // caller is told its token lacks the scope the step needs.
+        Assert.Equal(Constants.FailureScopeInsufficient, FailureType(result));
+    }
+
+    [Fact]
+    public void ComposedInvocation_KeepsCallersScopeBudgetOnChildTokens()
+    {
+        // "inv:max_$50" covers "inv.read"; the child tokens keep the budget.
+        var token = IssueBound("summary", new() { "inv:max_$50" });
+
+        var result = _service.Invoke("summary", token,
+            new Dictionary<string, object?> { ["q"] = "x" }, new InvokeOpts());
+
+        Assert.True((bool)result["success"]!, "the composed invocation should succeed");
+        Assert.Equal(new List<string> { "inv.read:max_$50" }, _seenTokens["select_cap"].Scope);
+    }
 
     [Fact]
     public void ComposedInvocation_RunsChildrenWithChildBoundTokens()

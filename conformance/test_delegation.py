@@ -148,6 +148,33 @@ class TestDelegatedIssuance:
             f"Expected failure type 'scope_escalation', got {child}"
         )
 
+    def test_sub_scope_cannot_shed_the_parents_scope_budget(
+        self, client, bootstrap_bearer, unrelated_capabilities
+    ):
+        """A budget on a parent scope bounds every scope beneath it: a child
+        of "x:max_$500" cannot hold "x.sub" without a budget."""
+        _, _, write_name, write_scope = unrelated_capabilities
+        base = write_scope[0]
+        if "." not in base:
+            pytest.skip("needs a dotted scope to form a parent scope")
+        parent_base = base.rsplit(".", 1)[0]
+        status, root = issue_token_full(
+            client, [f"{parent_base}:max_$500"], write_name, bootstrap_bearer, task_id=None)
+        assert status == 200 and root.get("issued") is True, f"Root issuance failed: {root}"
+
+        _, child = issue_token_full(
+            client, [base], write_name, bootstrap_bearer, task_id=None,
+            parent_token=root["token_id"],
+        )
+
+        assert child.get("issued") is not True and "token" not in child, (
+            f"A child token with scope '{base}' (no budget) was issued from a parent "
+            f"holding '{parent_base}:max_$500'"
+        )
+        assert _failure_type(child) == "scope_escalation", (
+            f"Expected failure type 'scope_escalation', got {child}"
+        )
+
     def test_delegated_token_can_lower_a_scope_budget(
         self, client, bootstrap_bearer, unrelated_capabilities
     ):

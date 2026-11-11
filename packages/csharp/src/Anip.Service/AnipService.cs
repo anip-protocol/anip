@@ -1269,6 +1269,17 @@ public class AnipService : IDisposable
                             throw new AnipError(Constants.FailureUnknownCapability,
                                 $"Composition child capability '{childCap}' not found");
                         }
+                        // The child's scope comes from the caller's own scope,
+                        // keeping any budget it carries. A caller whose token does
+                        // not cover the child is told so, as for a direct invocation.
+                        var (childScope, missingScope) = DelegationEngine.NarrowedScope(
+                            callerToken.Scope, childDef.Declaration.MinimumScope);
+                        if (missingScope.Count > 0)
+                        {
+                            return ChildFailureResponse(new AnipError(Constants.FailureScopeInsufficient,
+                                    $"composition step '{childCap}' needs scope(s) the caller's token does not carry: {string.Join(", ", missingScope)}")
+                                .WithResolution("request_broader_scope"));
+                        }
                         var purposeParameters = callerToken.Purpose?.Parameters != null
                             ? new Dictionary<string, object>(callerToken.Purpose.Parameters)
                             : new Dictionary<string, object>();
@@ -1283,7 +1294,7 @@ public class AnipService : IDisposable
                             {
                                 Subject = callerToken.Subject,
                                 Capability = childCap,
-                                Scope = childDef.Declaration.MinimumScope,
+                                Scope = childScope,
                                 ParentToken = callerToken.TokenId,
                                 PurposeParameters = purposeParameters,
                                 TtlHours = 1,

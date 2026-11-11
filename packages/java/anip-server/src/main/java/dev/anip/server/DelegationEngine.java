@@ -299,6 +299,47 @@ public final class DelegationEngine {
         return scope.split(":")[0];
     }
 
+    /**
+     * Whether a held scope base covers a needed one: "travel" covers "travel"
+     * and "travel.search", not "travelogue".
+     */
+    private static boolean scopeCovers(String heldBase, String neededBase) {
+        return neededBase.equals(heldBase) || neededBase.startsWith(heldBase + ".");
+    }
+
+    /** Result of {@link #narrowedScope}. */
+    public record NarrowedScope(List<String> scope, List<String> missing) {}
+
+    /**
+     * Returns the scope a token derived from {@code heldScope} should carry to
+     * cover {@code required}, and the required scopes it does not cover. Each
+     * entry keeps the constraint suffix of the held scope that covers it:
+     * holding "travel:max_$500" gives "travel.book:max_$500" for a required
+     * "travel.book".
+     */
+    public static NarrowedScope narrowedScope(List<String> heldScope, List<String> required) {
+        List<String> narrowed = new java.util.ArrayList<>();
+        List<String> missing = new java.util.ArrayList<>();
+        if (required != null) {
+            for (String needed : required) {
+                String match = null;
+                for (String held : heldScope) {
+                    String base = scopeBase(held);
+                    if (scopeCovers(base, needed)) {
+                        match = needed + held.substring(base.length());
+                        break;
+                    }
+                }
+                if (match == null) {
+                    missing.add(needed);
+                } else {
+                    narrowed.add(match);
+                }
+            }
+        }
+        return new NarrowedScope(narrowed, missing);
+    }
+
     /** Whether a scope string carries a "max_$" budget at all. */
     private static boolean hasScopeBudget(String scope) {
         return scope.contains(":max_$");
@@ -339,8 +380,7 @@ public final class DelegationEngine {
 
         for (String child : childScope) {
             String childBase = scopeBase(child);
-            boolean covered = parentBases.stream().anyMatch(
-                    base -> childBase.equals(base) || childBase.startsWith(base + "."));
+            boolean covered = parentBases.stream().anyMatch(base -> scopeCovers(base, childBase));
             if (!covered) {
                 throw scopeEscalation("child token scope '" + childBase
                         + "' is not a subset of parent token scopes: "
@@ -348,7 +388,9 @@ public final class DelegationEngine {
             }
 
             for (String parentScope : parent.getScope()) {
-                if (!hasScopeBudget(parentScope) || !scopeBase(parentScope).equals(childBase)) {
+                // A budget on a parent scope applies to every scope beneath
+                // it: "travel:max_$500" also bounds "travel.book".
+                if (!hasScopeBudget(parentScope) || !scopeCovers(scopeBase(parentScope), childBase)) {
                     continue;
                 }
                 Double parentBudget = scopeBudget(parentScope);

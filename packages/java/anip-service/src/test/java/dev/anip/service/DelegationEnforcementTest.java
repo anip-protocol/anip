@@ -82,14 +82,13 @@ class DelegationEnforcementTest {
                 new FailurePolicy(), new AuditPolicy(true, true));
     }
 
-    @BeforeEach
-    void setUp() throws Exception {
+    private ANIPService buildService(List<String> enrichScope) throws Exception {
         CapabilityDef summary = new CapabilityDef(
                 decl("summary", List.of("inv.read"), List.of("sync"))
                         .setKind("composed").setComposition(summaryComposition()),
                 (ctx, params) -> Map.of());
 
-        service = new ANIPService(new ServiceConfig()
+        ANIPService built = new ANIPService(new ServiceConfig()
                 .setServiceId("test-service")
                 .setCapabilities(List.of(
                         recording("search_flights", List.of("travel.search"), List.of("sync", "streaming"),
@@ -98,13 +97,19 @@ class DelegationEnforcementTest {
                                 Map.of("booking_id", "BK-001")),
                         recording("select_cap", List.of("inv.read"), List.of("sync"),
                                 Map.of("items", List.of("a", "b"))),
-                        recording("enrich_cap", List.of("inv.read"), List.of("sync"),
+                        recording("enrich_cap", enrichScope, List.of("sync"),
                                 Map.of("count", 2)),
                         summary))
                 .setStorage(":memory:")
                 .setAuthenticate(bearer -> "test-key".equals(bearer) ? Optional.of(HUMAN) : Optional.empty())
                 .setRetentionIntervalSeconds(-1));
-        service.start();
+        built.start();
+        return built;
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
+        service = buildService(List.of("inv.read"));
     }
 
     @AfterEach
@@ -217,6 +222,10 @@ class DelegationEnforcementTest {
                 new Case("lowers scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$100"), true),
                 new Case("drops scope budget", List.of("travel.book:max_$500"), List.of("travel.book"), false),
                 new Case("raises scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$900"), false),
+                // A budget on a parent scope bounds every scope beneath it.
+                new Case("sub-scope keeps parent budget", List.of("travel:max_$500"), List.of("travel.book:max_$500"), true),
+                new Case("sub-scope drops parent budget", List.of("travel:max_$500"), List.of("travel.book"), false),
+                new Case("sub-scope raises parent budget", List.of("travel:max_$500"), List.of("travel.book:max_$900"), false),
                 // A budget that is not a finite, non-negative number must fail closed: NaN compares
                 // false against everything, so it would pass a naive "child > parent" check.
                 new Case("NaN scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$NaN"), false),
@@ -310,6 +319,33 @@ class DelegationEnforcementTest {
     }
 
     // --- composed capabilities --------------------------------------------------
+
+    @Test
+    void composedInvocationCannotReachChildBeyondCallersScope() throws Exception {
+        // The second child needs a scope the caller's token does not carry.
+        service.shutdown();
+        service = buildService(List.of("inv.admin"));
+        DelegationToken token = issueBound("summary", List.of("inv.read"));
+
+        Map<String, Object> result = service.invoke("summary", token, Map.of("q", "x"), new InvokeOpts());
+
+        assertEquals(false, result.get("success"));
+        assertNull(seenTokens.get("enrich_cap"), "the child handler must not run");
+        // Default failure_policy propagates a child denial unchanged: the
+        // caller is told its token lacks the scope the step needs.
+        assertEquals(Constants.FAILURE_SCOPE_INSUFFICIENT, failureType(result));
+    }
+
+    @Test
+    void composedInvocationKeepsCallersScopeBudgetOnChildTokens() throws Exception {
+        // "inv:max_$50" covers "inv.read"; the child tokens keep the budget.
+        DelegationToken token = issueBound("summary", List.of("inv:max_$50"));
+
+        Map<String, Object> result = service.invoke("summary", token, Map.of("q", "x"), new InvokeOpts());
+
+        assertEquals(true, result.get("success"), "the composed invocation should succeed: " + result);
+        assertEquals(List.of("inv.read:max_$50"), seenTokens.get("select_cap").getScope());
+    }
 
     @Test
     void composedInvocationRunsChildrenWithChildBoundTokens() throws Exception {

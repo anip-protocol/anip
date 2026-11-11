@@ -319,6 +319,10 @@ func TestIssueTokenScopeNarrowingRules(t *testing.T) {
 		{"lowers scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$100"}, ""},
 		{"drops scope budget", []string{"travel.book:max_$500"}, []string{"travel.book"}, core.FailureScopeEscalation},
 		{"raises scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$900"}, core.FailureScopeEscalation},
+		// A budget on a parent scope bounds every scope beneath it.
+		{"sub-scope keeps parent budget", []string{"travel:max_$500"}, []string{"travel.book:max_$500"}, ""},
+		{"sub-scope drops parent budget", []string{"travel:max_$500"}, []string{"travel.book"}, core.FailureScopeEscalation},
+		{"sub-scope raises parent budget", []string{"travel:max_$500"}, []string{"travel.book:max_$900"}, core.FailureScopeEscalation},
 		// A budget that is not a finite, non-negative number must fail closed:
 		// NaN compares false against everything, so it would pass a naive "child > parent" check.
 		{"NaN scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$NaN"}, core.FailureScopeEscalation},
@@ -480,5 +484,66 @@ func TestIssueTokenAsAllowsRootIssuanceWithBootstrapCredential(t *testing.T) {
 		Scope: []string{"travel.search"}, Capability: "search_flights",
 	}); err != nil {
 		t.Fatalf("root issuance with the bootstrap credential failed: %v", err)
+	}
+}
+
+// --- Composed capabilities: the child's scope comes from the caller's ------
+
+func TestComposedInvocationCannotReachChildBeyondCallersScope(t *testing.T) {
+	seen := map[string]*core.DelegationToken{}
+	svc := newComposedTestService(seen)
+	// The second child needs a scope the caller's token does not carry.
+	enrich := svc.capabilities["enrich_cap"]
+	enrich.Declaration.MinimumScope = []string{"admin"}
+	svc.capabilities["enrich_cap"] = enrich
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	token := issueBoundToken(t, svc, "summary", []string{"s"})
+	result, err := svc.Invoke("summary", token, map[string]any{"q": "x"}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+
+	if result["success"] != false {
+		t.Fatalf("expected the composed invocation to fail, got %#v", result)
+	}
+	if seen["enrich_cap"] != nil {
+		t.Fatal("the child handler must not run")
+	}
+	// Default failure_policy propagates a child denial unchanged: the caller
+	// is told its token lacks the scope the step needs.
+	if got := failureType(t, result); got != core.FailureScopeInsufficient {
+		t.Fatalf("expected failure type %q, got %q", core.FailureScopeInsufficient, got)
+	}
+}
+
+func TestComposedInvocationKeepsCallersScopeBudgetOnChildTokens(t *testing.T) {
+	seen := map[string]*core.DelegationToken{}
+	svc := newComposedTestService(seen)
+	for _, name := range []string{"select_cap", "enrich_cap", "summary"} {
+		def := svc.capabilities[name]
+		def.Declaration.MinimumScope = []string{"inv.read"}
+		svc.capabilities[name] = def
+	}
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	// "inv:max_$50" covers "inv.read"; the child token keeps the budget.
+	token := issueBoundToken(t, svc, "summary", []string{"inv:max_$50"})
+	result, err := svc.Invoke("summary", token, map[string]any{"q": "x"}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+	if result["success"] != true {
+		t.Fatalf("expected the composed invocation to succeed, got %#v", result["failure"])
+	}
+	child := seen["select_cap"]
+	if child == nil || len(child.Scope) != 1 || child.Scope[0] != "inv.read:max_$50" {
+		t.Fatalf("child token scope = %v, want [inv.read:max_$50]", child)
 	}
 }

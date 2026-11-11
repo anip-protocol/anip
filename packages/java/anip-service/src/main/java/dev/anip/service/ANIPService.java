@@ -1013,6 +1013,17 @@ public class ANIPService {
                             throw new ANIPError(Constants.FAILURE_UNKNOWN_CAPABILITY,
                                     "Composition child capability '" + childCap + "' not found");
                         }
+                        // The child's scope comes from the caller's own scope,
+                        // keeping any budget it carries. A caller whose token does
+                        // not cover the child is told so, as for a direct invocation.
+                        DelegationEngine.NarrowedScope childScope = DelegationEngine.narrowedScope(
+                                callerToken.getScope(), childDef.getDeclaration().getMinimumScope());
+                        if (!childScope.missing().isEmpty()) {
+                            return childFailureResponse(new ANIPError(Constants.FAILURE_SCOPE_INSUFFICIENT,
+                                    "composition step '" + childCap + "' needs scope(s) the caller's token "
+                                            + "does not carry: " + String.join(", ", childScope.missing()))
+                                    .withResolution("request_broader_scope"));
+                        }
                         Map<String, Object> purposeParameters = new LinkedHashMap<>();
                         if (callerToken.getPurpose() != null && callerToken.getPurpose().getParameters() != null) {
                             purposeParameters.putAll(callerToken.getPurpose().getParameters());
@@ -1023,7 +1034,7 @@ public class ANIPService {
                         DelegationToken childToken;
                         try {
                             TokenResponse issued = issueToken(callerToken.getSubject(), new TokenRequest(
-                                    callerToken.getSubject(), childDef.getDeclaration().getMinimumScope(),
+                                    callerToken.getSubject(), childScope.scope(),
                                     childCap, purposeParameters, callerToken.getTokenId(), 1, null));
                             childToken = resolveBearerToken(issued.getToken());
                         } catch (ANIPError e) {

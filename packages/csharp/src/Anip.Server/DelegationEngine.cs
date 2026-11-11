@@ -198,6 +198,43 @@ public static class DelegationEngine
     private static string ScopeBase(string scope) => scope.Split(':')[0];
 
     /// <summary>
+    /// Whether a held scope base covers a needed one: "travel" covers
+    /// "travel" and "travel.search", not "travelogue".
+    /// </summary>
+    private static bool ScopeCovers(string heldBase, string neededBase) =>
+        neededBase == heldBase || neededBase.StartsWith(heldBase + ".", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Returns the scope a token derived from <paramref name="heldScope"/>
+    /// should carry to cover <paramref name="required"/>, and the required
+    /// scopes it does not cover. Each entry keeps the constraint suffix of the
+    /// held scope that covers it: holding "travel:max_$500" gives
+    /// "travel.book:max_$500" for a required "travel.book".
+    /// </summary>
+    public static (List<string> Scope, List<string> Missing) NarrowedScope(
+        List<string> heldScope, List<string>? required)
+    {
+        var narrowed = new List<string>();
+        var missing = new List<string>();
+        foreach (var needed in required ?? new List<string>())
+        {
+            string? match = null;
+            foreach (var held in heldScope)
+            {
+                var heldBase = ScopeBase(held);
+                if (ScopeCovers(heldBase, needed))
+                {
+                    match = needed + held[heldBase.Length..];
+                    break;
+                }
+            }
+            if (match == null) missing.Add(needed);
+            else narrowed.Add(match);
+        }
+        return (narrowed, missing);
+    }
+
+    /// <summary>
     /// Returns the "max_$" amount carried by a scope string, or null when it
     /// is absent or not a finite, non-negative number. NaN in particular must
     /// never be accepted: it compares false against everything.
@@ -233,8 +270,7 @@ public static class DelegationEngine
         foreach (var child in childScope)
         {
             var childBase = ScopeBase(child);
-            var covered = parentBases.Any(b =>
-                childBase == b || childBase.StartsWith(b + ".", StringComparison.Ordinal));
+            var covered = parentBases.Any(b => ScopeCovers(b, childBase));
             if (!covered)
             {
                 throw Escalation(
@@ -243,8 +279,10 @@ public static class DelegationEngine
 
             foreach (var parentScope in parent.Scope)
             {
+                // A budget on a parent scope applies to every scope beneath
+                // it: "travel:max_$500" also bounds "travel.book".
                 if (!parentScope.Contains(ScopeBudgetMarker, StringComparison.Ordinal)
-                    || ScopeBase(parentScope) != childBase)
+                    || !ScopeCovers(ScopeBase(parentScope), childBase))
                 {
                     continue;
                 }
