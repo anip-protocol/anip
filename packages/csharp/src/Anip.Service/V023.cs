@@ -334,7 +334,7 @@ public static class V023
             }
             foreach (var kv in comp.EmptyResultOutput)
             {
-                if (kv.Value is string sv && sv.StartsWith("$", StringComparison.Ordinal))
+                if (EmptyResultReference(kv.Value) is { } sv)
                 {
                     var refStep = ParseStepRef(sv);
                     if (refStep != null && refStep != sourceStep.Id)
@@ -581,7 +581,7 @@ public static class V023
         if (comp.EmptyResultOutput == null) return result;
         foreach (var kv in comp.EmptyResultOutput)
         {
-            if (kv.Value is string sv && sv.StartsWith("$", StringComparison.Ordinal))
+            if (EmptyResultReference(kv.Value) is { } sv)
             {
                 result[kv.Key] = TryResolveEmptyRef(sv, parentInput, sourceOutput);
             }
@@ -591,6 +591,23 @@ public static class V023
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// Returns the reference path when an empty_result_output value is a
+    /// "$..." reference, otherwise null. A Composition deserialized from JSON
+    /// holds these values as JsonElement rather than string, so both forms
+    /// are recognized.
+    /// </summary>
+    private static string? EmptyResultReference(object? value)
+    {
+        var text = value switch
+        {
+            string s => s,
+            JsonElement { ValueKind: JsonValueKind.String } el => el.GetString(),
+            _ => null,
+        };
+        return text != null && text.StartsWith("$", StringComparison.Ordinal) ? text : null;
     }
 
     private static object? TryResolveEmptyRef(string path,
