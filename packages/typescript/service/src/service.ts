@@ -30,6 +30,7 @@ import {
   SQLiteStorage,
   type CheckpointSink,
   type StorageBackend,
+  narrowedScope,
 } from "@anip-dev/server";
 
 import { ANIPError } from "./types.js";
@@ -88,12 +89,40 @@ export interface ANIPServiceOpts {
   hooks?: ANIPHooks;
 }
 
+/** Who is asking for a token, and how they proved it. */
+export interface Issuer {
+  /** The authenticated caller. */
+  principal: string;
+  /**
+   * True when the caller authenticated with a delegation token issued by this
+   * service rather than with a bootstrap credential.
+   */
+  viaToken: boolean;
+}
+
 export interface ANIPService {
   getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown>;
   getManifest(): ANIPManifest;
   getSignedManifest(): Promise<[Uint8Array, string]>;
   getJwks(): Promise<Record<string, unknown>>;
+  /**
+   * Resolve a bootstrap credential (API key, external auth) to a principal.
+   * A delegation token is not accepted here: use `resolveBearerToken()` to
+   * invoke with one, and `authenticateIssuer()` on a token endpoint.
+   */
   authenticateBearer(bearerValue: string): Promise<string | null>;
+  /**
+   * Authenticate the bearer value presented to a token endpoint: the
+   * bootstrap credential, or a delegation token issued by this service
+   * (SPEC.md §6.3). A token authenticates as its subject, the holder.
+   */
+  authenticateIssuer(bearerValue: string): Promise<Issuer | null>;
+  /**
+   * Issue a token on behalf of an authenticated caller. A delegation token
+   * is a credential for delegating only; root issuance needs the bootstrap
+   * credential.
+   */
+  issueTokenAs(issuer: Issuer, request: Record<string, unknown>): Promise<Record<string, unknown>>;
   resolveBearerToken(jwtString: string): Promise<DelegationToken>;
   issueToken(
     authenticatedPrincipal: string,
@@ -836,23 +865,46 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     },
 
     async authenticateBearer(bearerValue: string): Promise<string | null> {
-      // Try bootstrap auth (API keys, external auth)
+      // Bootstrap credentials only (API keys, external auth). Treating a
+      // delegation token as its chain's root principal would let any token
+      // holder act as the human who started the chain.
       if (authenticateFn) {
         const principal = await authenticateFn(bearerValue);
         if (principal !== null) {
           return principal;
         }
       }
-
-      // Try ANIP JWT
-      try {
-        const stored = await service.resolveBearerToken(bearerValue);
-        return await engine.getRootPrincipal(stored);
-      } catch {
-        // Not a valid JWT
-      }
-
       return null;
+    },
+
+    async authenticateIssuer(bearerValue: string): Promise<Issuer | null> {
+      const principal = await service.authenticateBearer(bearerValue);
+      if (principal !== null) {
+        return { principal, viaToken: false };
+      }
+      try {
+        const token = await service.resolveBearerToken(bearerValue);
+        return { principal: token.subject, viaToken: true };
+      } catch {
+        return null;
+      }
+    },
+
+    async issueTokenAs(issuer: Issuer, request: Record<string, unknown>): Promise<Record<string, unknown>> {
+      // Root issuance with a token credential would let the holder of a
+      // narrowed token mint itself a fresh root token with any scope.
+      if (issuer.viaToken && !request.parent_token) {
+        throw new ANIPError(
+          "insufficient_authority",
+          "A delegation token can only be used to delegate: the request must name a " +
+            "parent_token held by the caller. Root token issuance requires the bootstrap credential.",
+          {
+            action: "provide_credentials",
+            recovery_class: recoveryClassForAction("provide_credentials"),
+          },
+        );
+      }
+      return service.issueToken(issuer.principal, request);
     },
 
     async resolveBearerToken(jwtString: string): Promise<DelegationToken> {
@@ -1887,17 +1939,53 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               if (childDefinition === undefined) {
                 throw new ANIPError("unknown_capability", `Composition child capability '${childCap}' not found`);
               }
-              const childTokenResponse = await service.issueDelegatedCapabilityToken(
-                resolvedToken.subject,
-                resolvedToken.token_id,
-                childCap,
-                childDefinition.minimum_scope ?? [],
-                resolvedToken.subject,
-                {
-                  purposeParameters: resolvedToken.purpose?.parameters as Record<string, unknown> | undefined,
-                  ttlHours: 1,
-                },
-              );
+              // The child's scope comes from the caller's own scope, keeping
+              // any budget it carries. A caller whose token does not cover the
+              // child is told so, as for a direct invocation.
+              const childScope = narrowedScope(resolvedToken.scope, childDefinition.minimum_scope ?? []);
+              if (childScope.missing.length > 0) {
+                return {
+                  success: false,
+                  failure: {
+                    type: "scope_insufficient",
+                    detail:
+                      `composition step '${childCap}' needs scope(s) the caller's token does not carry: ` +
+                      childScope.missing.join(", "),
+                    resolution: {
+                      action: "request_broader_scope",
+                      recovery_class: recoveryClassForAction("request_broader_scope"),
+                      requires: `delegation.scope += ${childScope.missing.join(", ")}`,
+                    },
+                  },
+                };
+              }
+              const childPurposeParameters: Record<string, unknown> = {
+                ...((resolvedToken.purpose?.parameters as Record<string, unknown> | undefined) ?? {}),
+              };
+              if (effectiveTaskId) {
+                childPurposeParameters.task_id = effectiveTaskId;
+              }
+              let childTokenResponse: Record<string, unknown>;
+              try {
+                childTokenResponse = await service.issueDelegatedCapabilityToken(
+                  resolvedToken.subject,
+                  resolvedToken.token_id,
+                  childCap,
+                  childScope.scope,
+                  resolvedToken.subject,
+                  { purposeParameters: childPurposeParameters, ttlHours: 1 },
+                );
+              } catch (e) {
+                if (e instanceof ANIPError) {
+                  // A refused child token is a failed child step: the
+                  // composition's failure_policy decides the outcome.
+                  return {
+                    success: false,
+                    failure: { type: e.errorType, detail: e.detail, resolution: e.resolution },
+                  };
+                }
+                throw e;
+              }
               const childToken = await service.resolveBearerToken(String(childTokenResponse.token));
               return service.invoke(childCap, childToken, childParams, {
                 clientReferenceId,

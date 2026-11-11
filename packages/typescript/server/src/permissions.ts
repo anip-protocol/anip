@@ -2,6 +2,7 @@
  * Permission discovery — query what you can do before trying it.
  */
 
+import { scopeBudget } from "./delegation.js";
 import type {
   DelegationToken as DelegationTokenType,
   CapabilityDeclaration as CapabilityDeclarationType,
@@ -113,9 +114,9 @@ export function discoverPermissions(
 
       const constraints: Record<string, unknown> = {};
       for (const scopeStr of matchedScopeStrs) {
-        if (scopeStr.includes(":max_$")) {
-          const maxBudget = parseFloat(scopeStr.split(":max_$")[1]);
-          constraints.budget_remaining = maxBudget;
+        const budget = scopeBudget(scopeStr);
+        if (budget.amount !== null) {
+          constraints.budget_remaining = budget.amount;
           constraints.currency = "USD";
         }
       }

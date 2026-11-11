@@ -1,4 +1,4 @@
-export { DelegationEngine } from "./delegation.js";
+export { DelegationEngine, narrowedScope, scopeBudget } from "./delegation.js";
 export type { IssueRootTokenOpts, DelegateOpts } from "./delegation.js";
 export { discoverPermissions } from "./permissions.js";
 export type { PermissionResult } from "./permissions.js";

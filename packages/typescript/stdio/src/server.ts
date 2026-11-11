@@ -238,9 +238,9 @@ export class AnipStdioServer {
       throw new ANIPError("authentication_required", "This method requires auth.bearer");
     }
 
-    // Try bootstrap auth (API key) first, then ANIP JWT
-    const principal = await this.service.authenticateBearer(bearer);
-    if (principal === null) {
+    // Bootstrap credential, or a delegation token issued by this service.
+    const issuer = await this.service.authenticateIssuer(bearer);
+    if (issuer === null) {
       throw new ANIPError("invalid_token", "Bearer token not recognized");
     }
 
@@ -261,7 +261,7 @@ export class AnipStdioServer {
       }
     }
 
-    return await this.service.issueToken(principal, body);
+    return await this.service.issueTokenAs(issuer, body);
   }
 
   private async handlePermissions(
