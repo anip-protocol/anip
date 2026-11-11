@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/hono",
-  "version": "0.24.17",
+  "version": "0.24.18",
   "description": "ANIP Hono bindings — mount an ANIPService as HTTP routes",
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/service": "0.24.17",
+    "@anip-dev/service": "0.24.18",
     "hono": "^4.0.0"
   },
   "devDependencies": {

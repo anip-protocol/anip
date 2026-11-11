@@ -1,12 +1,12 @@
 [project]
 name = "anip-service"
-version = "0.24.17"
+version = "0.24.18"
 description = "ANIP service runtime — configure and run an ANIP service"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core==0.24.17",
-    "anip-crypto==0.24.17",
-    "anip-server==0.24.17",
+    "anip-core==0.24.18",
+    "anip-crypto==0.24.18",
+    "anip-server==0.24.18",
 ]
 authors = [{ name = "ANIP Protocol", email = "team@anip.dev" }]
 license = { text = "Apache-2.0" }
