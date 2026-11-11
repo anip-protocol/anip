@@ -110,6 +110,7 @@ public class V023ApprovalGrantsTests : IDisposable
         var tokenResponse = _service.IssueToken(_principal, new TokenRequest
         {
             Scope = new List<string> { "data.write" },
+            Capability = "send_notice",
         });
         var token = _service.ResolveBearerToken(tokenResponse.Token);
 

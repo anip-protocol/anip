@@ -205,19 +205,12 @@ public class DelegationEngineTests : IDisposable
             ParentToken = parentResponse.TokenId
         };
 
-        // The child token gets issued (scope validation happens at invoke time),
-        // but validating the child's scope against the parent's should fail.
-        var childResponse = DelegationEngine.IssueDelegationToken(
-            _keys, _storage, ServiceId, "agent-1@example.com", childRequest);
+        // The holder of the parent asks for a child with scope the parent does
+        // not have: issuance itself must be refused.
+        var ex = Assert.Throws<AnipError>(() => DelegationEngine.IssueDelegationToken(
+            _keys, _storage, ServiceId, "agent-1@example.com", childRequest));
 
-        var childToken = _storage.LoadToken(childResponse.TokenId)!;
-        var parentToken = _storage.LoadToken(parentResponse.TokenId)!;
-
-        // Child has scope "admin:write" which parent doesn't have.
-        var ex = Assert.Throws<AnipError>(() =>
-            DelegationEngine.ValidateScope(parentToken, new List<string> { "admin" }));
-
-        Assert.Equal(Constants.FailureScopeInsufficient, ex.ErrorType);
+        Assert.Equal(Constants.FailureScopeEscalation, ex.ErrorType);
     }
 
     [Fact]

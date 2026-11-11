@@ -18,6 +18,11 @@ public static class Constants
     public const string FailureBindingStale = "binding_stale";
     public const string FailureControlRequirementUnsatisfied = "control_requirement_unsatisfied";
     public const string FailurePurposeMismatch = "purpose_mismatch";
+    public const string FailureScopeEscalation = "scope_escalation";
+    public const string FailureInsufficientAuthority = "insufficient_authority";
+    public const string FailureBrokenDelegationChain = "broken_delegation_chain";
+    public const string FailureDelegationDepthExceeded = "delegation_depth_exceeded";
+    public const string FailureParentTokenExpired = "parent_token_expired";
     public const string FailureNotFound = "not_found";
     public const string FailureUnavailable = "unavailable";
     public const string FailureConcurrentLock = "concurrent_lock";
@@ -92,6 +97,9 @@ public static class Constants
         FailureScopeInsufficient or FailureBudgetExceeded or FailureBudgetCurrencyMismatch
             or FailureBudgetNotEnforceable or FailureBindingMissing or FailureBindingStale
             or FailureControlRequirementUnsatisfied or FailurePurposeMismatch
+            or FailureScopeEscalation or FailureInsufficientAuthority
+            or FailureBrokenDelegationChain or FailureDelegationDepthExceeded
+            or FailureParentTokenExpired
             or FailureApproverNotAuthorized => 403,
         FailureUnknownCapability or FailureNotFound
             or FailureApprovalRequestNotFound => 404,
