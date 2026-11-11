@@ -97,7 +97,11 @@ func TestBuildPythonProject(t *testing.T) {
 	}
 }
 
-func TestBuildPythonProjectCompositionUsesOnlyMappedChildInputs(t *testing.T) {
+// Composed capabilities are executed by the ANIP runtime (SPEC.md §4.6), which
+// invokes each step through the normal pipeline with its own token and audit
+// entry. Generated Python projects used to carry their own executor that
+// called child handlers directly; they must only declare the composition.
+func TestBuildPythonProjectLeavesCompositionToRuntime(t *testing.T) {
 	project, err := BuildPythonProject(mustReadFixtureDefinition(t), BuildPythonProjectOptions{
 		DependencySource: DependencySourceLocal,
 		Port:             4100,
@@ -107,17 +111,23 @@ func TestBuildPythonProjectCompositionUsesOnlyMappedChildInputs(t *testing.T) {
 	}
 
 	capabilities := fileContent(project.Files, "src/work_item_governance_service/capabilities.py")
-	if strings.Contains(capabilities, "child_params = dict(params)") {
-		t.Fatal("composition must not implicitly forward parent inputs to children")
+	for _, fragment := range []string{
+		"_execute_generated_composition",
+		"_invoke_composition_child",
+		"child.handler(",
+		"child_params",
+	} {
+		if strings.Contains(capabilities, fragment) {
+			t.Fatalf("generated project must not run compositions itself; found %q", fragment)
+		}
 	}
 	for _, fragment := range []string{
-		"        child_params = {}\n        mapping = input_mapping.get(step_id) or {}",
-		"        mapping_root = {'input': params, 'steps': state['steps']}",
-		"                mapped_value = _resolve_json_path(mapping_root, source_path)\n                if mapped_value is not None:\n                    child_params[target_key] = mapped_value",
-		"        child_output = await _invoke_composition_child(capability_registry, child_capability, ctx, child_params)",
+		`kind=capability.get("kind") or "atomic",`,
+		`composition=capability.get("composition"),`,
+		"must be executed by the ANIP runtime",
 	} {
 		if !strings.Contains(capabilities, fragment) {
-			t.Fatalf("composition missing mapped-input behavior: %q", fragment)
+			t.Fatalf("generated project must declare compositions for the runtime; missing %q", fragment)
 		}
 	}
 }
@@ -164,8 +174,8 @@ func TestBuildPythonProjectSplitsContractServices(t *testing.T) {
 	if !strings.Contains(capabilities, "if metadata['capability_id'] in registry:") {
 		t.Fatalf("capabilities module should preserve custom handlers in the capability registry")
 	}
-	if !strings.Contains(capabilities, "async def _execute_generated_composition") {
-		t.Fatalf("capabilities module missing generated v0.23 composition executor")
+	if strings.Contains(capabilities, "async def _execute_generated_composition") {
+		t.Fatalf("capabilities module must leave composition execution to the ANIP runtime")
 	}
 	if !strings.Contains(capabilities, "def _apply_input_defaults") {
 		t.Fatalf("capabilities module should apply contract input defaults")
