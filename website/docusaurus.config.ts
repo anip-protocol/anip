@@ -53,6 +53,12 @@ const config: Config = {
     ],
   ],
   themeConfig: {
+    announcementBar: {
+      id: 'security-release-0-24-18',
+      content:
+        'Security release 0.24.18: upgrade if your ANIP service has more than one principal or capability. <a href="/docs/releases/delegation-enforcement-0-24-18">What changed</a> · <a href="/blog/delegation-enforcement-0-24-18">Why it happened</a>',
+      isCloseable: true,
+    },
     image: 'img/anip-social-card.png',
     colorMode: {
       defaultMode: 'light',
