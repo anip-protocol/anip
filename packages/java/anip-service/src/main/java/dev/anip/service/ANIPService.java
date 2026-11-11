@@ -287,6 +287,67 @@ public class ANIPService {
     }
 
     /**
+     * Shapes an error raised before a child step could run like a failed
+     * child invocation, for the composition executor to interpret.
+     */
+    private static Map<String, Object> childFailureResponse(ANIPError e) {
+        Map<String, Object> failure = new LinkedHashMap<>();
+        failure.put("type", e.getErrorType());
+        failure.put("detail", e.getDetail());
+        if (e.getResolution() != null) {
+            Map<String, Object> resolution = new LinkedHashMap<>();
+            resolution.put("action", e.getResolution().getAction());
+            resolution.put("recovery_class", e.getResolution().getRecoveryClass() != null
+                    ? e.getResolution().getRecoveryClass()
+                    : Constants.recoveryClassForAction(e.getResolution().getAction()));
+            failure.put("resolution", resolution);
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", false);
+        response.put("failure", failure);
+        return response;
+    }
+
+    /**
+     * Authenticates the bearer value presented to a token endpoint. Accepts
+     * the bootstrap credential, or a delegation token issued by this service
+     * (SPEC.md §6.3: "For delegation, the bearer value is an existing JWT
+     * token issued by the service").
+     */
+    public Optional<Issuer> authenticateIssuer(String bearer) {
+        Optional<String> principal = authenticateBearer(bearer);
+        if (principal.isPresent()) {
+            return Optional.of(new Issuer(principal.get(), false));
+        }
+        try {
+            DelegationToken token = resolveBearerToken(bearer);
+            return Optional.of(new Issuer(token.getSubject(), true));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Issues a token on behalf of an authenticated caller. Transports use
+     * this for their token endpoint.
+     *
+     * <p>A delegation token is a credential for delegating only. Root
+     * issuance needs the bootstrap credential: otherwise the holder of a
+     * narrowed token could mint itself a fresh root token with any scope.</p>
+     */
+    public TokenResponse issueTokenAs(Issuer issuer, TokenRequest req) throws Exception {
+        boolean delegating = req.getParentToken() != null && !req.getParentToken().isEmpty();
+        if (issuer.viaToken() && !delegating) {
+            throw new ANIPError(Constants.FAILURE_INSUFFICIENT_AUTHORITY,
+                    "A delegation token can only be used to delegate: the request must name a "
+                            + "parent_token held by the caller. Root token issuance requires the "
+                            + "bootstrap credential.")
+                    .withResolution("provide_credentials");
+        }
+        return issueToken(issuer.principal(), req);
+    }
+
+    /**
      * Issues a delegation token for the authenticated principal.
      */
     public TokenResponse issueToken(String principal, TokenRequest req) throws Exception {
@@ -591,11 +652,16 @@ public class ANIPService {
                 return resp;
             }
 
-            // 3. Validate token scope covers capability's minimum_scope.
+            // 3. Validate the token for this capability: scope covers
+            // minimum_scope, the token is bound to this capability, and its
+            // delegation chain is complete, within depth, and unexpired.
             try {
-                DelegationEngine.validateScope(token, capDef.getDeclaration().getMinimumScope());
+                DelegationEngine.validateDelegation(storage, token,
+                        capDef.getDeclaration().getMinimumScope(), capName);
             } catch (ANIPError e) {
-                fireScopeValidation(capName, false);
+                if (Constants.FAILURE_SCOPE_INSUFFICIENT.equals(e.getErrorType())) {
+                    fireScopeValidation(capName, false);
+                }
                 Map<String, Object> failure = new LinkedHashMap<>();
                 failure.put("type", e.getErrorType());
                 failure.put("detail", e.getDetail());
@@ -932,10 +998,43 @@ public class ANIPService {
             try {
                 if ("composed".equals(capDef.getDeclaration().getKind())) {
                     // Run the composition runner instead of the registered handler.
-                    // Each child step re-enters invoke() with the same token + lineage.
-                    DelegationToken childToken = token;
+                    // Each child step re-enters invoke() with its own token:
+                    // delegated from the caller's token, bound to the child
+                    // capability and narrowed to its minimum scope. That keeps
+                    // purpose binding intact and means a caller whose token does
+                    // not cover a child's scope cannot reach that child through
+                    // a composition. The child's audit entry links to this
+                    // invocation and shares its task_id.
+                    DelegationToken callerToken = token;
                     String parentInvocId = invocationId;
                     V023.InvokeStepFunc invokeStep = (childCap, childParams) -> {
+                        CapabilityDef childDef = capabilities.get(childCap);
+                        if (childDef == null) {
+                            throw new ANIPError(Constants.FAILURE_UNKNOWN_CAPABILITY,
+                                    "Composition child capability '" + childCap + "' not found");
+                        }
+                        Map<String, Object> purposeParameters = new LinkedHashMap<>();
+                        if (callerToken.getPurpose() != null && callerToken.getPurpose().getParameters() != null) {
+                            purposeParameters.putAll(callerToken.getPurpose().getParameters());
+                        }
+                        if (effectiveTaskId != null && !effectiveTaskId.isEmpty()) {
+                            purposeParameters.put("task_id", effectiveTaskId);
+                        }
+                        DelegationToken childToken;
+                        try {
+                            TokenResponse issued = issueToken(callerToken.getSubject(), new TokenRequest(
+                                    callerToken.getSubject(), childDef.getDeclaration().getMinimumScope(),
+                                    childCap, purposeParameters, callerToken.getTokenId(), 1, null));
+                            childToken = resolveBearerToken(issued.getToken());
+                        } catch (ANIPError e) {
+                            // A refused child token is a failed child step: the
+                            // composition's failure_policy decides the outcome.
+                            return childFailureResponse(e);
+                        } catch (Exception e) {
+                            throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR,
+                                    "could not issue a token for composition child '" + childCap + "': "
+                                            + e.getMessage());
+                        }
                         InvokeOpts childOpts = new InvokeOpts(clientRefId, false,
                                 effectiveTaskId, parentInvocId, upstreamService);
                         return invoke(childCap, childToken, childParams, childOpts);
@@ -1159,8 +1258,10 @@ public class ANIPService {
                     "Capability '" + capName + "' does not support streaming");
         }
 
-        // 3. Validate token scope.
-        DelegationEngine.validateScope(token, capDef.getDeclaration().getMinimumScope());
+        // 3. Validate the token for this capability (scope, purpose binding,
+        // delegation chain).
+        DelegationEngine.validateDelegation(storage, token,
+                capDef.getDeclaration().getMinimumScope(), capName);
 
         // 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve
         // the approval_grant BEFORE any handler / event emission. Reservation

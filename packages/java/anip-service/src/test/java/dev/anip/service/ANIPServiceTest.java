@@ -251,7 +251,7 @@ class ANIPServiceTest {
                 .setRetentionIntervalSeconds(-1));
         svc.start();
         try {
-            DelegationToken token = issueToken(svc, List.of("travel"));
+            DelegationToken token = issueToken(svc, List.of("travel"), "failing_cap");
             Map<String, Object> result = svc.invoke("failing_cap", token, Map.of(), new InvokeOpts());
             assertFalse((Boolean) result.get("success"));
             @SuppressWarnings("unchecked")
@@ -288,7 +288,7 @@ class ANIPServiceTest {
                 .setRetentionIntervalSeconds(-1));
         svc.start();
         try {
-            DelegationToken token = issueToken(svc, List.of("travel"));
+            DelegationToken token = issueToken(svc, List.of("travel"), "stream_cap");
             StreamResult sr = svc.invokeStream("stream_cap", token, Map.of(), new InvokeOpts());
 
             BlockingQueue<StreamEvent> events = sr.getEvents();
@@ -335,7 +335,7 @@ class ANIPServiceTest {
                 .setRetentionIntervalSeconds(-1));
         svc.start();
         try {
-            DelegationToken token = issueToken(svc, List.of("travel"));
+            DelegationToken token = issueToken(svc, List.of("travel"), "fail_stream");
             StreamResult sr = svc.invokeStream("fail_stream", token, Map.of(), new InvokeOpts());
 
             BlockingQueue<StreamEvent> events = sr.getEvents();
@@ -558,7 +558,7 @@ class ANIPServiceTest {
                 .setRetentionIntervalSeconds(-1));
         svc.start();
         try {
-            DelegationToken token = issueToken(svc, List.of("travel"));
+            DelegationToken token = issueToken(svc, List.of("travel"), "fail_cap");
             Map<String, Object> result = svc.invoke("fail_cap", token, Map.of(), new InvokeOpts());
 
             assertFalse((Boolean) result.get("success"));
@@ -713,8 +713,13 @@ class ANIPServiceTest {
     }
 
     private DelegationToken issueToken(ANIPService svc, List<String> scopes) throws Exception {
+        return issueToken(svc, scopes, "search_flights");
+    }
+
+    /** A token only invokes the capability it is bound to (purpose binding). */
+    private DelegationToken issueToken(ANIPService svc, List<String> scopes, String capability) throws Exception {
         TokenRequest req = new TokenRequest(
-                "agent@test.com", scopes, "search_flights",
+                "agent@test.com", scopes, capability,
                 null, null, 2, null
         );
         TokenResponse resp = svc.issueToken("user@test.com", req);

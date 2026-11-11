@@ -91,6 +91,16 @@ public final class DelegationEngine {
                         "parent token not found: " + req.getParentToken());
             }
 
+            // Trust boundary: only the holder of a token (its subject) may
+            // delegate from it. A token ID is not a credential.
+            if (principal == null || !principal.equals(parentToken.getSubject())) {
+                throw new ANIPError(Constants.FAILURE_INSUFFICIENT_AUTHORITY,
+                        "Caller '" + principal + "' is not the parent token's subject ('"
+                                + parentToken.getSubject() + "') — only the delegatee can sub-delegate");
+            }
+            // A child token can never carry more scope than its parent.
+            validateScopeNarrowing(parentToken, req.getScope());
+
             issuer = parentToken.getSubject();
             rootPrincipal = parentToken.getRootPrincipal();
             parent = parentToken.getTokenId();
@@ -282,6 +292,151 @@ public final class DelegationEngine {
                     "delegation chain lacks scope(s): " + String.join(", ", missing)
             ).withResolution("request_broader_scope");
         }
+    }
+
+    /** Strips a scope's constraint suffix: "travel.book:max_$500" -> "travel.book". */
+    private static String scopeBase(String scope) {
+        return scope.split(":")[0];
+    }
+
+    /** Returns the "max_$" amount carried by a scope string, or null. */
+    private static Double scopeBudget(String scope) {
+        int idx = scope.indexOf(":max_$");
+        if (idx < 0) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(scope.substring(idx + ":max_$".length()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Rejects a delegated token whose scope is not within its parent's: every
+     * child scope must equal a parent scope or sit below it ("travel" covers
+     * "travel.search"), and a budget carried by the parent scope may be
+     * lowered but not dropped or raised.
+     */
+    static void validateScopeNarrowing(DelegationToken parent, List<String> childScope) {
+        if (childScope == null) {
+            return;
+        }
+        List<String> parentBases = parent.getScope().stream().map(DelegationEngine::scopeBase).toList();
+
+        for (String child : childScope) {
+            String childBase = scopeBase(child);
+            boolean covered = parentBases.stream().anyMatch(
+                    base -> childBase.equals(base) || childBase.startsWith(base + "."));
+            if (!covered) {
+                throw scopeEscalation("child token scope '" + childBase
+                        + "' is not a subset of parent token scopes: "
+                        + String.join(", ", parentBases.stream().sorted().toList()));
+            }
+
+            for (String parentScope : parent.getScope()) {
+                Double parentBudget = scopeBudget(parentScope);
+                if (parentBudget == null || !scopeBase(parentScope).equals(childBase)) {
+                    continue;
+                }
+                Double childBudget = scopeBudget(child);
+                if (childBudget == null) {
+                    throw scopeEscalation("child dropped budget constraint from scope '" + childBase
+                            + "' (parent has max $" + parentBudget + ")");
+                }
+                if (childBudget > parentBudget) {
+                    throw scopeEscalation("child budget $" + childBudget + " exceeds parent budget $"
+                            + parentBudget + " for scope '" + childBase + "'");
+                }
+            }
+        }
+    }
+
+    private static ANIPError scopeEscalation(String detail) {
+        return new ANIPError(Constants.FAILURE_SCOPE_ESCALATION, detail)
+                .withResolution("request_new_delegation");
+    }
+
+    /**
+     * Enforces purpose binding: a token can only invoke the capability it was
+     * issued for, even when its scope would cover another.
+     */
+    public static void validatePurpose(DelegationToken token, String capabilityName) {
+        String bound = token.getPurpose() != null ? token.getPurpose().getCapability() : null;
+        if (capabilityName.equals(bound)) {
+            return;
+        }
+        throw new ANIPError(Constants.FAILURE_PURPOSE_MISMATCH,
+                "delegation token purpose is " + bound + " but request is for " + capabilityName)
+                .withResolution("request_new_delegation").withRetry();
+    }
+
+    /**
+     * Walks the token's delegation chain up to its root and rejects chains
+     * that are incomplete, deeper than the token's max_delegation_depth, or
+     * that pass through an expired ancestor.
+     */
+    public static void validateChain(Storage storage, DelegationToken token) {
+        int depth = 0;
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        seen.add(token.getTokenId());
+        Instant now = Instant.now();
+
+        DelegationToken current = token;
+        while (current.getParent() != null && !current.getParent().isEmpty()) {
+            DelegationToken ancestor;
+            try {
+                ancestor = storage.loadToken(current.getParent());
+            } catch (ANIPError e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR, "error loading token: " + e.getMessage());
+            }
+            if (ancestor == null || !seen.add(ancestor.getTokenId())) {
+                throw new ANIPError(Constants.FAILURE_BROKEN_DELEGATION_CHAIN,
+                        "delegation chain is incomplete — ancestor token '" + current.getParent()
+                                + "' is not registered")
+                        .withResolution("request_deeper_delegation").withRetry();
+            }
+            Instant expires = parseInstant(ancestor.getExpires());
+            if (expires != null && expires.isBefore(now)) {
+                throw new ANIPError(Constants.FAILURE_PARENT_TOKEN_EXPIRED,
+                        "ancestor token " + ancestor.getTokenId() + " in delegation chain has expired")
+                        .withResolution("refresh_binding").withRetry();
+            }
+            current = ancestor;
+            depth++;
+        }
+
+        int maxDepth = token.getConstraints() != null ? token.getConstraints().getMaxDelegationDepth() : 0;
+        if (depth > maxDepth) {
+            throw new ANIPError(Constants.FAILURE_DELEGATION_DEPTH_EXCEEDED,
+                    "delegation chain depth is " + depth + ", max allowed is " + maxDepth)
+                    .withResolution("request_deeper_delegation").withRetry();
+        }
+    }
+
+    private static Instant parseInstant(String value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Runs every check a token must pass before it may invoke a capability:
+     * scope, purpose binding, and the delegation chain. Token signature and
+     * expiry are verified earlier, by {@link #resolveBearerToken}.
+     */
+    public static void validateDelegation(Storage storage, DelegationToken token,
+                                          List<String> minimumScope, String capabilityName) {
+        validateScope(token, minimumScope);
+        validatePurpose(token, capabilityName);
+        validateChain(storage, token);
     }
 
     /**

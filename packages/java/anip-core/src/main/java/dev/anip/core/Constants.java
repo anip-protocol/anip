@@ -30,6 +30,10 @@ public final class Constants {
     public static final String FAILURE_CONTROL_REQUIREMENT_UNSATISFIED = "control_requirement_unsatisfied";
     public static final String FAILURE_PURPOSE_MISMATCH = "purpose_mismatch";
     public static final String FAILURE_SCOPE_ESCALATION = "scope_escalation";
+    public static final String FAILURE_INSUFFICIENT_AUTHORITY = "insufficient_authority";
+    public static final String FAILURE_BROKEN_DELEGATION_CHAIN = "broken_delegation_chain";
+    public static final String FAILURE_DELEGATION_DEPTH_EXCEEDED = "delegation_depth_exceeded";
+    public static final String FAILURE_PARENT_TOKEN_EXPIRED = "parent_token_expired";
     public static final String FAILURE_NOT_FOUND = "not_found";
     public static final String FAILURE_UNAVAILABLE = "unavailable";
     public static final String FAILURE_CONCURRENT_LOCK = "concurrent_lock";
@@ -133,6 +137,8 @@ public final class Constants {
                  FAILURE_BINDING_MISSING, FAILURE_BINDING_STALE,
                  FAILURE_CONTROL_REQUIREMENT_UNSATISFIED,
                  FAILURE_PURPOSE_MISMATCH, FAILURE_SCOPE_ESCALATION,
+                 FAILURE_INSUFFICIENT_AUTHORITY, FAILURE_BROKEN_DELEGATION_CHAIN,
+                 FAILURE_DELEGATION_DEPTH_EXCEEDED, FAILURE_PARENT_TOKEN_EXPIRED,
                  FAILURE_APPROVER_NOT_AUTHORIZED -> 403;
             case FAILURE_UNKNOWN_CAPABILITY, FAILURE_NOT_FOUND,
                  FAILURE_APPROVAL_REQUEST_NOT_FOUND -> 404;
