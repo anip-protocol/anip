@@ -120,11 +120,12 @@ public class AnipResource {
             return authRequiredResponse();
         }
 
-        // Bootstrap auth only.
-        Optional<String> principal = service.authenticateBearer(bearer);
-        if (principal.isEmpty()) {
+        // Bootstrap credential, or a delegation token issued by this service.
+        Optional<dev.anip.service.Issuer> issuer = service.authenticateIssuer(bearer);
+        if (issuer.isEmpty()) {
             return failureResponse(401, Constants.FAILURE_INVALID_TOKEN,
-                    "Invalid bootstrap credential", true);
+                    "Bearer value is neither the bootstrap credential nor a delegation token "
+                            + "issued by this service", true);
         }
 
         try {
@@ -151,7 +152,7 @@ public class AnipResource {
                     purposeParams, parentToken, ttlHours, callerClass, tokenBudget,
                     concurrentBranches, sessionId);
 
-            TokenResponse resp = service.issueToken(principal.get(), req);
+            TokenResponse resp = service.issueTokenAs(issuer.get(), req);
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("issued", resp.isIssued());

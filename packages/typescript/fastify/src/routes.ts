@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import type { ANIPService } from "@anip-dev/service";
+import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
 import { IssueApprovalGrantRequest } from "@anip-dev/core";
 
@@ -30,10 +30,10 @@ export async function mountAnip(
 
   // --- Tokens ---
   app.post(`${p}/anip/tokens`, async (req, reply) => {
-    const principal = await extractPrincipal(req, service);
-    if (!principal) return authFailureTokenEndpoint(reply);
+    const issuer = await extractIssuer(req, service);
+    if (!issuer) return authFailureTokenEndpoint(reply);
     try {
-      const result = await service.issueToken(principal, req.body as Record<string, unknown>);
+      const result = await service.issueTokenAs(issuer, req.body as Record<string, unknown>);
       return result;
     } catch (e) {
       if (e instanceof ANIPError) return errorResponse(reply, e);
@@ -346,10 +346,13 @@ export async function mountAnip(
 
 // --- Helpers ---
 
-async function extractPrincipal(req: FastifyRequest, service: ANIPService): Promise<string | null> {
+// The token endpoint accepts the bootstrap credential, or a delegation token
+// issued by this service. A token authenticates as its holder, and the service
+// refuses root issuance for such callers.
+async function extractIssuer(req: FastifyRequest, service: ANIPService): Promise<Issuer | null> {
   const auth = req.headers.authorization ?? "";
   if (!auth.startsWith("Bearer ")) return null;
-  return service.authenticateBearer(auth.slice(7).trim());
+  return service.authenticateIssuer(auth.slice(7).trim());
 }
 
 async function resolveToken(req: FastifyRequest, service: ANIPService) {

@@ -346,23 +346,55 @@ func TestIssueTokenWithAPIKey(t *testing.T) {
 	}
 }
 
-func TestIssueTokenWithJWT(t *testing.T) {
+// A delegation token is a valid credential for delegating from a token the
+// caller holds (SPEC.md §6.3), and for nothing else.
+func TestIssueTokenDelegatesWithJWT(t *testing.T) {
 	env := newTestEnv(t)
 	defer env.stop()
 
-	jwt := issueTestToken(t, env.svc)
+	held, err := env.svc.IssueToken("human:tester@example.com", core.TokenRequest{
+		Subject: "human:tester@example.com", Scope: []string{"echo"}, Capability: "echo",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
 
-	ctx := withBearer(context.Background(), jwt)
+	ctx := withBearer(context.Background(), held.Token)
 	resp, err := env.client.IssueToken(ctx, &pb.IssueTokenRequest{
-		Subject:    "agent:sub-agent",
-		Scope:      []string{"echo"},
-		Capability: "echo",
+		Subject:     "agent:sub-agent",
+		Scope:       []string{"echo"},
+		Capability:  "echo",
+		ParentToken: held.TokenID,
 	})
 	if err != nil {
 		t.Fatalf("IssueToken() error: %v", err)
 	}
 	if !resp.Issued {
-		t.Fatal("expected issued=true for JWT-based token issuance")
+		t.Fatalf("expected issued=true when the holder delegates from its own token, got failure %v", resp.Failure)
+	}
+}
+
+func TestIssueTokenRejectsRootIssuanceWithJWT(t *testing.T) {
+	env := newTestEnv(t)
+	defer env.stop()
+
+	jwt := issueTestToken(t, env.svc)
+
+	// No parent_token: this asks for a fresh root token.
+	ctx := withBearer(context.Background(), jwt)
+	resp, err := env.client.IssueToken(ctx, &pb.IssueTokenRequest{
+		Subject:    "agent:sub-agent",
+		Scope:      []string{"echo", "anything.else"},
+		Capability: "echo",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	if resp.Issued {
+		t.Fatal("a delegation token was accepted as credential for root token issuance")
+	}
+	if resp.Failure == nil || resp.Failure.Type != core.FailureInsufficientAuthority {
+		t.Fatalf("expected an %s failure, got %v", core.FailureInsufficientAuthority, resp.Failure)
 	}
 }
 

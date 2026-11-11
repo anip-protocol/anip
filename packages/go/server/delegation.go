@@ -3,6 +3,9 @@ package server
 import (
 	"crypto/rand"
 	"fmt"
+	"math"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,6 +76,18 @@ func IssueDelegationToken(
 		if err != nil || parentToken == nil {
 			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken,
 				fmt.Sprintf("parent token not found: %s", req.ParentToken))
+		}
+
+		// Trust boundary: only the holder of a token (its subject) may
+		// delegate from it. A token ID is not a credential.
+		if principal != parentToken.Subject {
+			return core.TokenResponse{}, core.NewANIPError(core.FailureInsufficientAuthority,
+				fmt.Sprintf("Caller '%s' is not the parent token's subject ('%s') — only the delegatee can sub-delegate",
+					principal, parentToken.Subject))
+		}
+		// A child token can never carry more scope than its parent.
+		if err := validateScopeNarrowing(parentToken, req.Scope); err != nil {
+			return core.TokenResponse{}, err
 		}
 
 		issuer = parentToken.Subject
@@ -251,6 +266,171 @@ func ValidateScope(token *core.DelegationToken, minimumScope []string) error {
 	}
 
 	return nil
+}
+
+// scopeBase strips a scope's constraint suffix: "travel.book:max_$500" -> "travel.book".
+func scopeBase(scope string) string {
+	return strings.Split(scope, ":")[0]
+}
+
+// scopeCovers reports whether a held scope base covers a needed one:
+// "travel" covers "travel" and "travel.search", not "travelogue".
+func scopeCovers(heldBase, neededBase string) bool {
+	return neededBase == heldBase || strings.HasPrefix(neededBase, heldBase+".")
+}
+
+// NarrowedScope returns the scope a token derived from heldScope should carry
+// to cover required, and the required scopes heldScope does not cover. Each
+// entry keeps the constraint suffix of the held scope that covers it: holding
+// "travel:max_$500" gives "travel.book:max_$500" for a required "travel.book".
+func NarrowedScope(heldScope, required []string) (narrowed, missing []string) {
+	for _, needed := range required {
+		found := false
+		for _, held := range heldScope {
+			base := scopeBase(held)
+			if scopeCovers(base, needed) {
+				narrowed = append(narrowed, needed+held[len(base):])
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, needed)
+		}
+	}
+	return narrowed, missing
+}
+
+// scopeBudget reads the "max_$" amount carried by a scope string.
+// present reports whether the scope carries a budget at all; valid reports
+// whether that budget is a finite, non-negative number. NaN in particular
+// must never be accepted: it compares false against everything.
+func scopeBudget(scope string) (amount float64, present, valid bool) {
+	_, raw, found := strings.Cut(scope, ":max_$")
+	if !found {
+		return 0, false, false
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return 0, true, false
+	}
+	return value, true, true
+}
+
+// validateScopeNarrowing rejects a delegated token whose scope is not within
+// its parent's: every child scope must equal a parent scope or sit below it
+// ("travel" covers "travel.search"), and a budget carried by the parent scope
+// may be lowered but not dropped or raised.
+func validateScopeNarrowing(parent *core.DelegationToken, childScope []string) error {
+	parentBases := make([]string, len(parent.Scope))
+	for i, s := range parent.Scope {
+		parentBases[i] = scopeBase(s)
+	}
+	escalation := func(detail string) error {
+		return core.NewANIPError(core.FailureScopeEscalation, detail).WithResolution("request_new_delegation")
+	}
+
+	for _, child := range childScope {
+		childBase := scopeBase(child)
+		covered := false
+		for _, parentBase := range parentBases {
+			if scopeCovers(parentBase, childBase) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			sorted := append([]string(nil), parentBases...)
+			sort.Strings(sorted)
+			return escalation(fmt.Sprintf("child token scope '%s' is not a subset of parent token scopes: %s",
+				childBase, strings.Join(sorted, ", ")))
+		}
+
+		for _, parentScope := range parent.Scope {
+			// A budget on a parent scope applies to every scope beneath it:
+			// "travel:max_$500" also bounds "travel.book".
+			parentBudget, parentHasBudget, parentValid := scopeBudget(parentScope)
+			if !parentHasBudget || !scopeCovers(scopeBase(parentScope), childBase) {
+				continue
+			}
+			if !parentValid {
+				return escalation(fmt.Sprintf("parent scope '%s' carries a malformed budget; it cannot be delegated", childBase))
+			}
+			childBudget, childHasBudget, childValid := scopeBudget(child)
+			if !childHasBudget {
+				return escalation(fmt.Sprintf("child dropped budget constraint from scope '%s' (parent has max $%v)",
+					childBase, parentBudget))
+			}
+			if !childValid {
+				return escalation(fmt.Sprintf("child budget for scope '%s' is not a finite, non-negative amount", childBase))
+			}
+			// Written as "not within" so that any unexpected value fails closed.
+			if !(childBudget <= parentBudget) {
+				return escalation(fmt.Sprintf("child budget $%v exceeds parent budget $%v for scope '%s'",
+					childBudget, parentBudget, childBase))
+			}
+		}
+	}
+	return nil
+}
+
+// ValidatePurpose enforces purpose binding: a token can only invoke the
+// capability it was issued for, even when its scope would cover another.
+func ValidatePurpose(token *core.DelegationToken, capabilityName string) error {
+	if token.Purpose.Capability == capabilityName {
+		return nil
+	}
+	return core.NewANIPError(core.FailurePurposeMismatch,
+		fmt.Sprintf("delegation token purpose is %s but request is for %s", token.Purpose.Capability, capabilityName),
+	).WithResolution("request_new_delegation").WithRetry()
+}
+
+// ValidateChain walks the token's delegation chain up to its root and
+// rejects chains that are incomplete, deeper than the token's
+// max_delegation_depth, or that pass through an expired ancestor.
+func ValidateChain(storage Storage, token *core.DelegationToken) error {
+	depth := 0
+	seen := map[string]bool{token.TokenID: true}
+	now := time.Now().UTC()
+
+	for current := token; current.Parent != ""; depth++ {
+		ancestor, err := storage.LoadToken(current.Parent)
+		if err != nil {
+			return core.NewANIPError(core.FailureInternalError, "error loading token: "+err.Error())
+		}
+		if ancestor == nil || seen[ancestor.TokenID] {
+			return core.NewANIPError(core.FailureBrokenDelegationChain,
+				fmt.Sprintf("delegation chain is incomplete — ancestor token '%s' is not registered", current.Parent),
+			).WithResolution("request_deeper_delegation").WithRetry()
+		}
+		seen[ancestor.TokenID] = true
+		if expires, err := time.Parse(time.RFC3339, ancestor.Expires); err == nil && expires.Before(now) {
+			return core.NewANIPError(core.FailureParentTokenExpired,
+				fmt.Sprintf("ancestor token %s in delegation chain has expired", ancestor.TokenID),
+			).WithResolution("refresh_binding").WithRetry()
+		}
+		current = ancestor
+	}
+
+	if maxDepth := token.Constraints.MaxDelegationDepth; depth > maxDepth {
+		return core.NewANIPError(core.FailureDelegationDepthExceeded,
+			fmt.Sprintf("delegation chain depth is %d, max allowed is %d", depth, maxDepth),
+		).WithResolution("request_deeper_delegation").WithRetry()
+	}
+	return nil
+}
+
+// ValidateDelegation runs every check a token must pass before it may invoke
+// a capability: scope, purpose binding, and the delegation chain. Token
+// signature and expiry are verified earlier, by ResolveBearerToken.
+func ValidateDelegation(storage Storage, token *core.DelegationToken, minimumScope []string, capabilityName string) error {
+	if err := ValidateScope(token, minimumScope); err != nil {
+		return err
+	}
+	if err := ValidatePurpose(token, capabilityName); err != nil {
+		return err
+	}
+	return ValidateChain(storage, token)
 }
 
 // generateTokenID creates a random token ID.

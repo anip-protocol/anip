@@ -247,8 +247,9 @@ public class AnipStdioServer
             throw new AnipError("authentication_required", "This method requires auth.bearer");
         }
 
-        var principal = _service.AuthenticateBearer(bearer);
-        if (principal == null)
+        // Bootstrap credential, or a delegation token issued by this service.
+        var issuer = _service.AuthenticateIssuer(bearer);
+        if (issuer == null)
         {
             throw new AnipError("invalid_token", "Bearer token not recognized");
         }
@@ -266,7 +267,7 @@ public class AnipStdioServer
             SessionId = GetString(parameters, "session_id"),
         };
 
-        var resp = _service.IssueToken(principal, request);
+        var resp = _service.IssueTokenAs(issuer, request);
         return SerializeToDict(resp);
     }
 

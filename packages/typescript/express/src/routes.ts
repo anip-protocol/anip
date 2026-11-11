@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
-import type { ANIPService } from "@anip-dev/service";
+import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
 import { IssueApprovalGrantRequest } from "@anip-dev/core";
 
@@ -37,9 +37,9 @@ export async function mountAnip(
   // --- Tokens ---
   router.post("/anip/tokens", async (req, res, next) => {
     try {
-      const principal = await extractPrincipal(req, service);
-      if (!principal) { authFailureTokenEndpoint(res); return; }
-      const result = await service.issueToken(principal, req.body);
+      const issuer = await extractIssuer(req, service);
+      if (!issuer) { authFailureTokenEndpoint(res); return; }
+      const result = await service.issueTokenAs(issuer, req.body);
       res.json(result);
     } catch (e) {
       if (e instanceof ANIPError) { errorResponse(res, e); return; }
@@ -356,10 +356,13 @@ export async function mountAnip(
 
 // --- Helpers ---
 
-async function extractPrincipal(req: Request, service: ANIPService): Promise<string | null> {
+// The token endpoint accepts the bootstrap credential, or a delegation token
+// issued by this service. A token authenticates as its holder, and the service
+// refuses root issuance for such callers.
+async function extractIssuer(req: Request, service: ANIPService): Promise<Issuer | null> {
   const auth = req.headers.authorization ?? "";
   if (!auth.startsWith("Bearer ")) return null;
-  return service.authenticateBearer(auth.slice(7).trim());
+  return service.authenticateIssuer(auth.slice(7).trim());
 }
 
 async function resolveToken(req: Request, service: ANIPService) {

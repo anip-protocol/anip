@@ -94,9 +94,9 @@ class AnipStdioServer:
         if bearer is None:
             raise ANIPError("authentication_required", "This method requires auth.bearer")
 
-        # Try bootstrap auth (API key) first, then ANIP JWT
-        principal = await self._service.authenticate_bearer(bearer)
-        if principal is None:
+        # Bootstrap credential, or a delegation token issued by this service.
+        issuer = await self._service.authenticate_issuer(bearer)
+        if issuer is None:
             raise ANIPError("invalid_token", "Bearer token not recognized")
 
         # Build the token request body from params
@@ -106,7 +106,7 @@ class AnipStdioServer:
             if key in params:
                 body[key] = params[key]
 
-        return await self._service.issue_token(principal, body)
+        return await self._service.issue_token_as(issuer, body)
 
     async def _handle_anip_permissions(self, params: dict[str, Any]) -> dict[str, Any]:
         token = await self._resolve_jwt(params)

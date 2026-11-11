@@ -23,6 +23,107 @@ import type {
 import { recoveryClassForAction } from "@anip-dev/core";
 import type { StorageBackend } from "./storage.js";
 
+const SCOPE_BUDGET_MARKER = ":max_$";
+
+/**
+ * Read the `max_$` budget carried by a scope string.
+ *
+ * `amount` is null when the scope carries a budget that is not a finite,
+ * non-negative number. NaN in particular must never be accepted: it compares
+ * false against everything, so a `child > parent` check would let it pass.
+ * The whole suffix must be a number; `parseFloat` would read "100abc" as 100.
+ */
+export function scopeBudget(scope: string): { present: boolean; amount: number | null } {
+  const idx = scope.indexOf(SCOPE_BUDGET_MARKER);
+  if (idx < 0) return { present: false, amount: null };
+  const raw = scope.slice(idx + SCOPE_BUDGET_MARKER.length).trim();
+  const amount = raw === "" ? NaN : Number(raw);
+  if (!Number.isFinite(amount) || amount < 0) return { present: true, amount: null };
+  return { present: true, amount };
+}
+
+/** Whether a held scope base covers a needed one: "travel" covers "travel.search". */
+function scopeCovers(heldBase: string, neededBase: string): boolean {
+  return neededBase === heldBase || neededBase.startsWith(heldBase + ".");
+}
+
+/**
+ * The scope a token derived from `heldScope` should carry to cover
+ * `required`, and the required scopes it does not cover. Each entry keeps the
+ * constraint suffix of the held scope that covers it: holding
+ * "travel:max_$500" gives "travel.book:max_$500" for a required "travel.book".
+ */
+export function narrowedScope(
+  heldScope: string[],
+  required: string[],
+): { scope: string[]; missing: string[] } {
+  const scope: string[] = [];
+  const missing: string[] = [];
+  for (const needed of required) {
+    const held = heldScope.find((s) => scopeCovers(s.split(":")[0], needed));
+    if (held === undefined) {
+      missing.push(needed);
+    } else {
+      scope.push(needed + held.slice(held.split(":")[0].length));
+    }
+  }
+  return { scope, missing };
+}
+
+/**
+ * Returns `{ detail, requires }` if `childScopes` is not within `parentScopes`.
+ *
+ * Every child scope must equal a parent scope or sit below it. A budget
+ * carried by a parent scope bounds every scope beneath it and may be lowered,
+ * never dropped, raised, or replaced by a malformed value.
+ */
+function scopeNarrowingViolation(
+  parentScopes: string[],
+  childScopes: string[],
+): { detail: string; requires: string } | null {
+  const parentBases = [...new Set(parentScopes.map((s) => s.split(":")[0]))];
+  for (const childScope of childScopes) {
+    const childBase = childScope.split(":")[0];
+    if (!parentBases.some((base) => scopeCovers(base, childBase))) {
+      return {
+        detail: `child token scope '${childBase}' is not a subset of parent token scopes: ${[...parentBases].sort().join(", ")}`,
+        requires: "child scope must be subset of parent scope",
+      };
+    }
+    for (const parentScope of parentScopes) {
+      const parent = scopeBudget(parentScope);
+      if (!parent.present || !scopeCovers(parentScope.split(":")[0], childBase)) continue;
+      if (parent.amount === null) {
+        return {
+          detail: `parent scope '${childBase}' carries a malformed budget; it cannot be delegated`,
+          requires: `scope '${childBase}' must carry a finite, non-negative budget`,
+        };
+      }
+      const child = scopeBudget(childScope);
+      if (!child.present) {
+        return {
+          detail: `child dropped budget constraint from scope '${childBase}' (parent has max $${parent.amount})`,
+          requires: `scope '${childBase}' must include budget <= $${parent.amount}`,
+        };
+      }
+      if (child.amount === null) {
+        return {
+          detail: `child budget for scope '${childBase}' is not a finite, non-negative amount`,
+          requires: `budget must be a number <= $${parent.amount}`,
+        };
+      }
+      // Written as "not within" so that any unexpected value fails closed.
+      if (!(child.amount <= parent.amount)) {
+        return {
+          detail: `child budget $${child.amount} exceeds parent budget $${parent.amount} for scope '${childBase}'`,
+          requires: `budget must be <= $${parent.amount}`,
+        };
+      }
+    }
+  }
+  return null;
+}
+
 // Use plain objects matching the Zod-inferred type shapes from @anip-dev/core.
 // We avoid Zod runtime parsing here; construction uses object literals.
 
@@ -159,71 +260,19 @@ export class DelegationEngine {
     const rootPrincipal = await this.getRootPrincipal(opts.parentToken);
 
     // Pre-validate scope narrowing before creating the token
-    const parentScopeBases = new Set(
-      opts.parentToken.scope.map((s) => s.split(":")[0]),
-    );
-    for (const childScope of opts.scope) {
-      const childBase = childScope.split(":")[0];
-      let matched = false;
-      for (const parentBase of parentScopeBases) {
-        if (
-          childBase === parentBase ||
-          childBase.startsWith(parentBase + ".")
-        ) {
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        return {
-          type: "scope_escalation",
-          detail: `child token scope '${childBase}' is not a subset of parent token scopes: ${[...parentScopeBases].sort().join(", ")}`,
-          resolution: {
-            action: "request_new_delegation",
-            recovery_class: recoveryClassForAction("request_new_delegation"),
-            requires: "child scope must be subset of parent scope",
-            grantable_by: rootPrincipal,
-          },
-          retry: false,
-        } as ANIPFailureType;
-      }
-
-      // Check budget constraints
-      for (const parentScopeStr of opts.parentToken.scope) {
-        const pBase = parentScopeStr.split(":")[0];
-        if (pBase === childBase && parentScopeStr.includes(":max_$")) {
-          const parentBudget = parseFloat(
-            parentScopeStr.split(":max_$")[1],
-          );
-          if (!childScope.includes(":max_$")) {
-            return {
-              type: "scope_escalation",
-              detail: `child dropped budget constraint from scope '${childBase}' (parent has max $${parentBudget})`,
-              resolution: {
-                action: "request_new_delegation",
-                recovery_class: recoveryClassForAction("request_new_delegation"),
-                requires: `scope '${childBase}' must include budget <= $${parentBudget}`,
-                grantable_by: rootPrincipal,
-              },
-              retry: false,
-            } as ANIPFailureType;
-          }
-          const childBudget = parseFloat(childScope.split(":max_$")[1]);
-          if (childBudget > parentBudget) {
-            return {
-              type: "scope_escalation",
-              detail: `child budget $${childBudget} exceeds parent budget $${parentBudget} for scope '${childBase}'`,
-              resolution: {
-                action: "request_new_delegation",
-                recovery_class: recoveryClassForAction("request_new_delegation"),
-                requires: `budget must be <= $${parentBudget}`,
-                grantable_by: rootPrincipal,
-              },
-              retry: false,
-            } as ANIPFailureType;
-          }
-        }
-      }
+    const violation = scopeNarrowingViolation(opts.parentToken.scope, opts.scope);
+    if (violation !== null) {
+      return {
+        type: "scope_escalation",
+        detail: violation.detail,
+        resolution: {
+          action: "request_new_delegation",
+          recovery_class: recoveryClassForAction("request_new_delegation"),
+          requires: violation.requires,
+          grantable_by: rootPrincipal,
+        },
+        retry: false,
+      } as ANIPFailureType;
     }
 
     // Enforce budget narrowing on constraints-level budget

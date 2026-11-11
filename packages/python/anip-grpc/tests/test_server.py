@@ -255,6 +255,36 @@ class TestIssueToken:
             )
         assert exc_info.value.code() == grpc.StatusCode.UNAUTHENTICATED
 
+    # A delegation token is a valid credential for delegating from a token
+    # the caller holds (SPEC.md §6.3), and for nothing else.
+
+    def _held_token(self, stub):
+        resp = stub.IssueToken(
+            anip_pb2.IssueTokenRequest(subject="agent:test-agent", scope=["echo"], capability="echo"),
+            metadata=_auth_metadata("test-api-key"),
+        )
+        assert resp.issued is True
+        return resp
+
+    def test_holder_delegates_using_its_token_as_credential(self, stub):
+        held = self._held_token(stub)
+        resp = stub.IssueToken(
+            anip_pb2.IssueTokenRequest(subject="agent:sub-agent", scope=["echo"], capability="echo",
+                                       parent_token=held.token_id),
+            metadata=_auth_metadata(held.token),
+        )
+        assert resp.issued is True
+
+    def test_token_credential_cannot_issue_a_root_token(self, stub):
+        held = self._held_token(stub)
+        resp = stub.IssueToken(
+            anip_pb2.IssueTokenRequest(subject="agent:test-agent", scope=["echo", "anything.else"],
+                                       capability="echo"),
+            metadata=_auth_metadata(held.token),
+        )
+        assert resp.issued is False, "a delegation token was accepted as credential for root issuance"
+        assert resp.failure.type == "insufficient_authority"
+
 
 class TestInvoke:
     def test_invoke_with_jwt(self, stub):

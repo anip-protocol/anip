@@ -57,7 +57,7 @@ public class AnipController : ControllerBase
         return File(signed.ManifestJson, "application/json");
     }
 
-    // --- 4. Token issuance (bootstrap auth only) ---
+    // --- 4. Token issuance (bootstrap credential, or a delegation token for delegating) ---
 
     [HttpPost("/anip/tokens")]
     public IActionResult IssueToken([FromBody] TokenRequest request)
@@ -68,16 +68,17 @@ public class AnipController : ControllerBase
             return AuthRequiredResponse();
         }
 
-        var principal = _service.AuthenticateBearer(bearer);
-        if (principal == null)
+        // Bootstrap credential, or a delegation token issued by this service.
+        var issuer = _service.AuthenticateIssuer(bearer);
+        if (issuer == null)
         {
             return FailureResponse(401, Constants.FailureInvalidToken,
-                "Invalid bootstrap credential", true);
+                "Bearer value is neither the bootstrap credential nor a delegation token issued by this service", true);
         }
 
         try
         {
-            var resp = _service.IssueToken(principal, request);
+            var resp = _service.IssueTokenAs(issuer, request);
             return Ok(resp);
         }
         catch (AnipError e)

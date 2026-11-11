@@ -307,6 +307,46 @@ func (s *Service) AuthenticateBearer(bearer string) (string, bool) {
 	return "", false
 }
 
+// Issuer identifies who is asking for a token and how they proved it.
+type Issuer struct {
+	// Principal is the authenticated caller.
+	Principal string
+	// ViaToken is true when the caller authenticated with a delegation token
+	// issued by this service rather than with a bootstrap credential.
+	ViaToken bool
+}
+
+// AuthenticateIssuer authenticates the bearer value presented to a token
+// endpoint. It accepts the bootstrap credential, or a delegation token issued
+// by this service (SPEC.md §6.3: "For delegation, the bearer value is an
+// existing JWT token issued by the service").
+func (s *Service) AuthenticateIssuer(bearer string) (Issuer, bool) {
+	if principal, ok := s.AuthenticateBearer(bearer); ok {
+		return Issuer{Principal: principal}, true
+	}
+	token, err := s.ResolveBearerToken(bearer)
+	if err != nil {
+		return Issuer{}, false
+	}
+	return Issuer{Principal: token.Subject, ViaToken: true}, true
+}
+
+// IssueTokenAs issues a token on behalf of an authenticated caller. Transports
+// use this for their token endpoint.
+//
+// A delegation token is a credential for delegating only. Root issuance needs
+// the bootstrap credential: otherwise the holder of a narrowed token could
+// mint itself a fresh root token with any scope.
+func (s *Service) IssueTokenAs(issuer Issuer, req core.TokenRequest) (core.TokenResponse, error) {
+	if issuer.ViaToken && req.ParentToken == "" {
+		return core.TokenResponse{}, core.NewANIPError(core.FailureInsufficientAuthority,
+			"A delegation token can only be used to delegate: the request must name a parent_token held by the caller. "+
+				"Root token issuance requires the bootstrap credential.",
+		).WithResolution("provide_credentials")
+	}
+	return s.IssueToken(issuer.Principal, req)
+}
+
 // ResolveBearerToken verifies a JWT and returns the stored DelegationToken.
 func (s *Service) ResolveBearerToken(jwtStr string) (*core.DelegationToken, error) {
 	token, err := server.ResolveBearerToken(s.keys, s.storage, s.serviceID, jwtStr)

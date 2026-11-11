@@ -470,6 +470,14 @@ delegation_token:
 
 Every request to an ANIP service MUST include a delegation token. The service MUST validate the token's scope, purpose, expiry, and constraints before processing the request.
 
+**Delegation enforcement.** The rules below are normative. The conformance suite (`conformance/test_delegation.py`) exercises each of them against a running service.
+
+- **Purpose binding.** A token MUST only invoke the capability named in its `purpose.capability`. A token issued without a capability MUST NOT invoke any capability. A mismatch MUST fail with `purpose_mismatch`.
+- **Holder-only delegation.** Only the subject of a token may delegate from it. A token ID is not a credential: a delegated-issuance request from any other authenticated principal MUST fail with `insufficient_authority`.
+- **Scope narrowing.** Every scope of a child token MUST equal a scope of its parent or sit beneath one (`travel` covers `travel.search`, not `travelogue`). Otherwise issuance MUST fail with `scope_escalation`.
+- **Scope budgets.** A budget carried by a scope (`travel:max_$500`) bounds that scope and every scope beneath it. A child scope under a budgeted parent scope MUST carry a budget that is a finite, non-negative number no greater than the parent's. A child that drops the budget, raises it, or supplies a value that is not such a number (for example `NaN`) MUST be refused with `scope_escalation`.
+- **Delegation depth.** A token whose chain is deeper than `constraints.max_delegation_depth`, is missing an ancestor, or passes through an expired ancestor MUST be rejected (`delegation_depth_exceeded`, `broken_delegation_chain`, `parent_token_expired`).
+
 ### 4.4 Permission Discovery
 
 An agent MUST be able to query its permission scope before attempting any action. The service responds with the agent's effective permissions given its delegation chain.
@@ -885,6 +893,16 @@ When the empty-result branch is taken, runtimes MUST use `empty_result_output` e
 | `child_error` | `fail_parent` | `propagate`, `fail_parent` |
 
 `propagate` wraps the child failure as the parent's failure with the same type. `fail_parent` collapses the child failure into a generic parent error. `ignore` is not permitted in v0.23.
+
+#### Step Authority
+
+The runtime, not a capability handler, executes a composed capability. Each child step MUST be invoked through the same pipeline as a direct invocation, with its own delegation token:
+
+- The step token is delegated from the caller's token, is bound to the child capability (`purpose.capability`), and carries the child's `minimum_scope` taken from the caller's own scope entries, including any budget those entries carry. The step token never holds more than the caller's token.
+- If the caller's token does not cover a child's `minimum_scope`, the step fails with `scope_insufficient` and the child MUST NOT run. This is a denial for the purposes of `failure_policy`.
+- A step does not inherit the parent's `approval_grant`.
+
+A composed capability therefore cannot be used to reach a child that the caller could not have been delegated directly.
 
 #### Audit Policy
 
@@ -1711,6 +1729,8 @@ budget:
 | `concurrent_branches` | string | No | Concurrency posture for the token tree. Values: `"allowed"` (default, multiple branches permitted), `"exclusive"` (single active branch). Same vocabulary as delegation constraints (§4.3). |
 
 > **Root vs delegated issuance:** The same endpoint serves both. Root issuance authenticates via bootstrap credential and omits `parent_token`. Delegated issuance authenticates via existing JWT and includes `parent_token` (a token ID string). The runtime convenience helpers (`issueCapabilityToken` for root, `issueDelegatedCapabilityToken` for delegated) correctly assemble these requests.
+
+> **A token is a credential for delegating only.** A request that authenticates with a delegation token MUST include a `parent_token` held by that token's subject. A request that authenticates with a delegation token and omits `parent_token` asks for a root token and MUST fail with `insufficient_authority`: otherwise the holder of a narrowed token could issue itself a root token with any scope. A service MUST NOT treat the presenter of a delegation token as the root principal of the token's chain.
 
 The `budget` field is a convenience mapping — the caller writes `budget` at the top level of the issuance request, and the service stores it in `constraints.budget` in the token's JWT claims. When `parent_token` is present, the requested budget MUST NOT exceed the parent token's budget (budget narrowing rule, §4.3).
 

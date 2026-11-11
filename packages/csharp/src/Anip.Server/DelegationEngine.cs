@@ -80,6 +80,16 @@ public static class DelegationEngine
                     $"parent token not found: {request.ParentToken}");
             }
 
+            // Trust boundary: only the holder of a token (its subject) may
+            // delegate from it. A token ID is not a credential.
+            if (principal != parentToken.Subject)
+            {
+                throw new AnipError(Constants.FailureInsufficientAuthority,
+                    $"Caller '{principal}' is not the parent token's subject ('{parentToken.Subject}') — only the delegatee can sub-delegate");
+            }
+            // A child token can never carry more scope than its parent.
+            ValidateScopeNarrowing(parentToken, request.Scope);
+
             issuer = parentToken.Subject;
             rootPrincipal = parentToken.RootPrincipal ?? principal;
             parent = parentToken.TokenId;
@@ -180,6 +190,185 @@ public static class DelegationEngine
                 $"delegation chain lacks scope(s): {string.Join(", ", missing)}"
             ).WithResolution("request_broader_scope");
         }
+    }
+
+    private const string ScopeBudgetMarker = ":max_$";
+
+    /// <summary>Strips a scope's constraint suffix: "travel.book:max_$500" -> "travel.book".</summary>
+    private static string ScopeBase(string scope) => scope.Split(':')[0];
+
+    /// <summary>
+    /// Whether a held scope base covers a needed one: "travel" covers
+    /// "travel" and "travel.search", not "travelogue".
+    /// </summary>
+    private static bool ScopeCovers(string heldBase, string neededBase) =>
+        neededBase == heldBase || neededBase.StartsWith(heldBase + ".", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Returns the scope a token derived from <paramref name="heldScope"/>
+    /// should carry to cover <paramref name="required"/>, and the required
+    /// scopes it does not cover. Each entry keeps the constraint suffix of the
+    /// held scope that covers it: holding "travel:max_$500" gives
+    /// "travel.book:max_$500" for a required "travel.book".
+    /// </summary>
+    public static (List<string> Scope, List<string> Missing) NarrowedScope(
+        List<string> heldScope, List<string>? required)
+    {
+        var narrowed = new List<string>();
+        var missing = new List<string>();
+        foreach (var needed in required ?? new List<string>())
+        {
+            string? match = null;
+            foreach (var held in heldScope)
+            {
+                var heldBase = ScopeBase(held);
+                if (ScopeCovers(heldBase, needed))
+                {
+                    match = needed + held[heldBase.Length..];
+                    break;
+                }
+            }
+            if (match == null) missing.Add(needed);
+            else narrowed.Add(match);
+        }
+        return (narrowed, missing);
+    }
+
+    /// <summary>
+    /// Returns the "max_$" amount carried by a scope string, or null when it
+    /// is absent or not a finite, non-negative number. NaN in particular must
+    /// never be accepted: it compares false against everything.
+    /// </summary>
+    private static double? ScopeBudget(string scope)
+    {
+        var idx = scope.IndexOf(ScopeBudgetMarker, StringComparison.Ordinal);
+        if (idx < 0) return null;
+        var raw = scope[(idx + ScopeBudgetMarker.Length)..];
+        if (!double.TryParse(raw, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            return null;
+        }
+        if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) return null;
+        return value;
+    }
+
+    /// <summary>
+    /// Rejects a delegated token whose scope is not within its parent's:
+    /// every child scope must equal a parent scope or sit below it ("travel"
+    /// covers "travel.search"), and a budget carried by the parent scope may
+    /// be lowered but not dropped, raised or replaced by a malformed value.
+    /// </summary>
+    internal static void ValidateScopeNarrowing(DelegationToken parent, List<string>? childScope)
+    {
+        if (childScope == null) return;
+        var parentBases = parent.Scope.Select(ScopeBase).ToList();
+
+        static AnipError Escalation(string detail) =>
+            new AnipError(Constants.FailureScopeEscalation, detail).WithResolution("request_new_delegation");
+
+        foreach (var child in childScope)
+        {
+            var childBase = ScopeBase(child);
+            var covered = parentBases.Any(b => ScopeCovers(b, childBase));
+            if (!covered)
+            {
+                throw Escalation(
+                    $"child token scope '{childBase}' is not a subset of parent token scopes: {string.Join(", ", parentBases.OrderBy(b => b, StringComparer.Ordinal))}");
+            }
+
+            foreach (var parentScope in parent.Scope)
+            {
+                // A budget on a parent scope applies to every scope beneath
+                // it: "travel:max_$500" also bounds "travel.book".
+                if (!parentScope.Contains(ScopeBudgetMarker, StringComparison.Ordinal)
+                    || !ScopeCovers(ScopeBase(parentScope), childBase))
+                {
+                    continue;
+                }
+                var parentBudget = ScopeBudget(parentScope)
+                    ?? throw Escalation($"parent scope '{childBase}' carries a malformed budget; it cannot be delegated");
+                if (!child.Contains(ScopeBudgetMarker, StringComparison.Ordinal))
+                {
+                    throw Escalation(
+                        $"child dropped budget constraint from scope '{childBase}' (parent has max ${parentBudget})");
+                }
+                var childBudget = ScopeBudget(child)
+                    ?? throw Escalation($"child budget for scope '{childBase}' is not a finite, non-negative amount");
+                // Written as "not within" so that any unexpected value fails closed.
+                if (!(childBudget <= parentBudget))
+                {
+                    throw Escalation(
+                        $"child budget ${childBudget} exceeds parent budget ${parentBudget} for scope '{childBase}'");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Enforces purpose binding: a token can only invoke the capability it
+    /// was issued for, even when its scope would cover another.
+    /// </summary>
+    public static void ValidatePurpose(DelegationToken token, string capabilityName)
+    {
+        if (token.Purpose?.Capability == capabilityName) return;
+        throw new AnipError(Constants.FailurePurposeMismatch,
+                $"delegation token purpose is {token.Purpose?.Capability} but request is for {capabilityName}")
+            .WithResolution("request_new_delegation").WithRetry();
+    }
+
+    /// <summary>
+    /// Walks the token's delegation chain up to its root and rejects chains
+    /// that are incomplete, deeper than the token's max_delegation_depth, or
+    /// that pass through an expired ancestor.
+    /// </summary>
+    public static void ValidateChain(IStorage storage, DelegationToken token)
+    {
+        var depth = 0;
+        var seen = new HashSet<string> { token.TokenId };
+        var now = DateTimeOffset.UtcNow;
+
+        var current = token;
+        while (!string.IsNullOrEmpty(current.Parent))
+        {
+            var ancestor = storage.LoadToken(current.Parent);
+            if (ancestor == null || !seen.Add(ancestor.TokenId))
+            {
+                throw new AnipError(Constants.FailureBrokenDelegationChain,
+                        $"delegation chain is incomplete — ancestor token '{current.Parent}' is not registered")
+                    .WithResolution("request_deeper_delegation").WithRetry();
+            }
+            if (DateTimeOffset.TryParse(ancestor.Expires, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var expires) && expires < now)
+            {
+                throw new AnipError(Constants.FailureParentTokenExpired,
+                        $"ancestor token {ancestor.TokenId} in delegation chain has expired")
+                    .WithResolution("refresh_binding").WithRetry();
+            }
+            current = ancestor;
+            depth++;
+        }
+
+        var maxDepth = token.Constraints?.MaxDelegationDepth ?? 0;
+        if (depth > maxDepth)
+        {
+            throw new AnipError(Constants.FailureDelegationDepthExceeded,
+                    $"delegation chain depth is {depth}, max allowed is {maxDepth}")
+                .WithResolution("request_deeper_delegation").WithRetry();
+        }
+    }
+
+    /// <summary>
+    /// Runs every check a token must pass before it may invoke a capability:
+    /// scope, purpose binding, and the delegation chain. Token signature and
+    /// expiry are verified earlier, by <see cref="ResolveBearerToken"/>.
+    /// </summary>
+    public static void ValidateDelegation(IStorage storage, DelegationToken token,
+        List<string> minimumScope, string capabilityName)
+    {
+        ValidateScope(token, minimumScope);
+        ValidatePurpose(token, capabilityName);
+        ValidateChain(storage, token);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 package stdioapi
 
 import (
+	"strings"
 	"encoding/json"
 	"testing"
 
@@ -421,26 +422,61 @@ func TestParseError(t *testing.T) {
 	expectError(t, messages, codeParseError)
 }
 
-func TestTokensIssueViaJWT(t *testing.T) {
+// A delegation token is a valid credential for delegating from a token the
+// caller holds (SPEC.md §6.3), and for nothing else.
+func TestTokensIssueDelegatesViaJWT(t *testing.T) {
 	svc := newTestService(t)
 	defer svc.Shutdown()
 	srv := NewServer(svc)
 
-	// First issue a token via API key to get a JWT.
-	jwt := issueTestToken(t, svc)
+	held, err := svc.IssueToken("human:tester@example.com", core.TokenRequest{
+		Subject: "human:tester@example.com", Scope: []string{"echo"}, Capability: "echo",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
 
-	// Issue a sub-token using the JWT as auth (not as parent_token).
 	result := expectSuccess(t, dispatch(t, srv, "anip.tokens.issue", map[string]any{
-		"auth": map[string]any{
-			"bearer": jwt,
-		},
-		"subject":    "agent:sub-agent",
-		"scope":      []string{"echo"},
-		"capability": "echo",
+		"auth":         map[string]any{"bearer": held.Token},
+		"subject":      "agent:sub-agent",
+		"scope":        []string{"echo"},
+		"capability":   "echo",
+		"parent_token": held.TokenID,
 	}))
 
 	if result["issued"] != true {
-		t.Fatal("expected issued=true for JWT-based token issuance")
+		t.Fatal("expected issued=true when the holder delegates from its own token")
+	}
+}
+
+func TestTokensIssueRejectsRootIssuanceViaJWT(t *testing.T) {
+	svc := newTestService(t)
+	defer svc.Shutdown()
+	srv := NewServer(svc)
+
+	jwt := issueTestToken(t, svc)
+
+	// No parent_token: this asks for a fresh root token.
+	messages := dispatch(t, srv, "anip.tokens.issue", map[string]any{
+		"auth":       map[string]any{"bearer": jwt},
+		"subject":    "agent:sub-agent",
+		"scope":      []string{"echo", "anything.else"},
+		"capability": "echo",
+	})
+
+	if len(messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(messages))
+	}
+	resp, ok := messages[0].(response)
+	if !ok {
+		t.Fatalf("expected response, got %T", messages[0])
+	}
+	if resp.Error == nil {
+		t.Fatal("a delegation token was accepted as credential for root token issuance")
+	}
+	data, _ := json.Marshal(resp.Error)
+	if !strings.Contains(string(data), core.FailureInsufficientAuthority) {
+		t.Fatalf("expected an %s failure, got %s", core.FailureInsufficientAuthority, data)
 	}
 }
 

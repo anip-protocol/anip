@@ -262,9 +262,9 @@ public class AnipStdioServer {
             throw new ANIPError("authentication_required", "This method requires auth.bearer");
         }
 
-        // Try bootstrap auth (API key) first, then ANIP JWT.
-        Optional<String> principal = service.authenticateBearer(bearer);
-        if (principal.isEmpty()) {
+        // Bootstrap credential, or a delegation token issued by this service.
+        Optional<dev.anip.service.Issuer> issuer = service.authenticateIssuer(bearer);
+        if (issuer.isEmpty()) {
             throw new ANIPError("invalid_token", "Bearer token not recognized");
         }
 
@@ -289,7 +289,7 @@ public class AnipStdioServer {
                 parentToken, ttlHours, callerClass, budget, null, sessionId
         );
 
-        TokenResponse resp = service.issueToken(principal.get(), req);
+        TokenResponse resp = service.issueTokenAs(issuer.get(), req);
         return MAPPER.convertValue(resp, Map.class);
     }
 

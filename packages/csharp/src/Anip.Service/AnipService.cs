@@ -227,6 +227,72 @@ public class AnipService : IDisposable
     }
 
     /// <summary>
+    /// Authenticates the bearer value presented to a token endpoint. Accepts
+    /// the bootstrap credential, or a delegation token issued by this service
+    /// (SPEC.md §6.3: "For delegation, the bearer value is an existing JWT
+    /// token issued by the service"). Returns null when neither matches.
+    /// </summary>
+    public Issuer? AuthenticateIssuer(string bearer)
+    {
+        var principal = AuthenticateBearer(bearer);
+        if (principal != null) return new Issuer(principal, ViaToken: false);
+        try
+        {
+            var token = ResolveBearerToken(bearer);
+            return new Issuer(token.Subject, ViaToken: true);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Issues a token on behalf of an authenticated caller. Transports use
+    /// this for their token endpoint.
+    /// </summary>
+    /// <remarks>
+    /// A delegation token is a credential for delegating only. Root issuance
+    /// needs the bootstrap credential: otherwise the holder of a narrowed
+    /// token could mint itself a fresh root token with any scope.
+    /// </remarks>
+    public TokenResponse IssueTokenAs(Issuer issuer, TokenRequest request)
+    {
+        if (issuer.ViaToken && string.IsNullOrEmpty(request.ParentToken))
+        {
+            throw new AnipError(Constants.FailureInsufficientAuthority,
+                    "A delegation token can only be used to delegate: the request must name a "
+                    + "parent_token held by the caller. Root token issuance requires the bootstrap credential.")
+                .WithResolution("provide_credentials");
+        }
+        return IssueToken(issuer.Principal, request);
+    }
+
+    /// <summary>
+    /// Shapes an error raised before a child step could run like a failed
+    /// child invocation, for the composition executor to interpret.
+    /// </summary>
+    private static Dictionary<string, object?> ChildFailureResponse(AnipError e)
+    {
+        var failure = new Dictionary<string, object?>
+        {
+            ["type"] = e.ErrorType,
+            ["detail"] = e.Detail,
+        };
+        if (e.Resolution != null)
+        {
+            failure["resolution"] = new Dictionary<string, object?>
+            {
+                ["action"] = e.Resolution.Action,
+                ["recovery_class"] = string.IsNullOrEmpty(e.Resolution.RecoveryClass)
+                    ? Constants.RecoveryClassForAction(e.Resolution.Action)
+                    : e.Resolution.RecoveryClass,
+            };
+        }
+        return new Dictionary<string, object?> { ["success"] = false, ["failure"] = failure };
+    }
+
+    /// <summary>
     /// Issues a delegation token for the authenticated principal.
     /// </summary>
     public TokenResponse IssueToken(string principal, TokenRequest request)
@@ -755,15 +821,17 @@ public class AnipService : IDisposable
                 };
             }
 
-            // 3. Validate token scope.
+            // 3. Validate the token for this capability: scope covers
+            // minimum_scope, the token is bound to this capability, and its
+            // delegation chain is complete, within depth, and unexpired.
             try
             {
-                DelegationEngine.ValidateScope(token, capDef.Declaration.MinimumScope);
+                DelegationEngine.ValidateDelegation(_storage!, token, capDef.Declaration.MinimumScope, capName);
             }
             catch (AnipError anipErr)
             {
                 // Fire scope validation hook (denied).
-                if (_hooks?.OnScopeValidation != null)
+                if (anipErr.ErrorType == Constants.FailureScopeInsufficient && _hooks?.OnScopeValidation != null)
                 {
                     ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, false));
                 }
@@ -1174,7 +1242,14 @@ public class AnipService : IDisposable
             {
                 if (capDef.Declaration.Kind == "composed")
                 {
-                    var childToken = token;
+                    // Each child step runs with its own token: delegated from
+                    // the caller's token, bound to the child capability and
+                    // narrowed to its minimum scope. That keeps purpose binding
+                    // intact and means a caller whose token does not cover a
+                    // child's scope cannot reach that child through a
+                    // composition. The child's audit entry links to this
+                    // invocation and shares its task_id.
+                    var callerToken = token;
                     var parentInvocationIdInner = invocationId;
                     var clientRefIdInner = opts.ClientReferenceId;
                     var upstreamInner = opts.UpstreamService;
@@ -1189,6 +1264,49 @@ public class AnipService : IDisposable
                             UpstreamService = upstreamInner,
                             Stream = false,
                         };
+                        if (!_capabilities.TryGetValue(childCap, out var childDef))
+                        {
+                            throw new AnipError(Constants.FailureUnknownCapability,
+                                $"Composition child capability '{childCap}' not found");
+                        }
+                        // The child's scope comes from the caller's own scope,
+                        // keeping any budget it carries. A caller whose token does
+                        // not cover the child is told so, as for a direct invocation.
+                        var (childScope, missingScope) = DelegationEngine.NarrowedScope(
+                            callerToken.Scope, childDef.Declaration.MinimumScope);
+                        if (missingScope.Count > 0)
+                        {
+                            return ChildFailureResponse(new AnipError(Constants.FailureScopeInsufficient,
+                                    $"composition step '{childCap}' needs scope(s) the caller's token does not carry: {string.Join(", ", missingScope)}")
+                                .WithResolution("request_broader_scope"));
+                        }
+                        var purposeParameters = callerToken.Purpose?.Parameters != null
+                            ? new Dictionary<string, object>(callerToken.Purpose.Parameters)
+                            : new Dictionary<string, object>();
+                        if (!string.IsNullOrEmpty(taskIdInner))
+                        {
+                            purposeParameters["task_id"] = taskIdInner;
+                        }
+                        DelegationToken childToken;
+                        try
+                        {
+                            var issued = IssueToken(callerToken.Subject, new TokenRequest
+                            {
+                                Subject = callerToken.Subject,
+                                Capability = childCap,
+                                Scope = childScope,
+                                ParentToken = callerToken.TokenId,
+                                PurposeParameters = purposeParameters,
+                                TtlHours = 1,
+                            });
+                            childToken = ResolveBearerToken(issued.Token);
+                        }
+                        catch (AnipError e)
+                        {
+                            // A refused child token is a failed child step: the
+                            // composition's failure_policy decides the outcome.
+                            return ChildFailureResponse(e);
+                        }
                         return Invoke(childCap, childToken, childParams, childOpts);
                     };
                     result = V023.ExecuteComposition(capName, capDef.Declaration, parameters, invokeStep);
@@ -1474,8 +1592,9 @@ public class AnipService : IDisposable
                 $"Capability '{capName}' does not support streaming");
         }
 
-        // 3. Validate token scope.
-        DelegationEngine.ValidateScope(token, capDef.Declaration.MinimumScope);
+        // 3. Validate the token for this capability (scope, purpose binding,
+        // delegation chain).
+        DelegationEngine.ValidateDelegation(_storage!, token, capDef.Declaration.MinimumScope, capName);
 
         // 3b. v0.23 §4.8 Phase A+B: validate and atomically reserve the
         // approval_grant BEFORE any handler / event emission. Reservation is

@@ -15,6 +15,7 @@ public API.
 
 from __future__ import annotations
 
+import math
 import os
 import socket
 import uuid
@@ -33,6 +34,88 @@ from anip_core import (
 )
 
 from .storage import StorageBackend
+
+
+_SCOPE_BUDGET_MARKER = ":max_$"
+
+
+def scope_budget(scope: str) -> tuple[bool, float | None]:
+    """Read the ``max_$`` budget carried by a scope string.
+
+    Returns ``(present, amount)``. ``amount`` is ``None`` when the scope
+    carries a budget that is not a finite, non-negative number. NaN in
+    particular must never be accepted: it compares false against everything,
+    so ``child > parent`` and ``cost > budget`` checks would both let it pass.
+    """
+    if _SCOPE_BUDGET_MARKER not in scope:
+        return False, None
+    raw = scope.split(_SCOPE_BUDGET_MARKER, 1)[1]
+    try:
+        amount = float(raw)
+    except ValueError:
+        return True, None
+    if math.isnan(amount) or math.isinf(amount) or amount < 0:
+        return True, None
+    return True, amount
+
+
+def _scope_narrowing_violation(
+    parent_scopes: list[str], child_scopes: list[str]
+) -> tuple[str, str] | None:
+    """Return ``(detail, requires)`` if *child_scopes* is not within *parent_scopes*.
+
+    Every child scope must equal a parent scope or sit below it ("travel"
+    covers "travel.search"). A budget carried by the parent scope may be
+    lowered, never dropped, raised, or replaced by a malformed value.
+    """
+    parent_bases = {s.split(":")[0] for s in parent_scopes}
+    for child_scope in child_scopes:
+        child_base = child_scope.split(":")[0]
+        matched = any(
+            child_base == parent_base or child_base.startswith(parent_base + ".")
+            for parent_base in parent_bases
+        )
+        if not matched:
+            return (
+                f"child token scope '{child_base}' is not a subset of "
+                f"parent token scopes: {', '.join(sorted(parent_bases))}",
+                "child scope must be subset of parent scope",
+            )
+
+        for parent_scope in parent_scopes:
+            # A budget on a parent scope applies to every scope beneath it:
+            # "travel:max_$500" also bounds "travel.book".
+            parent_has_budget, parent_budget = scope_budget(parent_scope)
+            parent_base = parent_scope.split(":")[0]
+            if not parent_has_budget or not (
+                child_base == parent_base or child_base.startswith(parent_base + ".")
+            ):
+                continue
+            if parent_budget is None:
+                return (
+                    f"parent scope '{child_base}' carries a malformed budget; it cannot be delegated",
+                    f"scope '{child_base}' must carry a finite, non-negative budget",
+                )
+            child_has_budget, child_budget = scope_budget(child_scope)
+            if not child_has_budget:
+                return (
+                    f"child dropped budget constraint from scope "
+                    f"'{child_base}' (parent has max ${parent_budget})",
+                    f"scope '{child_base}' must include budget <= ${parent_budget}",
+                )
+            if child_budget is None:
+                return (
+                    f"child budget for scope '{child_base}' is not a finite, non-negative amount",
+                    f"budget must be a number <= ${parent_budget}",
+                )
+            # Written as "not within" so that any unexpected value fails closed.
+            if not (child_budget <= parent_budget):
+                return (
+                    f"child budget ${child_budget} exceeds parent "
+                    f"budget ${parent_budget} for scope '{child_base}'",
+                    f"budget must be <= ${parent_budget}",
+                )
+    return None
 
 
 class DelegationEngine:
@@ -114,65 +197,20 @@ class DelegationEngine:
         root_principal = await self.get_root_principal(parent_token)
 
         # Pre-validate scope narrowing before creating the token
-        parent_scope_bases = {s.split(":")[0] for s in parent_token.scope}
-        for child_scope in scope:
-            child_base = child_scope.split(":")[0]
-            matched = any(
-                child_base == parent_base or child_base.startswith(parent_base + ".")
-                for parent_base in parent_scope_bases
+        violation = _scope_narrowing_violation(parent_token.scope, scope)
+        if violation is not None:
+            detail, requires = violation
+            return ANIPFailure(
+                type="scope_escalation",
+                detail=detail,
+                resolution=Resolution(
+                    action="request_new_delegation",
+                    recovery_class=recovery_class_for_action("request_new_delegation"),
+                    requires=requires,
+                    grantable_by=root_principal,
+                ),
+                retry=False,
             )
-            if not matched:
-                return ANIPFailure(
-                    type="scope_escalation",
-                    detail=(
-                        f"child token scope '{child_base}' is not a subset of "
-                        f"parent token scopes: {', '.join(sorted(parent_scope_bases))}"
-                    ),
-                    resolution=Resolution(
-                        action="request_new_delegation",
-                        recovery_class=recovery_class_for_action("request_new_delegation"),
-                        requires="child scope must be subset of parent scope",
-                        grantable_by=root_principal,
-                    ),
-                    retry=False,
-                )
-
-            # Check budget constraints
-            for parent_scope_str in parent_token.scope:
-                p_base = parent_scope_str.split(":")[0]
-                if p_base == child_base and ":max_$" in parent_scope_str:
-                    parent_budget = float(parent_scope_str.split(":max_$")[1])
-                    if ":max_$" not in child_scope:
-                        return ANIPFailure(
-                            type="scope_escalation",
-                            detail=(
-                                f"child dropped budget constraint from scope "
-                                f"'{child_base}' (parent has max ${parent_budget})"
-                            ),
-                            resolution=Resolution(
-                                action="request_new_delegation",
-                                recovery_class=recovery_class_for_action("request_new_delegation"),
-                                requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
-                                grantable_by=root_principal,
-                            ),
-                            retry=False,
-                        )
-                    child_budget_amt = float(child_scope.split(":max_$")[1])
-                    if child_budget_amt > parent_budget:
-                        return ANIPFailure(
-                            type="scope_escalation",
-                            detail=(
-                                f"child budget ${child_budget_amt} exceeds parent "
-                                f"budget ${parent_budget} for scope '{child_base}'"
-                            ),
-                            resolution=Resolution(
-                                action="request_new_delegation",
-                                recovery_class=recovery_class_for_action("request_new_delegation"),
-                                requires=f"budget must be <= ${parent_budget}",
-                                grantable_by=root_principal,
-                            ),
-                            retry=False,
-                        )
 
         # Enforce budget narrowing on constraints-level budget
         parent_constraints = parent_token.constraints
@@ -398,66 +436,20 @@ class DelegationEngine:
                 retry=True,
             )
 
-        parent_scope_bases = {s.split(":")[0] for s in parent.scope}
-
-        for child_scope in token.scope:
-            child_base = child_scope.split(":")[0]
-            matched = any(
-                child_base == parent_base or child_base.startswith(parent_base + ".")
-                for parent_base in parent_scope_bases
+        violation = _scope_narrowing_violation(parent.scope, token.scope)
+        if violation is not None:
+            detail, requires = violation
+            return ANIPFailure(
+                type="scope_escalation",
+                detail=detail,
+                resolution=Resolution(
+                    action="request_new_delegation",
+                    recovery_class=recovery_class_for_action("request_new_delegation"),
+                    requires=requires,
+                    grantable_by=await self.get_root_principal(parent),
+                ),
+                retry=False,
             )
-            if not matched:
-                return ANIPFailure(
-                    type="scope_escalation",
-                    detail=(
-                        f"child token scope '{child_base}' is not a subset of "
-                        f"parent token scopes: {', '.join(sorted(parent_scope_bases))}"
-                    ),
-                    resolution=Resolution(
-                        action="request_new_delegation",
-                        recovery_class=recovery_class_for_action("request_new_delegation"),
-                        requires="child scope must be subset of parent scope",
-                        grantable_by=await self.get_root_principal(parent),
-                    ),
-                    retry=False,
-                )
-
-            # Budget constraint enforcement
-            for parent_scope_str in parent.scope:
-                parent_base = parent_scope_str.split(":")[0]
-                if parent_base == child_base and ":max_$" in parent_scope_str:
-                    parent_budget = float(parent_scope_str.split(":max_$")[1])
-                    if ":max_$" not in child_scope:
-                        return ANIPFailure(
-                            type="scope_escalation",
-                            detail=(
-                                f"child dropped budget constraint from scope "
-                                f"'{child_base}' (parent has max ${parent_budget})"
-                            ),
-                            resolution=Resolution(
-                                action="request_new_delegation",
-                                recovery_class=recovery_class_for_action("request_new_delegation"),
-                                requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
-                                grantable_by=await self.get_root_principal(parent),
-                            ),
-                            retry=False,
-                        )
-                    child_budget = float(child_scope.split(":max_$")[1])
-                    if child_budget > parent_budget:
-                        return ANIPFailure(
-                            type="scope_escalation",
-                            detail=(
-                                f"child budget ${child_budget} exceeds parent "
-                                f"budget ${parent_budget} for scope '{child_base}'"
-                            ),
-                            resolution=Resolution(
-                                action="request_new_delegation",
-                                recovery_class=recovery_class_for_action("request_new_delegation"),
-                                requires=f"budget must be <= ${parent_budget}",
-                                grantable_by=await self.get_root_principal(parent),
-                            ),
-                            retry=False,
-                        )
 
         return None
 
@@ -515,9 +507,11 @@ class DelegationEngine:
     ) -> ANIPFailure | None:
         """Check if the delegation chain carries sufficient budget authority."""
         for scope in token.scope:
-            if ":max_$" in scope:
-                max_budget = float(scope.split(":max_$")[1])
-                if amount > max_budget:
+            has_budget, max_budget = scope_budget(scope)
+            if has_budget:
+                # A malformed budget, or any amount that is not provably within
+                # it, is refused.
+                if max_budget is None or not (amount <= max_budget):
                     return ANIPFailure(
                         type="budget_exceeded",
                         detail=f"capability costs ${amount} but delegation chain authority is max ${max_budget}",

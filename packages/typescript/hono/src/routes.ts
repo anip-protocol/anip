@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import type { ANIPService } from "@anip-dev/service";
+import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
 import { IssueApprovalGrantRequest } from "@anip-dev/core";
 
@@ -34,11 +34,11 @@ export async function mountAnip(
 
   // --- Tokens ---
   app.post(`${p}/anip/tokens`, async (c) => {
-    const principal = await extractPrincipal(c, service);
-    if (!principal) return authFailureTokenEndpoint(c);
+    const issuer = await extractIssuer(c, service);
+    if (!issuer) return authFailureTokenEndpoint(c);
     const body = await c.req.json();
     try {
-      const result = await service.issueToken(principal, body);
+      const result = await service.issueTokenAs(issuer, body);
       return c.json(result);
     } catch (e) {
       if (e instanceof ANIPError) return errorResponse(c, e);
@@ -355,10 +355,13 @@ export async function mountAnip(
 
 // --- Helpers ---
 
-async function extractPrincipal(c: any, service: ANIPService): Promise<string | null> {
+// The token endpoint accepts the bootstrap credential, or a delegation token
+// issued by this service. A token authenticates as its holder, and the service
+// refuses root issuance for such callers.
+async function extractIssuer(c: any, service: ANIPService): Promise<Issuer | null> {
   const auth = c.req.header("authorization") ?? "";
   if (!auth.startsWith("Bearer ")) return null;
-  return service.authenticateBearer(auth.slice(7).trim());
+  return service.authenticateIssuer(auth.slice(7).trim());
 }
 
 async function resolveToken(c: any, service: ANIPService) {
