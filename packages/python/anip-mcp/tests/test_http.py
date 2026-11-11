@@ -172,15 +172,27 @@ class TestMcpHttpTransport:
         assert resp.status_code == 200
         assert "nonexistent" in resp.text or "Unknown" in resp.text or "isError" in resp.text
 
-    def test_missing_accept_header(self, client):
-        """POST without the required Accept header returns 406."""
+    def test_incompatible_accept_header(self, client):
+        """POST whose Accept header excludes the response types returns 406."""
         resp = client.post("/mcp", json={
             "jsonrpc": "2.0",
             "id": 1,
             "method": "tools/list",
             "params": {},
-        }, headers={"Content-Type": "application/json"})
+        }, headers={"Content-Type": "application/json", "Accept": "text/html"})
         assert resp.status_code == 406
+
+    def test_wildcard_accept_header(self, client):
+        """A wildcard Accept header (what HTTP clients send by default)
+        accepts both response types, per RFC 7231. The 1.x MCP SDK rejected it."""
+        resp = client.post("/mcp", json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {},
+        }, headers={"Content-Type": "application/json", "Accept": "*/*"})
+        assert resp.status_code == 200
+        assert "greet" in resp.text
 
     def test_get_method_rejected_without_accept(self, client):
         """GET without text/event-stream Accept returns 406."""

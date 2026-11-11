@@ -154,17 +154,56 @@ class TestMountIntegration:
         yield server, lifecycle
         await lifecycle.shutdown()
 
-    async def test_list_tools_handler_registered(self, mounted):
-        """Verify list_tools handler was registered on the server."""
+    async def test_list_tools_returns_the_capabilities(self, mounted):
+        """The handler mounted for tools/list returns the service's capabilities."""
         server, _ = mounted
-        from mcp.types import ListToolsRequest
-        assert ListToolsRequest in server.request_handlers
+        from mcp.types import PaginatedRequestParams
+        entry = server.get_request_handler("tools/list")
+        assert entry is not None, "no tools/list handler was mounted"
 
-    async def test_call_tool_handler_registered(self, mounted):
-        """Verify call_tool handler was registered on the server."""
+        result = await entry.handler(None, PaginatedRequestParams())
+
+        assert [tool.name for tool in result.tools] == ["greet"]
+
+    async def test_call_tool_invokes_the_capability(self, mounted):
+        """The handler mounted for tools/call invokes with the mount credentials."""
         server, _ = mounted
-        from mcp.types import CallToolRequest
-        assert CallToolRequest in server.request_handlers
+        from mcp.types import CallToolRequestParams
+        entry = server.get_request_handler("tools/call")
+        assert entry is not None, "no tools/call handler was mounted"
+
+        result = await entry.handler(None, CallToolRequestParams(name="greet", arguments={"name": "World"}))
+
+        assert result.is_error is False
+        assert "Hello, World!" in result.content[0].text
+
+    async def test_call_unknown_tool_is_a_tool_error(self, mounted):
+        server, _ = mounted
+        from mcp.types import CallToolRequestParams
+        entry = server.get_request_handler("tools/call")
+
+        result = await entry.handler(None, CallToolRequestParams(name="nonexistent", arguments={}))
+
+        assert result.is_error is True
+        assert "Unknown tool: nonexistent" in result.content[0].text
+
+    async def test_a_real_client_lists_and_calls_tools(self, mounted):
+        """Full protocol round trip: an MCP client connected to the mounted
+        server performs the handshake, sees the tools, and calls one."""
+        server, _ = mounted
+        from mcp import Client
+
+        async with Client(server) as client:
+            tools = await client.list_tools()
+            assert [tool.name for tool in tools.tools] == ["greet"]
+
+            result = await client.call_tool("greet", {"name": "World"})
+            assert result.is_error is False
+            assert "Hello, World!" in result.content[0].text
+
+            unknown = await client.call_tool("nonexistent", {})
+            assert unknown.is_error is True
+            assert "Unknown tool: nonexistent" in unknown.content[0].text
 
     async def test_mount_returns_lifecycle(self, mounted):
         """Verify mount returns working lifecycle handle."""
