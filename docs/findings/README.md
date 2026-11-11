@@ -3,18 +3,24 @@
 Short, sourced notes on things we learned the hard way while working on ANIP,
 kept so the next person or agent does not have to rediscover them.
 
-Each finding states:
+Each finding keeps two things apart:
 
-- **Claim** — what to do or what is true.
-- **Applies to** — everything, or one language, package or version.
-- **Source** — the pull request, run or document that shows it.
-- **Status** — `verified` (we did it and it worked), `observed once`, or
-  `unverified` (believed, not checked).
+- **Observed** — what actually happened, with its **Source** (the pull request,
+  run or document that shows it) and a **Status**:
+  `verified` (we did it and saw it), `observed once` (seen in a single
+  incident), or `unverified` (believed, not checked).
+- **Recommendation** — the advice we draw from it. A recommendation is an
+  opinion informed by the observation. It has not been shown to hold in general,
+  however sensible it sounds.
+
+Each finding also says what it **applies to**: everything, or one language,
+package or version.
 
 Rules:
 
 - A finding enters this folder through a reviewed pull request.
-- Keep it to what was actually observed. Guesses are marked `unverified`.
+- The status describes the observation only. Never mark a recommendation as verified.
+- Keep observations to what actually happened. Guesses are marked `unverified`.
 - When a finding stops being true, correct it or delete it. Do not leave stale
   advice in place.
 - Language-specific details are labelled. Do not assume a Python detail holds

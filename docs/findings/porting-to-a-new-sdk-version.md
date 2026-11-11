@@ -7,94 +7,108 @@ independent review caught it.
 
 ## General
 
-### 1. Read the migration guide in full before reading the new API
+In each finding below, only the **Observed** part carries a status. The
+**Recommendation** is advice drawn from one port; whether it pays off on other
+ports is not yet known.
 
-- **Claim:** Read the SDK's migration guide end to end first. Search it for
-  "removed", "no longer", "validation" and "default".
+### 1. The migration guide named the behaviour we lost
+
+- **Observed:** The 2.x migration guide states in one sentence that automatic
+  argument validation was removed with no replacement
+  ([guide](https://github.com/modelcontextprotocol/python-sdk/blob/v2.3.0/docs/migration.md#lowlevel-server-decorator-based-handlers-replaced-with-constructor-on_-params)).
+  The author of #318 read the new SDK's source, not the guide, and missed it.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** Read the migration guide in full before reading the new
+  API. Search it for "removed", "no longer", "validation" and "default".
 - **Applies to:** any SDK port.
-- **Source:** #318. The author read the new SDK's source and not its guide. The
-  guide states the lost behaviour in one sentence
-  ([MCP Python SDK migration guide](https://github.com/modelcontextprotocol/python-sdk/blob/v2.3.0/docs/migration.md#lowlevel-server-decorator-based-handlers-replaced-with-constructor-on_-params)).
-- **Status:** verified.
 
-### 2. List what the old SDK did for you automatically
+### 2. The old SDK did work for us that nobody had written down
 
-- **Claim:** Before changing code, write down everything the old SDK did around
-  your handlers without being asked: validating arguments, turning exceptions
-  into error results, wrapping return values, checking headers, limiting
-  request size. For each item decide: the new SDK still does it, we now do it
-  ourselves, or it changes on purpose. State the last group in the pull request.
+- **Observed:** In 1.x the SDK validated tool arguments against the declared
+  schema and turned raised exceptions into tool errors. Neither was visible in
+  our own code. 2.x does neither.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** Before changing code, list what the old SDK does around
+  your handlers without being asked (validating arguments, converting
+  exceptions, wrapping return values, checking headers, limiting request size).
+  For each, decide: the new SDK still does it, we now do it ourselves, or it
+  changes on purpose. State the last group in the pull request.
 - **Applies to:** any SDK port.
-- **Source:** #318. Argument validation was automatic in 1.x and absent in 2.x.
-- **Status:** verified.
 
-### 3. Pin refusal behaviour with tests before the port
+### 3. Refusal tests written before the port held; the missing ones were the gap
 
-- **Claim:** Add tests for what must be *refused*, on the old SDK, before
-  porting. They must pass on the old version and keep passing after. Each test
-  asserts the refusal reaches the caller **and that the capability handler did
-  not run**.
-- **Applies to:** any binding that sits in front of capabilities.
-- **Cases worth covering:** a token issued for another capability; a token with
-  insufficient scope; no credentials; invalid credentials; unknown tool;
-  arguments that break the declared schema (missing required, wrong type, null,
-  a boolean or a fraction where an integer is required).
+- **Observed:** Three tests for token refusals were added before the port,
+  passed on 1.x and kept passing on 2.x. No test covered invalid arguments, and
+  that is where the regression was. Twelve such tests were added after review.
 - **Source:** #318, `tests/test_http_token_auth.py` and
-  `tests/test_input_validation.py`.
-- **Status:** verified. The token tests held through the port. The argument
-  tests were only written after review found the gap.
+  `tests/test_input_validation.py`. **Status:** verified.
+- **Recommendation:** Before porting, add tests on the old version for
+  everything that must be refused. Each asserts that the refusal reaches the
+  caller and that the capability handler did not run. Cases to consider: a token
+  issued for another capability; insufficient scope; no credentials; invalid
+  credentials; unknown tool; arguments that break the declared schema (missing
+  required, wrong type, null, a boolean or a fraction where an integer is
+  required).
+- **Applies to:** any binding that sits in front of capabilities.
 
-### 4. Test through the real request path
+### 4. The regression could only be seen through the real request path
 
-- **Claim:** Send the request the way a client would (a real HTTP request, or a
-  real client session against the mounted server). Tests that call an internal
-  helper do not see what the SDK does or stopped doing around it.
+- **Observed:** Argument validation happened inside the SDK, between the
+  request and our handler. Tests that called our helper functions directly
+  could not see it disappear.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** Test the way a client calls: a real HTTP request, or a
+  real client session against the mounted server.
 - **Applies to:** any binding.
-- **Source:** #318. The regression was invisible to helper-level tests.
-- **Status:** verified.
 
-### 5. Make sure a new test can fail
+### 5. A test that passed first time was shown able to fail
 
-- **Claim:** When a new test passes the first time, break the code on purpose
-  and confirm the test notices, then restore it.
+- **Observed:** The three token tests passed as soon as they were written. With
+  the token check deliberately bypassed, two of them failed; the code was then
+  restored.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** When a new test passes immediately, break the code on
+  purpose to confirm the test notices.
 - **Applies to:** everything.
-- **Source:** #318. The token tests passed immediately; a deliberate break
-  confirmed two of the three fail when the check is bypassed.
-- **Status:** verified.
 
-### 6. Tests that inspect SDK internals will break, and were weak anyway
+### 6. Tests that read SDK internals broke
 
-- **Claim:** Replace assertions on the SDK's internal tables with behaviour
-  tests. Be suspicious of assertions joined by `or`: one of them can hide a
-  regression.
+- **Observed:** Two tests asserted on `server.request_handlers`, an internal
+  table that 2.x removed. One older test joined its assertions with `or`, so it
+  could pass without the refusal it was meant to check.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** Replace assertions on SDK internals with behaviour tests,
+  and be suspicious of assertions joined by `or`.
 - **Applies to:** any SDK port.
-- **Source:** #318. Two tests read `server.request_handlers`, which 2.x removed.
-- **Status:** verified.
 
-### 7. Check both old and new clients against the new server
+### 7. Old and new clients both worked against the ported server
 
-- **Claim:** After the port, connect a client built on the old SDK and one built
-  on the new SDK. Callers in the wild will be on the old one for a long time.
-- **Applies to:** any protocol binding.
-- **Source:** #318. MCP clients 1.30.0 and 2.3.0 were both run against the
+- **Observed:** MCP clients 1.30.0 and 2.3.0 each completed a handshake, listed
+  tools, called one, and received a tool error for a wrong key against the
   ported server.
-- **Status:** verified.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** After a port, connect a client built on the old SDK as
+  well as one built on the new SDK. Existing callers stay on the old one.
+- **Applies to:** any protocol binding.
 
-### 8. Ask for an independent review that compares behaviour before and after
+### 8. An independent review found what the author's tests and CI did not
 
-- **Claim:** Have someone other than the author run the same malformed and
-  unauthorized requests against the code before and after the port and compare.
+- **Observed:** A reviewer who had not written the port sent the same malformed
+  requests to the code before and after it and compared the results. That is
+  how the lost validation was found. The author's tests and CI were green.
+- **Source:** #318. **Status:** observed once.
+- **Recommendation:** Ask for a review that compares behaviour before and after
+  for malformed and unauthorized requests.
 - **Applies to:** any port.
-- **Source:** #318. This is what found the lost validation.
-- **Status:** observed once.
 
-### 9. Look for other users of the package in the repository
+### 9. Other parts of the repository used the package
 
-- **Claim:** Search for imports of the package outside it, and run what you find.
+- **Observed:** The travel, finance and devops showcases mount the Python MCP
+  binding. Their contract tests passed against the port.
+- **Source:** #318. **Status:** verified.
+- **Recommendation:** Search for imports of the package outside it and run what
+  you find.
 - **Applies to:** everything.
-- **Source:** #318. The travel, finance and devops showcases mount the Python
-  MCP binding; their contract tests were run against the port.
-- **Status:** verified.
 
 ## Python and the MCP SDK 2.x only
 

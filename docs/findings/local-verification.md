@@ -90,9 +90,10 @@ dotnet build && dotnet test --no-build
   ```
 
   **Status:** verified.
-- A `System.MissingMethodException` from `Microsoft.Build` during `dotnet run`
-  or `dotnet test` is a stale build server, not a code problem:
-  `dotnet build-server shutdown`, then retry. **Status:** observed once.
+- In one incident, `dotnet run` failed with a `System.MissingMethodException`
+  from `Microsoft.Build`, before any ANIP code ran. `dotnet build-server shutdown`
+  followed by a retry resolved it. That is a single observation: if you see the
+  same error and this does not clear it, investigate. **Status:** observed once.
 
 ## Conformance suite
 
