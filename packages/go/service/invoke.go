@@ -323,11 +323,13 @@ func (s *Service) Invoke(
 	// which decides how to handle missing/invalid inputs. The conformance suite
 	// invokes with empty params and expects the handler to produce a result.
 
-	// 3. Validate token scope covers capability's minimum_scope.
-	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
+	// 3. Validate the token for this capability: scope covers minimum_scope,
+	// the token is bound to this capability, and its delegation chain is
+	// complete, within depth, and unexpired.
+	if err := server.ValidateDelegation(s.storage, token, capDef.Declaration.MinimumScope, capName); err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
 			// Fire scope validation hook (denied).
-			if s.hooks != nil && s.hooks.OnScopeValidation != nil {
+			if anipErr.ErrorType == core.FailureScopeInsufficient && s.hooks != nil && s.hooks.OnScopeValidation != nil {
 				callHook(func() { s.hooks.OnScopeValidation(capName, false) })
 			}
 
@@ -671,7 +673,7 @@ func (s *Service) Invoke(
 	var result map[string]any
 	var err error
 	if capDef.Declaration.Kind == core.CapabilityKindComposed {
-		result, err = ExecuteComposition(capName, &capDef.Declaration, params, s.composedInvokeStep(token, opts, effectiveTaskID))
+		result, err = ExecuteComposition(capName, &capDef.Declaration, params, s.composedInvokeStep(token, opts, effectiveTaskID, invocationID))
 	} else {
 		result, err = capDef.Handler(&ctx, params)
 	}
@@ -873,8 +875,9 @@ func (s *Service) InvokeStream(
 		return nil, core.NewANIPError(core.FailureStreamingNotSupported, "Capability '"+capName+"' does not support streaming")
 	}
 
-	// 3. Validate token scope.
-	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
+	// 3. Validate the token for this capability (scope, purpose binding,
+	// delegation chain).
+	if err := server.ValidateDelegation(s.storage, token, capDef.Declaration.MinimumScope, capName); err != nil {
 		return nil, err
 	}
 
@@ -1253,20 +1256,74 @@ func (s *Service) failWithGrant(
 }
 
 // composedInvokeStep returns an InvokeStepFunc that re-enters Service.Invoke
-// for child capabilities of a composed parent. Same authority/audit lineage
-// as the parent; child failures are returned as raw response maps for
-// ExecuteComposition to interpret.
-func (s *Service) composedInvokeStep(token *core.DelegationToken, opts InvokeOpts, effectiveTaskID string) InvokeStepFunc {
+// for child capabilities of a composed parent.
+//
+// Each child runs with its own token: delegated from the caller's token,
+// bound to the child capability, and narrowed to the child's minimum scope.
+// That keeps purpose binding intact (the caller's token is bound to the
+// parent, not to its children) and means a caller whose token does not cover
+// a child's scope cannot reach that child through a composition. The child's
+// audit entry links to this invocation and shares its task_id.
+//
+// Child failures are returned as response maps for ExecuteComposition to
+// interpret under the composition's failure_policy.
+func (s *Service) composedInvokeStep(token *core.DelegationToken, opts InvokeOpts, effectiveTaskID, invocationID string) InvokeStepFunc {
 	return func(capability string, params map[string]any) (map[string]any, error) {
+		childDef, ok := s.capabilities[capability]
+		if !ok {
+			return nil, core.NewANIPError(core.FailureUnknownCapability,
+				"Composition child capability '"+capability+"' not found")
+		}
+
+		purposeParameters := map[string]any{}
+		for k, v := range token.Purpose.Parameters {
+			purposeParameters[k] = v
+		}
+		if effectiveTaskID != "" {
+			purposeParameters["task_id"] = effectiveTaskID
+		}
+		issued, err := s.IssueToken(token.Subject, core.TokenRequest{
+			Subject:           token.Subject,
+			Capability:        capability,
+			Scope:             childDef.Declaration.MinimumScope,
+			ParentToken:       token.TokenID,
+			PurposeParameters: purposeParameters,
+			TTLHours:          1,
+		})
+		if err != nil {
+			if anipErr, ok := err.(*core.ANIPError); ok {
+				return childFailureResponse(anipErr), nil
+			}
+			return nil, err
+		}
+		childToken, err := s.ResolveBearerToken(issued.Token)
+		if err != nil {
+			return nil, err
+		}
+
 		childOpts := InvokeOpts{
 			ClientReferenceID:  opts.ClientReferenceID,
 			TaskID:             effectiveTaskID,
-			ParentInvocationID: opts.ParentInvocationID,
+			ParentInvocationID: invocationID,
 			UpstreamService:    opts.UpstreamService,
 			Stream:             false,
 			Budget:             opts.Budget,
 			// Children do not inherit parent's approval_grant.
 		}
-		return s.Invoke(capability, token, params, childOpts)
+		return s.Invoke(capability, childToken, params, childOpts)
 	}
+}
+
+// childFailureResponse shapes an error raised before a child step could run
+// (for example a refused child token) like a failed child invocation, so the
+// composition's failure_policy decides what the parent returns.
+func childFailureResponse(err *core.ANIPError) map[string]any {
+	failure := map[string]any{"type": err.ErrorType, "detail": err.Detail}
+	if err.Resolution != nil {
+		failure["resolution"] = map[string]any{
+			"action":         err.Resolution.Action,
+			"recovery_class": err.Resolution.RecoveryClass,
+		}
+	}
+	return map[string]any{"success": false, "failure": failure}
 }

@@ -39,17 +39,17 @@ func SimpleFailureResponse(failureType, detail string, resolution *core.Resoluti
 	return status, resp
 }
 
-// AuthFailureTokenEndpoint returns the standard 401 for missing API key on POST /anip/tokens.
+// AuthFailureTokenEndpoint returns the standard 401 for a missing or unrecognized credential on POST /anip/tokens.
 func AuthFailureTokenEndpoint() (int, map[string]any) {
 	resp := map[string]any{
 		"success": false,
 		"failure": map[string]any{
 			"type":   core.FailureAuthRequired,
-			"detail": "A valid API key is required to issue delegation tokens",
+			"detail": "A bootstrap credential, or a delegation token issued by this service, is required to issue delegation tokens",
 			"resolution": map[string]any{
-				"action":                  "provide_credentials",
-				"recovery_class":          core.RecoveryClassForAction("provide_credentials"),
-				"requires":               "API key in Authorization header",
+				"action":                 "provide_credentials",
+				"recovery_class":         core.RecoveryClassForAction("provide_credentials"),
+				"requires":               "bootstrap credential or delegation token in Authorization header",
 				"grantable_by":           nil,
 				"estimated_availability": nil,
 			},
@@ -67,8 +67,8 @@ func AuthFailureJWTEndpoint() (int, map[string]any) {
 			"type":   core.FailureAuthRequired,
 			"detail": "A valid delegation token (JWT) is required in the Authorization header",
 			"resolution": map[string]any{
-				"action":                  "request_new_delegation",
-				"recovery_class":          core.RecoveryClassForAction("request_new_delegation"),
+				"action":                 "request_new_delegation",
+				"recovery_class":         core.RecoveryClassForAction("request_new_delegation"),
 				"requires":               "Bearer token from POST /anip/tokens",
 				"grantable_by":           nil,
 				"estimated_availability": nil,
@@ -88,16 +88,16 @@ func BuildFailureBody(failureType, detail string, resolution *core.Resolution, r
 	}
 	if resolution != nil {
 		body["resolution"] = map[string]any{
-			"action":                  resolution.Action,
-			"recovery_class":          resolution.RecoveryClass,
+			"action":                 resolution.Action,
+			"recovery_class":         resolution.RecoveryClass,
 			"requires":               nilIfEmpty(resolution.Requires),
 			"grantable_by":           nilIfEmpty(resolution.GrantableBy),
 			"estimated_availability": nilIfEmpty(resolution.EstimatedAvailability),
 		}
 	} else {
 		body["resolution"] = map[string]any{
-			"action":                  "contact_service_owner",
-			"recovery_class":          core.RecoveryClassForAction("contact_service_owner"),
+			"action":                 "contact_service_owner",
+			"recovery_class":         core.RecoveryClassForAction("contact_service_owner"),
 			"requires":               nil,
 			"grantable_by":           nil,
 			"estimated_availability": nil,

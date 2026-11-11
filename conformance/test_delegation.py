@@ -156,6 +156,70 @@ class TestDelegatedIssuance:
         )
 
 
+class TestTokenAsCredential:
+    """§6.3: root issuance authenticates with the bootstrap credential;
+    delegated issuance authenticates with an existing token and names a
+    parent_token. A token is a credential for delegating, never for minting
+    a fresh root token."""
+
+    def _held_token(self, client, bootstrap_bearer, subject, scope, capability):
+        resp = client.post(
+            "/anip/tokens",
+            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
+            json={"subject": subject, "scope": scope, "capability": capability,
+                  "purpose_parameters": {}},
+        )
+        body = resp.json()
+        assert resp.status_code == 200 and body.get("issued") is True, f"Issuance failed: {body}"
+        return body
+
+    def test_holder_delegates_using_its_token_as_credential(
+        self, client, bootstrap_bearer, unrelated_capabilities, sample_inputs
+    ):
+        read_name, read_scope, _, _ = unrelated_capabilities
+        subject = f"agent:conformance-{uuid.uuid4().hex[:8]}"
+        held = self._held_token(client, bootstrap_bearer, subject, read_scope, read_name)
+
+        resp = client.post(
+            "/anip/tokens",
+            headers={"Authorization": f"Bearer {held['token']}"},
+            json={"scope": read_scope, "capability": read_name, "purpose_parameters": {},
+                  "parent_token": held["token_id"]},
+        )
+        child = resp.json()
+        assert resp.status_code == 200 and child.get("issued") is True, (
+            f"The holder could not delegate from its own token: {resp.status_code} {child}"
+        )
+
+        data = _invoke(client, child["token"], read_name, sample_inputs.get(read_name, {}))
+        assert data.get("success") is True, f"Invoke with the delegated token failed: {data}"
+
+    def test_token_credential_cannot_issue_a_root_token(
+        self, client, bootstrap_bearer, unrelated_capabilities
+    ):
+        """The holder of a narrow token MUST NOT obtain a root token, with
+        any scope, by presenting that token as its credential."""
+        read_name, read_scope, write_name, write_scope = unrelated_capabilities
+        subject = f"agent:conformance-{uuid.uuid4().hex[:8]}"
+        held = self._held_token(client, bootstrap_bearer, subject, read_scope, read_name)
+
+        resp = client.post(
+            "/anip/tokens",
+            headers={"Authorization": f"Bearer {held['token']}"},
+            json={"scope": read_scope + write_scope, "capability": write_name,
+                  "purpose_parameters": {}},
+        )
+        body = resp.json()
+
+        assert body.get("issued") is not True and "token" not in body, (
+            f"A token holding {read_scope} was used as a credential to issue a root "
+            f"token with scope {read_scope + write_scope}"
+        )
+        assert _failure_type(body) == "insufficient_authority", (
+            f"Expected failure type 'insufficient_authority', got {body}"
+        )
+
+
 class TestDelegationDepth:
     def test_chain_deeper_than_the_limit_is_rejected(
         self, client, bootstrap_bearer, unrelated_capabilities, sample_inputs

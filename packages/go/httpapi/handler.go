@@ -156,7 +156,7 @@ func handleTokens(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		principal, ok := svc.AuthenticateBearer(bearer)
+		issuer, ok := svc.AuthenticateIssuer(bearer)
 		if !ok {
 			status, body := httputil.AuthFailureTokenEndpoint()
 			writeJSON(w, status, body)
@@ -170,7 +170,7 @@ func handleTokens(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		resp, err := svc.IssueToken(principal, req)
+		resp, err := svc.IssueTokenAs(issuer, req)
 		if err != nil {
 			if anipErr, ok := err.(*core.ANIPError); ok {
 				status, body := httputil.FailureResponse(anipErr)

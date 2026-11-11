@@ -195,15 +195,10 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 		return nil, status.Error(codes.Unauthenticated, "missing authorization metadata with Bearer token")
 	}
 
-	// Try bootstrap auth (API key) first, then ANIP JWT.
-	principal, ok := s.service.AuthenticateBearer(bearer)
+	// Bootstrap credential, or a delegation token issued by this service.
+	issuer, ok := s.service.AuthenticateIssuer(bearer)
 	if !ok {
-		// Try resolving as JWT.
-		token, err := s.service.ResolveBearerToken(bearer)
-		if err != nil {
-			return nil, status.Error(codes.Unauthenticated, "bearer token not recognized")
-		}
-		principal = token.Subject
+		return nil, status.Error(codes.Unauthenticated, "bearer token not recognized")
 	}
 
 	// Build token request.
@@ -231,7 +226,7 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 		}
 	}
 
-	resp, err := s.service.IssueToken(principal, tokenReq)
+	resp, err := s.service.IssueTokenAs(issuer, tokenReq)
 	if err != nil {
 		var anipErr *core.ANIPError
 		if ok := isANIPError(err, &anipErr); ok {

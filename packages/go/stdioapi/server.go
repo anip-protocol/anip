@@ -307,15 +307,10 @@ func handleTokensIssue(s *Server, params map[string]any) (any, error) {
 		return nil, core.NewANIPError(core.FailureAuthRequired, "This method requires auth.bearer")
 	}
 
-	// Try bootstrap auth (API key) first, then ANIP JWT.
-	principal, ok := s.svc.AuthenticateBearer(bearer)
+	// Bootstrap credential, or a delegation token issued by this service.
+	issuer, ok := s.svc.AuthenticateIssuer(bearer)
 	if !ok {
-		// Try resolving as JWT.
-		token, err := s.svc.ResolveBearerToken(bearer)
-		if err != nil {
-			return nil, core.NewANIPError(core.FailureInvalidToken, "Bearer token not recognized")
-		}
-		principal = token.Subject
+		return nil, core.NewANIPError(core.FailureInvalidToken, "Bearer token not recognized")
 	}
 
 	// Build token request from params.
@@ -353,7 +348,7 @@ func handleTokensIssue(s *Server, params map[string]any) (any, error) {
 		}
 	}
 
-	resp, err := s.svc.IssueToken(principal, req)
+	resp, err := s.svc.IssueTokenAs(issuer, req)
 	if err != nil {
 		return nil, err
 	}

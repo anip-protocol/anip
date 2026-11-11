@@ -49,6 +49,8 @@ func FailureStatusCode(failureType string) int {
 	case FailureScopeInsufficient, FailureBudgetExceeded, FailureBudgetCurrencyMismatch,
 		FailureBudgetNotEnforceable, FailureBindingMissing, FailureBindingStale,
 		FailureControlRequirementUnsatisfied, FailurePurposeMismatch, FailureScopeEscalation,
+		FailureInsufficientAuthority, FailureBrokenDelegationChain,
+		FailureDelegationDepthExceeded, FailureParentTokenExpired,
 		// v0.23: approver does not have authority for this capability.
 		"approver_not_authorized":
 		return 403
