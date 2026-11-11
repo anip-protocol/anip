@@ -299,14 +299,27 @@ public final class DelegationEngine {
         return scope.split(":")[0];
     }
 
-    /** Returns the "max_$" amount carried by a scope string, or null. */
+    /** Whether a scope string carries a "max_$" budget at all. */
+    private static boolean hasScopeBudget(String scope) {
+        return scope.contains(":max_$");
+    }
+
+    /**
+     * Returns the "max_$" amount carried by a scope string, or null when it is
+     * absent or not a finite, non-negative number. NaN in particular must
+     * never be accepted: it compares false against everything.
+     */
     private static Double scopeBudget(String scope) {
         int idx = scope.indexOf(":max_$");
         if (idx < 0) {
             return null;
         }
         try {
-            return Double.parseDouble(scope.substring(idx + ":max_$".length()));
+            double value = Double.parseDouble(scope.substring(idx + ":max_$".length()));
+            if (Double.isNaN(value) || Double.isInfinite(value) || value < 0) {
+                return null;
+            }
+            return value;
         } catch (NumberFormatException e) {
             return null;
         }
@@ -335,16 +348,25 @@ public final class DelegationEngine {
             }
 
             for (String parentScope : parent.getScope()) {
-                Double parentBudget = scopeBudget(parentScope);
-                if (parentBudget == null || !scopeBase(parentScope).equals(childBase)) {
+                if (!hasScopeBudget(parentScope) || !scopeBase(parentScope).equals(childBase)) {
                     continue;
                 }
-                Double childBudget = scopeBudget(child);
-                if (childBudget == null) {
+                Double parentBudget = scopeBudget(parentScope);
+                if (parentBudget == null) {
+                    throw scopeEscalation("parent scope '" + childBase
+                            + "' carries a malformed budget; it cannot be delegated");
+                }
+                if (!hasScopeBudget(child)) {
                     throw scopeEscalation("child dropped budget constraint from scope '" + childBase
                             + "' (parent has max $" + parentBudget + ")");
                 }
-                if (childBudget > parentBudget) {
+                Double childBudget = scopeBudget(child);
+                if (childBudget == null) {
+                    throw scopeEscalation("child budget for scope '" + childBase
+                            + "' is not a finite, non-negative amount");
+                }
+                // Written as "not within" so that any unexpected value fails closed.
+                if (!(childBudget <= parentBudget)) {
                     throw scopeEscalation("child budget $" + childBudget + " exceeds parent budget $"
                             + parentBudget + " for scope '" + childBase + "'");
                 }

@@ -216,7 +216,13 @@ class DelegationEnforcementTest {
                 new Case("keeps scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$500"), true),
                 new Case("lowers scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$100"), true),
                 new Case("drops scope budget", List.of("travel.book:max_$500"), List.of("travel.book"), false),
-                new Case("raises scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$900"), false));
+                new Case("raises scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$900"), false),
+                // A budget that is not a finite, non-negative number must fail closed: NaN compares
+                // false against everything, so it would pass a naive "child > parent" check.
+                new Case("NaN scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$NaN"), false),
+                new Case("infinite scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$Infinity"), false),
+                new Case("negative scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$-1"), false),
+                new Case("unparseable scope budget", List.of("travel.book:max_$500"), List.of("travel.book:max_$lots"), false));
 
         for (Case c : cases) {
             TokenResponse root = issue(HUMAN, HUMAN, c.parent(), "book_flight", null);

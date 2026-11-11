@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rand"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -272,17 +273,20 @@ func scopeBase(scope string) string {
 	return strings.Split(scope, ":")[0]
 }
 
-// scopeBudget returns the "max_$" amount carried by a scope string, if any.
-func scopeBudget(scope string) (float64, bool) {
-	_, amount, found := strings.Cut(scope, ":max_$")
+// scopeBudget reads the "max_$" amount carried by a scope string.
+// present reports whether the scope carries a budget at all; valid reports
+// whether that budget is a finite, non-negative number. NaN in particular
+// must never be accepted: it compares false against everything.
+func scopeBudget(scope string) (amount float64, present, valid bool) {
+	_, raw, found := strings.Cut(scope, ":max_$")
 	if !found {
-		return 0, false
+		return 0, false, false
 	}
-	value, err := strconv.ParseFloat(amount, 64)
-	if err != nil {
-		return 0, false
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return 0, true, false
 	}
-	return value, true
+	return value, true, true
 }
 
 // validateScopeNarrowing rejects a delegated token whose scope is not within
@@ -315,16 +319,23 @@ func validateScopeNarrowing(parent *core.DelegationToken, childScope []string) e
 		}
 
 		for _, parentScope := range parent.Scope {
-			parentBudget, hasBudget := scopeBudget(parentScope)
-			if !hasBudget || scopeBase(parentScope) != childBase {
+			parentBudget, parentHasBudget, parentValid := scopeBudget(parentScope)
+			if !parentHasBudget || scopeBase(parentScope) != childBase {
 				continue
 			}
-			childBudget, childHasBudget := scopeBudget(child)
+			if !parentValid {
+				return escalation(fmt.Sprintf("parent scope '%s' carries a malformed budget; it cannot be delegated", childBase))
+			}
+			childBudget, childHasBudget, childValid := scopeBudget(child)
 			if !childHasBudget {
 				return escalation(fmt.Sprintf("child dropped budget constraint from scope '%s' (parent has max $%v)",
 					childBase, parentBudget))
 			}
-			if childBudget > parentBudget {
+			if !childValid {
+				return escalation(fmt.Sprintf("child budget for scope '%s' is not a finite, non-negative amount", childBase))
+			}
+			// Written as "not within" so that any unexpected value fails closed.
+			if !(childBudget <= parentBudget) {
 				return escalation(fmt.Sprintf("child budget $%v exceeds parent budget $%v for scope '%s'",
 					childBudget, parentBudget, childBase))
 			}

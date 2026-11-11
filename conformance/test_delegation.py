@@ -120,6 +120,50 @@ class TestDelegatedIssuance:
             f"Expected failure type 'scope_escalation', got {child}"
         )
 
+    @pytest.mark.parametrize("child_budget", ["900", "NaN", "-1", "lots", None],
+                             ids=["raised", "nan", "negative", "unparseable", "dropped"])
+    def test_delegated_token_cannot_loosen_a_scope_budget(
+        self, client, bootstrap_bearer, unrelated_capabilities, child_budget
+    ):
+        """A budget carried by a parent scope ("scope:max_$500") may be kept
+        or lowered by a child, never raised, dropped, or replaced by a value
+        that is not a finite, non-negative amount."""
+        _, _, write_name, write_scope = unrelated_capabilities
+        base = write_scope[0]
+        status, root = issue_token_full(
+            client, [f"{base}:max_$500"], write_name, bootstrap_bearer, task_id=None)
+        assert status == 200 and root.get("issued") is True, f"Root issuance failed: {root}"
+
+        child_scope = base if child_budget is None else f"{base}:max_${child_budget}"
+        _, child = issue_token_full(
+            client, [child_scope], write_name, bootstrap_bearer, task_id=None,
+            parent_token=root["token_id"],
+        )
+
+        assert child.get("issued") is not True and "token" not in child, (
+            f"A child token with scope '{child_scope}' was issued from a parent "
+            f"holding '{base}:max_$500'"
+        )
+        assert _failure_type(child) == "scope_escalation", (
+            f"Expected failure type 'scope_escalation', got {child}"
+        )
+
+    def test_delegated_token_can_lower_a_scope_budget(
+        self, client, bootstrap_bearer, unrelated_capabilities
+    ):
+        """Control: lowering a scope budget is allowed."""
+        _, _, write_name, write_scope = unrelated_capabilities
+        base = write_scope[0]
+        status, root = issue_token_full(
+            client, [f"{base}:max_$500"], write_name, bootstrap_bearer, task_id=None)
+        assert status == 200 and root.get("issued") is True, f"Root issuance failed: {root}"
+
+        status, child = issue_token_full(
+            client, [f"{base}:max_$100"], write_name, bootstrap_bearer, task_id=None,
+            parent_token=root["token_id"],
+        )
+        assert status == 200 and child.get("issued") is True, f"Lowering a scope budget was refused: {child}"
+
     def test_only_the_parent_subject_can_delegate(
         self, client, bootstrap_bearer, unrelated_capabilities
     ):

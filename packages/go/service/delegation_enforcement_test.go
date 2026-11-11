@@ -319,6 +319,12 @@ func TestIssueTokenScopeNarrowingRules(t *testing.T) {
 		{"lowers scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$100"}, ""},
 		{"drops scope budget", []string{"travel.book:max_$500"}, []string{"travel.book"}, core.FailureScopeEscalation},
 		{"raises scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$900"}, core.FailureScopeEscalation},
+		// A budget that is not a finite, non-negative number must fail closed:
+		// NaN compares false against everything, so it would pass a naive "child > parent" check.
+		{"NaN scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$NaN"}, core.FailureScopeEscalation},
+		{"infinite scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$Inf"}, core.FailureScopeEscalation},
+		{"negative scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$-1"}, core.FailureScopeEscalation},
+		{"unparseable scope budget", []string{"travel.book:max_$500"}, []string{"travel.book:max_$lots"}, core.FailureScopeEscalation},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
