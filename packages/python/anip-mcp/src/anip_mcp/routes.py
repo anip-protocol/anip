@@ -12,7 +12,7 @@ from mcp.server.lowlevel import Server
 
 from anip_service import ANIPService, ANIPError
 from .translation import capability_to_input_schema, enrich_description
-from .invocation import translate_response, invoke_with_token, InvokeResult
+from .invocation import translate_response, invoke_with_token, InvokeResult, tool_error
 
 
 @dataclass
@@ -127,23 +127,27 @@ async def mount_anip_mcp(
             inputSchema=capability_to_input_schema(decl_dict),
         )
 
-    @server.list_tools()
-    async def handle_list_tools() -> list[types.Tool]:
-        return list(mcp_tools.values())
+    async def handle_list_tools(
+        ctx: Any, params: types.PaginatedRequestParams | None,
+    ) -> types.ListToolsResult:
+        return types.ListToolsResult(tools=list(mcp_tools.values()))
 
-    @server.call_tool()
     async def handle_call_tool(
-        name: str, arguments: dict,
-    ) -> list[types.TextContent]:
-        # Raise on errors — the mcp server catches exceptions and creates
-        # CallToolResult(isError=True). Returning text only produces isError=False.
+        ctx: Any, params: types.CallToolRequestParams,
+    ) -> types.CallToolResult:
+        # Every refusal is returned as a tool error (isError=True) carrying
+        # the ANIP failure text, so the calling agent can read why.
+        name = params.name
         if name not in mcp_tools:
-            raise ValueError(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
+            return tool_error(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
 
-        result = await _invoke_capability(service, name, arguments or {}, credentials)
+        text = await _invoke_capability(service, name, params.arguments or {}, credentials)
         # _invoke_capability returns "FAILED: ..." strings for ANIP errors
-        if result.startswith("FAILED:"):
-            raise ValueError(result)
-        return [types.TextContent(type="text", text=result)]
+        if text.startswith("FAILED:"):
+            return tool_error(text)
+        return types.CallToolResult(content=[types.TextContent(type="text", text=text)])
+
+    server.add_request_handler("tools/list", types.PaginatedRequestParams, handle_list_tools)
+    server.add_request_handler("tools/call", types.CallToolRequestParams, handle_call_tool)
 
     return McpLifecycle(_service=service)

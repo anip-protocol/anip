@@ -4,9 +4,8 @@ Mounts an MCP server on a FastAPI application using the mcp library's
 StreamableHTTPSessionManager in stateless mode. Each request gets its own
 transport instance, so no session state is shared between requests.
 
-Auth is per-request: the call_tool handler reads Authorization from
-server.request_context.request (the Starlette Request provided by the
-transport's request_context metadata).
+Auth is per-request: the call_tool handler reads Authorization from the
+Starlette Request the transport attaches to the handler's request context.
 """
 from __future__ import annotations
 
@@ -23,7 +22,7 @@ from starlette.requests import Request
 from starlette.routing import Mount
 
 from anip_service import ANIPService, ANIPError
-from .invocation import resolve_auth, invoke_with_token
+from .invocation import resolve_auth, invoke_with_token, tool_error, tool_result
 from .translation import capability_to_input_schema, enrich_description
 
 logger = logging.getLogger(__name__)
@@ -65,43 +64,44 @@ def mount_anip_mcp_http(
             inputSchema=capability_to_input_schema(decl_dict),
         )
 
-    # Create the MCP lowlevel server
-    mcp_server = Server("anip-mcp-http")
+    async def handle_list_tools(
+        ctx: Any, params: mcp_types.PaginatedRequestParams | None,
+    ) -> mcp_types.ListToolsResult:
+        return mcp_types.ListToolsResult(tools=list(mcp_tools.values()))
 
-    @mcp_server.list_tools()
-    async def handle_list_tools() -> list[mcp_types.Tool]:
-        return list(mcp_tools.values())
-
-    @mcp_server.call_tool()
     async def handle_call_tool(
-        name: str, arguments: dict,
-    ) -> list[mcp_types.TextContent]:
-        # The mcp server wraps the return into CallToolResult(isError=False).
-        # To signal errors, raise an exception — the server catches it and
-        # creates CallToolResult(isError=True, content=[TextContent(str(e))]).
+        ctx: Any, params: mcp_types.CallToolRequestParams,
+    ) -> mcp_types.CallToolResult:
+        # Every refusal is returned as a tool error (isError=True) carrying
+        # the ANIP failure text, so the calling agent can read why.
+        name = params.name
         if name not in mcp_tools:
-            raise ValueError(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
+            return tool_error(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
 
         # Extract Authorization header from the per-request Starlette Request.
         bearer: str | None = None
-        try:
-            ctx = mcp_server.request_context
-            request: Request | None = getattr(ctx, "request", None)
-            if request is not None:
-                auth_header = request.headers.get("authorization", "")
-                if auth_header.startswith("Bearer "):
-                    bearer = auth_header[7:].strip()
-        except LookupError:
-            pass
+        request: Request | None = getattr(ctx, "request", None)
+        if request is not None:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                bearer = auth_header[7:].strip()
 
         if not bearer:
-            raise ValueError("FAILED: authentication_required\nDetail: No Authorization header\nRetryable: yes")
+            return tool_error("FAILED: authentication_required\nDetail: No Authorization header\nRetryable: yes")
 
-        token = await resolve_auth(bearer, service, name)
-        result = await invoke_with_token(service, name, arguments or {}, token)
-        if result.is_error:
-            raise ValueError(result.text)
-        return [mcp_types.TextContent(type="text", text=result.text)]
+        try:
+            token = await resolve_auth(bearer, service, name)
+        except ANIPError as e:
+            return tool_error(str(e))
+        result = await invoke_with_token(service, name, params.arguments or {}, token)
+        return tool_result(result)
+
+    # Create the MCP lowlevel server
+    mcp_server = Server(
+        "anip-mcp-http",
+        on_list_tools=handle_list_tools,
+        on_call_tool=handle_call_tool,
+    )
 
     # Use the session manager in stateless mode: each request gets its own
     # transport, so no shared state between HTTP requests.

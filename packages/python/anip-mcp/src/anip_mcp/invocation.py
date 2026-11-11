@@ -8,6 +8,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+import mcp.types as mcp_types
+
 from anip_service import ANIPService, ANIPError
 
 
@@ -15,6 +17,21 @@ from anip_service import ANIPService, ANIPError
 class InvokeResult:
     text: str
     is_error: bool
+
+
+def tool_error(text: str) -> mcp_types.CallToolResult:
+    """An MCP tool result that reports a failure to the calling agent."""
+    return mcp_types.CallToolResult(
+        content=[mcp_types.TextContent(type="text", text=text)], is_error=True,
+    )
+
+
+def tool_result(result: InvokeResult) -> mcp_types.CallToolResult:
+    """Convert an ANIP invocation result into an MCP tool result."""
+    return mcp_types.CallToolResult(
+        content=[mcp_types.TextContent(type="text", text=result.text)],
+        is_error=result.is_error,
+    )
 
 
 async def resolve_auth(
