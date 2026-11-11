@@ -5,16 +5,23 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Path filters skip the tests when this language's files did not change,
+  # so a breaking dependency release or a version-bump-only release goes
+  # untested. Run everything weekly and on demand, ignoring the filter.
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
 
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      should_test: ${{ steps.filter.outputs.src }}
+      should_test: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.src }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           filters: |
             src:
