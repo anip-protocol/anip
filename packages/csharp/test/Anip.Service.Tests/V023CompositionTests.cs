@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Anip.Core;
 using Anip.Service;
 
@@ -336,5 +337,77 @@ public class V023CompositionTests
         var d2 = V023.Sha256Digest(new Dictionary<string, object?> { ["k"] = "v" });
         Assert.Equal(d1, d2);
         Assert.StartsWith("sha256:", d1);
+    }
+
+    // A Composition loaded from JSON (as generated projects and stored
+    // definitions do) holds empty_result_output values as JsonElement, not
+    // as .NET strings. References must behave the same either way.
+    private static CapabilityDeclaration ParentWithJsonComposition(string compositionJson) => new()
+    {
+        Name = "parent",
+        Description = "p",
+        ContractVersion = "1.0",
+        SideEffect = new SideEffect { Type = "none" },
+        MinimumScope = new List<string> { "data" },
+        Kind = "composed",
+        Composition = JsonSerializer.Deserialize<Composition>(compositionJson),
+    };
+
+    [Fact]
+    public void ExecuteComposition_ResolvesEmptyResultReferencesLoadedFromJson()
+    {
+        var parent = ParentWithJsonComposition("""
+            {
+              "authority_boundary": "same_service",
+              "steps": [{ "id": "search", "capability": "step1", "empty_result_source": true }],
+              "output_mapping": { "items": "$.steps.search.output.items" },
+              "empty_result_policy": "return_success_no_results",
+              "empty_result_output": {
+                "query": "$.input.query",
+                "items": "$.steps.search.output.items",
+                "note": "no matches"
+              }
+            }
+            """);
+
+        V023.InvokeStepFunc invoker = (cap, p) => new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["result"] = new Dictionary<string, object?> { ["items"] = new List<object?>() },
+        };
+
+        var result = V023.ExecuteComposition("parent", parent,
+            new Dictionary<string, object?> { ["query"] = "red shoes" }, invoker);
+
+        Assert.Equal("red shoes", result["query"]);
+        Assert.Empty(Assert.IsAssignableFrom<IList<object?>>(result["items"]));
+        Assert.Equal("no matches", result["note"]?.ToString());
+    }
+
+    [Fact]
+    public void ValidateComposition_RejectsEmptyResultReferenceToOtherStepLoadedFromJson()
+    {
+        var parent = ParentWithJsonComposition("""
+            {
+              "authority_boundary": "same_service",
+              "steps": [
+                { "id": "s1", "capability": "step1", "empty_result_source": true },
+                { "id": "s2", "capability": "step2" }
+              ],
+              "output_mapping": { "x": "$.steps.s2.output.x" },
+              "empty_result_policy": "return_success_no_results",
+              "empty_result_output": { "x": "$.steps.s2.output.x" }
+            }
+            """);
+        var registry = new Dictionary<string, CapabilityDeclaration>
+        {
+            ["step1"] = AtomicDecl("step1"),
+            ["step2"] = AtomicDecl("step2"),
+            ["parent"] = parent,
+        };
+
+        var error = Assert.Throws<V023.CompositionValidationError>(() =>
+            V023.ValidateComposition("parent", parent, registry));
+        Assert.Contains("empty_result_output['x']", error.Message);
     }
 }
