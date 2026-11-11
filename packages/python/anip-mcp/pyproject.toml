@@ -9,6 +9,8 @@ dependencies = [
     # The bindings use the 2.x lowlevel Server API (handlers passed to the
     # server, returning results). 1.x registered handlers with decorators.
     "mcp>=2.0.0,<3",
+    # Tool arguments are validated against the advertised input schema.
+    "jsonschema>=4.20",
 ]
 authors = [{ name = "ANIP Protocol", email = "team@anip.dev" }]
 license = { text = "Apache-2.0" }

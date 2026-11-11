@@ -12,7 +12,9 @@ from mcp.server.lowlevel import Server
 
 from anip_service import ANIPService, ANIPError
 from .translation import capability_to_input_schema, enrich_description
-from .invocation import translate_response, invoke_with_token, InvokeResult, tool_error
+from .invocation import (
+    InvokeResult, input_validation_error, invoke_with_token, tool_error, translate_response,
+)
 
 
 @dataclass
@@ -140,6 +142,10 @@ async def mount_anip_mcp(
         name = params.name
         if name not in mcp_tools:
             return tool_error(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
+
+        invalid = input_validation_error(mcp_tools[name], params.arguments)
+        if invalid is not None:
+            return invalid
 
         text = await _invoke_capability(service, name, params.arguments or {}, credentials)
         # _invoke_capability returns "FAILED: ..." strings for ANIP errors

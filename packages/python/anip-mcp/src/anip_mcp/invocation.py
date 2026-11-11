@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+import jsonschema
 import mcp.types as mcp_types
 
 from anip_service import ANIPService, ANIPError
@@ -24,6 +25,23 @@ def tool_error(text: str) -> mcp_types.CallToolResult:
     return mcp_types.CallToolResult(
         content=[mcp_types.TextContent(type="text", text=text)], is_error=True,
     )
+
+
+def input_validation_error(
+    tool: mcp_types.Tool, arguments: dict[str, Any] | None,
+) -> mcp_types.CallToolResult | None:
+    """Check tool arguments against the tool's advertised input schema.
+
+    Returns a tool error when they do not match, or None when they do. The
+    1.x MCP SDK ran this check inside its ``call_tool`` decorator; the 2.x SDK
+    leaves it to the server. Both bindings call this before authenticating or
+    invoking, so arguments that break the schema never reach a capability.
+    """
+    try:
+        jsonschema.validate(instance=arguments or {}, schema=tool.input_schema)
+    except jsonschema.ValidationError as e:
+        return tool_error(f"Input validation error: {e.message}")
+    return None
 
 
 def tool_result(result: InvokeResult) -> mcp_types.CallToolResult:

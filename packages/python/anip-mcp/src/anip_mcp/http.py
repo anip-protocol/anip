@@ -22,7 +22,9 @@ from starlette.requests import Request
 from starlette.routing import Mount
 
 from anip_service import ANIPService, ANIPError
-from .invocation import resolve_auth, invoke_with_token, tool_error, tool_result
+from .invocation import (
+    input_validation_error, invoke_with_token, resolve_auth, tool_error, tool_result,
+)
 from .translation import capability_to_input_schema, enrich_description
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,10 @@ def mount_anip_mcp_http(
         name = params.name
         if name not in mcp_tools:
             return tool_error(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
+
+        invalid = input_validation_error(mcp_tools[name], params.arguments)
+        if invalid is not None:
+            return invalid
 
         # Extract Authorization header from the per-request Starlette Request.
         bearer: str | None = None
