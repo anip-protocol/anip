@@ -47,6 +47,7 @@ from .business_developer_bridge import (
 )
 from .consumer_mode import consumer_mode_from_labels
 from .db import get_pool
+from .db_backends import timestamp_to_iso
 from .derivation import build_shape_backed_proposal
 from .intent_drafts import (
     classify_change_target,
@@ -387,8 +388,8 @@ def _serialize_artifact(row: dict[str, Any]) -> dict[str, Any]:
         "id": row["id"],
         "title": row.get("title", ""),
         "status": row.get("status", ""),
-        "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
-        "updated_at": row.get("updated_at").isoformat() if row.get("updated_at") else None,
+        "created_at": timestamp_to_iso(row.get("created_at")),
+        "updated_at": timestamp_to_iso(row.get("updated_at")),
     }
 
 
@@ -399,7 +400,7 @@ def _serialize_evaluation(row: dict[str, Any]) -> dict[str, Any]:
         "scenario_id": row.get("scenario_id"),
         "requirements_id": row.get("requirements_id"),
         "shape_id": row.get("shape_id"),
-        "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
+        "created_at": timestamp_to_iso(row.get("created_at")),
         "is_stale": row.get("is_stale"),
     }
 

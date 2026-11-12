@@ -47,7 +47,7 @@ jobs:
           pip install -r studio/server/requirements.txt
 
       - name: Test SQLite desktop backend
-        run: PYTHONPATH=. pytest studio/server_sqlite_tests/test_sqlite_backend.py -q
+        run: PYTHONPATH=. pytest studio/server_sqlite_tests -q
 
       - name: Set up Node 22
         uses: actions/setup-node@v6

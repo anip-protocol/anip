@@ -66,6 +66,25 @@ def sqlite_path_from_url(database_url: str) -> Path:
     return path
 
 
+def timestamp_to_iso(value) -> str | None:
+    """Return ISO 8601 text for a timestamp column value from either backend.
+
+    Postgres returns ``datetime`` objects. SQLite returns text: column defaults
+    are ``datetime('now')`` ("YYYY-MM-DD HH:MM:SS", in UTC with no offset) and
+    ``now()`` is ``_sqlite_now`` (ISO 8601 with offset).
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
 def is_unique_violation(error: Exception) -> bool:
     if isinstance(error, UniqueViolation):
         return True
