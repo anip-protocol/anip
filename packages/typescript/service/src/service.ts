@@ -12,9 +12,13 @@ import { hostname } from "node:os";
 import type {
   ANIPManifest,
   CapabilityDeclaration,
+  CapabilityDeclarationInput,
   DelegationToken,
 } from "@anip-dev/core";
-import { PROTOCOL_VERSION, DEFAULT_PROFILE, recoveryClassForAction } from "@anip-dev/core";
+import {
+  CapabilityDeclaration as CapabilityDeclarationSchema,
+  PROTOCOL_VERSION, DEFAULT_PROFILE, recoveryClassForAction,
+} from "@anip-dev/core";
 import { KeyManager } from "@anip-dev/crypto";
 import {
   AuditLog,
@@ -34,7 +38,7 @@ import {
 } from "@anip-dev/server";
 
 import { ANIPError } from "./types.js";
-import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import type { CapabilityDef, CapabilityDefInput, Handler, InvocationContext } from "./types.js";
 import type { ANIPHooks, LoggingHooks, TracingHooks, HealthReport } from "./hooks.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
@@ -66,7 +70,7 @@ import {
 
 export interface ANIPServiceOpts {
   serviceId: string;
-  capabilities: CapabilityDef[];
+  capabilities: Array<CapabilityDef | CapabilityDefInput>;
   storage?: { type: "sqlite" | "memory"; path?: string } | StorageBackend | string;
   keyPath?: string;
   trust?:
@@ -229,8 +233,26 @@ export interface ANIPService {
 // defineCapability helper
 // ---------------------------------------------------------------------------
 
-export function defineCapability(opts: CapabilityDef): CapabilityDef {
-  return opts;
+/**
+ * Defines a capability. The declaration is validated here, and fields left out
+ * take their defaults (an input is required unless it says otherwise, a
+ * capability is atomic, ...), so a malformed declaration fails when the
+ * service is defined and not on the first call.
+ */
+export function defineCapability(opts: CapabilityDefInput): CapabilityDef {
+  return { ...opts, declaration: parseDeclaration(opts.declaration) };
+}
+
+function parseDeclaration(declaration: CapabilityDeclarationInput): CapabilityDeclaration {
+  const parsed = CapabilityDeclarationSchema.safeParse(declaration);
+  if (!parsed.success) {
+    const name = typeof declaration?.name === "string" ? declaration.name : "(unnamed)";
+    const issues = parsed.error.issues
+      .map((issue) => `${issue.path.join(".") || "declaration"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`Invalid declaration for capability '${name}': ${issues}`);
+  }
+  return parsed.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,7 +409,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Capability registry ---
   const capabilities = new Map<string, CapabilityDef>();
   const capDeclarations: Record<string, CapabilityDeclaration> = {};
-  for (const cap of capDefs) {
+  for (const def of capDefs) {
+    // Validate and fill defaults here too, so a capability built without
+    // defineCapability behaves the same as one built with it.
+    const cap: CapabilityDef = { ...def, declaration: parseDeclaration(def.declaration) };
     const name = cap.declaration.name;
     capabilities.set(name, cap);
     capDeclarations[name] = cap.declaration;
