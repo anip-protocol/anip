@@ -102,3 +102,10 @@ public sealed class McpHttpMalformedRequestTests_InitializeHandshake : McpHttpMa
     private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
         await LegacyWireClient.ConnectAsync(http);
 }
+
+/// <summary>Malformed requests, from a client that speaks the 2026-07-28 protocol revision.</summary>
+public sealed class McpHttpMalformedRequestTests_Protocol20260728 : McpHttpMalformedRequestTests
+{
+    private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
+        await ModernWireClient.ConnectAsync(http);
+}

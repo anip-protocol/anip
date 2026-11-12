@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Anip.Mcp.AspNetCore.Tests;
 
@@ -145,6 +146,135 @@ internal sealed class LegacyWireClient : IWireClient
         if (SessionId != null)
         {
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", SessionId);
+        }
+
+        using var response = await _http.SendAsync(request);
+        var raw = await response.Content.ReadAsStringAsync();
+        var sessionId = response.Headers.TryGetValues("Mcp-Session-Id", out var values) ? values.FirstOrDefault() : null;
+
+        return new WireReply(response.StatusCode, WireBody.FindMessage(raw, id), raw, sessionId);
+    }
+}
+
+/// <summary>
+/// Speaks the 2026-07-28 protocol revision: no handshake and no session. Every
+/// request names its protocol version, method and tool in HTTP headers and
+/// describes the client in <c>_meta</c>.
+/// </summary>
+internal sealed class ModernWireClient : IWireClient
+{
+    public const string ProtocolVersion = "2026-07-28";
+
+    private static readonly Dictionary<string, object?> Meta = new()
+    {
+        ["io.modelcontextprotocol/protocolVersion"] = ProtocolVersion,
+        ["io.modelcontextprotocol/clientInfo"] = new { name = "anip-wire-test", version = "1.0" },
+        ["io.modelcontextprotocol/clientCapabilities"] = new { },
+    };
+
+    private readonly HttpClient _http;
+    private readonly string _path;
+    private int _nextId;
+
+    private ModernWireClient(HttpClient http, string path)
+    {
+        _http = http;
+        _path = path;
+    }
+
+    /// <summary>Checks that the server serves this revision and returns a ready client.</summary>
+    public static async Task<ModernWireClient> ConnectAsync(HttpClient http, string path = "/mcp")
+    {
+        var client = new ModernWireClient(http, path);
+
+        var discover = await client.SendAsync(
+            "server/discover", new Dictionary<string, object?> { ["_meta"] = Meta }, authorization: null, toolName: null);
+        Assert.True(discover.HasResult, $"server/discover failed: {discover}");
+        Assert.Contains(
+            ProtocolVersion,
+            discover.Result.GetProperty("supportedVersions").EnumerateArray().Select(v => v.GetString()));
+        Assert.Null(discover.SessionId);
+
+        return client;
+    }
+
+    public Task<WireReply> CallToolAsync(string name, object? arguments, string? authorization)
+    {
+        return SendAsync(
+            "tools/call",
+            new Dictionary<string, object?> { ["name"] = name, ["arguments"] = arguments, ["_meta"] = Meta },
+            authorization,
+            toolName: name);
+    }
+
+    /// <summary>A tool call whose <c>Mcp-Name</c> header names a different tool than its body.</summary>
+    public Task<WireReply> CallToolWithHeaderNameAsync(string bodyName, string headerName, object? arguments, string? authorization)
+    {
+        return SendAsync(
+            "tools/call",
+            new Dictionary<string, object?> { ["name"] = bodyName, ["arguments"] = arguments, ["_meta"] = Meta },
+            authorization,
+            toolName: headerName);
+    }
+
+    public Task<WireReply> ListToolsAsync(string? authorization)
+    {
+        return SendAsync("tools/list", new Dictionary<string, object?> { ["_meta"] = Meta }, authorization, toolName: null);
+    }
+
+    /// <summary>
+    /// Sends the given body as it is, apart from adding <c>_meta</c> when
+    /// <c>params</c> is an object, and sets the headers a real client would
+    /// derive from it, so that the request is judged on its own defect. When
+    /// the body has no usable tool name, the <c>Mcp-Name</c> header names a
+    /// tool that exists: the hardest case for the server, since the header on
+    /// its own looks like a valid call.
+    /// </summary>
+    public Task<WireReply> RequestRawAsync(string json, string? authorization, int id)
+    {
+        var node = JsonNode.Parse(json)!.AsObject();
+        var method = node["method"]?.GetValueKind() == JsonValueKind.String ? node["method"]!.GetValue<string>() : null;
+        var toolName = "echo";
+        if (node["params"] is JsonObject parameters)
+        {
+            parameters["_meta"] = JsonSerializer.SerializeToNode(Meta);
+            if (parameters["name"]?.GetValueKind() == JsonValueKind.String)
+            {
+                toolName = parameters["name"]!.GetValue<string>();
+            }
+        }
+
+        return PostAsync(node.ToJsonString(), authorization, method, toolName, id);
+    }
+
+    private Task<WireReply> SendAsync(string method, object @params, string? authorization, string? toolName)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var json = JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params });
+        return PostAsync(json, authorization, method, toolName, id);
+    }
+
+    private async Task<WireReply> PostAsync(string json, string? authorization, string? method, string? toolName, int id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, _path)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.TryAddWithoutValidation("Accept", "application/json, text/event-stream");
+        request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", ProtocolVersion);
+        if (method != null)
+        {
+            request.Headers.TryAddWithoutValidation("Mcp-Method", method);
+        }
+
+        if (toolName != null)
+        {
+            request.Headers.TryAddWithoutValidation("Mcp-Name", toolName);
+        }
+
+        if (authorization != null)
+        {
+            request.Headers.TryAddWithoutValidation("Authorization", authorization);
         }
 
         using var response = await _http.SendAsync(request);

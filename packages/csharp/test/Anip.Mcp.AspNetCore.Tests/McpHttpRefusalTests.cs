@@ -318,3 +318,10 @@ public sealed class McpHttpRefusalTests_InitializeHandshake : McpHttpRefusalTest
     private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
         await LegacyWireClient.ConnectAsync(http);
 }
+
+/// <summary>The refusals, for a client that speaks the 2026-07-28 protocol revision.</summary>
+public sealed class McpHttpRefusalTests_Protocol20260728 : McpHttpRefusalTests
+{
+    private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
+        await ModernWireClient.ConnectAsync(http);
+}
