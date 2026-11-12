@@ -212,13 +212,16 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
     [Fact]
     public async Task TokenIssuedForAnotherCapability_IsRefused()
     {
-        var jwtForEcho = _app.IssueJwt("agent:alice", "echo", "data.read");
+        // The scope covers delete_record, so only the binding to "echo" can
+        // refuse this call. With a narrower scope the scope check would refuse
+        // it first and the purpose check would never be reached.
+        var jwtForEcho = _app.IssueJwt("agent:alice", "echo", "data.read", "admin.write");
         var client = await ConnectAsync(_app.Http);
 
         var reply = await client.CallToolAsync("delete_record", new { id = "r1" }, Bearer(jwtForEcho));
 
         Assert.True(reply.IsToolError, reply.ToString());
-        Assert.StartsWith("FAILED: scope_insufficient", reply.ToolText);
+        Assert.StartsWith("FAILED: purpose_mismatch", reply.ToolText);
         Assert.Empty(_app.Calls);
     }
 

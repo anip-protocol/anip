@@ -104,13 +104,14 @@ public class McpSdkClientTests : IAsyncLifetime
     [InlineData(LastHandshakeRevision)]
     public async Task ATokenForAnotherCapability_ComesBackAsAToolError(string? pinnedRevision)
     {
-        var jwtForEcho = _app.IssueJwt("agent:alice", "echo", "data.read");
+        // The scope covers delete_record, so only the binding to "echo" can refuse this call.
+        var jwtForEcho = _app.IssueJwt("agent:alice", "echo", "data.read", "admin.write");
         await using var client = await ConnectAsync(pinnedRevision, jwtForEcho);
 
         var result = await client.CallToolAsync("delete_record", new Dictionary<string, object?> { ["id"] = "r1" });
 
         Assert.True(result.IsError);
-        Assert.StartsWith("FAILED: scope_insufficient", Text(result));
+        Assert.StartsWith("FAILED: purpose_mismatch", Text(result));
         Assert.Empty(_app.Calls);
     }
 

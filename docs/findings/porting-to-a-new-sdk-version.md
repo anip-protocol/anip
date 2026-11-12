@@ -176,8 +176,9 @@ except where an item is marked otherwise.
   not either. Capability handlers validate their own parameters.
 - **HTTP is stateless by default in 2.x.** No `Mcp-Session-Id` is issued, `GET`
   and `DELETE` answer 405, and a `tools/call` is accepted with no `initialize`
-  before it. A request that still carries a session id is answered 400. The
-  binding now sets this mode explicitly.
+  before it. A handshake-era request (2025-11-25 or earlier) that still carries
+  a session id is answered 400; a 2026-07-28 request that carries one is served
+  and the id is ignored. The binding now sets this mode explicitly.
 - **Legacy SSE endpoints are no longer mapped** (`/sse` and `/message` under
   the mount path; SDK default since 1.2.0). On 1.1.0 `MapMcp` served them, and
   a tool call sent over them ran with the `Authorization` header of the `GET`
