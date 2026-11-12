@@ -78,6 +78,7 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
+        {to: '/docs/getting-started/quickstart', label: 'Quickstart', position: 'left'},
         {to: '/docs/getting-started/install', label: 'Install', position: 'left'},
         {to: '/docs/releases/version-history', label: 'Versions', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
