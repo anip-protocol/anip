@@ -41,6 +41,7 @@ latency, and model-tier comparisons. It is intentionally separate from the
 official broad release gate so release validation and benchmark analysis stay
 easy to reason about.
 
-These banks are also executed against the live GTM stack:
-
-- broad execution results: [question-bank-runs/README.md](../question-bank-runs/README.md)
+These banks are also executed against the live GTM stack with
+`examples/showcase/gtm/scripts/generated_stack/run_question_bank.py`. The runner
+writes its results to a local, git-ignored `question-bank-runs/` folder next to
+this one; run output is not committed.

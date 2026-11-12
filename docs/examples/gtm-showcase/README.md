@@ -62,17 +62,14 @@ stack, not assumed up front.
 - [anip-capability-input-contracts.csv](./anip-capability-input-contracts.csv)
 - [story.md](./story.md)
 - [architecture.md](./architecture.md)
-- [implementation-plan.md](./implementation-plan.md)
-- [phase3-live-proof.md](./phase3-live-proof.md)
-- [phase4-live-proof.md](./phase4-live-proof.md)
-- [phase5-live-proof.md](./phase5-live-proof.md)
-- [phase6-live-proof.md](./phase6-live-proof.md)
-- [phase7-live-proof.md](./phase7-live-proof.md)
-- [phase8-scale-and-packaging-plan.md](./phase8-scale-and-packaging-plan.md)
 - [phase8-bi-verification.md](./phase8-bi-verification.md)
 - [question-banks/README.md](./question-banks/README.md)
-- [question-bank-runs/README.md](./question-bank-runs/README.md)
-- [model-tier-comparison.md](./model-tier-comparison.md)
+- [variation-question-banks-v3/README.md](./variation-question-banks-v3/README.md)
+- [hard-mode-governance-scenarios.md](./hard-mode-governance-scenarios.md)
+
+The implementation plan, per-phase live-proof notes, model-tier comparison and
+saved run logs were removed from the repository once the work they tracked was
+finished. They remain in git history up to commit `b11048ff`.
 
 ## Developer Runtime Evidence
 
@@ -108,21 +105,3 @@ The showcase currently has live proof for:
   compound user question
 - broad question-bank execution across Phases 1 through 7
   - `350 / 350` passed
-
-## Next Expansion
-
-The next planned work is split cleanly:
-
-- Phase 6: deepen the Maven CRM state layer with bounded forecast, bottleneck,
-  team-performance, product-pipeline, and reassignment-preview capabilities
-- Phase 7: prove governed scenario composition across services
-- Phase 8: package the showcase as a clean shareable flagship stack
-
-That sequencing is intentional:
-
-- complete the four-service architecture first
-- then deepen the CRM-state layer with additional bounded capabilities
-- keep Phase 6 focused on bounded semantic CRM reads and preview-safe
-  operational work
-- prove compound governed execution before packaging
-- package only after the proof surface is complete

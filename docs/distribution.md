@@ -69,6 +69,7 @@ Primary package families:
 - Core/runtime: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`
 - Frameworks: `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`
 - Interfaces/transports: `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/stdio`
+- Consumer clients: `@anip-dev/client`, `@anip-dev/vue`
 
 ### Python
 
