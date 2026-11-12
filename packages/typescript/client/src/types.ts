@@ -2,7 +2,7 @@
  * Normalized consumer-facing types for ANIP client interactions.
  *
  * These types present a stable, consumer-friendly shape over the raw
- * ANIP protocol wire format. Framework adapters (React, Vue, Angular)
+ * ANIP protocol wire format. Framework adapters (such as the Vue adapter)
  * build on these types without duplicating protocol logic.
  */
 
