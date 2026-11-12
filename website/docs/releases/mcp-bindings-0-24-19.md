@@ -14,7 +14,7 @@ Upgrade if you mount the C# MCP binding. TypeScript, Go and Java are unchanged i
 
 ## The C# security fix
 
-**Affected:** `Anip.Mcp.AspNetCore` 0.11.1 through 0.24.18, which is every earlier version.
+**Affected:** `Anip.Mcp.AspNetCore` 0.11.1 through 0.24.18, which is every earlier version. Advisory: [GHSA-25xq-66c5-x4fr](https://github.com/anip-protocol/anip/security/advisories/GHSA-25xq-66c5-x4fr).
 
 `MapAnipMcp` mounted two endpoints besides the documented one: `/mcp/sse` and `/mcp/message`, the legacy SSE transport that the MCP SDK mapped by default. A tool call sent over them ran with the `Authorization` header of the request that opened the stream, not of the request that carried the call.
 
