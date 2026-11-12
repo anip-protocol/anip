@@ -17,11 +17,20 @@ jobs:
         id: filter
         with:
           filters: |
+            # Everything that goes into the Studio bundle, plus every place
+            # the Inspect bundle is committed. studio/sync.sh compiles
+            # packages/typescript/client and packages/typescript/vue from
+            # source, so a change there changes the synced assets.
             src:
               - "studio/**"
-              - "packages/python/anip-studio/**"
               - "packages/typescript/client/**"
               - "packages/typescript/vue/**"
+              - "packages/typescript/tsconfig.base.json"
+              - "packages/python/anip-studio/**"
+              - "packages/typescript/studio/**"
+              - "packages/go/studioapi/**"
+              - "packages/java/anip-studio/**"
+              - "packages/csharp/src/Anip.Studio/**"
               - ".github/workflows/ci-studio.yml"
 
   build:
@@ -62,19 +71,39 @@ jobs:
         working-directory: studio
         run: npx vitest run
 
+      # Build mode, as in "npm run build". The root tsconfig.json only holds
+      # project references ("files": []), so "vue-tsc --noEmit" checks nothing.
       - name: Type check
         working-directory: studio
-        run: npx vue-tsc --noEmit
+        run: npx vue-tsc -b
 
+      # sync.sh rebuilds the Inspect bundle and copies it into all five
+      # runtime packages, where it is committed (Go needs the files for
+      # go:embed). Every copy must match what the current sources build.
       - name: Build and verify synced assets
         run: |
           bash studio/sync.sh
-          if [ -n "$(git status --porcelain packages/python/anip-studio/src/anip_studio/static/)" ]; then
-            echo "ERROR: Studio assets are stale. Run 'cd studio && bash sync.sh' and commit the result."
-            git diff --stat packages/python/anip-studio/src/anip_studio/static/
+          synced_dirs=(
+            packages/python/anip-studio/src/anip_studio/static
+            packages/typescript/studio/static
+            packages/go/studioapi/static
+            packages/java/anip-studio/src/main/resources/studio
+            packages/csharp/src/Anip.Studio/static
+          )
+          stale=0
+          for dir in "${synced_dirs[@]}"; do
+            if [ -n "$(git status --porcelain -- "$dir")" ]; then
+              echo "::error::Studio assets are stale in $dir"
+              git status --short -- "$dir"
+              stale=1
+            fi
+          done
+          if [ "$stale" -ne 0 ]; then
+            echo "The committed Studio assets do not match what the sources build."
+            echo "Run 'bash studio/sync.sh' and commit all five copies."
             exit 1
           fi
-          echo "Studio assets are in sync."
+          echo "Studio assets are in sync in all ${#synced_dirs[@]} runtime packages."
 
       - name: Docker build smoke test
         run: |
