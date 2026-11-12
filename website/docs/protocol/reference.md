@@ -42,38 +42,45 @@ No authentication required. This is the entry point for any agent discovering th
 ```json
 {
   "anip_discovery": {
-    "version": "0.24.4",
-    "service_id": "travel-service",
+    "protocol": "anip/0.24",
+    "compliance": "anip-compliant",
+    "base_url": "https://service.example",
+    "profile": { "core": "1.0", "cost": "1.0", "capability_graph": "1.0", "state_session": "1.0", "observability": "1.0" },
+    "auth": {
+      "delegation_token_required": true,
+      "supported_formats": ["anip-v1"],
+      "minimum_scope_for_discovery": "none"
+    },
+    "capabilities": {
+      "search_flights": {
+        "description": "Search available flights",
+        "side_effect": "read",
+        "minimum_scope": ["travel.search"],
+        "financial": false,
+        "contract": "1.0"
+      },
+      "book_flight": {
+        "description": "Book a flight reservation",
+        "side_effect": "irreversible",
+        "minimum_scope": ["travel.book"],
+        "financial": true,
+        "contract": "1.0"
+      }
+    },
+    "trust_level": "signed",
+    "posture": {
+      "audit": { "enabled": true, "signed": true, "queryable": true, "retention": "P90D" }
+    },
     "endpoints": {
       "manifest": "/anip/manifest",
       "tokens": "/anip/tokens",
       "permissions": "/anip/permissions",
       "invoke": "/anip/invoke/{capability}",
+      "graph": "/anip/graph/{capability}",
       "approval_grants": "/anip/approval_grants",
       "audit": "/anip/audit",
-      "checkpoints": "/anip/checkpoints"
-    },
-    "capabilities": {
-      "search_flights": {
-        "description": "Search available flights",
-        "side_effect": { "type": "read" },
-        "minimum_scope": ["travel.search"],
-        "financial": false
-      },
-      "book_flight": {
-        "description": "Book a flight reservation",
-        "side_effect": { "type": "irreversible" },
-        "minimum_scope": ["travel.book"],
-        "financial": true
-      }
-    },
-    "trust": {
-      "level": "signed",
-      "anchoring": { "cadence": "hourly" }
-    },
-    "metadata_disclosure": {
-      "caller_class": "all",
-      "failure_detail": "full"
+      "checkpoints": "/anip/checkpoints",
+      "jwks": "/.well-known/jwks.json"
     }
   }
 }
@@ -83,14 +90,17 @@ No authentication required. This is the entry point for any agent discovering th
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Protocol version (e.g., `"0.24.4"`) |
-| `service_id` | string | Yes | Unique service identifier |
-| `endpoints` | object | Yes | Map of operation names to URL paths |
+| `protocol` | string | Yes | Protocol version, for example `"anip/0.24"` |
+| `compliance` | string | Yes | `anip-compliant` or `anip-complete` |
+| `base_url` | string | Yes | Added by the HTTP binding from the request |
+| `profile` | object | Yes | Version of each protocol profile the service implements |
+| `auth` | object | Yes | Whether a delegation token is required, and the token formats accepted |
 | `capabilities` | object | Yes | Lightweight capability summaries (name → metadata) |
-| `trust` | object | Yes | Trust posture: `level` (`declarative`, `signed`, `anchored`) and optional anchoring cadence |
-| `metadata_disclosure` | object | No | Controls what metadata is disclosed to different caller classes |
+| `trust_level` | string | Yes | `signed`, `anchored` or `attested` |
+| `posture` | object | No | Governance posture: audit, lineage, metadata policy, failure disclosure, anchoring |
+| `endpoints` | object | Yes | Map of operation names to URL paths |
 
-Each capability summary in discovery includes `description`, `side_effect.type`, `minimum_scope[]`, and `financial` (boolean). The full declarations are in the manifest.
+Each capability summary in discovery includes `description`, `side_effect` (a string such as `"read"` or `"irreversible"`), `minimum_scope[]`, `financial` (boolean) and `contract`. The full declarations are in the manifest, where `side_effect` is an object with a `type` and a `rollback_window`.
 
 ---
 
@@ -139,7 +149,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "manifest_metadata": {
-    "version": "0.24.4",
+    "version": "0.10.0",
     "sha256": "a1b2c3d4...",
     "issued_at": "2026-03-28T10:00:00Z",
     "expires_at": "2026-03-29T10:00:00Z"

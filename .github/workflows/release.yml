@@ -113,6 +113,21 @@ jobs:
           done
           echo "OK: Example app deps bumped"
 
+          # Documentation: the quickstart snippets and the install page name the
+          # released version. ci-docs-snippets.yml then runs the snippets
+          # against the packages this workflow publishes.
+          Q=website/snippets/quickstart
+          sed -i -E "s/^(anip-[a-z-]+)==[0-9.]+/\\1==$VERSION/" $Q/python/requirements.txt
+          sed -i -E "s|(\"@anip-dev/[a-z-]+\": \")[0-9.]+\"|\\1$VERSION\"|" $Q/typescript/package.json
+          sed -i -E "s|(github.com/anip-protocol/anip/packages/go v)[0-9.]+|\\1$VERSION|" $Q/go/go.mod
+          sed -i -E "s|<anip.version>[0-9.]+</anip.version>|<anip.version>$VERSION</anip.version>|" $Q/java/pom.xml
+          sed -i -E "s|(Include=\"Anip\.[A-Za-z.]+\" Version=\")[0-9.]+\"|\\1$VERSION\"|" $Q/csharp/Quickstart.csproj
+          sed -i -E "s#(<version>|--version )[0-9]+\.[0-9]+\.[0-9]+#\\1$VERSION#" website/docs/getting-started/install.md
+          for f in $Q/python/requirements.txt $Q/typescript/package.json $Q/go/go.mod $Q/java/pom.xml $Q/csharp/Quickstart.csproj website/docs/getting-started/install.md; do
+            grep -q "$VERSION" "$f" || { echo "ERROR: $f does not name $VERSION after the bump"; exit 1; }
+          done
+          echo "OK: Documentation versions bumped"
+
           echo "OK: Studio app version left unchanged; Studio releases use publish-studio-docker.yml"
 
       - name: Commit version bump

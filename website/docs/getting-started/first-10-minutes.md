@@ -7,6 +7,8 @@ description: The fastest path to understand ANIP without reading the whole spec.
 
 Use this path when you are evaluating ANIP for the first time. It shows the idea, the trust loop, and the generator path without requiring cloud credentials or a local Studio deployment.
 
+**Want to run code first?** Do the [Quickstart](/docs/getting-started/quickstart): two files and one command give you a running service, a token, a refusal and an audit entry, in Python, TypeScript, Go, Java or C#. Come back here for the Registry and generator path.
+
 If you want the lowest-friction prototype path before using Studio or Registry, see [Agent-Authored Contract Quickstart](/docs/getting-started/agent-authored-contract). That path lets a coding agent draft a local definition, then uses `anip validate` and `anip generate` to keep the experiment grounded.
 
 ## What you are proving

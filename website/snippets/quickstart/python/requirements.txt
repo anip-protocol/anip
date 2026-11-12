@@ -1,0 +1,3 @@
+anip-service==0.24.19
+anip-fastapi==0.24.19
+uvicorn

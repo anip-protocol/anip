@@ -39,33 +39,45 @@ curl https://service.example/.well-known/anip
 ```json
 {
   "anip_discovery": {
-    "version": "0.24.4",
-    "service_id": "travel-service",
+    "protocol": "anip/0.24",
+    "compliance": "anip-compliant",
+    "base_url": "https://service.example",
+    "profile": { "core": "1.0", "cost": "1.0", "capability_graph": "1.0", "state_session": "1.0", "observability": "1.0" },
+    "auth": {
+      "delegation_token_required": true,
+      "supported_formats": ["anip-v1"],
+      "minimum_scope_for_discovery": "none"
+    },
+    "capabilities": {
+      "search_flights": {
+        "description": "Search available flights",
+        "side_effect": "read",
+        "minimum_scope": ["travel.search"],
+        "financial": false,
+        "contract": "1.0"
+      },
+      "book_flight": {
+        "description": "Book a flight reservation",
+        "side_effect": "irreversible",
+        "minimum_scope": ["travel.book"],
+        "financial": true,
+        "contract": "1.0"
+      }
+    },
+    "trust_level": "signed",
+    "posture": {
+      "audit": { "enabled": true, "signed": true, "queryable": true, "retention": "P90D" }
+    },
     "endpoints": {
       "manifest": "/anip/manifest",
       "tokens": "/anip/tokens",
       "permissions": "/anip/permissions",
       "invoke": "/anip/invoke/{capability}",
+      "graph": "/anip/graph/{capability}",
       "approval_grants": "/anip/approval_grants",
       "audit": "/anip/audit",
-      "checkpoints": "/anip/checkpoints"
-    },
-    "capabilities": {
-      "search_flights": {
-        "description": "Search available flights",
-        "side_effect": { "type": "read" },
-        "minimum_scope": ["travel.search"],
-        "financial": false
-      },
-      "book_flight": {
-        "description": "Book a flight reservation",
-        "side_effect": { "type": "irreversible" },
-        "minimum_scope": ["travel.book"],
-        "financial": true
-      }
-    },
-    "trust": {
-      "level": "signed"
+      "checkpoints": "/anip/checkpoints",
+      "jwks": "/.well-known/jwks.json"
     }
   }
 }
