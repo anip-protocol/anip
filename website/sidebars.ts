@@ -166,6 +166,7 @@ const sidebars: SidebarsConfig = {
         'releases/what-ships-today',
         'releases/version-history',
         'releases/delegation-enforcement-0-24-18',
+        'releases/mcp-bindings-0-24-19',
       ],
     },
   ],

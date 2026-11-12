@@ -40,6 +40,7 @@ ANIP's version line tracks the progression of protocol capabilities. The current
 
 | Package version | What it fixed |
 |---|---|
+| **0.24.19** | MCP bindings: the C# MCP binding no longer serves the legacy SSE endpoints, where a tool call could run with another caller's credentials. The Python and C# MCP bindings move to the 2.x MCP SDKs. See the [release notes](./mcp-bindings-0-24-19.md). |
 | **0.24.18** | Delegation enforcement: all five runtimes now enforce token purpose binding, holder-only delegation, scope and budget narrowing, and delegation depth, and refuse root issuance with a token credential. See the [release notes](./delegation-enforcement-0-24-18.md). |
 
 ## What's next
