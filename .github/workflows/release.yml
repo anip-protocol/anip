@@ -194,7 +194,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue studio; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -308,7 +308,7 @@ jobs:
       - name: Dry run — verify packages
         working-directory: packages/typescript
         run: |
-          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
+          for pkg in core crypto server service runtime-utils hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue studio; do
             echo "=== Checking $pkg ==="
             cd $pkg && npm pack --dry-run && cd ..
           done
@@ -384,10 +384,8 @@ jobs:
           # Layer 9: depends on core (consumer client)
           publish_or_skip client
 
-          # Layer 10: depends on client (consumer framework adapters)
+          # Layer 10: depends on client (consumer framework adapter)
           publish_or_skip vue
-          publish_or_skip react
-          publish_or_skip angular
 
   publish-python:
     needs: bump-and-validate
@@ -768,8 +766,6 @@ jobs:
           | \`@anip-dev/stdio\` | \`npm i @anip-dev/stdio@$VERSION\` |
           | \`@anip-dev/client\` | \`npm i @anip-dev/client@$VERSION\` |
           | \`@anip-dev/vue\` | \`npm i @anip-dev/vue@$VERSION\` |
-          | \`@anip-dev/react\` | \`npm i @anip-dev/react@$VERSION\` |
-          | \`@anip-dev/angular\` | \`npm i @anip-dev/angular@$VERSION\` |
 
           ### Python (PyPI)
           | Package | Install |

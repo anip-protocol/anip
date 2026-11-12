@@ -19,9 +19,10 @@ build/
 .local-archive/
 
 # Generated validation and parity run output. Keep committed fixtures explicit;
-# ad-hoc run directories should not appear in normal git status.
+# run output is written locally and is not committed.
 /output/
-/docs/examples/gtm-showcase/question-bank-runs/generated-*/
+/docs/examples/gtm-showcase/question-bank-runs/
+/docs/examples/gtm-showcase/regression-runs/
 
 # Java build outputs
 target/

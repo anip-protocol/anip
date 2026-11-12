@@ -29,6 +29,7 @@ website/build
 website/.docusaurus
 
 docs/examples/gtm-showcase/question-bank-runs
+docs/examples/gtm-showcase/regression-runs
 examples/showcase/gtm/generated
 !examples/showcase/gtm/generated/
 !examples/showcase/gtm/generated/language-parity/

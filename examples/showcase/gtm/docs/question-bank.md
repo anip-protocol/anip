@@ -18,7 +18,7 @@ Public example guide:
 website/docs/showcases/gtm-agent/questions-and-extensions.md
 ```
 
-Run artifacts:
+Run artifacts (written locally, git-ignored, not committed):
 
 ```text
 docs/examples/gtm-showcase/question-bank-runs/
