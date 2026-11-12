@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
+using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -25,6 +26,15 @@ public static class AnipMcpExtensions
     /// Each ANIP capability becomes an MCP tool that extracts auth from
     /// the HTTP Authorization header and invokes via the ANIP service.
     /// </summary>
+    /// <remarks>
+    /// The endpoint is stateless: no MCP session is kept between requests.
+    /// Every tool call is authenticated from the Authorization header of the
+    /// HTTP request that carries it. Clients that speak the 2026-07-28
+    /// protocol revision are served directly; older clients still complete
+    /// their <c>initialize</c> handshake, without being given a session id,
+    /// and a tool call does not need a handshake before it. The legacy SSE
+    /// endpoints (<c>/sse</c>, <c>/message</c>) are not mapped.
+    /// </remarks>
     public static IServiceCollection AddAnipMcp(
         this IServiceCollection services,
         AnipService anipService,
@@ -42,7 +52,14 @@ public static class AnipMcpExtensions
                 Version = "0.11.0",
             };
         })
-        .WithHttpTransport()
+        .WithHttpTransport(options =>
+        {
+            // Stated rather than left to the SDK default, so an SDK upgrade
+            // cannot change it silently. ANIP tools need nothing a session
+            // provides, and without sessions one endpoint serves both the
+            // 2026-07-28 revision and older clients.
+            options.SessionMode = HttpServerSessionMode.Stateless;
+        })
         .WithTools(tools);
 
         return services;
@@ -157,9 +174,9 @@ internal sealed class AnipMcpTool : McpServerTool
             args.Remove("__approval_grant");
         }
 
-        // Extract the Authorization header from the HTTP context.
-        // The SDK flows the HTTP context via IHttpContextAccessor when using
-        // Streamable HTTP transport with ExecutionContext propagation.
+        // Extract the Authorization header from the HTTP request that carries
+        // this tool call. With no HttpContext there are no credentials, and
+        // the call is refused below.
         var httpContextAccessor = request.Server.Services?.GetService<IHttpContextAccessor>();
         var authHeader = httpContextAccessor?.HttpContext?.Request.Headers.Authorization
             .FirstOrDefault();

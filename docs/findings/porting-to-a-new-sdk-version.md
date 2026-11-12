@@ -110,6 +110,31 @@ ports is not yet known.
   you find.
 - **Applies to:** everything.
 
+### 10. A breaking change that mattered shipped in a minor release
+
+- **Observed:** The C# MCP SDK has no migration guide. Breaking changes are
+  listed in each release's notes. Going from 1.1.0 to 2.4.0, the change that
+  removed two endpoints from our binding (legacy SSE off by default) shipped in
+  1.2.0, a minor release, and is not repeated in the 2.0.0 notes.
+- **Source:** #320. **Status:** observed once.
+- **Recommendation:** Read the notes of every release between the pinned
+  version and the target, not only the new major's.
+- **Applies to:** any SDK port.
+
+### 11. Tests proved what was refused, not where credentials may come from
+
+- **Observed:** On the C# port the author's tests covered missing, malformed
+  and wrong credentials and passed under nine deliberate breakages. An
+  independent reviewer then wrote seven more breakages that all 88 tests let
+  through: credentials accepted from the query string, another header, the
+  tool arguments, a second `Authorization` header, another scheme, `Bearer`
+  with no separator, or skipped when a protocol header was absent. None was a
+  fault in the port; each was a hole in the tests.
+- **Source:** #320. **Status:** verified.
+- **Recommendation:** When listing what must be refused (finding 3), also list
+  every place a credential must *not* be read from, and test each.
+- **Applies to:** any binding that sits in front of capabilities.
+
 ## Python and the MCP SDK 2.x only
 
 - **Handlers** are passed to `Server(on_list_tools=..., on_call_tool=...)` or
@@ -132,15 +157,65 @@ ports is not yet known.
   `streamablehttp_client`, which 2.x no longer exports, and does not limit the
   SDK version. **Status:** verified that the name is gone; the showcase was not run.
 
+## C# and the MCP SDK 2.x only
+
+From porting `Anip.Mcp.AspNetCore` from `ModelContextProtocol.AspNetCore`
+1.1.0 to 2.4.0 ([#320](https://github.com/anip-protocol/anip/pull/320)). Each
+item was seen on both versions unless it says otherwise. **Status:** verified,
+except where an item is marked otherwise.
+
+- **The binding compiled unchanged.** `McpServerTool`, `Tool`, `CallToolResult`
+  and `MapMcp` have the same shape. Everything that changed is behaviour.
+- **Unlike Python, nothing around the tool handler was lost.** An unknown tool
+  is still a JSON-RPC error (-32602) on both versions.
+- **An exception thrown by a tool still becomes a tool error** in both
+  versions' source. **Status:** unverified (read, not exercised: the binding
+  returns its refusals and does not throw).
+- **Arguments were never validated.** Neither SDK version checks arguments
+  against the input schema of a custom `McpServerTool`, and the binding does
+  not either. Capability handlers validate their own parameters.
+- **HTTP is stateless by default in 2.x.** No `Mcp-Session-Id` is issued, `GET`
+  and `DELETE` answer 405, and a `tools/call` is accepted with no `initialize`
+  before it. A handshake-era request (2025-11-25 or earlier) that still carries
+  a session id is answered 400; a 2026-07-28 request that carries one is served
+  and the id is ignored. The binding now sets this mode explicitly.
+- **Legacy SSE endpoints are no longer mapped** (`/sse` and `/message` under
+  the mount path; SDK default since 1.2.0). On 1.1.0 `MapMcp` served them, and
+  a tool call sent over them ran with the `Authorization` header of the `GET`
+  that opened the stream, not of the `POST` that carried the call.
+- **2026-07-28 requests name the method and tool in headers** (`Mcp-Method`,
+  `Mcp-Name`). A header that disagrees with the body is refused (-32020) and no
+  tool runs.
+- **Some malformed 2026-07-28 requests are answered 500 by SDK 2.4.0:** a
+  `tools/call` whose `name` is not a string, or that repeats the `name` or
+  `arguments` member. The SDK throws while comparing the body with the
+  `Mcp-Name` header. No tool runs. (1.1.0 answered 500 to more inputs,
+  including any invalid JSON; 2.4.0 answers those 400.)
+- **A `task` member on `tools/call` is now ignored.** 1.1.0 refused it (-32602,
+  the tool does not support task-augmented execution); 2.x moved tasks to an
+  extension package, and the call runs normally. Credentials are still
+  required.
+- **A body that repeats a member is now refused on handshake-era requests.**
+  1.1.0 took the last value and ran; 2.4.0 answers -32603.
+- **Old and new clients both work.** A 1.1.0 client negotiated `2025-11-25`, a
+  2.4.0 client `2026-07-28`; each listed tools, called one, and got a tool
+  error for a wrong key and for no key.
+- **`TestServer` rethrows a handler exception into the test's `HttpClient`
+  call** where a real server answers 500. The MCP test host converts it.
+- **`TestServer` does not deliver every header as sent.** A tab between
+  `Bearer` and the credential arrived as a space, so the credential was
+  accepted in a test and refused by Kestrel. Header edge cases need a real
+  socket.
+
 ## Remaining ports
 
 Measured on 2026-11-11. Sizes are the non-test code that uses the library.
 
 | Runtime | Library | Pinned | Latest stable | Size |
 |---|---|---|---|---|
-| C# | `ModelContextProtocol.AspNetCore` | 1.1.0 | 2.4.0 | 1 file, about 240 lines |
 | Go | `github.com/mark3labs/mcp-go` | 0.45.0 | 1.5.0 | 2 files, about 760 lines in `mcpapi` |
 | Java | `io.modelcontextprotocol.sdk:mcp-core` | 1.1.0 | 2.1.0 | 12 files, about 1,070 lines, three modules |
 
 Whether these libraries dropped behaviour in the same way as the Python SDK is
-**unverified**. Finding 2 applies to each.
+**unverified**. The C# SDK did not (see above), which says nothing about these
+two. Finding 2 applies to each.

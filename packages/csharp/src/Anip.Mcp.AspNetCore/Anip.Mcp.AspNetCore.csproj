@@ -11,7 +11,7 @@
     <ProjectReference Include="../Anip.Core/Anip.Core.csproj" />
     <ProjectReference Include="../Anip.Service/Anip.Service.csproj" />
     <ProjectReference Include="../Anip.Mcp/Anip.Mcp.csproj" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.1.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
   </ItemGroup>
 
 </Project>

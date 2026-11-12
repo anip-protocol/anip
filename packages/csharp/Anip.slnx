@@ -24,6 +24,7 @@
     <Project Path="test/Anip.Rest.Tests/Anip.Rest.Tests.csproj" />
     <Project Path="test/Anip.GraphQL.Tests/Anip.GraphQL.Tests.csproj" />
     <Project Path="test/Anip.Mcp.Tests/Anip.Mcp.Tests.csproj" />
+    <Project Path="test/Anip.Mcp.AspNetCore.Tests/Anip.Mcp.AspNetCore.Tests.csproj" />
     <Project Path="test/Anip.Stdio.Tests/Anip.Stdio.Tests.csproj" />
   </Folder>
 </Solution>
