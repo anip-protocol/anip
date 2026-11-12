@@ -25,10 +25,10 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Getting Started',
       items: [
+        'getting-started/quickstart',
         'getting-started/first-10-minutes',
         'getting-started/agent-authored-contract',
         'getting-started/install',
-        'getting-started/quickstart',
         'getting-started/studio',
         'getting-started/registry',
         'getting-started/local-platform',

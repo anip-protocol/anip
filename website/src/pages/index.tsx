@@ -7,6 +7,14 @@ import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+import Snippet from '@site/src/components/Snippet';
+// The quickstart files. CI runs them against the published packages.
+import pythonExample from '!!raw-loader!@site/snippets/quickstart/python/app.py';
+import typescriptExample from '!!raw-loader!@site/snippets/quickstart/typescript/app.ts';
+import goExample from '!!raw-loader!@site/snippets/quickstart/go/main.go';
+import javaExample from '!!raw-loader!@site/snippets/quickstart/java/src/main/java/quickstart/Application.java';
+import csharpExample from '!!raw-loader!@site/snippets/quickstart/csharp/Program.cs';
+
 import styles from './index.module.css';
 
 function HomepageHeader() {
@@ -33,16 +41,72 @@ function HomepageHeader() {
             conformance suites, templates, showcase systems, and verification workflows.
           </p>
           <div className={styles.ctaRow}>
-            <Link className="button button--primary button--lg" to="https://github.com/anip-protocol/anip/releases">
-              Download Desktop Studio
+            <Link className="button button--primary button--lg" to="/docs/getting-started/quickstart">
+              Run the quickstart (10 minutes)
             </Link>
             <Link className="button button--outline button--lg" to="/docs/showcases/gtm-agent/overview">
               Try the GTM Agent
+            </Link>
+            <Link className="button button--outline button--lg" to="https://github.com/anip-protocol/anip/releases">
+              Download Desktop Studio
             </Link>
           </div>
         </div>
       </div>
     </header>
+  );
+}
+
+function WhyNotMcpWithOAuth() {
+  return (
+    <section className={styles.section}>
+      <div className="container">
+        <div className={styles.sectionHeader}>
+          <Heading as="h2">Why not just MCP with OAuth?</Heading>
+          <p>
+            Keep both. OAuth decides who may connect to a server, and MCP tells a client
+            which tools exist. An ANIP service can be exposed over MCP, and its
+            <code> authenticate</code> hook plugs into the sign-in you already have. ANIP
+            covers what happens after the connection: a token that is good for one
+            capability and can only be narrowed when it is handed to a sub-agent, side
+            effects declared before the call, refusals that say what is missing and who
+            can grant it, and a signed record of every call.
+          </p>
+        </div>
+        <div className={styles.compareGrid}>
+          <div className={clsx(styles.compareCard, styles.compareBefore)}>
+            <div className={styles.compareLabel}>What an agent usually gets back</div>
+            <div className={styles.compareContent}>
+              <CodeBlock language="http">{`HTTP/1.1 403 Forbidden
+
+{ "error": "insufficient_scope" }`}</CodeBlock>
+            </div>
+          </div>
+          <div className={clsx(styles.compareCard, styles.compareAfter)}>
+            <div className={styles.compareLabel}>The same refusal from the quickstart service</div>
+            <div className={styles.compareContent}>
+              <CodeBlock language="json">{`{
+  "success": false,
+  "failure": {
+    "type": "scope_insufficient",
+    "detail": "delegation chain lacks scope(s): travel.book",
+    "resolution": {
+      "action": "request_broader_scope",
+      "requires": "delegation.scope += travel.book",
+      "grantable_by": "human:demo@example.com"
+    }
+  }
+}`}</CodeBlock>
+            </div>
+          </div>
+        </div>
+        <p>
+          The refused call is also in the audit log, linked to the person who delegated
+          the authority. <Link to="/docs/getting-started/quickstart">See it in the quickstart</Link>,
+          or read <Link to="/docs/concepts/anip-vs-mcp">how ANIP and MCP fit together</Link>.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -96,9 +160,9 @@ function ExperienceANIP() {
               <span>I want to see what ANIP can do</span>
               <small>Showcases, GTM Agent, and governed fronting apps.</small>
             </Link>
-            <Link className={styles.pathCard} to="/docs/getting-started/first-10-minutes">
+            <Link className={styles.pathCard} to="/docs/getting-started/quickstart">
               <span>I want to build something quickly</span>
-              <small>Start small, generate a service, then inspect the contract.</small>
+              <small>Two files, one command, then a token, a refusal and an audit entry.</small>
             </Link>
             <Link className={styles.pathCard} to="/docs/studio/overview">
               <span>I want to design capabilities visually</span>
@@ -339,131 +403,6 @@ function HowItWorks() {
 }
 
 function QuickStart() {
-  const pythonExample = `from fastapi import FastAPI
-from anip_service import ANIPService, Capability
-from anip_fastapi import mount_anip
-
-service = ANIPService(
-    service_id="my-service",
-    capabilities=[
-        Capability(
-            name="search_flights",
-            description="Search available flights",
-            side_effect="read",
-            scope=["travel.search"],
-            handler=lambda ctx, params: {
-                "flights": [{"number": "AA100", "price": 420}]
-            },
-        ),
-    ],
-    authenticate=lambda bearer: {
-        "demo-key": "human:demo@example.com"
-    }.get(bearer),
-)
-
-app = FastAPI()
-mount_anip(app, service)`;
-
-  const typescriptExample = `import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip-dev/service";
-import { mountAnip } from "@anip-dev/hono";
-
-const searchFlights = defineCapability({
-  name: "search_flights",
-  description: "Search available flights",
-  sideEffect: "read",
-  scope: ["travel.search"],
-  handler: async (ctx, params) => ({
-    flights: [{ number: "AA100", price: 420 }],
-  }),
-});
-
-const service = createANIPService({
-  serviceId: "my-service",
-  capabilities: [searchFlights],
-  trust: "signed",
-  authenticate: (bearer) =>
-    ({ "demo-key": "human:demo@example.com" })[bearer] ?? null,
-});
-
-const app = new Hono();
-mountAnip(app, service);`;
-
-  const goExample = `package main
-
-import (
-    "net/http"
-    "github.com/anip-protocol/anip/packages/go/service"
-    "github.com/anip-protocol/anip/packages/go/httpapi"
-)
-
-func main() {
-    svc, _ := service.New(service.Config{
-        ServiceID:    "my-service",
-        Capabilities: []service.CapabilityDef{searchFlights()},
-        Storage:      "sqlite:///anip.db",
-        Trust:        "signed",
-        Authenticate: func(bearer string) *string {
-            keys := map[string]string{
-                "demo-key": "human:demo@example.com",
-            }
-            if p, ok := keys[bearer]; ok { return &p }
-            return nil
-        },
-    })
-    defer svc.Shutdown()
-    svc.Start()
-
-    mux := http.NewServeMux()
-    httpapi.MountANIP(mux, svc)
-    http.ListenAndServe(":9100", mux)
-}`;
-
-  const javaExample = `@SpringBootApplication
-public class Application {
-    @Bean
-    public ANIPService anipService() {
-        return new ANIPService(new ServiceConfig()
-            .setServiceId("my-service")
-            .setCapabilities(List.of(
-                SearchFlightsCapability.create()
-            ))
-            .setStorage("sqlite:///anip.db")
-            .setTrust("signed")
-            .setAuthenticate(bearer -> {
-                Map<String, String> keys = Map.of(
-                    "demo-key", "human:demo@example.com"
-                );
-                return Optional.ofNullable(keys.get(bearer));
-            }));
-    }
-
-    @Bean
-    public AnipController anipController(ANIPService s) {
-        return new AnipController(s);
-    }
-}`;
-
-  const csharpExample = `var builder = WebApplication.CreateBuilder(args);
-
-var service = new AnipService(new ServiceConfig {
-    ServiceId = "my-service",
-    Capabilities = [SearchFlightsCapability.Create()],
-    Storage = "sqlite:///anip.db",
-    Trust = "signed",
-    Authenticate = bearer => {
-        var keys = new Dictionary<string, string> {
-            ["demo-key"] = "human:demo@example.com"
-        };
-        return keys.TryGetValue(bearer, out var p) ? p : null;
-    }
-});
-
-builder.Services.AddAnip(service);
-var app = builder.Build();
-app.MapControllers();
-app.Run();`;
-
   return (
     <section className={styles.section}>
       <div className="container">
@@ -496,19 +435,19 @@ app.Run();`;
         </div>
         <Tabs groupId="language" queryString>
           <TabItem value="python" label="Python" default>
-            <CodeBlock language="python" title="app.py">{pythonExample}</CodeBlock>
+            <Snippet language="python" title="app.py" src={pythonExample} />
           </TabItem>
           <TabItem value="typescript" label="TypeScript">
-            <CodeBlock language="typescript" title="app.ts">{typescriptExample}</CodeBlock>
+            <Snippet language="typescript" title="app.ts" src={typescriptExample} />
           </TabItem>
           <TabItem value="go" label="Go">
-            <CodeBlock language="go" title="main.go">{goExample}</CodeBlock>
+            <Snippet language="go" title="main.go" src={goExample} />
           </TabItem>
           <TabItem value="java" label="Java">
-            <CodeBlock language="java" title="Application.java">{javaExample}</CodeBlock>
+            <Snippet language="java" title="Application.java" src={javaExample} />
           </TabItem>
           <TabItem value="csharp" label="C#">
-            <CodeBlock language="csharp" title="Program.cs">{csharpExample}</CodeBlock>
+            <Snippet language="csharp" title="Program.cs" src={csharpExample} />
           </TabItem>
         </Tabs>
         <div className={styles.codeMeta}>
@@ -675,6 +614,7 @@ export default function Home(): ReactNode {
       description="ANIP is the control layer that makes cost, authority, side effects, and recovery explicit before an agent executes.">
       <HomepageHeader />
       <main>
+        <WhyNotMcpWithOAuth />
         <ExperienceANIP />
         <TheProblem />
         <TheGap />

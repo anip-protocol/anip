@@ -32,7 +32,7 @@ Messages are newline-delimited JSON-RPC 2.0 objects:
 ```
 
 ```json
-{"jsonrpc": "2.0", "id": 1, "result": {"anip_discovery": {"version": "0.24.4", ...}}}
+{"jsonrpc": "2.0", "id": 1, "result": {"anip_discovery": {"protocol": "anip/0.24", ...}}}
 ```
 
 Generated runtimes use line-delimited JSON rather than `Content-Length` framing.

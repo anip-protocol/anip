@@ -1,0 +1,124 @@
+name: CI — Docs Snippets
+
+# Runs the code the website shows (website/snippets) against the PUBLISHED
+# packages, exactly as a newcomer would install them: no local source.
+#
+# - pull_request: when the snippets change.
+# - after a release: the release workflow sets the snippet versions to the
+#   version it publishes, so this checks the new packages against the docs.
+# - weekly: catches a dependency that moved under us.
+
+on:
+  pull_request:
+    paths:
+      - "website/snippets/**"
+      - ".github/workflows/ci-docs-snippets.yml"
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quickstart:
+    name: quickstart (${{ matrix.language }})
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, typescript, go, java, csharp]
+    defaults:
+      run:
+        working-directory: website/snippets/quickstart/${{ matrix.language }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Registries take a few minutes to serve a version that was just published.
+      - name: Wait for the registries after a release
+        if: github.event_name == 'workflow_run'
+        run: sleep 900
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v6
+        if: matrix.language == 'typescript'
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-go@v5
+        if: matrix.language == 'go'
+        with:
+          go-version: "1.25"
+          cache: false
+
+      - uses: actions/setup-java@v5
+        if: matrix.language == 'java'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-dotnet@v5
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: "10.0.x"
+
+      # Each "start" step uses the commands the quickstart page gives.
+
+      - name: Start (Python)
+        if: matrix.language == 'python'
+        run: |
+          pip install -r requirements.txt
+          nohup uvicorn app:app --port 9100 > server.log 2>&1 &
+
+      - name: Start (TypeScript)
+        if: matrix.language == 'typescript'
+        run: |
+          npm install
+          # The page promises a sample that needs no cast: type-check it.
+          npx tsc --noEmit --strict --skipLibCheck --target es2022 \
+            --module nodenext --moduleResolution nodenext app.ts
+          nohup npm start > server.log 2>&1 &
+
+      - name: Start (Go)
+        if: matrix.language == 'go'
+        run: |
+          go mod tidy
+          go build -o quickstart .
+          nohup ./quickstart > server.log 2>&1 &
+
+      - name: Start (Java)
+        if: matrix.language == 'java'
+        run: |
+          mvn -B -q package
+          nohup mvn -B -q spring-boot:run > server.log 2>&1 &
+
+      - name: Start (C#)
+        if: matrix.language == 'csharp'
+        run: |
+          dotnet build
+          nohup dotnet run --no-build > server.log 2>&1 &
+
+      - name: Wait for the service
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:9100/.well-known/anip > /dev/null; then
+              echo "service is up after ${i} checks"; exit 0
+            fi
+            sleep 2
+          done
+          echo "service did not start"; cat server.log; exit 1
+
+      - name: Run the quickstart walkthrough
+        run: bash ../walkthrough.sh http://localhost:9100
+
+      - name: Server log
+        if: failure()
+        run: cat server.log || true

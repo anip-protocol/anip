@@ -1,294 +1,109 @@
 ---
 title: Quickstart
-description: Build and run an ANIP service, then inspect it with curl and Studio.
+description: Run an ANIP service in about ten minutes, then issue a token, invoke a capability, see a refusal and read the audit log.
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import Snippet from '@site/src/components/Snippet';
+
+import pyApp from '!!raw-loader!@site/snippets/quickstart/python/app.py';
+import pyRequirements from '!!raw-loader!@site/snippets/quickstart/python/requirements.txt';
+import tsApp from '!!raw-loader!@site/snippets/quickstart/typescript/app.ts';
+import tsPackage from '!!raw-loader!@site/snippets/quickstart/typescript/package.json';
+import goMain from '!!raw-loader!@site/snippets/quickstart/go/main.go';
+import goMod from '!!raw-loader!@site/snippets/quickstart/go/go.mod';
+import javaApp from '!!raw-loader!@site/snippets/quickstart/java/src/main/java/quickstart/Application.java';
+import javaPom from '!!raw-loader!@site/snippets/quickstart/java/pom.xml';
+import csProgram from '!!raw-loader!@site/snippets/quickstart/csharp/Program.cs';
+import csProject from '!!raw-loader!@site/snippets/quickstart/csharp/Quickstart.csproj';
+import walkthrough from '!!raw-loader!@site/snippets/quickstart/walkthrough.sh';
 
 # Quickstart
 
-Build a working ANIP service, run it, and explore all 9 protocol endpoints.
+In about ten minutes you will have a service with two capabilities, and you will have:
 
-## 1. Install
+1. read what the service offers, before authenticating;
+2. issued a token that is good for one capability;
+3. invoked that capability;
+4. been refused for the other one, with a reason and the name of who can fix it;
+5. read both calls back from a signed audit log.
 
-<Tabs groupId="language" queryString>
-<TabItem value="python" label="Python" default>
+Every file and command on this page is run in CI against the published packages. If something here fails for you, that is a bug: please [open an issue](https://github.com/anip-protocol/anip/issues).
 
-**Prerequisites:** Python 3.11+
+## 1. Create the service
 
-```bash
-pip install anip-service anip-fastapi uvicorn
-```
+The service declares two capabilities. `search_flights` only reads. `book_flight` cannot be undone, and needs a different scope.
 
-</TabItem>
-<TabItem value="typescript" label="TypeScript">
-
-**Prerequisites:** Node.js 20+
-
-```bash
-npm install @anip-dev/service @anip-dev/hono
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-**Prerequisites:** Go 1.22+
-
-```bash
-go get github.com/anip-protocol/anip/packages/go
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-**Prerequisites:** Java 21+, Maven
-
-```xml
-<dependency>
-  <groupId>dev.anip</groupId>
-  <artifactId>anip-service</artifactId>
-  <version>0.24.4</version>
-</dependency>
-<dependency>
-  <groupId>dev.anip</groupId>
-  <artifactId>anip-spring-boot</artifactId>
-  <version>0.24.4</version>
-</dependency>
-```
-
-</TabItem>
-<TabItem value="csharp" label="C#">
-
-**Prerequisites:** .NET 8+
-
-C# packages are published by the release workflow to NuGet:
-
-```bash
-dotnet add package Anip.Service --version 0.24.4
-dotnet add package Anip.AspNetCore --version 0.24.4
-```
-
-</TabItem>
-</Tabs>
-
-## 2. Create your service
+Pick a language. The steps after this one are the same for all of them.
 
 <Tabs groupId="language" queryString>
 <TabItem value="python" label="Python" default>
 
-Create `app.py`:
+**You need:** Python 3.11 or newer.
 
-```python
-from fastapi import FastAPI
-from anip_service import ANIPService, Capability
-from anip_core import (
-    CapabilityDeclaration, CapabilityInput, CapabilityOutput,
-    SideEffect, SideEffectType,
-)
-from anip_fastapi import mount_anip
+Create a folder with these two files.
 
-# Business logic — ANIP-free
-def do_search(origin, destination):
-    return [
-        {"flight_number": "AA100", "origin": origin, "destination": destination, "price": 420},
-        {"flight_number": "DL310", "origin": origin, "destination": destination, "price": 280},
-    ]
+<Snippet src={pyRequirements} language="text" title="requirements.txt" />
 
-# Capability declaration
-search_flights = Capability(
-    declaration=CapabilityDeclaration(
-        name="search_flights",
-        description="Search available flights between airports",
-        contract_version="1.0",
-        inputs=[
-            CapabilityInput(name="origin", type="airport_code", description="Departure airport"),
-            CapabilityInput(name="destination", type="airport_code", description="Arrival airport"),
-        ],
-        output=CapabilityOutput(type="flight_list", fields=["flight_number", "price"]),
-        side_effect=SideEffect(type=SideEffectType.READ),
-        minimum_scope=["travel.search"],
-    ),
-    handler=lambda ctx, params: {"flights": do_search(params["origin"], params["destination"])},
-)
+<Snippet src={pyApp} language="python" title="app.py" />
 
-# Service setup
-service = ANIPService(
-    service_id="quickstart-flights",
-    capabilities=[search_flights],
-    storage="sqlite:///quickstart.db",
-    trust="signed",
-    authenticate=lambda bearer: {"demo-key": "human:demo@example.com"}.get(bearer),
-)
-
-app = FastAPI()
-mount_anip(app, service)
-```
-
-Run it:
+Install and run:
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 uvicorn app:app --port 9100
 ```
 
 </TabItem>
 <TabItem value="typescript" label="TypeScript">
 
-Create `app.ts`:
+**You need:** Node.js 20 or newer.
 
-```typescript
-import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip-dev/service";
-import { mountAnip } from "@anip-dev/hono";
+Create a folder with these two files.
 
-// Business logic — ANIP-free
-function doSearch(origin: string, destination: string) {
-  return [
-    { flight_number: "AA100", origin, destination, price: 420 },
-    { flight_number: "DL310", origin, destination, price: 280 },
-  ];
-}
+<Snippet src={tsPackage} language="json" title="package.json" />
 
-// Capability declaration
-const searchFlights = defineCapability({
-  name: "search_flights",
-  description: "Search available flights between airports",
-  contractVersion: "1.0",
-  inputs: [
-    { name: "origin", type: "airport_code", description: "Departure airport" },
-    { name: "destination", type: "airport_code", description: "Arrival airport" },
-  ],
-  output: { type: "flight_list", fields: ["flight_number", "price"] },
-  sideEffect: { type: "read" },
-  minimumScope: ["travel.search"],
-  handler: async (ctx, params) => ({
-    flights: doSearch(params.origin, params.destination),
-  }),
-});
+<Snippet src={tsApp} language="typescript" title="app.ts" />
 
-// Service setup
-const service = createANIPService({
-  serviceId: "quickstart-flights",
-  capabilities: [searchFlights],
-  storage: { type: "sqlite", path: "quickstart.db" },
-  trust: "signed",
-  authenticate: (bearer) =>
-    ({ "demo-key": "human:demo@example.com" })[bearer] ?? null,
-});
-
-const app = new Hono();
-mountAnip(app, service);
-export default { port: 9100, fetch: app.fetch };
-```
-
-Run it:
+Install and run:
 
 ```bash
-npx tsx app.ts
+npm install
+npm start
 ```
 
 </TabItem>
 <TabItem value="go" label="Go">
 
-Create `main.go`:
+**You need:** Go 1.25 or newer.
 
-```go
-package main
+Create a folder with these two files.
 
-import (
-    "net/http"
-    "github.com/anip-protocol/anip/packages/go/service"
-    "github.com/anip-protocol/anip/packages/go/httpapi"
-)
+<Snippet src={goMod} language="go" title="go.mod" />
 
-func searchFlights() service.CapabilityDef {
-    return service.CapabilityDef{
-        Name:        "search_flights",
-        Description: "Search available flights between airports",
-        SideEffect:  "read",
-        Scope:       []string{"travel.search"},
-        Handler: func(ctx service.InvokeContext, params map[string]any) (any, error) {
-            return map[string]any{
-                "flights": []map[string]any{
-                    {"flight_number": "AA100", "price": 420},
-                    {"flight_number": "DL310", "price": 280},
-                },
-            }, nil
-        },
-    }
-}
+<Snippet src={goMain} language="go" title="main.go" />
 
-func main() {
-    svc, _ := service.New(service.Config{
-        ServiceID:    "quickstart-flights",
-        Capabilities: []service.CapabilityDef{searchFlights()},
-        Storage:      "sqlite:///quickstart.db",
-        Trust:        "signed",
-        Authenticate: func(bearer string) *string {
-            keys := map[string]string{"demo-key": "human:demo@example.com"}
-            if p, ok := keys[bearer]; ok { return &p }
-            return nil
-        },
-    })
-    defer svc.Shutdown()
-    svc.Start()
-
-    mux := http.NewServeMux()
-    httpapi.MountANIP(mux, svc)
-    http.ListenAndServe(":9100", mux)
-}
-```
-
-Run it:
+Install and run:
 
 ```bash
-go run main.go
+go mod tidy
+go run .
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
-Create `Application.java`:
+**You need:** Java 17 or newer, and Maven.
 
-```java
-@SpringBootApplication
-public class Application {
+Create a folder with these two files.
 
-    @Bean
-    public ANIPService anipService() {
-        return new ANIPService(new ServiceConfig()
-            .setServiceId("quickstart-flights")
-            .setCapabilities(List.of(searchFlightsCapability()))
-            .setStorage("sqlite:///quickstart.db")
-            .setTrust("signed")
-            .setAuthenticate(bearer -> {
-                var keys = Map.of("demo-key", "human:demo@example.com");
-                return Optional.ofNullable(keys.get(bearer));
-            }));
-    }
+<Snippet src={javaPom} language="xml" title="pom.xml" />
 
-    @Bean
-    public AnipController anipController(ANIPService svc) {
-        return new AnipController(svc);
-    }
+<Snippet src={javaApp} language="java" title="src/main/java/quickstart/Application.java" />
 
-    static CapabilityDef searchFlightsCapability() {
-        return new CapabilityDef()
-            .setName("search_flights")
-            .setDescription("Search available flights")
-            .setSideEffect("read")
-            .setScope(List.of("travel.search"))
-            .setHandler((ctx, params) -> Map.of(
-                "flights", List.of(
-                    Map.of("flight_number", "AA100", "price", 420),
-                    Map.of("flight_number", "DL310", "price", 280)
-                )
-            ));
-    }
-}
-```
-
-Run it:
+Run:
 
 ```bash
 mvn spring-boot:run
@@ -297,31 +112,15 @@ mvn spring-boot:run
 </TabItem>
 <TabItem value="csharp" label="C#">
 
-Create `Program.cs`:
+**You need:** the .NET 10 SDK.
 
-```csharp
-var builder = WebApplication.CreateBuilder(args);
+Create a folder with these two files.
 
-var service = new AnipService(new ServiceConfig {
-    ServiceId = "quickstart-flights",
-    Capabilities = [SearchFlightsCapability.Create()],
-    Storage = "sqlite:///quickstart.db",
-    Trust = "signed",
-    Authenticate = bearer => {
-        var keys = new Dictionary<string, string> {
-            ["demo-key"] = "human:demo@example.com"
-        };
-        return keys.TryGetValue(bearer, out var p) ? p : null;
-    }
-});
+<Snippet src={csProject} language="xml" title="Quickstart.csproj" />
 
-builder.Services.AddAnip(service);
-var app = builder.Build();
-app.MapControllers();
-app.Run("http://localhost:9100");
-```
+<Snippet src={csProgram} language="csharp" title="Program.cs" />
 
-Run it:
+Run:
 
 ```bash
 dotnet run
@@ -330,142 +129,181 @@ dotnet run
 </TabItem>
 </Tabs>
 
-## 3. Explore the protocol
+The service is now listening on `http://localhost:9100`. Leave it running and open a second terminal.
 
-Now use curl to walk through each ANIP endpoint. These commands work the same regardless of which runtime you chose above.
+## 2. Walk through the protocol
 
-### Discovery
+The commands below need `curl` and `python3` (used only to pull the token out of a JSON reply). To run them all at once, download [`walkthrough.sh`](https://github.com/anip-protocol/anip/blob/main/website/snippets/quickstart/walkthrough.sh).
 
 ```bash
-curl http://localhost:9100/.well-known/anip | python -m json.tool
+BASE=http://localhost:9100
 ```
+
+### Read what the service offers
+
+No credentials are needed for this.
+
+<Snippet src={walkthrough} language="bash" region="discovery" />
+
+The reply lists each capability with its side effect and the scope it needs. Shortened:
 
 ```json
 {
   "anip_discovery": {
-    "version": "0.24.4",
-    "service_id": "quickstart-flights",
+    "protocol": "anip/0.24",
+    "capabilities": {
+      "search_flights": {
+        "description": "Search available flights between two airports",
+        "side_effect": "read",
+        "minimum_scope": ["travel.search"]
+      },
+      "book_flight": {
+        "description": "Book a flight",
+        "side_effect": "irreversible",
+        "minimum_scope": ["travel.book"]
+      }
+    },
+    "trust_level": "signed",
     "endpoints": {
       "manifest": "/anip/manifest",
       "tokens": "/anip/tokens",
       "permissions": "/anip/permissions",
       "invoke": "/anip/invoke/{capability}",
-      "audit": "/anip/audit",
-      "checkpoints": "/anip/checkpoints"
-    },
-    "capabilities": {
-      "search_flights": {
-        "side_effect": { "type": "read" },
-        "minimum_scope": ["travel.search"]
-      }
-    },
-    "trust": { "level": "signed" }
+      "audit": "/anip/audit"
+    }
   }
 }
 ```
 
-### Issue a delegation token
+An agent can tell from this, before doing anything, that booking cannot be undone.
 
-```bash
-curl -X POST http://localhost:9100/anip/tokens \
-  -H "Authorization: Bearer demo-key" \
-  -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.search"], "capability": "search_flights"}'
-```
+### Issue a token
 
-```json
-{
-  "issued": true,
-  "token": "eyJhbGciOi...",
-  "scope": ["travel.search"],
-  "capability": "search_flights"
-}
-```
+`demo-key` stands for however you already authenticate people: an API key, a session, single sign-on. The service's `authenticate` function maps it to a principal, here `human:demo@example.com`.
 
-### Check permissions
+That person now hands an agent a token that is good for searching and nothing else.
 
-```bash
-curl -X POST http://localhost:9100/anip/permissions \
-  -H "Authorization: Bearer <token-from-above>" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
+<Snippet src={walkthrough} language="bash" region="token" />
+
+The token names the agent it was given to, the one capability it may invoke, and its scope. By default it expires after two hours.
+
+### Ask what the token allows
+
+<Snippet src={walkthrough} language="bash" region="permissions" />
 
 ```json
 {
   "available": [
     { "capability": "search_flights", "scope_match": "travel.search" }
   ],
-  "restricted": [],
+  "restricted": [
+    {
+      "capability": "book_flight",
+      "reason": "delegation chain lacks scope(s): travel.book",
+      "grantable_by": "human:demo@example.com",
+      "resolution_hint": "request_broader_scope"
+    }
+  ],
   "denied": []
 }
 ```
 
+The agent learns what it may do by asking, not by trying and failing.
+
 ### Invoke a capability
 
-```bash
-curl -X POST http://localhost:9100/anip/invoke/search_flights \
-  -H "Authorization: Bearer <token-from-above>" \
-  -H "Content-Type: application/json" \
-  -d '{"parameters": {"origin": "SEA", "destination": "SFO"}}'
-```
+<Snippet src={walkthrough} language="bash" region="invoke" />
 
 ```json
 {
   "success": true,
-  "invocation_id": "inv_7f3a2b...",
   "result": {
     "flights": [
       { "flight_number": "AA100", "origin": "SEA", "destination": "SFO", "price": 420 },
       { "flight_number": "DL310", "origin": "SEA", "destination": "SFO", "price": 280 }
     ]
-  }
+  },
+  "invocation_id": "inv-7d9d64c38bcd",
+  "task_id": "task-anip-8e2b9bc71f09"
 }
 ```
 
-### Query audit log
+### See a refusal
 
-```bash
-curl -X POST http://localhost:9100/anip/audit \
-  -H "Authorization: Bearer demo-key" \
-  -H "Content-Type: application/json" \
-  -d '{}'
+Now try to book with the same token.
+
+<Snippet src={walkthrough} language="bash" region="refusal" />
+
+```json
+{
+  "success": false,
+  "failure": {
+    "type": "scope_insufficient",
+    "detail": "delegation chain lacks scope(s): travel.book",
+    "resolution": {
+      "action": "request_broader_scope",
+      "recovery_class": "redelegation_then_retry",
+      "requires": "delegation.scope += travel.book",
+      "grantable_by": "human:demo@example.com"
+    }
+  },
+  "invocation_id": "inv-e426ae4a5e3e"
+}
 ```
 
-Every invocation is automatically logged with the capability name, caller identity, event classification, and timestamp.
+The booking code never ran. The agent is told what is missing and who can grant it, so it can go and ask instead of guessing.
 
-## 4. Open Studio
+### Read the audit log
 
-Studio is a standalone design and package-authoring application. It is not mounted inside every runtime service.
+<Snippet src={walkthrough} language="bash" region="audit" />
 
-Run it locally:
+Both calls are there, the refused one included. Each entry carries the token it was made with, the person at the root of that token's chain, the hash of the entry before it, and a signature. Shortened:
 
-```bash
-cd studio
-docker compose up --build
+```json
+{
+  "entries": [
+    {
+      "capability": "book_flight",
+      "success": false,
+      "failure_type": "scope_insufficient",
+      "token_id": "anip-8e2b9bc71f09",
+      "root_principal": "human:demo@example.com",
+      "delegation_chain": ["anip-8e2b9bc71f09"],
+      "event_class": "high_risk_denial",
+      "sequence_number": 2,
+      "previous_hash": "sha256:b916110f8438...",
+      "signature": "eyJhbGciOiJFUzI1NiIs..."
+    },
+    {
+      "capability": "search_flights",
+      "success": true,
+      "token_id": "anip-8e2b9bc71f09",
+      "root_principal": "human:demo@example.com",
+      "delegation_chain": ["anip-8e2b9bc71f09"],
+      "event_class": "low_risk_success",
+      "sequence_number": 1,
+      "previous_hash": "sha256:0",
+      "signature": "eyJhbGciOiJFUzI1NiIs..."
+    }
+  ]
+}
 ```
 
-Open:
+## What you have now
 
-```text
-http://127.0.0.1:8080
-```
+Compared with the same two functions behind a plain REST endpoint or an MCP tool:
 
-Use Studio when you want to design a complete ANIP project, lock Product Design, produce a Developer Definition, publish a package, or browse seeded showcase projects. Use the service endpoints above when you want to inspect one running service directly.
+- **Declared side effects.** A caller can see that `book_flight` is irreversible before calling it.
+- **Tokens for one purpose.** The agent held a token for searching. It could not book with it, and it could not have widened it.
+- **Refusals that say what to do.** Not a bare 403: the missing scope, and who can grant it.
+- **An audit log you did not write.** Every call, allowed or refused, linked to the person who delegated the authority.
 
-## What to notice
-
-- **Discovery** tells the agent what the service offers before any authentication
-- **The manifest** is signed — the agent can cryptographically verify the service's claims
-- **Tokens** are scoped — the agent gets exactly the authority it needs, nothing more
-- **Permissions** are checkable before invoke — no more "try and see what happens"
-- **Failures** include structured recovery guidance, not just error codes
-- **Audit** is automatic and queryable — every action is recorded
+The quickstart does not show approvals, spending budgets, delegation to a sub-agent, or exposing the same service over MCP. Those are next.
 
 ## Next steps
 
-- **[Install](/docs/getting-started/install)** — Full package lists for all runtimes
-- **[Capability Declaration](/docs/protocol/capabilities)** — Deep dive into how capabilities work
-- **[Start With Studio](/docs/getting-started/studio)** — Author, inspect, and publish ANIP projects
-- **[Showcases](/docs/getting-started/showcases)** — Run GTM, fronting, and introductory showcase apps
-- **[Package Trust Loop](/docs/getting-started/package-trust-loop)** — Verify, lock, and generate from packages
+- **[Delegation and permissions](/docs/protocol/delegation-permissions)**: hand a narrower token to a sub-agent, and put a budget on a scope.
+- **[Capability declaration](/docs/protocol/capabilities)**: cost, approval and the other things a capability can declare.
+- **[Interfaces](/docs/generated-services/interfaces)**: expose the same service over MCP, REST or GraphQL.
+- **[ANIP and MCP](/docs/concepts/anip-vs-mcp)**: how the two fit together.
+- **[Install](/docs/getting-started/install)**: the full package list for each language.

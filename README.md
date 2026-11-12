@@ -4,16 +4,17 @@
 
 The value is not "agents can call APIs better." The value is "agents can reason before acting."
 
-[anip.dev](https://anip.dev) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
+[anip.dev](https://anip.dev) | [Quickstart](https://anip.dev/docs/getting-started/quickstart) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
 
 ---
 
 ## Try ANIP Now
 
-The fastest way to understand ANIP is to run a governed agent workflow, then inspect the contract that made it safe.
+The fastest way to understand ANIP is to run a service yourself: two files and one command, in Python, TypeScript, Go, Java or C#.
 
 | Path | Time | Start here |
 |------|------|------------|
+| **Run it yourself** | 10 minutes | Follow the **[quickstart](https://anip.dev/docs/getting-started/quickstart)**: start a service with two capabilities, issue a token, invoke one, get refused for the other with a reason, and read both calls back from the audit log. Every command on that page is tested against the published packages. |
 | **See the value** | 5 minutes | Run the **GTM Agent Desktop** showcase from [GitHub Releases](https://github.com/anip-protocol/anip/releases), ask a supported GTM question, and inspect how approval, denial, masking, and bounded execution behave. |
 | **Design visually** | 10-15 minutes | Run **ANIP Studio Desktop** from [GitHub Releases](https://github.com/anip-protocol/anip/releases), open the preloaded showcase projects, and inspect the Product Design, Developer Design, package, and validation evidence. |
 | **Generate code** | 15 minutes | Browse [registry.anip.dev](https://registry.anip.dev/registry/packages), choose a package or template, verify it with the CLI, and generate a service in Python, TypeScript, Go, Java, or C#. |
@@ -61,6 +62,19 @@ Today's interfaces were designed for humans. When agents interact with them, the
 **MCP** (Model Context Protocol) improves discovery and standardizes tool access, but it still does not make execution boundaries first-class. Authority, scope,
   side effects, reversibility, cost, and failure posture are not protocol-level primitives. An agent may still complete the task, but it is doing so without the
   system defining upfront what it is allowed to do, what risks it is taking, and whether a mistaken call can be rolled back at all.
+
+### Why not just MCP with OAuth?
+
+Keep both. OAuth decides who may connect to a server, and MCP tells a client which tools exist. An ANIP service can be exposed over MCP, and its `authenticate` hook plugs into the sign-in you already have.
+
+ANIP covers what happens after the connection:
+
+- a token that is good for one capability, and can only be narrowed when it is handed to a sub-agent;
+- side effects declared before the call, so an agent can see that an action cannot be undone;
+- refusals that say what is missing and who can grant it, instead of a bare 403;
+- a signed record of every call, allowed or refused, linked to the person who delegated the authority.
+
+The [quickstart](https://anip.dev/docs/getting-started/quickstart) shows each of these in about ten minutes.
 
 ## What It Looks Like
 

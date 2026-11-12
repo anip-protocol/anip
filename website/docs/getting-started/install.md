@@ -69,7 +69,7 @@ pip install anip-service anip-fastapi
 </TabItem>
 <TabItem value="typescript" label="TypeScript">
 
-Published to **npm** under the `@anip` scope. Install the service runtime and a framework adapter:
+Published to **npm** under the `@anip-dev` scope. Install the service runtime and a framework adapter:
 
 ```bash
 npm install @anip-dev/service @anip-dev/hono
@@ -116,7 +116,7 @@ Published to **Maven Central** under group `dev.anip`:
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.24.4</version>
+  <version>0.24.19</version>
 </dependency>
 ```
 
@@ -141,8 +141,8 @@ Published to **Maven Central** under group `dev.anip`:
 C# packages are published by the release workflow to **NuGet**:
 
 ```bash
-dotnet add package Anip.Service --version 0.24.4
-dotnet add package Anip.AspNetCore --version 0.24.4
+dotnet add package Anip.Service --version 0.24.19
+dotnet add package Anip.AspNetCore --version 0.24.19
 ```
 
 **All projects:** `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
