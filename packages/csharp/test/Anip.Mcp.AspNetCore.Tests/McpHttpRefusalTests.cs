@@ -3,9 +3,14 @@ using System.Net;
 namespace Anip.Mcp.AspNetCore.Tests;
 
 /// <summary>
-/// Everything the MCP binding must refuse, exercised through real HTTP requests
-/// against the mounted endpoint. Each test checks two things: the refusal
-/// reaches the caller, and the capability handler did not run.
+/// Tool calls the MCP binding must refuse, sent as HTTP requests to the mounted
+/// endpoint. Each test checks two things: the refusal reaches the caller, and
+/// the capability handler did not run.
+///
+/// These cover the Streamable HTTP endpoint. They do not cover the legacy SSE
+/// endpoints that MCP SDK 1.x also mapped, where credentials were taken from
+/// the request that opened the stream; see <see cref="McpHttpTransportTests"/>
+/// for the check that those endpoints are no longer served.
 ///
 /// These tests use wire-level clients (see <see cref="IWireClient"/>) so they
 /// do not depend on the MCP SDK version the binding is built on. Every test
@@ -16,11 +21,17 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
 {
     private McpTestApp _app = null!;
 
-    private protected abstract Task<IWireClient> ConnectAsync(HttpClient http);
+    private protected abstract Task<IWireClient> ConnectAsync(
+        HttpClient http, string path = "/mcp", IEnumerable<(string Name, string Value)>? extraHeaders = null);
 
     public async Task InitializeAsync() => _app = await McpTestApp.StartAsync();
 
-    public async Task DisposeAsync() => await _app.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        // A refusal is an answer, not a crash.
+        Assert.Empty(_app.UnhandledExceptions);
+        await _app.DisposeAsync();
+    }
 
     private static string Bearer(string credential) => $"Bearer {credential}";
 
@@ -88,6 +99,9 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
     [InlineData("valid-api-key")]
     [InlineData("Bearer")]
     [InlineData("Bearer ")]
+    [InlineData("Bearervalid-api-key")]
+    [InlineData("Token valid-api-key")]
+    [InlineData("ApiKey valid-api-key")]
     public async Task CredentialsThatAreNotABearerToken_AreRefused(string authorization)
     {
         var client = await ConnectAsync(_app.Http);
@@ -121,6 +135,72 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
         var client = await ConnectAsync(_app.Http);
 
         var reply = await client.CallToolAsync("echo", new { message = "hi" }, Bearer(tampered));
+
+        Assert.True(reply.IsToolError, reply.ToString());
+        Assert.StartsWith("FAILED: invalid_token", reply.ToolText);
+        Assert.Empty(_app.Calls);
+    }
+
+    // --- Credentials come from the Authorization header and nowhere else ---
+
+    [Fact]
+    public async Task CredentialsInTheQueryString_AreNotAccepted()
+    {
+        var client = await ConnectAsync(
+            _app.Http,
+            path: $"/mcp?access_token={McpTestApp.ApiKey}&api_key={McpTestApp.ApiKey}&authorization=Bearer%20{McpTestApp.ApiKey}");
+
+        var reply = await client.CallToolAsync("echo", new { message = "hi" }, authorization: null);
+
+        Assert.True(reply.IsToolError, reply.ToString());
+        Assert.StartsWith("FAILED: authentication_required", reply.ToolText);
+        Assert.Empty(_app.Calls);
+    }
+
+    [Theory]
+    [InlineData("X-Api-Key", "valid-api-key")]
+    [InlineData("X-Authorization", "Bearer valid-api-key")]
+    [InlineData("Proxy-Authorization", "Bearer valid-api-key")]
+    [InlineData("Cookie", "Authorization=Bearer valid-api-key; access_token=valid-api-key")]
+    public async Task CredentialsInAnotherHeader_AreNotAccepted(string header, string value)
+    {
+        var client = await ConnectAsync(_app.Http, extraHeaders: [(header, value)]);
+
+        var reply = await client.CallToolAsync("echo", new { message = "hi" }, authorization: null);
+
+        Assert.True(reply.IsToolError, reply.ToString());
+        Assert.StartsWith("FAILED: authentication_required", reply.ToolText);
+        Assert.Empty(_app.Calls);
+    }
+
+    [Fact]
+    public async Task CredentialsInTheArguments_AreNotAccepted()
+    {
+        var client = await ConnectAsync(_app.Http);
+
+        var reply = await client.CallToolAsync(
+            "echo",
+            new Dictionary<string, object?>
+            {
+                ["message"] = "hi",
+                ["__bearer"] = McpTestApp.ApiKey,
+                ["authorization"] = Bearer(McpTestApp.ApiKey),
+                ["api_key"] = McpTestApp.ApiKey,
+            },
+            authorization: null);
+
+        Assert.True(reply.IsToolError, reply.ToString());
+        Assert.StartsWith("FAILED: authentication_required", reply.ToolText);
+        Assert.Empty(_app.Calls);
+    }
+
+    [Fact]
+    public async Task ASecondAuthorizationHeader_DoesNotRescueAnInvalidFirstOne()
+    {
+        var client = await ConnectAsync(_app.Http, extraHeaders: [("Authorization", Bearer(McpTestApp.ApiKey))]);
+
+        // Sent first; the valid one above is added after it.
+        var reply = await client.CallToolAsync("echo", new { message = "hi" }, Bearer("not-a-known-key"));
 
         Assert.True(reply.IsToolError, reply.ToString());
         Assert.StartsWith("FAILED: invalid_token", reply.ToolText);
@@ -175,7 +255,7 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
     [Fact]
     public async Task CredentialsAreCheckedOnEveryRequest_NotRememberedFromAnEarlierOne()
     {
-        // Same client, same connection, same session if the server keeps one.
+        // Same client, and the same session if the server keeps one.
         var client = await ConnectAsync(_app.Http);
 
         var first = await client.CallToolAsync("echo", new { message = "one" }, Bearer(McpTestApp.ApiKey));
@@ -315,13 +395,15 @@ public abstract class McpHttpRefusalTests : IAsyncLifetime
 /// <summary>The refusals, for a client that opens with the <c>initialize</c> handshake.</summary>
 public sealed class McpHttpRefusalTests_InitializeHandshake : McpHttpRefusalTests
 {
-    private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
-        await LegacyWireClient.ConnectAsync(http);
+    private protected override async Task<IWireClient> ConnectAsync(
+        HttpClient http, string path = "/mcp", IEnumerable<(string Name, string Value)>? extraHeaders = null) =>
+        await LegacyWireClient.ConnectAsync(http, authorization: null, path, extraHeaders);
 }
 
 /// <summary>The refusals, for a client that speaks the 2026-07-28 protocol revision.</summary>
 public sealed class McpHttpRefusalTests_Protocol20260728 : McpHttpRefusalTests
 {
-    private protected override async Task<IWireClient> ConnectAsync(HttpClient http) =>
-        await ModernWireClient.ConnectAsync(http);
+    private protected override async Task<IWireClient> ConnectAsync(
+        HttpClient http, string path = "/mcp", IEnumerable<(string Name, string Value)>? extraHeaders = null) =>
+        await ModernWireClient.ConnectAsync(http, path, extraHeaders);
 }

@@ -27,12 +27,13 @@ public static class AnipMcpExtensions
     /// the HTTP Authorization header and invokes via the ANIP service.
     /// </summary>
     /// <remarks>
-    /// The endpoint is stateless: no MCP session is kept between requests, so
-    /// every tool call is its own HTTP request and is authenticated from that
-    /// request's own Authorization header. Clients that speak the 2026-07-28
+    /// The endpoint is stateless: no MCP session is kept between requests.
+    /// Every tool call is authenticated from the Authorization header of the
+    /// HTTP request that carries it. Clients that speak the 2026-07-28
     /// protocol revision are served directly; older clients still complete
-    /// their <c>initialize</c> handshake, without being given a session id.
-    /// The legacy SSE endpoints (<c>/sse</c>, <c>/message</c>) are not mapped.
+    /// their <c>initialize</c> handshake, without being given a session id,
+    /// and a tool call does not need a handshake before it. The legacy SSE
+    /// endpoints (<c>/sse</c>, <c>/message</c>) are not mapped.
     /// </remarks>
     public static IServiceCollection AddAnipMcp(
         this IServiceCollection services,
@@ -55,8 +56,8 @@ public static class AnipMcpExtensions
         {
             // Stated rather than left to the SDK default, so an SDK upgrade
             // cannot change it silently. ANIP tools need nothing a session
-            // provides, and per-request credentials are only guaranteed when
-            // each call is its own HTTP request.
+            // provides, and without sessions one endpoint serves both the
+            // 2026-07-28 revision and older clients.
             options.SessionMode = HttpServerSessionMode.Stateless;
         })
         .WithTools(tools);
@@ -174,9 +175,8 @@ internal sealed class AnipMcpTool : McpServerTool
         }
 
         // Extract the Authorization header from the HTTP request that carries
-        // this tool call. The endpoint is stateless (see AddAnipMcp), so the
-        // current HttpContext is always that request. With no HttpContext
-        // there are no credentials, and the call is refused below.
+        // this tool call. With no HttpContext there are no credentials, and
+        // the call is refused below.
         var httpContextAccessor = request.Server.Services?.GetService<IHttpContextAccessor>();
         var authHeader = httpContextAccessor?.HttpContext?.Request.Headers.Authorization
             .FirstOrDefault();

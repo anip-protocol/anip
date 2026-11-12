@@ -71,17 +71,23 @@ internal sealed class LegacyWireClient : IWireClient
     /// them, optionally presenting a session id or protocol version of its own.
     /// </summary>
     public static LegacyWireClient WithoutHandshake(
-        HttpClient http, string? sessionId = null, string protocolVersion = ProtocolVersion, string path = "/mcp")
+        HttpClient http, string? sessionId = null, string? protocolVersion = ProtocolVersion, string path = "/mcp")
     {
         return new LegacyWireClient(http, path) { SessionId = sessionId, _protocolVersion = protocolVersion };
     }
 
-    private string _protocolVersion = ProtocolVersion;
+    /// <summary>The MCP-Protocol-Version header to send, or null to send none.</summary>
+    private string? _protocolVersion = ProtocolVersion;
+
+    /// <summary>Headers added to every request, after the ones the client sets itself.</summary>
+    public List<(string Name, string Value)> ExtraHeaders { get; } = new();
 
     /// <summary>Runs the initialize handshake and returns a ready client.</summary>
-    public static async Task<LegacyWireClient> ConnectAsync(HttpClient http, string? authorization = null, string path = "/mcp")
+    public static async Task<LegacyWireClient> ConnectAsync(
+        HttpClient http, string? authorization = null, string path = "/mcp", IEnumerable<(string Name, string Value)>? extraHeaders = null)
     {
         var client = new LegacyWireClient(http, path);
+        client.ExtraHeaders.AddRange(extraHeaders ?? []);
 
         var init = await client.RequestAsync("initialize", new
         {
@@ -138,7 +144,7 @@ internal sealed class LegacyWireClient : IWireClient
             request.Headers.TryAddWithoutValidation("Authorization", authorization);
         }
 
-        if (sendProtocolHeader)
+        if (sendProtocolHeader && _protocolVersion != null)
         {
             request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _protocolVersion);
         }
@@ -146,6 +152,11 @@ internal sealed class LegacyWireClient : IWireClient
         if (SessionId != null)
         {
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", SessionId);
+        }
+
+        foreach (var (name, value) in ExtraHeaders)
+        {
+            Assert.True(request.Headers.TryAddWithoutValidation(name, value), $"could not add header {name}");
         }
 
         using var response = await _http.SendAsync(request);
@@ -165,6 +176,13 @@ internal sealed class ModernWireClient : IWireClient
 {
     public const string ProtocolVersion = "2026-07-28";
 
+    /// <summary>The <c>_meta</c> member every request of this revision carries, as JSON.</summary>
+    public const string MetaJson =
+        """{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"anip-wire-test","version":"1.0"},"io.modelcontextprotocol/clientCapabilities":{}}""";
+
+    /// <summary>Headers added to every request, after the ones the client sets itself.</summary>
+    public List<(string Name, string Value)> ExtraHeaders { get; } = new();
+
     private static readonly Dictionary<string, object?> Meta = new()
     {
         ["io.modelcontextprotocol/protocolVersion"] = ProtocolVersion,
@@ -183,9 +201,11 @@ internal sealed class ModernWireClient : IWireClient
     }
 
     /// <summary>Checks that the server serves this revision and returns a ready client.</summary>
-    public static async Task<ModernWireClient> ConnectAsync(HttpClient http, string path = "/mcp")
+    public static async Task<ModernWireClient> ConnectAsync(
+        HttpClient http, string path = "/mcp", IEnumerable<(string Name, string Value)>? extraHeaders = null)
     {
         var client = new ModernWireClient(http, path);
+        client.ExtraHeaders.AddRange(extraHeaders ?? []);
 
         var discover = await client.SendAsync(
             "server/discover", new Dictionary<string, object?> { ["_meta"] = Meta }, authorization: null, toolName: null);
@@ -225,10 +245,12 @@ internal sealed class ModernWireClient : IWireClient
     /// <summary>
     /// Sends the given body as it is, apart from adding <c>_meta</c> when
     /// <c>params</c> is an object, and sets the headers a real client would
-    /// derive from it, so that the request is judged on its own defect. When
-    /// the body has no usable tool name, the <c>Mcp-Name</c> header names a
-    /// tool that exists: the hardest case for the server, since the header on
-    /// its own looks like a valid call.
+    /// derive from it. When the body has no usable tool name, the
+    /// <c>Mcp-Name</c> header names a tool that exists: the hardest case for
+    /// the server, since the header on its own looks like a valid call.
+    /// A body whose <c>params</c> is missing or not an object cannot carry
+    /// <c>_meta</c>, so in this revision it is refused for that reason before
+    /// its shape is looked at.
     /// </summary>
     public Task<WireReply> RequestRawAsync(string json, string? authorization, int id)
     {
@@ -254,7 +276,8 @@ internal sealed class ModernWireClient : IWireClient
         return PostAsync(json, authorization, method, toolName, id);
     }
 
-    private async Task<WireReply> PostAsync(string json, string? authorization, string? method, string? toolName, int id)
+    /// <summary>Sends exactly this body with exactly these header values.</summary>
+    public async Task<WireReply> PostAsync(string json, string? authorization, string? method, string? toolName, int id)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, _path)
         {
@@ -275,6 +298,11 @@ internal sealed class ModernWireClient : IWireClient
         if (authorization != null)
         {
             request.Headers.TryAddWithoutValidation("Authorization", authorization);
+        }
+
+        foreach (var (name, value) in ExtraHeaders)
+        {
+            Assert.True(request.Headers.TryAddWithoutValidation(name, value), $"could not add header {name}");
         }
 
         using var response = await _http.SendAsync(request);

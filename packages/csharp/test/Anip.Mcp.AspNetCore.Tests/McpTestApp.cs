@@ -24,8 +24,10 @@ internal sealed record HandlerCall(
 
 /// <summary>
 /// An ANIP service mounted through <c>AddAnipMcp</c> / <c>MapAnipMcp</c> on an
-/// in-memory ASP.NET Core server. Tests talk to it over HTTP, the way a client
-/// does, and read <see cref="Calls"/> to learn whether a handler ran.
+/// in-memory ASP.NET Core server (<c>TestServer</c>). Tests send it HTTP
+/// requests, which run through the full ASP.NET Core and MCP SDK pipeline but
+/// not through sockets or Kestrel, and read <see cref="Calls"/> to learn
+/// whether a handler ran.
 /// </summary>
 internal sealed class McpTestApp : IAsyncDisposable
 {
@@ -41,6 +43,9 @@ internal sealed class McpTestApp : IAsyncDisposable
     /// <summary>Every handler run so far, in order.</summary>
     public ConcurrentQueue<HandlerCall> Calls { get; }
 
+    /// <summary>Exceptions that escaped the request pipeline and were answered with a 500.</summary>
+    public ConcurrentQueue<Exception> UnhandledExceptions { get; } = new();
+
     private McpTestApp(AnipService service, IHost host, ConcurrentQueue<HandlerCall> calls)
     {
         Service = service;
@@ -52,6 +57,7 @@ internal sealed class McpTestApp : IAsyncDisposable
     public static async Task<McpTestApp> StartAsync()
     {
         var calls = new ConcurrentQueue<HandlerCall>();
+        McpTestApp? self = null;
 
         Dictionary<string, object?> Record(string capability, InvocationContext ctx, Dictionary<string, object?> parameters)
         {
@@ -140,15 +146,17 @@ internal sealed class McpTestApp : IAsyncDisposable
                 {
                     // A real server answers 500 when a request handler throws.
                     // The in-memory test server would instead rethrow into the
-                    // test's HttpClient call, so do what a real server does.
+                    // test's HttpClient call, so do what a real server does,
+                    // and keep the exception so a test can say none is expected.
                     app.Use(async (context, next) =>
                     {
                         try
                         {
                             await next();
                         }
-                        catch (Exception) when (!context.Response.HasStarted)
+                        catch (Exception e) when (!context.Response.HasStarted)
                         {
+                            self?.UnhandledExceptions.Enqueue(e);
                             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                         }
                     });
@@ -160,7 +168,8 @@ internal sealed class McpTestApp : IAsyncDisposable
 
         await host.StartAsync();
 
-        return new McpTestApp(service, host, calls);
+        self = new McpTestApp(service, host, calls);
+        return self;
     }
 
     /// <summary>Issues a delegation token (a JWT) the way a caller obtains one.</summary>

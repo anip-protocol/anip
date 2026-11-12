@@ -31,16 +31,21 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
     [Theory]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"arguments":{"message":"hi"}}}""")]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":42,"arguments":{"message":"hi"}}}""")]
+    [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":true,"arguments":{"message":"hi"}}}""")]
+    [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":["echo"],"arguments":{"message":"hi"}}}""")]
+    [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":{"tool":"echo"},"arguments":{"message":"hi"}}}""")]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":"echo","arguments":"message=hi"}}""")]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":{"name":"echo","arguments":["hi"]}}""")]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call","params":"echo"}""")]
     [InlineData("""{"jsonrpc":"2.0","id":900,"method":"tools/call"}""")]
     public async Task MalformedToolCall_IsRefused_AndNoHandlerRuns(string body)
     {
-        // How each is refused differs by SDK version and protocol revision
-        // (a JSON-RPC error, an HTTP 400, and in one case an HTTP 500: MCP SDK
-        // 2.4.0 throws while comparing the Mcp-Name header with a tool name
-        // that is not a string). What must hold is that none of them runs.
+        // How each is refused differs by SDK version and protocol revision: a
+        // JSON-RPC error, an HTTP 400, or an HTTP 500. The 500s are a defect
+        // in MCP SDK 2.4.0, which throws while comparing the Mcp-Name header
+        // of a 2026-07-28 request with a tool name that is not a string. They
+        // are accepted here because what this test is about is that none of
+        // these requests runs a handler.
         var client = await ConnectAsync(_app.Http);
 
         var reply = await client.RequestRawAsync(body, Authorization, id: 900);
