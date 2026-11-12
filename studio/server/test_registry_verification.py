@@ -330,6 +330,7 @@ func main() {
 							"input_type": "string",
 							"required": true,
 							"summary": "Search query.",
+							"clarification_hint": "Ask which remote records to search for.",
 						},
 					},
 				},
