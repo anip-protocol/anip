@@ -1583,7 +1583,6 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 |----------|--------|-------------|
 | `/.well-known/anip` | GET | Discovery document — the single entry point |
 | `{manifest}` | GET | Full capability declarations with schemas |
-| `{handshake}` | POST | Profile compatibility check |
 | `{permissions}` | POST | Permission surface for the bearer token's delegation scope |
 | `{invoke}/{capability}` | POST | Invoke a capability with parameters and optional lineage fields |
 | `{tokens}` | POST | Issue root or delegated tokens |
@@ -1592,6 +1591,7 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 
 | Endpoint | Method | Profile | Description |
 |----------|--------|---------|-------------|
+| `{handshake}` | POST | — | Profile compatibility check. OPTIONAL (§6.1). No reference runtime implements it; the `profile` block of the discovery document carries the same information |
 | `{graph}/{capability}` | GET | capability_graph | Capability prerequisites and composition |
 | `{audit}` | POST | observability | Audit log query, filtered by root principal |
 | `{test}/{capability}` | POST | test | Contract testing sandbox (reserved, v2) |
@@ -1678,7 +1678,7 @@ missing:
   observability: "version mismatch: have 0.9, need 1.0"
 ```
 
-The handshake is the first substantive interaction. The agent declares what profiles it needs; the service responds with whether it can satisfy them. Tasks declare their own profile requirements — matching happens before any capability is invoked.
+The handshake is OPTIONAL. A service that offers it MUST advertise the `handshake` endpoint in its discovery document; an agent talking to a service that does not offer it reads the `profile` block of the discovery document instead. Where it is offered, the agent declares what profiles it needs and the service responds with whether it can satisfy them. Tasks declare their own profile requirements — matching happens before any capability is invoked.
 
 #### Token Issuance — `POST {tokens}`
 
@@ -1937,7 +1937,7 @@ The standard endpoints define a predictable interaction sequence:
 
 ```
 1. Agent discovers service          →  GET /.well-known/anip
-2. Agent checks compatibility       →  POST {handshake}
+2. Agent checks compatibility       →  `profile` in discovery, or POST {handshake} if offered
 3. Agent fetches full manifest       →  GET {manifest}
 4. Agent requests delegation token    →  POST {tokens}
 5. Agent queries permissions         →  POST {permissions}
@@ -2741,7 +2741,7 @@ The following categories define the surface area of ANIP conformance testing:
 - All declared endpoints resolve (return non-404)
 - `minimum_scope` arrays are consistent between discovery and manifest
 
-**Category 2: Handshake Validation**
+**Category 2: Handshake Validation** (only for a service that advertises a `handshake` endpoint)
 - Profile handshake correctly accepts matching profile requirements
 - Profile handshake correctly rejects unsupported or version-mismatched profiles
 - Response includes the full set of service profiles
@@ -2863,12 +2863,12 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Signed delegation tokens** | MUST — v0.2 core | Implemented: server-issued JWT/ES256, JWKS discovery, trust boundary verification | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery |
 | **Signed manifests** | MUST — v0.2 core | Implemented: detached JWS (ES256) in `X-ANIP-Signature` header, manifest metadata with SHA-256 hash | Third-party manifest attestation |
 | **Audit log integrity** | MUST — v0.2 core | Implemented: hash chain with per-entry signatures, separate audit signing key | Append-only infrastructure, third-party attestation, external timestamp anchoring |
-| **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite at `tests/test_conformance.py` with `--anip-url` flag | Side-effect contract testing (§7), sandbox infrastructure |
-| **Trust levels (§7.1)** | MUST — v0.3 core | Implemented: signed/anchored/attested levels with `trust_level` in discovery | — |
+| **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite in `conformance/`, run against any service with `--base-url`. It covers discovery, tokens and delegation, permissions, invocation, failures, audit, checkpoints, budgets and bindings. It does not yet cover approvals, streaming, audit aggregation or redaction | Side-effect contract testing (§7), sandbox infrastructure |
+| **Trust levels (§7.1)** | MUST — v0.3 core | Partly implemented: `signed` and `anchored`, with `trust_level` in discovery. `attested` is not implemented in any runtime; Python and TypeScript refuse to start with it | Attestation by a third party |
 | **Merkle checkpoints (§7.3)** | MUST for anchored — v0.3 | Implemented: checkpoint production, Merkle tree construction, detached JWS | Cross-service checkpoint federation |
-| **Merkle proofs (§7.4)** | MUST for anchored — v0.3 | Implemented: inclusion proofs, consistency proofs, RFC 6962 hash scheme | — |
+| **Merkle proofs (§7.4)** | MUST for anchored — v0.3 | Partly implemented: inclusion proofs and the RFC 6962 hash scheme; consistency proofs in Python, TypeScript and Go only | Consistency proofs in Java and C# |
 | **Policy hooks (§7.5)** | MUST for anchored — v0.3 | Implemented: cadence, max_lag, trigger/action pairs | Policy negotiation between agents and services |
-| **Sink publication (§7.6)** | MUST for anchored — v0.3 | Implemented: witness: and https: qualifying sinks, file: for dev | Standardized witness receipt format |
+| **Sink publication (§7.6)** | MUST for anchored — v0.3 | Partly implemented: Python and TypeScript have a sink interface and a `file:` sink for development. No runtime ships a qualifying `witness:` or `https:` sink, so a service has to supply its own to meet the `anchored` publication requirement. Go, Java and C# have no sink support | Qualifying sinks in every runtime; standardized witness receipt format |
 | **Checkpoint endpoints (§6.5)** | MUST for anchored — v0.3 | Implemented: GET /anip/checkpoints (list) and GET /anip/checkpoints/{id} (detail with proofs) | — |
 | **Invocation lineage (§6.3)** | MUST — v0.4 core | Implemented: `invocation_id` (server-generated, `inv-{hex12}`) and `client_reference_id` (caller-supplied, max 256 chars) on every invoke request/response and audit entry | — |
 | **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in Python and TypeScript runtimes, non-blocking audit writes; Go, Java, and C# use synchronous storage with connection pooling | — |
@@ -2892,6 +2892,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Capability composition (§4.6)** | MAY — v0.23 | Implemented: schema and core model support, structural validation, same-service execution, ordered step evaluation, empty-result branching, failure policy handling, and audit lineage in the runtime cores. | Multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
 | **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Implemented: request/grant models, grant policy, approval-required metadata, persistence, signing, atomic approve/store and reserve primitives, `POST /anip/approval_grants`, discovery advertisement, audit linkage, and runtime continuation validation. | Denial flow; multi-approver workflows; cross-service approval propagation |
 | **Input resolution metadata (§4.10)** | MAY — v0.24 | Schema and core model support landed: `InputResolution`, `InputMeaning`, `ResolutionMode`, `ResolutionBehavior` types plus adjacent hint fields (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) on `CapabilityInput` in all five runtime cores, with decode-layer enum rejection and model-level cross-field validators (`closed_values` requires `allowed_values`; `on_missing=use_default` requires non-null `default`). Auto-invoke wiring for the static-typed runtimes' validators on manifest/service-definition load (Go, Java, C#), generator pass-through into service-definition and agent-consumption artifacts, Studio UI editing, registry display, and runtime consumption of `resolution.mode` are pending. | Auto-invoke wiring for Go/Java/C# validators; generator pass-through; Studio UI; registry display; runtime consumption |
+| **Profile handshake (§6.2)** | MAY | Not implemented in any runtime. The discovery document's `profile` block is what agents read today | Decide whether to keep the endpoint |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
 The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. v0.23 makes two long-implicit concerns protocol-visible: capability composition (`kind: composed` with declarative step/mapping/policy metadata so business-level composed capabilities stay one bounded invocation surface for agents) and approval grants (signed, atomically-issued, parameter-digest-bound authorization objects with `one_time` and `session_bound` types replacing v0.22's request-state-only approval flow). v0.24 makes input resolution protocol-visible: the optional `resolution` block on each capability input declares whether a value comes from a closed enum, a backend resolver over an open-ended reference, an app-side selection, actor/session policy, or explicit clarification, with bounded enums for missing/ambiguous/unresolved behavior, so runtimes stop inferring resolution from input names or types and stop leaking command words into scope-like fields. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.

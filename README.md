@@ -224,7 +224,7 @@ await mountAnipGraphQL(app, service);    // GraphQL at /graphql
 await mountAnipMcpHono(app, service);    // MCP Streamable HTTP at /mcp
 ```
 
-This inverts the usual calculus. The conventional path — build a REST API, then layer MCP on top for agents — gives you two surfaces that each need maintenance and neither speaks the agent's language natively. ANIP gives you the native agent interface *and* REST, GraphQL, and MCP as byproducts. You're actually better off implementing ANIP than building REST first.
+This inverts the usual calculus. The conventional path — build a REST API, then layer MCP on top for agents — gives you two surfaces that each need maintenance and neither speaks the agent's language natively. An ANIP service has the native agent interface, and the same capabilities can also be exposed over REST, GraphQL and MCP through the bindings.
 
 Standard REST and GraphQL clients work normally — they ignore the ANIP metadata (`x-anip-*` OpenAPI extensions, `@anip*` GraphQL directives). ANIP-aware agents use the metadata for delegation, cost awareness, and side-effect reasoning. Graceful degradation by design.
 
@@ -349,14 +349,20 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ANIP is under active development. The spec is at v0.24 with input resolution metadata — building on v0.23's capability composition and approval grants, v0.22's canonical `parent_token` semantics and delegated capability-targeted issuance, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth hardening and capability-targeted root issuance, and earlier foundations through v0.19. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.24 ships input resolution metadata.** Capability inputs declare a `resolution` block (`mode` + `resolver_ref` + `on_missing`/`on_ambiguous`/`on_unresolved`) so runtimes, generators, and agents have a portable contract for whether an input is closed-enum, backend-resolved, app-selected, actor-policy-derived, explicit-only, or clarify-on-miss. Adjacent typed hints (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) give the resolution block its substrate. Pure additive — v0.23 manifests parse unchanged. Building on v0.23's capability composition + approval grants, v0.22's delegated issuance, v0.21's `cross_service_contract` / `recovery_target`, v0.20's bootstrap auth, and all features through v0.19.
+**What is not there yet.** The [Spec's status table](SPEC.md#13-roadmap-v01--v1) says, feature by feature, what the runtimes implement. The gaps that matter most:
+
+- The `attested` trust level is specified but not implemented in any runtime.
+- No runtime ships a qualifying external sink for checkpoints (`witness:` or `https:`), so a service that claims `anchored` trust has to supply its own. Go, Java and C# have no sink support.
+- Consistency proofs exist in Python, TypeScript and Go only.
+- The conformance suite does not yet cover approvals, streaming, audit aggregation or redaction.
+- Two security advisories were published in November 2026, both found by our own review: see [SECURITY.md](SECURITY.md).
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
 - [Spec](SPEC.md) — the technical design (v0.24)
-- [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
+- [Guide](GUIDE.md) — where the reference services are, how one is put together, and the design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip-dev/service` + Hono, same capabilities and endpoints
 - [Reference implementation — Go](packages/go/examples/flights/) — `anip-service` + net/http, same capabilities and endpoints
