@@ -2043,6 +2043,8 @@ When a budget was evaluated (whether the invocation succeeded or failed), the re
 
 Budget enforcement is not optional — a service that accepts a delegation token with budget constraints and ignores them violates the delegation contract.
 
+**Audit of refusals before the handler.** Every refusal made before the handler — delegation and scope, purpose, budget (`budget_exceeded`, `budget_currency_mismatch`, `budget_not_enforceable`), binding (`binding_missing`, `binding_stale`), control requirements (`control_requirement_unsatisfied`), parameter validation and approval-grant validation — is recorded in the audit log as one entry for the invocation, with `success: false`, the refusal's `failure_type` and the event class the service gives denials (§6.8). This holds for unary and streaming invocations. A refusal made by a transport binding before `invoke()` is reached (HTTP 401, a body that is not JSON) has no invocation and is not audited.
+
 #### Capability Graph — `GET {graph}/{capability}`
 
 **Request:** No body.
