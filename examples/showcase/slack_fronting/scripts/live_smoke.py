@@ -1,8 +1,15 @@
-"""Live smoke for the Slack fronting showcase.
+"""Read-only live smoke for the Slack fronting showcase.
 
 Expected environment:
 - SLACK_BOT_TOKEN
 - SLACK_CHANNEL_ID
+
+The smoke never sends a Slack message: it sets ANIP_SLACK_ALLOW_SEND=false. It
+authenticates through the generated service's ANIP_API_KEYS_JSON, which it sets
+itself. Package 0.2.1 binds every capability to the collaborator actor and has
+no binding or capability that requires approval, so the collaborator gets
+reads and previews without a grant, and a principal without the collaborator
+actor claim is refused. approved_send_smoke.py covers the granted send.
 
 Run after generating the Python service with the Slack custom bundle:
 
@@ -13,9 +20,9 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+from typing import Any
 
 from fastapi.testclient import TestClient
-
 from slack_governed_fronting_showcase.app import create_app
 
 
@@ -38,42 +45,59 @@ def slack_post(path: str, body: dict) -> dict:
 # Package 0.2.1 binds every capability to the collaborator actor; a principal
 # without that actor claim is refused.
 LIVE_SMOKE_KEY = "live-slack-smoke-key"
-LIVE_SMOKE_PRINCIPAL = "human:live-slack-smoke|actor_id=collaborator"
+SMOKE_KEYS = {
+    LIVE_SMOKE_KEY: "human:live-slack-smoke|actor_id=collaborator",
+    "smoke-no-actor": "human:live-slack-smoke",
+    "smoke-unknown-actor": "human:live-slack-smoke|actor_id=slack_unknown_actor",
+}
+NO_BINDING_DETAIL = "No runtime policy binding matches the current actor for this capability."
 
 
-def issue_token(client: TestClient, capability_id: str) -> str:
+def issue_token(client: TestClient, capability_id: str, key: str = LIVE_SMOKE_KEY) -> str:
     response = client.post(
         "/anip/tokens",
-        headers={"Authorization": f"Bearer {LIVE_SMOKE_KEY}"},
+        headers={"Authorization": f"Bearer {key}"},
         json={
             "capability": capability_id,
             "scope": [capability_id],
             "subject": "agent:live-slack-smoke",
-            "purpose_parameters": {"actor_id": "slack_fronting_consumer", "source": "live-smoke"},
+            "purpose_parameters": {"source": "live-smoke"},
         },
     )
     response.raise_for_status()
     return response.json()["token"]
 
 
-def invoke(client: TestClient, capability_id: str, parameters: dict) -> dict:
-    token = issue_token(client, capability_id)
+def invoke_payload(client: TestClient, capability_id: str, parameters: dict, key: str = LIVE_SMOKE_KEY) -> dict:
+    token = issue_token(client, capability_id, key)
     response = client.post(
         f"/anip/invoke/{capability_id}",
         headers={"Authorization": f"Bearer {token}"},
         json={"parameters": parameters},
     )
-    response.raise_for_status()
-    payload = response.json()
+    return response.json()
+
+
+def invoke(client: TestClient, capability_id: str, parameters: dict) -> dict:
+    payload = invoke_payload(client, capability_id, parameters)
     if not payload.get("success"):
         raise RuntimeError(payload)
     return payload["result"]
 
 
+def expect_refused(client: TestClient, capability_id: str, parameters: dict, key: str) -> dict:
+    payload = invoke_payload(client, capability_id, parameters, key)
+    failure = payload.get("failure") or {}
+    if payload.get("success") is not False or failure.get("type") != "denied" or failure.get("detail") != NO_BINDING_DETAIL:
+        raise AssertionError(f"{capability_id}: expected {SMOKE_KEYS[key]} to be denied, got {payload}")
+    return {"capability_id": capability_id, "actor": SMOKE_KEYS[key], "failure": "denied"}
+
+
 def main() -> None:
     channel_id = os.environ["SLACK_CHANNEL_ID"]
     os.environ.setdefault("ANIP_SLACK_ALLOWED_CHANNELS", channel_id)
-    os.environ.setdefault("ANIP_API_KEYS_JSON", json.dumps({LIVE_SMOKE_KEY: LIVE_SMOKE_PRINCIPAL}))
+    os.environ["ANIP_SLACK_ALLOW_SEND"] = "false"
+    os.environ["ANIP_API_KEYS_JSON"] = json.dumps(SMOKE_KEYS)
     history = slack_post("conversations.history", {"channel": channel_id, "limit": 1})
     if not history.get("ok"):
         raise RuntimeError(history)
@@ -81,7 +105,7 @@ def main() -> None:
     thread_ts = (messages[0] or {}).get("thread_ts") or (messages[0] or {}).get("ts") if messages else None
     client = TestClient(create_app())
 
-    cases = {
+    cases: dict[str, dict[str, Any]] = {
         "slack.channel.read_context": {
             "parameters": {"channel_id": channel_id, "limit": 5},
             "expected_status": "completed",
@@ -139,7 +163,13 @@ def main() -> None:
         if capability_id in {"slack.channel.read_context", "slack.thread.summarize"}:
             summary[capability_id]["message_count"] = (result.get("result") or {}).get("count")
 
-    print(json.dumps({"channel_id": channel_id, "capabilities_tested": len(summary), "results": summary}, indent=2))
+    read = cases["slack.channel.read_context"]["parameters"]
+    refusals = [
+        {"check": "principal without an actor claim", **expect_refused(client, "slack.channel.read_context", read, "smoke-no-actor")},
+        {"check": "actor no binding names", **expect_refused(client, "slack.channel.read_context", read, "smoke-unknown-actor")},
+    ]
+
+    print(json.dumps({"channel_id": channel_id, "capabilities_tested": len(summary), "results": summary, "refusals": refusals}, indent=2))
 
 
 if __name__ == "__main__":

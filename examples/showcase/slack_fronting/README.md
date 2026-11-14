@@ -87,6 +87,13 @@ PYTHONPATH="<repo python packages>:<generated src>" \
   python examples/showcase/slack_fronting/scripts/live_smoke.py
 ```
 
+The live smoke never sends: it sets `ANIP_SLACK_ALLOW_SEND=false`. It sets the
+generated service's `ANIP_API_KEYS_JSON` to an API key for the `collaborator`
+actor, which package 0.2.1 binds to every capability, and to two principals no
+binding selects: one without an actor claim and one with an unknown actor. The
+collaborator gets reads and previews; the other two are denied. No 0.2.1
+capability or binding requires approval, so the live smoke has no approval step.
+
 Run the send smoke test only against a disposable Slack channel:
 
 ```bash
@@ -95,11 +102,12 @@ PYTHONPATH="<repo python packages>:<generated src>" \
   python examples/showcase/slack_fronting/scripts/approved_send_smoke.py
 ```
 
-The send smoke first invokes `slack.message.prepare` and confirms that it stops at
-a preview-only result. It then creates a pending ANIP approval request, issues a
-one-time grant, and resubmits the same parameters with the top-level
-`approval_grant`. The Slack adapter only posts after the ANIP runtime validates
-and reserves that grant.
+The send smoke first invokes `slack.message.prepare` as the `collaborator` actor
+and confirms that it stops at a preview-only result. Because package 0.2.1 never
+answers `approval_required`, the smoke creates the pending ANIP approval request
+in-process, issues a one-time grant, and resubmits the same parameters with the
+top-level `approval_grant`. The Slack adapter only posts after the ANIP runtime
+validates and reserves that grant.
 
 ## Design point
 
@@ -125,4 +133,6 @@ Optional policy gates:
 - `ANIP_SLACK_BLOCKED_CHANNELS`
 - `ANIP_SLACK_ALLOW_SEND=true`
 
-By default, write-adjacent capabilities stop at preview and approval-required outcomes.
+By default, write-adjacent capabilities stop at preview. `live_smoke.py` forces
+`ANIP_SLACK_ALLOW_SEND=false` and authenticates as the `collaborator` actor
+through its own `ANIP_API_KEYS_JSON`; see "Live Slack tests" above.

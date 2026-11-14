@@ -64,3 +64,7 @@ Typical scope:
 - prepared-message smoke;
 - approved send only when `ANIP_SLACK_ALLOW_SEND=true` and a valid approval grant is supplied.
 
+The smokes authenticate as the `collaborator` actor, which the package binds to
+every capability; the read-only smoke checks that principals without that actor
+claim are refused.
+
