@@ -1,7 +1,6 @@
 """Generated capability declarations and handlers."""
 from __future__ import annotations
 
-import inspect
 import re
 from typing import Any
 
@@ -131,67 +130,6 @@ def _side_effect_type(side_effect_level: str) -> str:
         return "write"
     return "read"
 
-def _resolve_json_path(payload: dict[str, Any], path: str | None) -> Any:
-    if not path or not path.startswith('$.'):
-        return None
-    current: Any = payload
-    for part in path[2:].split('.'):
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            return None
-    return current
-
-def _is_empty_result(payload: Any) -> bool:
-    target = payload.get('result') if isinstance(payload, dict) else payload
-    if isinstance(target, dict):
-        if target.get('empty') is True:
-            return True
-        for key in ('accounts', 'items', 'rows', 'results', 'tasks'):
-            if key in target and target.get(key) == []:
-                return True
-    return target == []
-
-async def _invoke_composition_child(capability_registry: dict[str, Capability], capability_id: str, ctx: InvocationContext, params: dict[str, Any]) -> Any:
-    child = capability_registry.get(capability_id)
-    if child is None:
-        raise ANIPError('temporarily_unavailable', f'Generated composition child {capability_id} is not registered.')
-    result = child.handler(ctx, params)
-    if inspect.isawaitable(result):
-        result = await result
-    return result
-
-async def _execute_generated_composition(capability: dict[str, Any], ctx: InvocationContext, params: dict[str, Any], capability_registry: dict[str, Capability] | None) -> dict[str, Any]:
-    if capability_registry is None:
-        raise ANIPError('temporarily_unavailable', f'Generated composition {capability["capability_id"]} requires a capability registry.')
-    composition = capability.get('composition') or {}
-    if composition.get('authority_boundary') != 'same_service':
-        raise ANIPError('temporarily_unavailable', 'Generated Python host only executes same-service composition locally.')
-    state: dict[str, Any] = {'steps': {}}
-    input_mapping = composition.get('input_mapping') or {}
-    for step in composition.get('steps') or []:
-        step_id = step.get('id')
-        child_capability = step.get('capability')
-        if not step_id or not child_capability:
-            raise ANIPError('temporarily_unavailable', 'Generated composition step is missing id or capability.')
-        child_params = dict(params)
-        mapping = input_mapping.get(step_id) or {}
-        context = _resolve_json_path(state, mapping.get('context')) if isinstance(mapping, dict) else None
-        if context is not None:
-            child_params['context'] = context
-        child_output = await _invoke_composition_child(capability_registry, child_capability, ctx, child_params)
-        state['steps'][step_id] = {'output': child_output}
-        if step.get('empty_result_source') is True and _is_empty_result(child_output):
-            if composition.get('empty_result_policy') == 'return_success_no_results':
-                return composition.get('empty_result_output') or {'result': None, 'empty': True}
-    output_mapping = composition.get('output_mapping') or {}
-    result = _resolve_json_path(state, output_mapping.get('result'))
-    if result is None:
-        return {'result': state}
-    if isinstance(result, dict) and 'result' in result and len(result) == 1:
-        return result
-    return {'result': result}
-
 async def _handle_generated_capability(capability: dict[str, Any], ctx: InvocationContext, params: dict[str, Any], capability_registry: dict[str, Capability] | None = None) -> dict[str, Any]:
     params = _apply_input_defaults(capability, params)
     _assert_required_semantic_inputs(capability, params)
@@ -204,7 +142,11 @@ async def _handle_generated_capability(capability: dict[str, Any], ctx: Invocati
     if policy.get("decision") == "clarify":
         raise ANIPError("clarification_required", policy.get("detail") or f"Clarification required for {capability['capability_id']}.")
     if (capability.get("kind") or "atomic") == "composed":
-        return await _execute_generated_composition(capability, ctx, params, capability_registry)
+        # The ANIP runtime executes composed capabilities itself (SPEC.md §4.6):
+        # each step goes through the normal invoke pipeline with its own token,
+        # input validation and audit entry, and receives only its mapped inputs.
+        # It never calls this handler for them.
+        raise ANIPError("internal_error", f"Composed capability {capability['capability_id']} must be executed by the ANIP runtime; upgrade anip-service.")
     plan = _build_backend_invocation_plan(capability, params)
     if policy.get("decision") == "approval_required":
         return {

@@ -201,3 +201,42 @@ def test_generated_secondary_services_are_scoped(module_name: str, expected_capa
     assert discovery.status_code == 200
     capabilities = _discovery_capability_names(discovery.json())
     assert capabilities == expected_capabilities
+
+
+def test_composition_children_receive_only_mapped_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    # gtm.at_risk_reassignment_preparation maps quarter, owner_scope and limit
+    # into prepare_reassignment_plan, not ranking_basis. The runtime runs each
+    # step through its own invocation, so the unmapped parent value stays out.
+    from gtm_pipeline_q2_review import app as app_module
+
+    received: dict[str, dict] = {}
+
+    def account_risk_summary(_ctx, params):
+        received["account_risk_summary"] = dict(params)
+        return {"result": {"accounts": [{"account_name": "Acme"}]}}
+
+    def prepare_reassignment_plan(_ctx, params):
+        received["prepare_reassignment_plan"] = dict(params)
+        return {"result": {"plan": []}}
+
+    monkeypatch.setattr(app_module.gtm_account_risk_summary, "handler", account_risk_summary)
+    monkeypatch.setattr(app_module.gtm_prepare_reassignment_plan, "handler", prepare_reassignment_plan)
+    client = TestClient(app)
+    capability_id = "gtm.at_risk_reassignment_preparation"
+    # Each step's token is narrowed from the caller's, so the caller holds the steps' scopes.
+    scope = sorted({
+        item
+        for name in (capability_id, "gtm.account_risk_summary", "gtm.prepare_reassignment_plan")
+        for item in _minimum_scope(client, name)
+    })
+    token = _issue_token(client, capability_id, scope)
+    response = client.post(
+        f"/anip/invoke/{capability_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"quarter": "2017-Q2", "ranking_basis": "risk_score", "owner_scope": "west", "limit": 3}},
+    )
+    payload = response.json()
+    assert payload["success"] is True, payload
+    assert received["account_risk_summary"]["ranking_basis"] == "risk_score"
+    assert "ranking_basis" not in received["prepare_reassignment_plan"], received
+    assert received["prepare_reassignment_plan"]["quarter"] == "2017-Q2"

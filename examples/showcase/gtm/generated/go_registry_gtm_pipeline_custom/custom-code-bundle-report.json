@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python",
-  "bundle_sha256": "sha256:19ae701eeebf063e4f30a9d826de1e52126f6c3f489ddde1812c820eaab45836",
+  "bundle_sha256": "sha256:fee366c4dc42d5ce9329f0246317e9dadf57736bdb7055cf72b41ad3b39b24ed",
   "files": [
     {
       "path": "README.md",
@@ -22,10 +22,10 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "sha256:e26cc13d885bb735e713b76608a19ce70fbcaba55e92e59ad9ac94d7f5cf399f",
+      "sha256": "sha256:69a2d775b3887a9ec46703f069b432938669a9c8221a8576e85204a0719a04d5",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 752,
+      "bytes": 755,
       "overlaid": true,
       "substrate": false
     },
@@ -166,10 +166,10 @@
     },
     {
       "path": "tests/test_service_smoke.py",
-      "sha256": "sha256:5f68c8e68cad9d9fbff4daf3f64d44946429177e361da6302f34958e4e5067d4",
+      "sha256": "sha256:5b30649515069f9bf86a0e0a2754c5737f76102e06fb472a2254ebe7f273a86b",
       "seam": "custom_file",
       "mode": "extension_overlay",
-      "bytes": 8119,
+      "bytes": 10050,
       "overlaid": true,
       "substrate": false
     }
