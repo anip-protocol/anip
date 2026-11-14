@@ -900,6 +900,9 @@ public class ANIPService {
                     failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
                     failure.put("detail", "Invocation budget is in " + requestBudget.getCurrency()
                             + " but token budget is in " + effectiveBudget.getCurrency());
+                    failure.put("resolution", resolution("request_matching_currency_delegation"));
+                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService);
                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -930,6 +933,9 @@ public class ANIPService {
                     failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
                     failure.put("detail", "Token budget is in " + effectiveBudget.getCurrency()
                             + " but capability cost is in " + decl.getCost().getFinancial().getCurrency());
+                    failure.put("resolution", resolution("request_matching_currency_delegation"));
+                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService);
                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -968,6 +974,8 @@ public class ANIPService {
                                             + " binding does not carry a resolvable price");
                                     failure.put("resolution", resolution);
                                     failure.put("retry", false);
+                                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                                            effectiveTaskId, parentInvocationId, upstreamService);
                                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -986,6 +994,9 @@ public class ANIPService {
                                 failure.put("type", Constants.FAILURE_BUDGET_NOT_ENFORCEABLE);
                                 failure.put("detail", "Capability " + capName
                                         + " has estimated cost but no requires_binding — budget cannot be enforced");
+                                failure.put("resolution", resolution("escalate_to_root_principal"));
+                                auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                                        effectiveTaskId, parentInvocationId, upstreamService);
                                 Map<String, Object> tokenClaims = tokenClaimsMap(token);
                                 String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                                 failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -1008,6 +1019,9 @@ public class ANIPService {
                     Map<String, Object> failure = new LinkedHashMap<>();
                     failure.put("type", Constants.FAILURE_BUDGET_EXCEEDED);
                     failure.put("detail", "Cost $" + checkAmount + " exceeds budget $" + effectiveBudget.getMaxAmount());
+                    failure.put("resolution", resolution("request_budget_increase"));
+                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService);
                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -1048,6 +1062,8 @@ public class ANIPService {
                             "recovery_class", Constants.recoveryClassForAction("obtain_binding"),
                             "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
                     ));
+                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService);
                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -1079,6 +1095,8 @@ public class ANIPService {
                                     "recovery_class", Constants.recoveryClassForAction("refresh_binding"),
                                     "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
                             ));
+                            auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                                    effectiveTaskId, parentInvocationId, upstreamService);
                             Map<String, Object> tokenClaims = tokenClaimsMap(token);
                             String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                             failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -1114,6 +1132,9 @@ public class ANIPService {
                     failure.put("type", Constants.FAILURE_CONTROL_REQUIREMENT_UNSATISFIED);
                     failure.put("detail", "Capability " + capName + " requires " + req.getType());
                     failure.put("unsatisfied_requirements", List.of(req.getType()));
+                    failure.put("resolution", resolution("request_capability_binding"));
+                    auditRefusalBeforeHandler(capName, token, capDef, failure, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService);
                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -2171,6 +2192,31 @@ public class ANIPService {
     private boolean capabilitySupportsStreaming(CapabilityDeclaration decl) {
         if (decl.getResponseModes() == null) return false;
         return decl.getResponseModes().contains("streaming");
+    }
+
+    /** A resolution with the canonical recovery class of its action (SPEC.md §4.5). */
+    private static Map<String, Object> resolution(String action) {
+        Map<String, Object> resolution = new LinkedHashMap<>();
+        resolution.put("action", action);
+        resolution.put("recovery_class", Constants.recoveryClassForAction(action));
+        return resolution;
+    }
+
+    /**
+     * Records a budget, binding or control-requirement refusal like every
+     * refusal made before the handler (SPEC.md §6.3).
+     */
+    private void auditRefusalBeforeHandler(String capName, DelegationToken token, CapabilityDef capDef,
+                                           Map<String, Object> failure, String invocationId,
+                                           String clientRefId, String effectiveTaskId,
+                                           String parentInvocationId, String upstreamService) {
+        String sideEffectType = capDef.getDeclaration().getSideEffect() != null
+                ? capDef.getDeclaration().getSideEffect().getType() : null;
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("detail", failure.get("detail"));
+        appendAuditEntry(capName, token, false, (String) failure.get("type"), summary, null,
+                invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                upstreamService, sideEffectType);
     }
 
     private void appendAuditEntry(String capability, DelegationToken token,
