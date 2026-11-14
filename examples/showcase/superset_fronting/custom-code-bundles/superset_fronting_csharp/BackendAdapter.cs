@@ -14,6 +14,18 @@ public static class BackendAdapter
 {
     public static BackendAdapterHandler Default => Execute;
     private static readonly HttpClient Http = new();
+    private static readonly (string Kind, string Path)[] DiscoveryEndpointList = [("dataset", "/api/v1/dataset/"), ("chart", "/api/v1/chart/"), ("dashboard", "/api/v1/dashboard/")];
+
+    /// <summary>
+    /// The Superset list endpoints a discovery reads for an asset_type. "all", the
+    /// input's declared default, and an empty value read every endpoint; another
+    /// value reads the endpoint of that kind, if there is one.
+    /// </summary>
+    public static IReadOnlyList<(string Kind, string Path)> DiscoveryEndpoints(string? assetType)
+    {
+        var kind = (assetType ?? "").Trim();
+        return kind is "" or "all" ? DiscoveryEndpointList : DiscoveryEndpointList.Where(endpoint => endpoint.Kind == kind).ToArray();
+    }
 
     private static Dictionary<string, object?> Execute(
         Dictionary<string, object?> capability,
@@ -51,12 +63,9 @@ public static class BackendAdapter
         if (!ScopeAllowed(workspaceScope)) return Restricted(capability, plan, "Workspace scope is outside the configured ANIP policy.");
         var query = Text(parameters.GetValueOrDefault("query")).ToLowerInvariant();
         var limit = BoundedLimit(parameters.GetValueOrDefault("limit"), 20, 50);
-        var assetType = Text(parameters.GetValueOrDefault("asset_type"));
-        var endpoints = new[] { ("dataset", "/api/v1/dataset/"), ("chart", "/api/v1/chart/"), ("dashboard", "/api/v1/dashboard/") };
         var items = new List<Dictionary<string, object?>>();
-        foreach (var (kind, endpoint) in endpoints)
+        foreach (var (kind, endpoint) in DiscoveryEndpoints(Text(parameters.GetValueOrDefault("asset_type"))))
         {
-            if (!string.IsNullOrWhiteSpace(assetType) && assetType != kind) continue;
             var payload = RequestJson("GET", $"{endpoint}?page_size={limit}", token, null);
             if (payload.ContainsKey("error")) return Result(capability, plan, "backend_error", new() { ["superset_error"] = payload });
             foreach (var item in ListResult(payload))

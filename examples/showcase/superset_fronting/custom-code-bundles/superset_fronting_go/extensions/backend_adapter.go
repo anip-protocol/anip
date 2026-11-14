@@ -61,6 +61,22 @@ func (defaultBackendAdapter) Execute(capability generated.GeneratedCapabilityRun
 
 var BackendAdapterInstance = CreateDefaultBackendAdapter()
 
+var discoveryEndpointList = [][2]string{{"dataset", "/api/v1/dataset/"}, {"chart", "/api/v1/chart/"}, {"dashboard", "/api/v1/dashboard/"}}
+
+// discoveryEndpoints returns the Superset list endpoints a discovery reads for
+// an asset_type. "all", the input's declared default, and an empty value read
+// every endpoint; another value reads the endpoint of that kind, if there is one.
+func discoveryEndpoints(assetType string) [][2]string {
+	kind := strings.TrimSpace(assetType)
+	endpoints := [][2]string{}
+	for _, endpoint := range discoveryEndpointList {
+		if kind == "" || kind == "all" || kind == endpoint[0] {
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
 func discoverContext(capability generated.GeneratedCapabilityRuntimeMetadata, plan generated.BackendInvocationPlan, params map[string]any, token string) map[string]any {
 	workspaceScope := text(params["workspace_scope"])
 	if !scopeAllowed(workspaceScope) {
@@ -68,14 +84,9 @@ func discoverContext(capability generated.GeneratedCapabilityRuntimeMetadata, pl
 	}
 	query := strings.ToLower(text(params["query"]))
 	limit := boundedLimit(params["limit"], 20, 50)
-	assetType := text(params["asset_type"])
-	endpoints := [][2]string{{"dataset", "/api/v1/dataset/"}, {"chart", "/api/v1/chart/"}, {"dashboard", "/api/v1/dashboard/"}}
 	items := []map[string]any{}
-	for _, endpoint := range endpoints {
+	for _, endpoint := range discoveryEndpoints(text(params["asset_type"])) {
 		kind := endpoint[0]
-		if assetType != "" && assetType != kind {
-			continue
-		}
 		payload := requestJSON("GET", endpoint[1]+"?page_size="+strconv.Itoa(limit), token, nil)
 		if payload["error"] != nil {
 			return result(capability, plan, "backend_error", map[string]any{"superset_error": payload})

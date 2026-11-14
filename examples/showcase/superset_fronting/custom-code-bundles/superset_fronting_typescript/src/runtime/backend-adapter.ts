@@ -9,6 +9,19 @@ export interface GeneratedBackendAdapter {
   execute(capability: GeneratedCapabilityRuntimeMetadata, plan: BackendInvocationPlan, adapterInput: Record<string, unknown>, context: GeneratedBackendInvocationContext): Promise<Record<string, unknown>>;
 }
 
+const DISCOVERY_ENDPOINTS: ReadonlyArray<[string, string]> = [["dataset", "/api/v1/dataset/"], ["chart", "/api/v1/chart/"], ["dashboard", "/api/v1/dashboard/"]];
+
+/**
+ * The Superset list endpoints a discovery reads for an asset_type. "all", the
+ * input's declared default, and an empty value read every endpoint; another
+ * value reads the endpoint of that kind, if there is one.
+ */
+export function discoveryEndpoints(assetType: string): Array<[string, string]> {
+  const kind = assetType.trim();
+  if (kind === "" || kind === "all") return [...DISCOVERY_ENDPOINTS];
+  return DISCOVERY_ENDPOINTS.filter(([endpointKind]) => endpointKind === kind);
+}
+
 const baseUrl = () => (process.env.SUPERSET_BASE_URL ?? "http://127.0.0.1:18088").replace(/\/$/, "");
 
 function csvEnv(name: string): Set<string> {
@@ -130,9 +143,7 @@ export function createDefaultBackendAdapter(): GeneratedBackendAdapter {
           if (!scopeAllowed(workspaceScope)) return restricted(capability, plan, "Workspace scope is outside the configured ANIP policy.");
           const query = String(adapterInput.query ?? "").trim().toLowerCase();
           const limit = boundedLimit(adapterInput.limit, 20, 50);
-          const assetType = String(adapterInput.asset_type ?? "").trim();
-          let endpoints: Array<[string, string]> = [["dataset", "/api/v1/dataset/"], ["chart", "/api/v1/chart/"], ["dashboard", "/api/v1/dashboard/"]];
-          if (assetType) endpoints = endpoints.filter(([kind]) => kind === assetType);
+          const endpoints = discoveryEndpoints(String(adapterInput.asset_type ?? ""));
           const items: Record<string, unknown>[] = [];
           for (const [kind, endpoint] of endpoints) {
             const response = await requestJson("GET", `${endpoint}?page_size=${limit}`, token);

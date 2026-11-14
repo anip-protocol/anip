@@ -26,6 +26,18 @@ public interface BackendAdapter {
 final class SupersetBackendAdapter implements BackendAdapter {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+    private static final List<String[]> DISCOVERY_ENDPOINTS = List.of(new String[]{"dataset", "/api/v1/dataset/"}, new String[]{"chart", "/api/v1/chart/"}, new String[]{"dashboard", "/api/v1/dashboard/"});
+
+    /**
+     * The Superset list endpoints a discovery reads for an asset_type. "all", the
+     * input's declared default, and an empty value read every endpoint; another
+     * value reads the endpoint of that kind, if there is one.
+     */
+    static List<String[]> discoveryEndpoints(String assetType) {
+        String kind = assetType == null ? "" : assetType.trim();
+        if (kind.isEmpty() || kind.equals("all")) return DISCOVERY_ENDPOINTS;
+        return DISCOVERY_ENDPOINTS.stream().filter(endpoint -> endpoint[0].equals(kind)).toList();
+    }
 
     @Override
     public Map<String, Object> execute(Map<String, Object> capability, Map<String, Object> plan, Map<String, Object> params, InvocationContext context) {
@@ -49,12 +61,9 @@ final class SupersetBackendAdapter implements BackendAdapter {
         if (!scopeAllowed(workspaceScope)) return restricted(capability, plan, "Workspace scope is outside the configured ANIP policy.");
         String query = text(params.get("query")).toLowerCase();
         int limit = boundedLimit(params.get("limit"), 20, 50);
-        String assetType = text(params.get("asset_type"));
-        List<String[]> endpoints = List.of(new String[]{"dataset", "/api/v1/dataset/"}, new String[]{"chart", "/api/v1/chart/"}, new String[]{"dashboard", "/api/v1/dashboard/"});
         List<Map<String, Object>> items = new ArrayList<>();
-        for (String[] endpoint : endpoints) {
+        for (String[] endpoint : discoveryEndpoints(text(params.get("asset_type")))) {
             String kind = endpoint[0];
-            if (!assetType.isBlank() && !assetType.equals(kind)) continue;
             Map<String, Object> payload = requestJson("GET", endpoint[1] + "?page_size=" + limit, token, null);
             if (payload.containsKey("error")) return result(capability, plan, "backend_error", record("superset_error", payload));
             for (Map<String, Object> item : listResult(payload)) {

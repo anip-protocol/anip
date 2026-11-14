@@ -21,6 +21,21 @@ def _csv_env(name: str) -> set[str]:
     return {item.strip().lower() for item in os.getenv(name, "").split(",") if item.strip()}
 
 
+DISCOVERY_ENDPOINTS = (("dataset", "/api/v1/dataset/"), ("chart", "/api/v1/chart/"), ("dashboard", "/api/v1/dashboard/"))
+
+
+def discovery_endpoints(asset_type: str) -> list[tuple[str, str]]:
+    """The Superset list endpoints a discovery reads for an asset_type.
+
+    "all", the input's declared default, and an empty value read every
+    endpoint; another value reads the endpoint of that kind, if there is one.
+    """
+    kind = asset_type.strip()
+    if kind in ("", "all"):
+        return list(DISCOVERY_ENDPOINTS)
+    return [entry for entry in DISCOVERY_ENDPOINTS if entry[0] == kind]
+
+
 def _scope_allowed(scope: str) -> bool:
     key = scope.strip().lower()
     blocked = _csv_env("ANIP_SUPERSET_BLOCKED_WORKSPACES")
@@ -177,10 +192,7 @@ class DefaultBackendAdapter:
             return _restricted_response(capability, plan, "Workspace scope is outside the configured ANIP policy.")
         query = str(params.get("query") or "").strip()
         limit = _bounded_limit(params.get("limit"), maximum=50)
-        asset_type = str(params.get("asset_type") or "").strip()
-        endpoints = [("dataset", "/api/v1/dataset/"), ("chart", "/api/v1/chart/"), ("dashboard", "/api/v1/dashboard/")]
-        if asset_type:
-            endpoints = [entry for entry in endpoints if entry[0] == asset_type]
+        endpoints = discovery_endpoints(str(params.get("asset_type") or ""))
         items: list[dict[str, Any]] = []
         for kind, endpoint in endpoints:
             response = _request_json("GET", f"{endpoint}?page_size={limit}", token)
