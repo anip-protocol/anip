@@ -578,6 +578,12 @@ export const CapabilityDeclaration = z
     }
   });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
+/**
+ * A capability declaration as written by hand: every field that has a default
+ * (`required` on an input, `contract_version`, `kind`, `cost`, ...) may be left
+ * out. `CapabilityDeclaration.parse()` turns it into a `CapabilityDeclaration`.
+ */
+export type CapabilityDeclarationInput = z.input<typeof CapabilityDeclaration>;
 
 // ---------------------------------------------------------------------------
 // Permission Discovery
