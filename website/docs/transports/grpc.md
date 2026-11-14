@@ -92,12 +92,12 @@ message InvokeRequest {
   string task_id = 4;
   string parent_invocation_id = 5;
   string upstream_service = 6;
-  string approval_grant = 7;
+  optional string approval_grant = 7;
   repeated string requested_effects = 8;
 }
 ```
 
-`approval_grant` is the signed grant ID returned by `IssueApprovalGrant`. `requested_effects` carries the caller-requested canonical business effect IDs into the runtime so the service can enforce effect compatibility instead of relying on prose.
+`approval_grant` is the signed grant ID returned by `IssueApprovalGrant`. It is a proto3 `optional` field, so the server can tell an empty grant from an absent one: an absent field is no grant, and a present one, even empty, is validated like the HTTP `approval_grant` (an empty or blank grant is `grant_not_found`). `requested_effects` carries the caller-requested canonical business effect IDs into the runtime so the service can enforce effect compatibility instead of relying on prose.
 
 ## Approval Grants
 

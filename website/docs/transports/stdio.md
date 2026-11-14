@@ -173,6 +173,8 @@ Continuation after an approval grant uses the same `anip.invoke` method with `ap
 }
 ```
 
+Every runtime's stdio server (Python, TypeScript, Go, Java, C#) carries `approval_grant` on the unary and the streaming path and validates it as the HTTP binding does: an absent or `null` `approval_grant` is no grant, and any other value is a supplied grant, so an empty or blank string (or a value that is not a string) is refused with `grant_not_found` before the handler runs.
+
 Grant issuance itself is currently handled through the HTTP approval endpoint or runtime/helper APIs. The stdio invocation path accepts the resulting grant ID.
 
 ## Streaming
