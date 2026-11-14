@@ -295,7 +295,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
-                approval_grant=request.approval_grant or None,
+                # proto3 optional: present (even empty) is a supplied grant.
+                approval_grant=request.approval_grant if request.HasField("approval_grant") else None,
                 requested_effects=list(request.requested_effects),
             ))
         except ANIPError as exc:
@@ -381,7 +382,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
                 stream=True,
-                approval_grant=request.approval_grant or None,
+                # proto3 optional: present (even empty) is a supplied grant.
+                approval_grant=request.approval_grant if request.HasField("approval_grant") else None,
                 requested_effects=list(request.requested_effects),
                 _progress_sink=_progress_sink,
             )

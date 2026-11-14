@@ -79,6 +79,7 @@ def _approval_required_capability() -> Capability:
             output=CapabilityOutput(type="transfer_confirmation", fields=["transfer_id"]),
             side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
             minimum_scope=["finance.write"],
+            response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
             grant_policy=GrantPolicy(
                 allowed_grant_types=["one_time", "session_bound"],
                 default_grant_type="one_time",
@@ -388,6 +389,40 @@ class TestInvoke:
         )
         assert third.success is False
         assert third.failure.type == "grant_consumed"
+
+    @pytest.mark.parametrize("grant", ["", "   "], ids=["empty", "whitespace"])
+    def test_supplied_blank_grant_is_not_found(self, approval_stub, grant):
+        """proto3 ``optional``: an empty approval_grant is present, so it is a
+        supplied grant that names none (SPEC.md §4.8), as over HTTP."""
+        requester = _issue_capability_token(
+            approval_stub, scope=["finance.write"], capability="transfer_funds",
+        )
+        for amount in (50000, 5):
+            request = anip_pb2.InvokeRequest(
+                capability="transfer_funds",
+                parameters_json=json.dumps({"amount": amount, "to_account": "x"}),
+                approval_grant=grant,
+            )
+            assert request.HasField("approval_grant")
+            resp = approval_stub.Invoke(request, metadata=_auth_metadata(requester))
+            assert resp.success is False
+            assert resp.failure.type == "grant_not_found"
+
+            events = list(approval_stub.InvokeStream(request, metadata=_auth_metadata(requester)))
+            assert events[-1].WhichOneof("event") == "failed", events
+            assert events[-1].failed.failure.type == "grant_not_found"
+
+    def test_absent_grant_is_no_grant(self, approval_stub):
+        requester = _issue_capability_token(
+            approval_stub, scope=["finance.write"], capability="transfer_funds",
+        )
+        request = anip_pb2.InvokeRequest(
+            capability="transfer_funds",
+            parameters_json=json.dumps({"amount": 50000, "to_account": "x"}),
+        )
+        assert not request.HasField("approval_grant")
+        resp = approval_stub.Invoke(request, metadata=_auth_metadata(requester))
+        assert resp.failure.type == "approval_required"
 
     def test_one_time_grant_request_for_more_than_one_use_is_invalid(self, approval_stub):
         """A one_time grant allows max_uses 1 only; asking for more is

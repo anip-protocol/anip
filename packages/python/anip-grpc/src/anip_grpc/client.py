@@ -211,7 +211,7 @@ class AnipGrpcClient:
             task_id=task_id or "",
             parent_invocation_id=parent_invocation_id or "",
             upstream_service=upstream_service or "",
-            approval_grant=approval_grant or "",
+            approval_grant=approval_grant,
             requested_effects=requested_effects or [],
         )
         resp = self._stub.Invoke(
@@ -275,7 +275,7 @@ class AnipGrpcClient:
             task_id=task_id or "",
             parent_invocation_id=parent_invocation_id or "",
             upstream_service=upstream_service or "",
-            approval_grant=approval_grant or "",
+            approval_grant=approval_grant,
             requested_effects=requested_effects or [],
         )
         stream = self._stub.InvokeStream(
