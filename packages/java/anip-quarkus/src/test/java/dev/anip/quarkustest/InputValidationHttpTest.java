@@ -104,9 +104,17 @@ class InputValidationHttpTest {
     }
 
     @Test
+    void undeclaredParametersAre400InvalidParameters() {
+        expectInvalidParameters(
+                invoke("search_flights", searchJwt,
+                        "{\"parameters\":{\"origin\":\"SEA\",\"destination\":\"SFO\",\"extra\":[1],\"also\":null}}"),
+                "search_flights has undeclared parameter(s): also, extra");
+    }
+
+    @Test
     void validParametersStillSucceed() {
         invoke("search_flights", searchJwt,
-                "{\"parameters\":{\"origin\":\"SEA\",\"destination\":\"SFO\",\"extra\":[1]}}")
+                "{\"parameters\":{\"origin\":\"SEA\",\"destination\":\"SFO\"}}")
                 .statusCode(200)
                 .body("success", equalTo(true));
     }

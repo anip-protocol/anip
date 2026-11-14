@@ -56,8 +56,13 @@ class DelegationEnforcementTest {
     private final Map<String, DelegationToken> seenTokens = new ConcurrentHashMap<>();
 
     private static CapabilityDeclaration decl(String name, List<String> scope, List<String> modes) {
+        return decl(name, scope, modes, List.of());
+    }
+
+    private static CapabilityDeclaration decl(String name, List<String> scope, List<String> modes,
+                                              List<CapabilityInput> inputs) {
         return new CapabilityDeclaration(name, name, "1.0",
-                List.<CapabilityInput>of(),
+                inputs,
                 new CapabilityOutput("object", List.of()),
                 new SideEffect("read", "not_applicable"),
                 scope, null, null, modes);
@@ -65,11 +70,18 @@ class DelegationEnforcementTest {
 
     private CapabilityDef recording(String name, List<String> scope, List<String> modes,
                                     Map<String, Object> result) {
-        return new CapabilityDef(decl(name, scope, modes), (ctx, params) -> {
+        return recording(name, scope, modes, result, List.of());
+    }
+
+    private CapabilityDef recording(String name, List<String> scope, List<String> modes,
+                                    Map<String, Object> result, List<CapabilityInput> inputs) {
+        return new CapabilityDef(decl(name, scope, modes, inputs), (ctx, params) -> {
             seenTokens.put(name, ctx.getToken());
             return result;
         });
     }
+
+    private static final CapabilityInput OPTIONAL_Q = new CapabilityInput("q", "string", false, null, "q");
 
     private static Composition summaryComposition() {
         Map<String, Map<String, String>> inputMapping = new LinkedHashMap<>();
@@ -84,7 +96,7 @@ class DelegationEnforcementTest {
 
     private ANIPService buildService(List<String> enrichScope) throws Exception {
         CapabilityDef summary = new CapabilityDef(
-                decl("summary", List.of("inv.read"), List.of("sync"))
+                decl("summary", List.of("inv.read"), List.of("sync"), List.of(OPTIONAL_Q))
                         .setKind("composed").setComposition(summaryComposition()),
                 (ctx, params) -> Map.of());
 
@@ -96,9 +108,10 @@ class DelegationEnforcementTest {
                         recording("book_flight", List.of("travel.book"), List.of("sync", "streaming"),
                                 Map.of("booking_id", "BK-001")),
                         recording("select_cap", List.of("inv.read"), List.of("sync"),
-                                Map.of("items", List.of("a", "b"))),
+                                Map.of("items", List.of("a", "b")), List.of(OPTIONAL_Q)),
                         recording("enrich_cap", enrichScope, List.of("sync"),
-                                Map.of("count", 2)),
+                                Map.of("count", 2),
+                                List.of(new CapabilityInput("items", "array", false, null, "items"))),
                         summary))
                 .setStorage(":memory:")
                 .setAuthenticate(bearer -> "test-key".equals(bearer) ? Optional.of(HUMAN) : Optional.empty())

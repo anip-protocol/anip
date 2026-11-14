@@ -144,6 +144,35 @@ class AnipMcpStdioTest {
     }
 
     @Test
+    void testUndeclaredArgumentsAreAToolError() {
+        McpCredentials creds = new McpCredentials("valid-api-key",
+                List.of("travel"), "test-agent");
+
+        McpToolTranslator.McpInvokeResult result = AnipMcpStdio.invokeWithMountCredentials(
+                service, "search_flights",
+                Map.of("origin", "SFO", "destination", "SEA", "surprise", "x"), creds);
+
+        assertTrue(result.isError());
+        assertTrue(result.text().startsWith("FAILED: invalid_parameters\n"
+                + "Detail: search_flights has undeclared parameter(s): surprise\n"), result.text());
+    }
+
+    @Test
+    void testReservedApprovalGrantArgumentIsNotAParameter() {
+        // SPEC.md §6.3: the binding takes __approval_grant out before the
+        // service checks the parameters, so it is a grant, not an undeclared key.
+        McpCredentials creds = new McpCredentials("valid-api-key",
+                List.of("travel"), "test-agent");
+
+        McpToolTranslator.McpInvokeResult result = AnipMcpStdio.invokeWithMountCredentials(
+                service, "search_flights",
+                Map.of("origin", "SFO", "destination", "SEA", "__approval_grant", "grant_none"), creds);
+
+        assertTrue(result.isError());
+        assertTrue(result.text().startsWith("FAILED: grant_not_found\n"), result.text());
+    }
+
+    @Test
     void testWrongTypedArgumentIsAToolError() {
         McpCredentials creds = new McpCredentials("valid-api-key",
                 List.of("travel"), "test-agent");

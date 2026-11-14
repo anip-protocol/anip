@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,9 +28,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * declaration sets {@code resolution.on_missing}, in which case the handler
  * answers through that path: {@link CapabilityInput#mustBeSupplied()}), and a supplied
  * value whose declared type is one of the six primitive type names must be of
- * the matching JSON type. Any other declared type name is not checked,
- * undeclared parameters are not checked, and {@code default},
- * {@code allowed_values} and the {@code resolution} block play no part.</p>
+ * the matching JSON type. A parameter that names no declared input is
+ * undeclared and refused. Missing inputs are reported first, then undeclared
+ * parameters, then wrong types. Any other declared type name is not checked,
+ * and {@code default}, {@code allowed_values} and the {@code resolution}
+ * block play no part.</p>
  */
 public final class ParameterValidation {
 
@@ -50,10 +54,8 @@ public final class ParameterValidation {
      */
     public static String check(String capability, CapabilityDeclaration declaration,
                                Map<String, ?> parameters) {
-        List<CapabilityInput> inputs = declaration != null ? declaration.getInputs() : null;
-        if (inputs == null || inputs.isEmpty()) {
-            return null;
-        }
+        List<CapabilityInput> inputs = declaration != null && declaration.getInputs() != null
+                ? declaration.getInputs() : List.of();
         Map<String, ?> supplied = parameters != null ? parameters : Map.of();
 
         List<String> missing = new ArrayList<>();
@@ -64,6 +66,23 @@ public final class ParameterValidation {
         }
         if (!missing.isEmpty()) {
             return capability + " is missing required input(s): " + String.join(", ", missing);
+        }
+
+        // Every key must name a declared input, whatever its value. Listed as
+        // RFC 8785 sorts member names (§4.7): String order is UTF-16 code units.
+        Set<String> declaredNames = new HashSet<>();
+        for (CapabilityInput input : inputs) {
+            declaredNames.add(input.getName());
+        }
+        List<String> undeclared = new ArrayList<>();
+        for (String key : supplied.keySet()) {
+            if (!declaredNames.contains(key)) {
+                undeclared.add(key);
+            }
+        }
+        if (!undeclared.isEmpty()) {
+            Collections.sort(undeclared);
+            return capability + " has undeclared parameter(s): " + String.join(", ", undeclared);
         }
 
         List<String> wrong = new ArrayList<>();

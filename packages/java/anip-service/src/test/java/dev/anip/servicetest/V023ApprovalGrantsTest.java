@@ -67,7 +67,10 @@ class V023ApprovalGrantsTest {
                 .setStorage(":memory:")
                 .setKeyPath(keyDir.toString())
                 .setCapabilities(List.of(new CapabilityDef(sensitiveDecl(), (ctx, params) -> {
-                    if (Boolean.TRUE.equals(params.get("__force_approval"))) {
+                    // Amounts above 1000 need approval unless a grant was reserved.
+                    Object amount = params.get("amount");
+                    if (amount instanceof Number n && n.doubleValue() > 1000
+                            && ctx.getApprovalGrant() == null) {
                         throw new ANIPError(Constants.FAILURE_APPROVAL_REQUIRED, "approval needed");
                     }
                     return Map.of("status", "ok", "approval_grant", ctx.getApprovalGrant());
@@ -239,8 +242,7 @@ class V023ApprovalGrantsTest {
         DelegationToken alice = service.resolveBearerToken(service.issueCapabilityToken(
                 "alice", "transfer_funds", List.of("finance.transfer")).getToken());
         Map<String, Object> params = new HashMap<>();
-        params.put("amount", 100);
-        params.put("__force_approval", true);
+        params.put("amount", 5000);
         @SuppressWarnings("unchecked")
         Map<String, Object> approval = (Map<String, Object>) ((Map<String, Object>)
                 service.invoke("transfer_funds", alice, params, null).get("failure")).get("approval_required");
@@ -276,8 +278,7 @@ class V023ApprovalGrantsTest {
         // 1. First invocation: raises approval_required. Use ONLY business parameters
         // so the materialized request's digest matches the continuation submission.
         Map<String, Object> origParams = new HashMap<>();
-        origParams.put("amount", 100);
-        origParams.put("__force_approval", true);
+        origParams.put("amount", 5000);
         Map<String, Object> failResp = service.invoke("transfer_funds", token, origParams, null);
         assertEquals(false, failResp.get("success"));
         @SuppressWarnings("unchecked")
@@ -299,19 +300,8 @@ class V023ApprovalGrantsTest {
         ApprovalGrant g = service.issueApprovalGrant(aprId, "one_time", approver, null, null, null);
         assertNotNull(g);
 
-        // 3. Continuation invocation: must submit the SAME params the request was
-        // materialised with (same digest). Drop __force_approval so the handler
-        // returns success.
-        Map<String, Object> contParams = new HashMap<>(origParams);
-        contParams.put("__force_approval", false);
-        // Re-materialise digest expectation: param digests are computed against the
-        // Map keys at invoke time, so to make the digest match we'd need identical
-        // params. Since the original carried __force_approval=true, the persisted
-        // digest is over {amount:100, __force_approval:true}. To verify success
-        // here, we instead bypass the handler's approval and rebuild the request
-        // with the matching digest.
-        // For a clean linkage test, re-persist a request whose digest matches the
-        // continuation submission ({amount:100}).
+        // 3. Continuation invocation, against a second request whose digest
+        // matches the continuation submission ({amount:100}).
         ApprovalRequest req2 = new ApprovalRequest(
                 "apr_e2e", "transfer_funds", List.of("finance.transfer"),
                 Map.of("subject", "alice", "root_principal", "alice"), failResp.get("invocation_id").toString(),
@@ -431,8 +421,7 @@ class V023ApprovalGrantsTest {
         for (String grant : List.of("", "   ", "\t\n")) {
             for (boolean needsApproval : List.of(true, false)) {
                 Map<String, Object> params = new HashMap<>();
-                params.put("amount", 100);
-                params.put("__force_approval", needsApproval);
+                params.put("amount", needsApproval ? 5000 : 100);
                 Map<String, Object> failure = failureOf(service.invoke(
                         "transfer_funds", token, params, new InvokeOpts().setApprovalGrant(grant)));
                 assertEquals(Constants.FAILURE_GRANT_NOT_FOUND, failure.get("type"));
@@ -481,8 +470,7 @@ class V023ApprovalGrantsTest {
     void approvalRequiredCarriesRetryFalse() throws Exception {
         // SPEC.md §4.7: the approval_required failure carries retry: false.
         Map<String, Object> params = new HashMap<>();
-        params.put("amount", 100);
-        params.put("__force_approval", true);
+        params.put("amount", 5000);
         Map<String, Object> failure = failureOf(service.invoke(
                 "transfer_funds", aliceToken(), params, null));
         assertEquals(Constants.FAILURE_APPROVAL_REQUIRED, failure.get("type"));
@@ -519,8 +507,7 @@ class V023ApprovalGrantsTest {
         Map<String, Object> response;
         try {
             Map<String, Object> params = new HashMap<>();
-            params.put("amount", 100);
-            params.put("__force_approval", true);
+            params.put("amount", 5000);
             response = service.invoke("transfer_funds", token, params, null);
         } finally {
             field.set(service, real);

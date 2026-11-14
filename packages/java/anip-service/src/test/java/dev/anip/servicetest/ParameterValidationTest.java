@@ -500,12 +500,46 @@ class ParameterValidationTest {
     }
 
     @Test
-    void undeclaredParametersReachTheHandler() throws Exception {
+    void undeclaredParametersAreRefusedAndNamed() throws Exception {
         Map<String, Object> response = invokeTyped(params(
                 "s", "x", "i", 1, "extra", List.of(1, 2), "another", true));
-        assertEquals(true, response.get("success"), String.valueOf(response));
-        assertEquals(List.of(1, 2), lastTypedParams.get().get("extra"));
-        assertEquals(true, lastTypedParams.get().get("another"));
+        assertInvalid(response, "typed has undeclared parameter(s): another, extra");
+        assertEquals(0, typedCalls.get(), "the handler must not run");
+        AuditEntry entry = auditEntry("typed", (String) response.get("invocation_id"));
+        assertFalse(entry.isSuccess());
+        assertEquals(Constants.FAILURE_INVALID_PARAMETERS, entry.getFailureType());
+    }
+
+    @Test
+    void anUndeclaredParameterWithANullValueIsUndeclared() throws Exception {
+        assertInvalid(invokeTyped(params("s", "x", "i", 1, "extra", null)),
+                "typed has undeclared parameter(s): extra");
+    }
+
+    @Test
+    void undeclaredParametersAreNamedInUtf16Order() throws Exception {
+        // RFC 8785 member order (SPEC.md §4.7): U+FF5E sorts after U+1F600.
+        assertInvalid(invokeTyped(params("s", "x", "i", 1,
+                        "zeta", 1, "\uff5e", 2, "Beta", null, "\ud83d\ude00", 3, "alpha", 4)),
+                "typed has undeclared parameter(s): Beta, alpha, zeta, \ud83d\ude00, \uff5e");
+    }
+
+    @Test
+    void missingIsReportedBeforeUndeclaredAndUndeclaredBeforeWrongTypes() throws Exception {
+        assertInvalid(invokeTyped(params("i", 1, "extra", 1)),
+                "typed is missing required input(s): s");
+        assertInvalid(invokeTyped(params("s", 5, "i", 1, "extra", 1)),
+                "typed has undeclared parameter(s): extra");
+    }
+
+    @Test
+    void aStreamingInvocationWithAnUndeclaredParameterIsRefused() throws Exception {
+        StreamResult result = service.invokeStream("typed", token("typed", List.of("typed")),
+                params("s", "x", "i", 1, "extra", true), new InvokeOpts());
+        List<StreamEvent> events = drain(result);
+        assertEquals(1, events.size());
+        assertInvalid(events.get(0).getPayload(), "typed has undeclared parameter(s): extra");
+        assertEquals(0, typedCalls.get(), "the handler must not run");
     }
 
     // --- position in the pipeline ---
