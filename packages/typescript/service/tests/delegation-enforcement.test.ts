@@ -40,9 +40,14 @@ function declaration(name: string, scope: string[], extra: Record<string, unknow
 }
 
 function makeService(seen: Seen = {}, opts: { enrichScope?: string[] } = {}) {
-  const recording = (name: string, scope: string[], result: Record<string, unknown>): CapabilityDef =>
+  const recording = (
+    name: string,
+    scope: string[],
+    result: Record<string, unknown>,
+    extra: Record<string, unknown> = {},
+  ): CapabilityDef =>
     defineCapability({
-      declaration: declaration(name, scope),
+      declaration: declaration(name, scope, extra),
       handler: (ctx, params) => {
         seen[name] = { token: ctx.token, params: { ...params } };
         return result;
@@ -81,7 +86,9 @@ function makeService(seen: Seen = {}, opts: { enrichScope?: string[] } = {}) {
       recording("search_flights", ["travel.search"], { flights: ["FL-001"] }),
       recording("book_flight", ["travel.book"], { booking_id: "BK-001" }),
       recording("select_cap", ["inv.read"], { items: ["a", "b"] }),
-      recording("enrich_cap", opts.enrichScope ?? ["inv.read"], { count: 2 }),
+      recording("enrich_cap", opts.enrichScope ?? ["inv.read"], { count: 2 }, {
+        inputs: [{ name: "items", type: "array", required: false, description: "items" }],
+      }),
       summary,
     ],
     storage: new InMemoryStorage(),

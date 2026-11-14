@@ -154,6 +154,14 @@ export function checkDeclaredInputs(
     return `${capabilityName} is missing required input(s): ${missing.join(", ")}`;
   }
 
+  // SPEC.md §6.3: every key must name a declared input. Sorted as RFC 8785
+  // sorts member names (UTF-16 code units, the default string order here).
+  const declaredNames = new Set(declared.map((input) => input.name));
+  const undeclared = Object.keys(supplied).filter((key) => !declaredNames.has(key)).sort();
+  if (undeclared.length > 0) {
+    return `${capabilityName} has undeclared parameter(s): ${undeclared.join(", ")}`;
+  }
+
   const wrong: string[] = [];
   for (const input of declared) {
     if (!isSupplied(supplied, input.name)) continue;

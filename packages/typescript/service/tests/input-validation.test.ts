@@ -180,8 +180,39 @@ describe("checkDeclaredInputs: primitive types", () => {
     expect(checkDeclaredInputs("cap", inputs, { origin: true, date: 7, shouting: [], count: "x" })).toBeNull();
   });
 
-  it("leaves undeclared parameters alone", () => {
-    expect(checkDeclaredInputs("cap", [input("a", "string", true)], { a: "x", extra: { any: [1, null] } })).toBeNull();
+  it("names an undeclared parameter", () => {
+    expect(checkDeclaredInputs("cap", [input("a", "string", true)], { a: "x", extra: { any: [1, null] } })).toBe(
+      "cap has undeclared parameter(s): extra",
+    );
+  });
+
+  it("names every undeclared parameter in UTF-16 code unit order", () => {
+    // RFC 8785 member order (SPEC.md §4.7): U+FF5E sorts after U+1F600.
+    const params = JSON.parse('{"zeta":1,"a":"x","\\uff5e":2,"Beta":null,"\\ud83d\\ude00":3,"alpha":4}');
+    expect(checkDeclaredInputs("cap", [input("a", "string", true)], params)).toBe(
+      "cap has undeclared parameter(s): Beta, alpha, zeta, \u{1F600}, \uFF5E",
+    );
+  });
+
+  it("treats a key with a null value as undeclared", () => {
+    expect(checkDeclaredInputs("cap", [input("a", "string", false)], { extra: null })).toBe(
+      "cap has undeclared parameter(s): extra",
+    );
+  });
+
+  it("reports missing inputs before undeclared ones, and undeclared ones before wrong types", () => {
+    expect(checkDeclaredInputs("cap", [input("a", "string", true)], { b: "x" })).toBe(
+      "cap is missing required input(s): a",
+    );
+    expect(checkDeclaredInputs("cap", [input("a", "integer", true)], { a: "x", b: 1 })).toBe(
+      "cap has undeclared parameter(s): b",
+    );
+  });
+
+  it("accepts only empty parameters when nothing is declared", () => {
+    expect(checkDeclaredInputs("cap", [], {})).toBeNull();
+    expect(checkDeclaredInputs("cap", undefined, null)).toBeNull();
+    expect(checkDeclaredInputs("cap", [], { anything: 1 })).toBe("cap has undeclared parameter(s): anything");
   });
 
   it("does not enforce allowed_values", () => {
@@ -402,13 +433,54 @@ describe("invoke: parameter validation", () => {
     const recorder: Recorder = { calls: [] };
     const { service } = makeService([recordingCap(recorder, "book_flight", ["travel.book"], BOOK_INPUTS)]);
     const token = await tokenFor(service, "book_flight", ["travel.book"]);
-    const params = JSON.parse('{"flight_number":"AA100","date":"2026-03-10","passengers":5.0,"note":{"vip":true}}');
+    const params = JSON.parse('{"flight_number":"AA100","date":"2026-03-10","passengers":5.0}');
 
     const result = await service.invoke("book_flight", token, params);
 
     expect(result.success).toBe(true);
-    // No default is applied by the check, and the undeclared parameter arrives.
+    // No default is applied by the check.
     expect(recorder.calls).toEqual([{ capability: "book_flight", params }]);
+  });
+
+  it("refuses undeclared parameters, names them and audits the refusal", async () => {
+    const recorder: Recorder = { calls: [] };
+    const { service } = makeService([recordingCap(recorder, "book_flight", ["travel.book"], BOOK_INPUTS)]);
+    const token = await tokenFor(service, "book_flight", ["travel.book"]);
+
+    const result = await service.invoke("book_flight", token, {
+      flight_number: "AA100", date: "2026-03-10", note: { vip: true }, also: 1,
+    });
+
+    expect(result.failure).toEqual({
+      type: "invalid_parameters",
+      detail: "book_flight has undeclared parameter(s): also, note",
+      resolution: RESOLUTION,
+      retry: false,
+    });
+    expect(recorder.calls).toEqual([]);
+    const entry = await auditEntry(service, token, result.invocation_id as string);
+    expect(entry.success).toBe(false);
+    expect(entry.failure_type).toBe("invalid_parameters");
+  });
+
+  it("refuses an undeclared parameter on a streaming invocation", async () => {
+    const recorder: Recorder = { calls: [] };
+    const { service } = makeService([
+      recordingCap(recorder, "analyze", ["analyze"], [input("data", "string", true)], {
+        response_modes: ["unary", "streaming"],
+      }),
+    ]);
+    const token = await tokenFor(service, "analyze", ["analyze"]);
+    const events: unknown[] = [];
+
+    const result = await service.invoke("analyze", token, { data: "x", extra: true }, {
+      stream: true,
+      progressSink: async (event) => { events.push(event); },
+    });
+
+    expect((result.failure as Record<string, unknown>).detail).toBe("analyze has undeclared parameter(s): extra");
+    expect(recorder.calls).toEqual([]);
+    expect(events).toEqual([]);
   });
 
   it("treats null parameters as {}", async () => {
