@@ -76,3 +76,10 @@ python3 examples/showcase/superset_fronting/scripts/live_smoke.py
 
 The smoke should validate bounded discovery and preview behavior without exposing raw SQL as an agent input.
 
+The smoke authenticates with API keys mapped to the actors the package's policy
+bindings select; a principal no binding selects is refused. For the
+approval-gated capabilities it expects `approval_required`, has an approver issue
+a grant through `POST /anip/approval_grants`, and invokes again with the grant,
+which returns a preview. It also checks that unbound actors, deny bindings and a
+clarify binding are refused.
+

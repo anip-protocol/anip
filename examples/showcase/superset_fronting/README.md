@@ -74,6 +74,33 @@ PYTHONPATH="<repo python packages>:<generated src>" \
 When using the bundled compose stack, `/tmp/anip-superset.env` sets
 `SUPERSET_BASE_URL` to `http://127.0.0.1:18088`.
 
+The script sets the generated service's `ANIP_API_KEYS_JSON` itself, with one
+API key per actor the 0.2.0 policy bindings select. The generated policy refuses
+a principal no binding selects, so the old `dev-admin-key`, which carries no
+actor claim, no longer works. The smoke checks that:
+
+- `superset.analytics.discover_context` succeeds for `analytics_consumer`,
+  `superset.chart.preview.create` for `analytics_creator` and
+  `superset.dashboard.draft.prepare` for `analytics_owner`;
+- the approval-gated `superset.chart.publish.request` (as `analytics_creator`)
+  and `superset.dataset.draft.prepare` (as `dataset_draft_requester`) return
+  `approval_required` with an `approval_request_id`; a token without
+  `approver:<capability>` scope cannot grant it; an approver issues a one-time
+  grant through `POST /anip/approval_grants`; and the requester's second
+  invocation, carrying the top-level `approval_grant`, returns a preview with
+  `mutation_performed: false`;
+- a principal without an actor claim, an actor no binding names, and an actor
+  bound only to other capabilities are denied, as are the deny bindings
+  (`analytics_consumer` on `superset.analytics.answer_question`,
+  `analytics_owner` on `superset.analytics.discover_context`,
+  `analytics_creator` on `superset.dataset.draft.prepare`); the clarify binding
+  for `analytics_consumer` on `superset.chart.publish.request` returns
+  `clarification_required`.
+
+It prints a JSON summary with `"capabilities_tested": 5` and seven refusals.
+Every actor the bindings name on `superset.analytics.answer_question` also has a
+deny binding there, so no actor can invoke it.
+
 ## Design Rule
 
 Do not expose raw Superset MCP tools such as SQL execution or chart generation directly to agents. ANIP capabilities should enforce dataset scope, metric/dimension constraints, preview-only defaults, approval gates, denial rules, and audit.
