@@ -6,6 +6,11 @@ import { generatedCapabilityMetadata, type BackendInvocationPlan, type Generated
 
 const configured = Boolean(process.env.NOTION_TOKEN && process.env.NOTION_WORKSPACE_SCOPE && process.env.NOTION_PARENT_PAGE_ID && process.env.NOTION_DATABASE_ID);
 
+// Principals the 0.2.0 runtime policy bindings select.
+const REVIEWER = "human:local-dev|actor_id=notion_governance_reviewer";
+const REQUESTER = "human:local-dev|actor_id=governed_notion_requester";
+const NO_BINDING_DETAIL = "No runtime policy binding matches the current actor for this capability.";
+
 function capability(id: string): GeneratedCapabilityRuntimeMetadata {
   const found = generatedCapabilityMetadata.find((item) => item.capability_id === id);
   if (!found) throw new Error(`Missing capability ${id}`);
@@ -81,12 +86,19 @@ describe.skipIf(!configured).sequential("Notion live backend adapter", () => {
       content_summary: "Created by explicit ANIP Notion TypeScript generated-handler smoke.",
     };
 
-    const preview = await capabilityDef!.handler(testContext(null), { ...parameters, request_execution_approval: true });
+    // notion_governance_reviewer may create pages: without a grant it gets a preview.
+    const preview = await capabilityDef!.handler(testContext(REVIEWER, null), parameters);
     expect(preview.execution_status).toBe("prepared");
     expect(preview.mutation_performed).toBe(false);
 
+    // governed_notion_requester's binding requires approval: no grant, no adapter call.
+    await expect(capabilityDef!.handler(testContext(REQUESTER, null), parameters)).rejects.toMatchObject({
+      errorType: "approval_required",
+    });
+
     if (process.env.ANIP_NOTION_ALLOW_MUTATION === "true") {
-      const created = await capabilityDef!.handler(testContext("grant_live_typescript_notion_smoke"), parameters);
+      // The runtime sets approvalGrant only after validating the grant.
+      const created = await capabilityDef!.handler(testContext(REQUESTER, "grant_live_typescript_notion_smoke"), parameters);
       expect(created.execution_status).toBe("completed");
       expect(created.mutation_performed).toBe(true);
       expect((created.created_page as Record<string, unknown>).id).toBeTruthy();
@@ -94,10 +106,26 @@ describe.skipIf(!configured).sequential("Notion live backend adapter", () => {
   });
 });
 
-function testContext(approvalGrant: string | null): InvocationContext {
+describe("Notion generated handler policy", () => {
+  // The generated policy refuses a principal no binding selects before the
+  // backend adapter runs, so this needs no Notion credentials.
+  it("refuses principals no binding selects", async () => {
+    const capabilityDef = generatedCapabilities.find((item) => item.declaration.name === "notion.page.create.prepare");
+    expect(capabilityDef).toBeTruthy();
+    const parameters = { parent_id: "11111111-1111-4111-8111-111111111111", title: "Refused", content_summary: "Never reaches Notion." };
+    for (const principal of ["human:local-dev", "human:local-dev|actor_id=notion_fronting_consumer"]) {
+      await expect(capabilityDef!.handler(testContext(principal, "grant_live_typescript_notion_smoke"), parameters)).rejects.toMatchObject({
+        errorType: "denied",
+        detail: NO_BINDING_DETAIL,
+      });
+    }
+  });
+});
+
+function testContext(rootPrincipal: string, approvalGrant: string | null): InvocationContext {
   return {
     token: {} as InvocationContext["token"],
-    rootPrincipal: "human:local-dev|actor_id=notion_fronting_consumer",
+    rootPrincipal,
     subject: "agent:notion-live-smoke",
     scopes: ["notion.page.create.prepare"],
     delegationChain: [],
