@@ -2,8 +2,7 @@
 
 This directory is generated from signed ANIP package metadata. It is framework-agnostic and can be loaded by LangGraph, Mastra, CrewAI, or custom agents.
 
-- Package: `github-fronting-showcase@0.1.0`
-- Contract signature: `sha256:b83add3cca2f212928ce1fa1a29389c050ef6daa02c673474a41e8a7c2b92940`
+- Package: `github-fronting-showcase@0.2.0`
 - Consumability schema: `anip-agent-consumability/v0`
 - Capability hints: `5`
 - Required app glue items: `0`

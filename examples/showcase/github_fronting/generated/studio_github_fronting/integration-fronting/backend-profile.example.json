@@ -1,0 +1,62 @@
+{
+  "backend_families": [
+    "native-api"
+  ],
+  "contract_boundary": "Agents invoke ANIP capabilities. Generated policy, approval, clarification, and audit logic runs before backend execution. Backend profiles may change when the implementation moves from REST to MCP, SQL, dbt, Cube, or another provider, as long as governed capability behavior is unchanged.",
+  "description": "Implementation profile for local backend code. This is replaceable deployment material, not the governed ANIP behavior contract.",
+  "profiles": [
+    {
+      "backend_family": "native-api",
+      "capabilities": [
+        {
+          "backend_kind": "native_api",
+          "capability_id": "github.repo.search_context",
+          "connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.search_repository_context"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "github.issue.prepare",
+          "connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_issue"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "github.pr.comment.prepare",
+          "connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_pull_request_comment"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "github.workflow.dispatch.request",
+          "connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.request_workflow_dispatch"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "github.release_notes.prepare",
+          "connection_ref": "github-fronting-showcase-0-2-0-developer-tools-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "github.api.prepare_release_notes"
+          ]
+        }
+      ],
+      "profile_id": "native-api-default",
+      "template": "backend-templates/native-api.md"
+    }
+  ],
+  "schema_version": "anip-backend-implementation-profile/v0"
+}

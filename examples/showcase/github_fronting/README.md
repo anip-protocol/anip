@@ -7,8 +7,9 @@ raw GitHub operations are downstream implementation details; agents invoke gover
 
 ```bash
 cd packages/go
-go run ./cmd/anip-generate \
-  --package-bundle ../../examples/showcase/github_fronting/registry-packages/github-fronting-showcase-0.2.0.anip-package.json \
+go run ./cmd/anip generate \
+  --definition ../../examples/showcase/github_fronting/registry-packages/github-fronting-showcase-0.2.0-service-definition.json \
+  --package-name github_governed_fronting_showcase \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/github_fronting/custom-code-bundles/github_fronting_python \
@@ -17,6 +18,13 @@ go run ./cmd/anip-generate \
   --output ../../examples/showcase/github_fronting/generated/studio_github_fronting \
   --force
 ```
+
+The command reads the package's signed service definition. Generating from the
+`.anip-package.json` bundle itself is refused (`resolved package is missing
+package_execution_signature`): the 0.2.0 package predates that field. The
+checked-in `agent-consumption/` files were written by the generator's
+`BuildAgentConsumptionKit` from the bundle's `agent_consumability` and
+`agent_consumption_readiness` metadata, which a bare definition does not carry.
 
 Generate directly from the reviewed fronting starter:
 

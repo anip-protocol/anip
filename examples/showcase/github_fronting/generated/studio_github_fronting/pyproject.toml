@@ -1,5 +1,5 @@
 [project]
-name = "github-governed-fronting-showcase"
+name = "github_governed_fronting_showcase"
 version = "0.1.0"
 description = "Generated ANIP Python host"
 requires-python = ">=3.11"
@@ -9,6 +9,7 @@ dependencies = [
     "anip-fastapi @ file:///Users/samirski/Development/ANIP/packages/python/anip-fastapi",
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",
+    "anip-stdio @ file:///Users/samirski/Development/ANIP/packages/python/anip-stdio",
 ]
 
 [project.optional-dependencies]
