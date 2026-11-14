@@ -6,6 +6,11 @@ import { generatedCapabilityMetadata, type BackendInvocationPlan, type Generated
 
 const configured = Boolean(process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL_ID);
 
+// Package 0.2.1 binds every capability to the collaborator actor
+// (allow_with_limits) and requires approval nowhere.
+const COLLABORATOR = "human:local-dev|actor_id=collaborator";
+const NO_BINDING_DETAIL = "No runtime policy binding matches the current actor for this capability.";
+
 function capability(id: string): GeneratedCapabilityRuntimeMetadata {
   const found = generatedCapabilityMetadata.find((item) => item.capability_id === id);
   if (!found) throw new Error(`Missing capability ${id}`);
@@ -86,12 +91,14 @@ describe.skipIf(!configured)("Slack live backend adapter", () => {
       audience: "test",
     };
 
-    await expect(capabilityDef!.handler(testContext(null), parameters)).rejects.toMatchObject({
-      errorType: "approval_required",
-    });
+    // Without a grant the collaborator gets a preview; nothing is posted.
+    const preview = await capabilityDef!.handler(testContext(COLLABORATOR, null), parameters);
+    expect(preview.execution_status).toBe("prepared");
+    expect(preview.mutation_performed).toBe(false);
 
     if (process.env.ANIP_SLACK_ALLOW_SEND === "true") {
-      const sent = await capabilityDef!.handler(testContext("grant_live_typescript_handler_smoke"), parameters);
+      // The runtime sets approvalGrant only after validating the grant.
+      const sent = await capabilityDef!.handler(testContext(COLLABORATOR, "grant_live_typescript_handler_smoke"), parameters);
       expect(sent.execution_status).toBe("completed");
       expect(sent.mutation_performed).toBe(true);
       expect((sent.posted_message as Record<string, unknown>).ts).toBeTruthy();
@@ -99,10 +106,26 @@ describe.skipIf(!configured)("Slack live backend adapter", () => {
   });
 });
 
-function testContext(approvalGrant: string | null): InvocationContext {
+describe("Slack generated handler policy", () => {
+  // The generated policy refuses a principal no binding selects before the
+  // backend adapter runs, so this needs no Slack credentials.
+  it("refuses principals no binding selects", async () => {
+    const capabilityDef = generatedCapabilities.find((item) => item.declaration.name === "slack.announcement.request");
+    expect(capabilityDef).toBeTruthy();
+    const parameters = { channel_id: "C0SMOKE01", announcement: "Refused", audience: "test" };
+    for (const principal of ["human:local-dev", "human:local-dev|actor_id=slack_requester"]) {
+      await expect(capabilityDef!.handler(testContext(principal, "grant_live_typescript_handler_smoke"), parameters)).rejects.toMatchObject({
+        errorType: "denied",
+        detail: NO_BINDING_DETAIL,
+      });
+    }
+  });
+});
+
+function testContext(rootPrincipal: string, approvalGrant: string | null): InvocationContext {
   return {
     token: {} as InvocationContext["token"],
-    rootPrincipal: "human:local-dev|actor_id=slack_requester",
+    rootPrincipal,
     subject: "agent:slack-live-smoke",
     scopes: ["slack.announcement.request"],
     delegationChain: [],
