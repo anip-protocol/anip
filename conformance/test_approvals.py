@@ -733,14 +733,34 @@ class TestContinuation:
         flow.assert_refused(data, "grant_param_drift")
         flow.assert_executed(flow.invoke(flow.parameters(), approval_grant=grant["grant_id"]))
 
-    def test_grant_cannot_be_used_with_an_added_parameter(self, flow):
+    def test_added_declared_input_is_drift(self, flow, manifest_capabilities):
+        """§4.8 step 7: a declared input the approved parameters left out
+        changes the digest."""
+        approved = flow.parameters()
+        free = [
+            i for i in manifest_capabilities[flow.capability].get("inputs", [])
+            if i["name"] not in approved and i.get("type") == "string"
+        ]
+        if not free:
+            pytest.skip("$approval.parameters leaves out no declared string input")
+        grant = flow.approved_grant(approved)
+
+        data = flow.invoke(dict(approved, **{free[0]["name"]: "conformance"}),
+                           approval_grant=grant["grant_id"])
+
+        flow.assert_refused(data, "grant_param_drift")
+
+    def test_added_undeclared_parameter_is_refused_before_the_grant(self, flow):
+        """§6.3: an undeclared parameter is ``invalid_parameters``, checked
+        before the grant is validated or reserved, so the grant stays usable."""
         grant = flow.approved_grant()
         parameters = flow.parameters()
         parameters["conformance_extra"] = "x"
 
         data = flow.invoke(parameters, approval_grant=grant["grant_id"])
 
-        flow.assert_refused(data, "grant_param_drift")
+        flow.assert_refused(data, "invalid_parameters")
+        flow.assert_executed(flow.invoke(flow.parameters(), approval_grant=grant["grant_id"]))
 
     def test_token_scope_must_contain_the_grant_scope(self, flow, sample_inputs):
         """§4.8 "Scope Subset Rule": "Any element of grant.scope absent from

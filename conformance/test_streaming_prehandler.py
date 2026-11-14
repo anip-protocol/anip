@@ -94,6 +94,13 @@ class TestStreamingPreHandlerChecks:
         del parameters[required[0]]
         _same_refusal(client, token, name, parameters, "invalid_parameters")
 
+    def test_undeclared_parameter(self, client, bootstrap_bearer, streaming):
+        name, declaration, sample = streaming
+        token = issue_token(client, declaration.get("minimum_scope", []), name,
+                            bootstrap_bearer, task_id=None)
+        parameters = dict(copy.deepcopy(sample), conformance_undeclared="x")
+        _same_refusal(client, token, name, parameters, "invalid_parameters")
+
     def test_binding_missing(self, client, bootstrap_bearer, streaming):
         name, declaration, sample = streaming
         bindings = declaration.get("requires_binding") or []

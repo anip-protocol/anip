@@ -88,6 +88,8 @@ A service MUST declare all capabilities in its manifest. Each capability MUST in
 
 Each entry of `inputs` has a `name` and a `type`.
 
+**`inputs` is the complete list of parameters.** A capability accepts a parameter only if it declares an input of that name. An invocation whose `parameters` carry any other key is refused with `invalid_parameters` before the handler runs (§6.3, Parameter Validation); a capability that declares no inputs accepts only empty `parameters`. A capability that wants to accept arbitrary keys declares one input of type `object` and receives them inside it.
+
 **`required` defaults to `true`.** An input whose declaration does not state `required` is required; an optional input says `required: false`. Runtimes MUST apply this default wherever a declaration is read: in code (property initialisers and constructors), and when decoding a manifest, a service definition or a registry package. Go is the one runtime where code cannot rely on the default — a struct literal leaves an unset `bool` `false` — so Go code states `Required` explicitly, and decoding applies the default.
 
 **`type`** is either one of the six primitive type names — `string`, `integer`, `number`, `boolean`, `array`, `object` — or any other name (`airport_code`, `date`, a domain type). The service checks a supplied value against a primitive type at invocation (§6.3, Parameter Validation). Any other type name describes the value to the agent and is not checked by the runtime.
@@ -872,7 +874,7 @@ A composed capability MAY only invoke `kind: atomic` steps. Composed-calling-com
 
 #### Input and Output Mapping
 
-`input_mapping` is an object: each key is a step ID; each value is an object mapping that step's parameter names to JSONPath references resolved against the composition's runtime data:
+`input_mapping` is an object: each key is a step ID; each value is an object mapping that step's parameter names to JSONPath references resolved against the composition's runtime data. Each parameter name MUST be a declared input of the step's capability: the child invocation is checked like any other (§6.3), and an undeclared name is refused with `invalid_parameters`. A reference is one of:
 
 - `$.input.X` — the parent capability's invocation parameter `X`
 - `$.steps.<id>.output.Y` — the output field `Y` of step `<id>` (only for steps that appear earlier in the steps list — forward references rejected)
@@ -1970,7 +1972,7 @@ Before the handler runs, the service MUST check the invocation's `parameters` ag
 
    Any other declared type name (`airport_code`, `date`, a domain type) is not checked by the runtime; the handler validates it.
 3. **Optional inputs.** An input with `required: false` that is absent or `null` is not checked.
-4. **Undeclared parameters** are not checked and are passed to the handler.
+4. **Undeclared parameters.** A key of `parameters` that is not the `name` of a declared input is undeclared, whatever its value (including `null`). A call with an undeclared parameter fails the check; nothing undeclared reaches the handler. Keys that a transport binding reserves for its own use and removes before it calls the service (for example an argument that carries `approval_grant` through a binding that has no other place for it) are not parameters and are removed before the check.
 5. The check does not apply `default` values and does not enforce `allowed_values` or the `resolution` block (§4.10).
 
 **Failure.** A call that fails the check is refused with `invalid_parameters` (HTTP 400, see HTTP Status Codes below):
@@ -1988,7 +1990,13 @@ failure:
   retry: false
 ```
 
-The `detail` names every missing input, in declaration order. When no input is missing, the `detail` names every input whose value has the wrong type, with the declared type and the JSON type received (one of `string`, `number`, `boolean`, `array`, `object`):
+The `detail` names every missing input, in declaration order. When no input is missing, the `detail` names every undeclared parameter, in the order RFC 8785 sorts member names (§4.7: by UTF-16 code units):
+
+```yaml
+  detail: "book_flight has undeclared parameter(s): notes, seat"
+```
+
+When no input is missing and no parameter is undeclared, the `detail` names every input whose value has the wrong type, with the declared type and the JSON type received (one of `string`, `number`, `boolean`, `array`, `object`):
 
 ```yaml
   detail: "book_flight has invalid input(s): 'passengers' must be integer, got string; 'quote_id' must be object, got array"

@@ -1,10 +1,10 @@
 """Conformance tests for validation of invocation parameters against the
 capability's declared inputs.
 
-Spec references: §4.1 (capability declaration: ``inputs``, and ``required``
-defaults to ``true``), §6.3 "Parameter Validation" (when the check runs, what
-it checks, the ``invalid_parameters`` failure and its HTTP status) and §4.5
-(failure semantics).
+Spec references: §4.1 (capability declaration: ``inputs`` is the complete
+list of parameters, and ``required`` defaults to ``true``), §6.3 "Parameter
+Validation" (when the check runs, what it checks, the ``invalid_parameters``
+failure and its HTTP status) and §4.5 (failure semantics).
 
 The tests read the declared inputs from the manifest and need an ordinary
 sample invocation for the capability in ``--sample-inputs``. A capability is
@@ -345,6 +345,60 @@ class TestRequiredInputs:
                         and "missing required input" in detail and name in detail), (
                 f"The runtime refused the absent '{name}' although it declares "
                 f"on_missing={target.inputs[name]['resolution']['on_missing']}: {data.get('failure')}"
+            )
+
+
+# --- undeclared parameters -------------------------------------------------
+
+
+def _undeclared_name(target: Target, stem: str) -> str:
+    name = stem
+    while name in target.inputs:
+        name += "_x"
+    return name
+
+
+class TestUndeclaredParameters:
+    def test_valid_call_succeeds(self, targets):
+        """Control: the sample invocation names only declared inputs."""
+        for target in targets:
+            undeclared = sorted(set(target.sample) - set(target.inputs))
+            assert not undeclared, (
+                f"The --sample-inputs entry for {target.name} sends undeclared {undeclared}"
+            )
+            status, data = target.invoke(target.parameters())
+            _assert_executed(target, status, data, f"{target.name} with its sample input")
+
+    def test_undeclared_parameter_is_refused_and_named(self, targets):
+        """§6.3: a key of ``parameters`` that names no declared input →
+        ``invalid_parameters``; the detail names the key."""
+        for target in targets:
+            extra = _undeclared_name(target, "conformance_undeclared")
+            parameters = target.parameters()
+            parameters[extra] = "x"
+
+            status, data = target.invoke(parameters)
+
+            failure = _assert_refused(target, status, data, f"{target.name} with '{extra}'")
+            assert extra in failure["detail"], (
+                f"The detail does not name the undeclared parameter '{extra}': {failure['detail']!r}"
+            )
+
+    def test_every_undeclared_parameter_is_named(self, targets):
+        """§6.3: the detail names every undeclared parameter."""
+        for target in targets:
+            extras = [_undeclared_name(target, "conformance_extra_a"),
+                      _undeclared_name(target, "conformance_extra_b")]
+            parameters = target.parameters()
+            parameters[extras[0]] = None
+            parameters[extras[1]] = {"nested": 1}
+
+            status, data = target.invoke(parameters)
+
+            failure = _assert_refused(target, status, data, f"{target.name} with {extras}")
+            absent = [name for name in extras if name not in failure["detail"]]
+            assert not absent, (
+                f"The detail leaves out undeclared parameters {absent}: {failure['detail']!r}"
             )
 
 
