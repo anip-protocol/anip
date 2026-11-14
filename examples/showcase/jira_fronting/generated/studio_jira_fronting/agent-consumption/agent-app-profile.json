@@ -1,42 +1,13 @@
 {
   "artifact_type": "agent_app_profile",
   "capability_metadata": {
-    "jira.backlog.search": {
-      "app_boundaries": {
-        "unsupported_effects": [
-          "Change system state",
-          "Export raw data"
-        ]
-      },
-      "business_effects": {
-        "does_not_produce": [
-          "Change system state",
-          "Export raw data"
-        ],
-        "produces": [
-          "Read bounded data",
-          "Summarize information"
-        ]
-      },
-      "capability_framing": "Search Jira issues in an allowed project with bounded query and result limits.",
-      "required_context": [
-        {
-          "input": "project_key",
-          "missing_behavior": "clarify"
-        },
-        {
-          "input": "query",
-          "missing_behavior": "clarify"
-        }
-      ]
-    },
-    "jira.bug.prepare": {
+    "jira.assignee_change.request": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "Change system state",
-          "Create issue",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ]
       },
       "approval": {
@@ -49,18 +20,198 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "Change system state",
-          "Create issue",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ],
         "produces": [
-          "Ask for approval",
-          "Preview a change",
           "approval.request",
+          "content.draft",
           "system.preview_mutation"
         ]
       },
-      "capability_framing": "Prepare a Jira bug ticket preview from a bounded incident or defect summary without creating it.",
+      "capability_framing": "Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit.",
+      "required_context": [
+        {
+          "input": "issue_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "assignee_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "reason",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.backlog.search_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.summary",
+          "data.read"
+        ]
+      },
+      "capability_framing": "Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export.",
+      "input_meanings": {
+        "issue_type": {
+          "bug": "bug",
+          "epic": "epic",
+          "story": "story",
+          "task": "task"
+        }
+      },
+      "required_context": [
+        {
+          "input": "project_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "query",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "status",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "jira.customer_escalation.comment.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a customer-safe Jira comment from incident or triage context without posting it.",
+      "input_meanings": {
+        "comment_purpose": {
+          "customer_impact": "customer impact",
+          "incident_followup": "incident followup",
+          "release_note": "release note",
+          "triage_update": "triage update"
+        },
+        "visibility": {
+          "customer_visible": "customer visible",
+          "internal": "internal"
+        }
+      },
+      "required_context": [
+        {
+          "input": "issue_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "comment_purpose",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "context",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.incident_bug.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a Jira bug ticket from incident or defect context without creating it.",
+      "input_meanings": {
+        "severity": {
+          "sev1": "sev1",
+          "sev2": "sev2",
+          "sev3": "sev3",
+          "sev4": "sev4"
+        }
+      },
       "required_context": [
         {
           "input": "project_key",
@@ -77,62 +228,61 @@
         {
           "input": "severity",
           "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
         }
-      ]
-    },
-    "jira.comment.prepare": {
-      "app_boundaries": {
-        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
-        "unsupported_effects": [
-          "Change system state",
-          "Send outside the system",
-          "approval.execute"
-        ]
-      },
-      "approval": {
-        "approval_effect": "approval.request",
-        "grant_types": [
-          "one_time",
-          "session_bound"
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
         ],
-        "required": true
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.issue.get_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export",
+          "system.mutation"
+        ]
       },
       "business_effects": {
         "does_not_produce": [
-          "Change system state",
-          "Send outside the system",
-          "approval.execute"
+          "raw_data_export",
+          "system.mutation"
         ],
         "produces": [
-          "Draft content",
-          "Preview a change",
-          "approval.request",
-          "system.preview_mutation"
+          "content.summary",
+          "data.read"
         ]
       },
-      "capability_framing": "Prepare a Jira issue comment from incident or triage context without posting it.",
+      "capability_framing": "Inspect one Jira issue with bounded actor-visible fields, comments, and history.",
       "required_context": [
         {
           "input": "issue_key",
           "missing_behavior": "clarify"
         },
         {
-          "input": "comment_purpose",
-          "missing_behavior": "clarify"
-        },
-        {
-          "input": "context",
-          "missing_behavior": "clarify"
+          "input": "backend_options",
+          "missing_behavior": "optional"
         }
-      ]
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
     },
-    "jira.story.prepare": {
+    "jira.issue_link.request": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "Change system state",
-          "Create issue",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ]
       },
       "approval": {
@@ -145,18 +295,190 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "Change system state",
-          "Create issue",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ],
         "produces": [
-          "Ask for approval",
-          "Preview a change",
           "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Request linking two Jira issues with a declared relationship and cross-project policy checks.",
+      "required_context": [
+        {
+          "input": "source_issue_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "target_issue_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "link_type",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "reason",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.release_notes.prepare": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "data.aggregate"
+        ]
+      },
+      "capability_framing": "Prepare release notes from bounded Jira issues without publishing or mutating Jira.",
+      "input_meanings": {
+        "audience": {
+          "customer": "customer",
+          "executive": "executive",
+          "internal": "internal"
+        }
+      },
+      "required_context": [
+        {
+          "input": "project_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "release_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "issue_query",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.sprint_move.request": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope.",
+      "required_context": [
+        {
+          "input": "issue_keys",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "target_sprint",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "reason",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.story.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
           "system.preview_mutation"
         ]
       },
       "capability_framing": "Prepare a Jira story preview with acceptance criteria before any issue is created.",
+      "input_meanings": {
+        "priority": {
+          "high": "high",
+          "low": "low",
+          "medium": "medium"
+        }
+      },
       "required_context": [
         {
           "input": "project_key",
@@ -169,16 +491,26 @@
         {
           "input": "acceptance_criteria",
           "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
         }
-      ]
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
     },
-    "jira.transition.request": {
+    "jira.subtask.prepare": {
       "app_boundaries": {
         "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
         "unsupported_effects": [
-          "Bypass workflow policy",
-          "Execute approved action",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ]
       },
       "approval": {
@@ -191,14 +523,72 @@
       },
       "business_effects": {
         "does_not_produce": [
-          "Bypass workflow policy",
-          "Execute approved action",
-          "approval.execute"
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
         ],
         "produces": [
-          "Ask for approval",
-          "Preview a change",
           "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a subtask under an existing parent issue without creating it.",
+      "required_context": [
+        {
+          "input": "parent_issue_key",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "summary",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "description",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "assignee",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "jira.workflow_transition.request": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
           "system.preview_mutation"
         ]
       },
@@ -215,8 +605,18 @@
         {
           "input": "reason",
           "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
         }
-      ]
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
     }
   },
   "schema_version": "anip-agent-app-profile/v0"

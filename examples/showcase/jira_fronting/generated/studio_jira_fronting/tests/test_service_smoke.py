@@ -1,4 +1,5 @@
 import importlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +7,8 @@ from fastapi.testclient import TestClient
 from jira_governed_fronting_showcase.runtime_target import GENERATED_CAPABILITY_METADATA
 
 SERVICE_MODULES = [
-    {"service_id": "jira-governance-service", "module": "jira_governed_fronting_showcase.app", "capabilities": ["jira.backlog.search", "jira.bug.prepare", "jira.story.prepare", "jira.transition.request", "jira.comment.prepare"]},
+    {"service_id": "jira-fronting", "module": "jira_governed_fronting_showcase.app", "capabilities": ["jira.backlog.search_context", "jira.issue.get_context", "jira.incident_bug.prepare", "jira.story.prepare", "jira.subtask.prepare", "jira.customer_escalation.comment.prepare", "jira.release_notes.prepare"], "principal": "human:smoke-test|actor_id=jira_triage_operator", "expect": "success"},
+    {"service_id": "jira-governance", "module": "jira_governed_fronting_showcase.services.jira_governance.app", "capabilities": ["jira.workflow_transition.request", "jira.sprint_move.request", "jira.assignee_change.request", "jira.issue_link.request"], "principal": "human:smoke-test|actor_id=jira_audit_reviewer", "expect": "approval_required"},
 ]
 
 def _capability_map(payload: dict) -> dict:
@@ -22,7 +24,7 @@ def _capability_map(payload: dict) -> dict:
 def _issue_token(client: TestClient, capability_id: str, scope: list[str]) -> str:
     response = client.post(
         "/anip/tokens",
-        headers={"Authorization": "Bearer dev-admin-key"},
+        headers={"Authorization": "Bearer smoke-test-key"},
         json={
             "capability": capability_id,
             "scope": scope,
@@ -41,7 +43,10 @@ def _minimum_scope(client: TestClient, capability_id: str, fallback: list[str]) 
     return capability.get('minimum_scope') or fallback
 
 @pytest.mark.parametrize('service', SERVICE_MODULES)
-def test_generated_service_discovery_and_invoke(service: dict[str, object]) -> None:
+def test_generated_service_discovery_and_invoke(service: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:
+    # Invoke as the principal the generated policy lets reach the backend, if any;
+    # the generator recorded the outcome its policy gives that principal.
+    monkeypatch.setenv('ANIP_API_KEYS_JSON', json.dumps({'smoke-test-key': service['principal']}))
     module = importlib.import_module(str(service['module']))
     client = TestClient(module.create_app())
     discovery = client.get('/.well-known/anip')
@@ -56,7 +61,11 @@ def test_generated_service_discovery_and_invoke(service: dict[str, object]) -> N
         headers={"Authorization": f"Bearer {token}"},
         json={"parameters": capability["sample_parameters"]},
     )
-    assert invoke.status_code == 200
     payload = invoke.json()
-    assert payload["success"] is True
-    assert payload["result"]["execution_status"]
+    if service['expect'] == 'success':
+        assert invoke.status_code == 200
+        assert payload["success"] is True
+        assert payload["result"]["execution_status"]
+    else:
+        assert payload["success"] is False
+        assert payload["failure"]["type"] == service['expect']

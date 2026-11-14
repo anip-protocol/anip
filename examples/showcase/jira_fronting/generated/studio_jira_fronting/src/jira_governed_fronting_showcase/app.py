@@ -10,10 +10,23 @@ from anip_service import ANIPService
 from .capabilities import generated_capabilities_for_service
 from .runtime_target import RUNTIME_TARGET
 
-SERVICE_ID = "jira-governance-service"
+SERVICE_ID = "jira-fronting"
+
+def _api_keys() -> dict[str, str]:
+    raw = os.getenv("ANIP_API_KEYS_JSON")
+    if not raw:
+        return {"dev-admin-key": "human:local-developer"}
+    try:
+        import json
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return {str(key): str(value) for key, value in parsed.items()}
+    except Exception:
+        pass
+    return {"dev-admin-key": "human:local-developer"}
 
 def _authenticate(bearer: str) -> str | None:
-    return "human:local-developer" if bearer == "dev-admin-key" else None
+    return _api_keys().get(bearer)
 
 def create_service() -> ANIPService:
     return ANIPService(

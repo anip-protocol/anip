@@ -1,27 +1,87 @@
 {
   "checks": [
     {
-      "capability_id": "jira.backlog.search",
+      "capability_id": "jira.release_notes.prepare",
       "detail": "Governed fronting mapping points at a formalized ANIP capability.",
-      "id": "jira.backlog.search.capability_formalized",
+      "id": "jira.release_notes.prepare.capability_formalized",
       "status": "pass"
     },
     {
-      "capability_id": "jira.backlog.search",
+      "capability_id": "jira.release_notes.prepare",
       "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
-      "id": "jira.backlog.search.raw_backend_bound",
+      "id": "jira.release_notes.prepare.raw_backend_bound",
       "status": "pass"
     },
     {
-      "capability_id": "jira.bug.prepare",
+      "capability_id": "jira.issue_link.request",
       "detail": "Governed fronting mapping points at a formalized ANIP capability.",
-      "id": "jira.bug.prepare.capability_formalized",
+      "id": "jira.issue_link.request.capability_formalized",
       "status": "pass"
     },
     {
-      "capability_id": "jira.bug.prepare",
+      "capability_id": "jira.issue_link.request",
       "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
-      "id": "jira.bug.prepare.raw_backend_bound",
+      "id": "jira.issue_link.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.assignee_change.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.assignee_change.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.assignee_change.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.assignee_change.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.sprint_move.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.sprint_move.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.sprint_move.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.sprint_move.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.workflow_transition.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.workflow_transition.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.workflow_transition.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.workflow_transition.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.customer_escalation.comment.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.customer_escalation.comment.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.customer_escalation.comment.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.customer_escalation.comment.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.subtask.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.subtask.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.subtask.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.subtask.prepare.raw_backend_bound",
       "status": "pass"
     },
     {
@@ -37,27 +97,39 @@
       "status": "pass"
     },
     {
-      "capability_id": "jira.transition.request",
+      "capability_id": "jira.incident_bug.prepare",
       "detail": "Governed fronting mapping points at a formalized ANIP capability.",
-      "id": "jira.transition.request.capability_formalized",
+      "id": "jira.incident_bug.prepare.capability_formalized",
       "status": "pass"
     },
     {
-      "capability_id": "jira.transition.request",
+      "capability_id": "jira.incident_bug.prepare",
       "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
-      "id": "jira.transition.request.raw_backend_bound",
+      "id": "jira.incident_bug.prepare.raw_backend_bound",
       "status": "pass"
     },
     {
-      "capability_id": "jira.comment.prepare",
+      "capability_id": "jira.issue.get_context",
       "detail": "Governed fronting mapping points at a formalized ANIP capability.",
-      "id": "jira.comment.prepare.capability_formalized",
+      "id": "jira.issue.get_context.capability_formalized",
       "status": "pass"
     },
     {
-      "capability_id": "jira.comment.prepare",
+      "capability_id": "jira.issue.get_context",
       "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
-      "id": "jira.comment.prepare.raw_backend_bound",
+      "id": "jira.issue.get_context.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.backlog.search_context",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.backlog.search_context.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.backlog.search_context",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.backlog.search_context.raw_backend_bound",
       "status": "pass"
     }
   ],

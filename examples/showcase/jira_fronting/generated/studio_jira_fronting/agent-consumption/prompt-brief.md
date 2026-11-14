@@ -2,10 +2,9 @@
 
 This directory is generated from signed ANIP package metadata. It is framework-agnostic and can be loaded by LangGraph, Mastra, CrewAI, or custom agents.
 
-- Package: `jira-fronting-showcase@0.1.0`
-- Contract signature: `sha256:3e1a48842e35d3324056171d0702aeda0828290ac21587bd7dd43d70e4ccf706`
+- Package: `jira-fronting-showcase@0.2.3`
 - Consumability schema: `anip-agent-consumability/v0`
-- Capability hints: `5`
+- Capability hints: `11`
 - Required app glue items: `0`
 
 ## How To Use

@@ -1,0 +1,33 @@
+{
+  "bundle_path": "../../examples/showcase/jira_fronting/custom-code-bundles/jira_fronting_python",
+  "bundle_sha256": "sha256:68017b5ca59eb0602aca5abb0b616b183b8215fa9f30e02dbdbb245ddd801ae4",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:db3389377c7d68da16e3a061f96d773db95785f1e96028ef210abc5465d515c1",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 1086,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/jira_governed_fronting_showcase/backend_adapter.py",
+      "sha256": "sha256:0a4806ca7f177c3af280762291be84ffec629b9f82290c2cb7f5f0e4fce2c41a",
+      "seam": "backend_adapter",
+      "mode": "extension_overlay",
+      "bytes": 24812,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "tests/test_jira_backend_adapter.py",
+      "sha256": "sha256:85eea2ceabd3605e48388998ca2412fcd4fca3a0292d78979a3be340278c3685",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 922,
+      "overlaid": false,
+      "substrate": false
+    }
+  ]
+}

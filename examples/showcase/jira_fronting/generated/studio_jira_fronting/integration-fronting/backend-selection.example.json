@@ -2,44 +2,81 @@
   "description": "Deployment-time backend selection template. Edit only when a governed capability has multiple backend realizations.",
   "schema_version": "anip-integration-fronting-selection/v0",
   "selection": {
-    "jira.backlog.search": {
+    "jira.assignee_change.request": {
       "active_backend_kind": "native_api",
-      "active_connection_ref": "jira_rest_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
       "available": [
-        "native_api:jira_rest_api:jira.rest.search_team_backlog",
-        "mcp:atlassian_mcp:atlassian.mcp.search_team_backlog"
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.assign_issue,jira.rest.user_search"
       ]
     },
-    "jira.bug.prepare": {
+    "jira.backlog.search_context": {
       "active_backend_kind": "native_api",
-      "active_connection_ref": "jira_rest_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
       "available": [
-        "native_api:jira_rest_api:jira.rest.prepare_bug_ticket",
-        "mcp:atlassian_mcp:atlassian.mcp.prepare_bug_ticket"
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.search_issues"
       ]
     },
-    "jira.comment.prepare": {
+    "jira.customer_escalation.comment.prepare": {
       "active_backend_kind": "native_api",
-      "active_connection_ref": "jira_rest_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
       "available": [
-        "native_api:jira_rest_api:jira.rest.prepare_triage_comment",
-        "mcp:atlassian_mcp:atlassian.mcp.prepare_triage_comment"
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_issue,jira.rest.add_comment"
+      ]
+    },
+    "jira.incident_bug.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_create_metadata,jira.rest.create_issue"
+      ]
+    },
+    "jira.issue.get_context": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_issue,jira.rest.get_comments,jira.rest.get_changelog"
+      ]
+    },
+    "jira.issue_link.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_issue_link_types,jira.rest.link_issues"
+      ]
+    },
+    "jira.release_notes.prepare": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.search_issues,jira.rest.get_versions"
+      ]
+    },
+    "jira.sprint_move.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_boards,jira.rest.get_sprints,jira.rest.move_issues_to_sprint"
       ]
     },
     "jira.story.prepare": {
       "active_backend_kind": "native_api",
-      "active_connection_ref": "jira_rest_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
       "available": [
-        "native_api:jira_rest_api:jira.rest.prepare_story_ticket",
-        "mcp:atlassian_mcp:atlassian.mcp.prepare_story_ticket"
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_create_metadata,jira.rest.create_issue"
       ]
     },
-    "jira.transition.request": {
+    "jira.subtask.prepare": {
       "active_backend_kind": "native_api",
-      "active_connection_ref": "jira_rest_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
       "available": [
-        "native_api:jira_rest_api:jira.rest.request_status_transition",
-        "mcp:atlassian_mcp:atlassian.mcp.request_status_transition"
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_issue,jira.rest.create_issue"
+      ]
+    },
+    "jira.workflow_transition.request": {
+      "active_backend_kind": "native_api",
+      "active_connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+      "available": [
+        "native_api:a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api:jira.rest.get_transitions,jira.rest.transition_issue"
       ]
     }
   }

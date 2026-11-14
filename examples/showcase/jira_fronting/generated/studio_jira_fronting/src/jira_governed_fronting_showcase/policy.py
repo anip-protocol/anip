@@ -27,25 +27,41 @@ def _matches_principal(binding: dict[str, Any], claims: dict[str, str]) -> bool:
     if not expected:
         return True
     if claim not in claims:
-        return True
+        return False
     return claims.get(claim) == expected
+
+_KNOWN_DECISIONS = {'allow', 'allow_with_limits', 'deny', 'clarify', 'approval_required'}
+_REFUSING_PRECEDENCE = ('deny', 'approval_required', 'clarify')
+
+def _effective_decision(binding: dict[str, Any]) -> str:
+    decision = str(binding.get('decision') or '')
+    # A decision the host does not recognise refuses rather than allows.
+    return decision if decision in _KNOWN_DECISIONS else 'deny'
+
+def _decision_for(binding: dict[str, Any]) -> dict[str, Any]:
+    decision = _effective_decision(binding)
+    detail = binding.get('business_rule') or binding.get('enforcement_notes')
+    if decision == 'allow_with_limits':
+        return {'decision': 'allow', 'limits': binding, 'detail': detail}
+    if decision in _REFUSING_PRECEDENCE:
+        return {'decision': decision, 'detail': detail, 'policy_binding_id': binding.get('id')}
+    return {'decision': 'allow', 'policy_binding_id': binding.get('id'), 'detail': detail}
 
 async def evaluate_policy(context: dict[str, Any]) -> dict[str, Any]:
     capability = context.get('capability') or {}
     capability_id = capability.get('capability_id')
     bindings = [binding for binding in POLICY_BINDINGS if capability_id in (binding.get('capability_ids') or [])]
     if not bindings:
+        # A capability without bindings is allowed: bindings are capability-level overrides.
         return {"decision": "allow"}
     claims = _principal_claims(context.get('root_principal'))
-    if not claims:
-        return {"decision": "allow", "note": "No actor claims were available for generated policy evaluation."}
-    for binding in bindings:
-        if not _matches_principal(binding, claims):
-            continue
-        decision = str(binding.get('decision') or 'allow')
-        if decision == 'allow_with_limits':
-            return {'decision': 'allow', 'limits': binding, 'detail': binding.get('business_rule') or binding.get('enforcement_notes')}
-        if decision in {'deny', 'clarify', 'approval_required'}:
-            return {'decision': decision, 'detail': binding.get('business_rule') or binding.get('enforcement_notes'), 'policy_binding_id': binding.get('id')}
-        return {'decision': 'allow', 'policy_binding_id': binding.get('id')}
-    return {"decision": "no_match", "detail": "No runtime policy binding matched the current actor for this capability."}
+    # Once a capability has bindings they are its allowlist: an actor matching none, or a
+    # principal without claims, is refused.
+    matching = [binding for binding in bindings if claims and _matches_principal(binding, claims)]
+    if not matching:
+        return {"decision": "deny", "detail": "No runtime policy binding matches the current actor for this capability."}
+    for decision in _REFUSING_PRECEDENCE:
+        stop = next((binding for binding in matching if _effective_decision(binding) == decision), None)
+        if stop:
+            return _decision_for(stop)
+    return _decision_for(matching[0])

@@ -7,8 +7,9 @@ Jira API operations are downstream implementation details; agents invoke governe
 
 ```bash
 cd packages/go
-go run ./cmd/anip-generate \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json \
+go run ./cmd/anip generate \
+  --definition ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json \
+  --package-name jira_governed_fronting_showcase \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/jira_fronting/custom-code-bundles/jira_fronting_python \
@@ -17,6 +18,13 @@ go run ./cmd/anip-generate \
   --output ../../examples/showcase/jira_fronting/generated/studio_jira_fronting \
   --force
 ```
+
+The command reads the package's signed service definition. Generating from the
+`.anip-package.json` bundle itself is refused (`resolved package is missing
+package_execution_signature`): the 0.2.3 package predates that field. The
+checked-in `agent-consumption/` files were written by the generator's
+`BuildAgentConsumptionKit` from the bundle's `agent_consumability` and
+`agent_consumption_readiness` metadata, which a bare definition does not carry.
 
 Generate directly from the reviewed fronting starter:
 
@@ -36,7 +44,7 @@ Verify the local service definition:
 ```bash
 cd packages/go
 go run ./cmd/anip-verify \
-  --package-bundle ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3.anip-package.json
+  --definition ../../examples/showcase/jira_fronting/registry-packages/jira-fronting-showcase-0.2.3-service-definition.json
 ```
 
 ## What to inspect
@@ -55,7 +63,9 @@ The generated Python adapter includes live Jira REST behavior for:
 - `jira.incident_bug.prepare`, `jira.story.prepare`, and `jira.subtask.prepare`: return issue creation previews without creating issues.
 - `jira.customer_escalation.comment.prepare`, `jira.workflow_transition.request`, `jira.sprint_move.request`, `jira.assignee_change.request`, and `jira.issue_link.request`: return approval-gated previews without mutating Jira.
 - `jira.release_notes.prepare`: prepares bounded release-note draft context without publishing.
-- Optional Jira issue creation: disabled by default; requires `ANIP_JIRA_ALLOW_MUTATION=true` plus a real ANIP approval continuation grant supplied as the top-level `approval_grant` invoke field.
+
+The Python bundle never mutates Jira: write-adjacent capabilities return governed
+previews that a host application routes through its approval and execution layer.
 
 It uses these environment variables:
 
@@ -63,26 +73,13 @@ It uses these environment variables:
 export JIRA_BASE_URL="https://anip-dev.atlassian.net"
 export JIRA_EMAIL="your-atlassian-email@example.com"
 export JIRA_API_TOKEN="your-token"
+export ANIP_JIRA_GENERATED_APP_MODULE=jira_governed_fronting_showcase.app
 PYTHONPATH=examples/showcase/jira_fronting/generated/studio_jira_fronting/src \
-  ./.venv/bin/pytest examples/showcase/jira_fronting/generated/studio_jira_fronting/tests/test_live_jira_backlog_search.py
+  python examples/showcase/jira_fronting/scripts/live_smoke.py
 ```
 
-If the variables are not set, the live test is skipped and the offline smoke test still uses the generated stub behavior.
-
-Run the mutation smoke test only against a disposable Jira project:
-
-```bash
-export ANIP_JIRA_ALLOW_MUTATION=true
-PYTHONPATH=examples/showcase/jira_fronting/generated/studio_jira_fronting/src \
-  ./.venv/bin/pytest examples/showcase/jira_fronting/generated/studio_jira_fronting/tests/test_live_jira_backlog_search.py \
-  -k bug_create
-```
-
-The mutation test first invokes `jira.incident_bug.prepare` with `request_execution_approval=true`,
-receives an ANIP `approval_required` failure with an approval request ID, issues a
-one-time grant through `/anip/approval_grants`, then resubmits the same parameters
-with the top-level `approval_grant`. The Jira adapter only creates the issue after
-the ANIP runtime validates and reserves that grant.
+Without credentials, the generated `tests/` (service smoke and bundle adapter
+tests) run offline.
 
 ## Design point
 

@@ -1,0 +1,128 @@
+{
+  "backend_families": [
+    "native-api"
+  ],
+  "contract_boundary": "Agents invoke ANIP capabilities. Generated policy, approval, clarification, and audit logic runs before backend execution. Backend profiles may change when the implementation moves from REST to MCP, SQL, dbt, Cube, or another provider, as long as governed capability behavior is unchanged.",
+  "description": "Implementation profile for local backend code. This is replaceable deployment material, not the governed ANIP behavior contract.",
+  "profiles": [
+    {
+      "backend_family": "native-api",
+      "capabilities": [
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.release_notes.prepare",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.search_issues",
+            "jira.rest.get_versions"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.issue_link.request",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue_link_types",
+            "jira.rest.link_issues"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.assignee_change.request",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.assign_issue",
+            "jira.rest.user_search"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.sprint_move.request",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_boards",
+            "jira.rest.get_sprints",
+            "jira.rest.move_issues_to_sprint"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.workflow_transition.request",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_transitions",
+            "jira.rest.transition_issue"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.customer_escalation.comment.prepare",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.add_comment"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.subtask.prepare",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.create_issue"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.story.prepare",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_create_metadata",
+            "jira.rest.create_issue"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.incident_bug.prepare",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_create_metadata",
+            "jira.rest.create_issue"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.issue.get_context",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.get_issue",
+            "jira.rest.get_comments",
+            "jira.rest.get_changelog"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "jira.backlog.search_context",
+          "connection_ref": "a7c941cf-b552-4d5b-a361-e649591ff5f8-jira-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "jira.rest.search_issues"
+          ]
+        }
+      ],
+      "profile_id": "native-api-default",
+      "template": "backend-templates/native-api.md"
+    }
+  ],
+  "schema_version": "anip-backend-implementation-profile/v0"
+}
