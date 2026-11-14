@@ -59,3 +59,10 @@ Credential file:
 
 The integration must be explicitly connected to the test parent page and database. Mutation requires `ANIP_NOTION_ALLOW_MUTATION=true` and the required approval grant.
 
+The smokes authenticate with API keys mapped to the actors the package's policy
+bindings select. `governed_notion_requester` gets `approval_required` on page
+creation and updates; `notion_change_approver` issues a grant through
+`POST /anip/approval_grants`; and the requester invokes again with it. The
+read-only smoke keeps mutation off, so the granted call returns a preview, and it
+checks that unbound actors and deny bindings are refused.
+

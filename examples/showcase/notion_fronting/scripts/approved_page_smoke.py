@@ -1,18 +1,37 @@
-"""Approved page-creation smoke for the Notion fronting showcase."""
+"""Approved page-creation smoke for the Notion fronting showcase.
+
+This test intentionally creates one Notion page. Use only with a disposable
+parent page and a generated Python service that includes the Notion custom bundle.
+
+Expected environment:
+- NOTION_TOKEN
+- NOTION_WORKSPACE_SCOPE
+- NOTION_PARENT_PAGE_ID
+- ANIP_NOTION_ALLOW_MUTATION=true
+
+The smoke follows the approval path a client takes. It invokes
+notion.page.create.prepare as governed_notion_requester, whose 0.2.0 binding
+requires approval, and expects approval_required. notion_change_approver then
+issues a one-time grant through POST /anip/approval_grants, and the requester
+invokes again with the same parameters and the top-level approval_grant. The
+Notion adapter creates the page only on that granted invocation.
+"""
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import time
 
-from anip_service.v023 import (
-    new_approval_request_id,
-    sha256_digest,
-    utc_in_iso,
-    utc_now_iso,
-)
-from notion_governed_fronting_showcase.app import create_service
+from fastapi.testclient import TestClient
+from notion_governed_fronting_showcase.app import create_app
+
+REQUESTER_KEY = "smoke-requester"
+APPROVER_KEY = "smoke-change-approver"
+SMOKE_KEYS = {
+    REQUESTER_KEY: "human:live-notion-smoke|actor_id=governed_notion_requester",
+    APPROVER_KEY: "human:live-notion-approver|actor_id=notion_change_approver",
+}
+CAPABILITY_ID = "notion.page.create.prepare"
 
 
 def _require_env(name: str) -> str:
@@ -22,7 +41,25 @@ def _require_env(name: str) -> str:
     return value
 
 
-async def main() -> None:
+def _token(client: TestClient, key: str, scope: list[str]) -> str:
+    response = client.post(
+        "/anip/tokens",
+        headers={"Authorization": f"Bearer {key}"},
+        json={"capability": CAPABILITY_ID, "scope": scope, "subject": "agent:live-notion-approved-page"},
+    )
+    response.raise_for_status()
+    return response.json()["token"]
+
+
+def _invoke(client: TestClient, params: dict, approval_grant: str | None = None) -> dict:
+    body: dict = {"parameters": params}
+    if approval_grant:
+        body["approval_grant"] = approval_grant
+    token = _token(client, REQUESTER_KEY, [CAPABILITY_ID])
+    return client.post(f"/anip/invoke/{CAPABILITY_ID}", headers={"Authorization": f"Bearer {token}"}, json=body).json()
+
+
+def main() -> None:
     workspace_scope = _require_env("NOTION_WORKSPACE_SCOPE")
     parent_id = _require_env("NOTION_PARENT_PAGE_ID")
     _require_env("NOTION_TOKEN")
@@ -30,75 +67,45 @@ async def main() -> None:
         raise RuntimeError("ANIP_NOTION_ALLOW_MUTATION=true is required for approved page smoke")
     os.environ.setdefault("ANIP_NOTION_ALLOWED_WORKSPACES", workspace_scope)
     os.environ.setdefault("ANIP_NOTION_ALLOWED_PARENTS", parent_id)
+    os.environ["ANIP_API_KEYS_JSON"] = json.dumps(SMOKE_KEYS)
+    client = TestClient(create_app())
 
-    service = create_service()
-    await service.start()
-    try:
-        capability_id = "notion.page.create.prepare"
-        params = {
-            "parent_id": parent_id,
-            "title": f"ANIP approved Notion page through generated service at {int(time.time())}",
-            "content_summary": "Created by explicit ANIP Notion approved-page smoke.",
-        }
-        token_response = await service.issue_token(
-            "human:local-dev",
+    params = {
+        "parent_id": parent_id,
+        "title": f"ANIP approved Notion page through generated service at {int(time.time())}",
+        "content_summary": "Created by explicit ANIP Notion approved-page smoke.",
+    }
+    first = _invoke(client, params)
+    failure = first.get("failure") or {}
+    approval_request_id = (failure.get("approval_required") or {}).get("approval_request_id")
+    if first.get("success") is not False or failure.get("type") != "approval_required" or not approval_request_id:
+        raise AssertionError(f"expected approval_required with an approval_request_id, got {first}")
+
+    approver_token = _token(client, APPROVER_KEY, [f"approver:{CAPABILITY_ID}"])
+    grant = client.post(
+        "/anip/approval_grants",
+        headers={"Authorization": f"Bearer {approver_token}"},
+        json={"approval_request_id": approval_request_id, "grant_type": "one_time"},
+    ).json()
+    if not grant.get("grant_id"):
+        raise AssertionError(f"approval grant was not issued: {grant}")
+
+    sent = _invoke(client, params, approval_grant=grant["grant_id"])
+    result = sent.get("result") or {}
+    if not sent.get("success") or result.get("execution_status") != "completed" or result.get("mutation_performed") is not True:
+        raise AssertionError(f"expected approved page creation to complete, got {sent}")
+    print(
+        json.dumps(
             {
-                "subject": "agent:live-notion-approved-page",
-                "scope": [capability_id],
-                "capability": capability_id,
-                "ttl_hours": 1,
+                "workspace_scope": workspace_scope,
+                "approval_request_id": approval_request_id,
+                "approval_grant_id": grant["grant_id"],
+                "created_page": result.get("created_page"),
             },
+            indent=2,
         )
-        token = await service.resolve_bearer_token(token_response["token"])
-        preview = await service.invoke(capability_id, token, params)
-        preview_result = preview.get("result") or {}
-        if preview_result.get("execution_status") != "prepared" or preview_result.get("mutation_performed") is not False:
-            raise AssertionError(f"expected preview-only prepared result, got {preview}")
-
-        capability = service._capabilities[capability_id]
-        grant_policy = capability.declaration.grant_policy.model_dump()
-        approval_request_id = new_approval_request_id()
-        approval_request = {
-            "approval_request_id": approval_request_id,
-            "capability": capability_id,
-            "scope": list(capability.declaration.minimum_scope),
-            "requester": {"subject": token.subject, "root_principal": token.root_principal},
-            "parent_invocation_id": preview.get("invocation_id"),
-            "preview": preview_result,
-            "preview_digest": sha256_digest(preview_result),
-            "requested_parameters": params,
-            "requested_parameters_digest": sha256_digest(params),
-            "grant_policy": grant_policy,
-            "status": "pending",
-            "approver": None,
-            "decided_at": None,
-            "created_at": utc_now_iso(),
-            "expires_at": utc_in_iso(grant_policy["expires_in_seconds"]),
-        }
-        await service._storage.store_approval_request(approval_request)
-        grant = await service.issue_approval_grant(
-            approval_request_id,
-            "one_time",
-            {"subject": "human:local-dev", "root_principal": "human:local-dev"},
-        )
-        sent = await service.invoke(capability_id, token, params, approval_grant=grant["grant_id"])
-        result = sent.get("result") or {}
-        if not sent.get("success") or result.get("execution_status") != "completed" or result.get("mutation_performed") is not True:
-            raise AssertionError(f"expected approved page creation to complete, got {sent}")
-        print(
-            json.dumps(
-                {
-                    "workspace_scope": workspace_scope,
-                    "approval_request_id": approval_request_id,
-                    "approval_grant_id": grant["grant_id"],
-                    "created_page": result.get("created_page"),
-                },
-                indent=2,
-            )
-        )
-    finally:
-        await service.shutdown()
+    )
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
