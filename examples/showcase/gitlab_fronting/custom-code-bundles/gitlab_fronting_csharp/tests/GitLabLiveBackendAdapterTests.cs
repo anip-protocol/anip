@@ -12,16 +12,16 @@ public class GitLabLiveBackendAdapterTests
         var project = ProjectId();
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(project)) return;
 
-        var searchParams = new Dictionary<string, object?> { ["project_id"] = project, ["query"] = "ANIP", ["limit"] = 5 };
+        var searchParams = new Dictionary<string, object?> { ["namespace"] = Namespace(project), ["project"] = ProjectName(project), ["query"] = "ANIP", ["limit"] = 5 };
         var search = BackendAdapter.Default(Capability("gitlab.project.search_context"), Plan(searchParams), searchParams, null!);
         Assert.Equal("completed", search["execution_status"]);
 
-        var issueParams = new Dictionary<string, object?> { ["project_id"] = project, ["title"] = "ANIP GitLab C# preview", ["body"] = "Preview only" };
+        var issueParams = new Dictionary<string, object?> { ["namespace"] = Namespace(project), ["project"] = ProjectName(project), ["title"] = "ANIP GitLab C# preview", ["body"] = "Preview only" };
         var issue = BackendAdapter.Default(Capability("gitlab.issue.prepare"), Plan(issueParams), issueParams, null!);
         Assert.Equal("prepared", issue["execution_status"]);
         Assert.Equal(false, issue["mutation_performed"]);
 
-        var notesParams = new Dictionary<string, object?> { ["project_id"] = project, ["range"] = "HEAD", ["audience"] = "internal" };
+        var notesParams = new Dictionary<string, object?> { ["namespace"] = Namespace(project), ["project"] = ProjectName(project), ["range"] = "HEAD", ["audience"] = "internal" };
         var notes = BackendAdapter.Default(Capability("gitlab.release_notes.prepare"), Plan(notesParams), notesParams, null!);
         Assert.Equal("completed", notes["execution_status"]);
     }
@@ -35,7 +35,7 @@ public class GitLabLiveBackendAdapterTests
 
         var capability = GeneratedCapabilities.CreateAll(BackendAdapter.Default)
             .First(item => item.Declaration.Name == "gitlab.issue.prepare");
-        var parameters = new Dictionary<string, object?> { ["project_id"] = project, ["namespace"] = Namespace(project), ["project"] = ProjectName(project), ["title"] = $"ANIP approved GitLab C# issue at {DateTimeOffset.UtcNow:O}", ["body"] = "Created by explicit ANIP GitLab C# generated-handler smoke." };
+        var parameters = new Dictionary<string, object?> { ["namespace"] = Namespace(project), ["project"] = ProjectName(project), ["title"] = $"ANIP approved GitLab C# issue at {DateTimeOffset.UtcNow:O}", ["body"] = "Created by explicit ANIP GitLab C# generated-handler smoke." };
 
         var requestApproval = new Dictionary<string, object?>(parameters) { ["request_execution_approval"] = true };
         var preview = capability.Handler(ApprovalContext(null), requestApproval);

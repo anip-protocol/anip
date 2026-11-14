@@ -4,7 +4,7 @@ import { backendAdapter } from "../src/runtime/backend-adapter.js";
 import { generatedCapabilities } from "../src/generated/capabilities.js";
 import { generatedCapabilityMetadata, type BackendInvocationPlan, type GeneratedCapabilityRuntimeMetadata } from "../src/generated/runtime-target.js";
 
-const configured = Boolean(process.env.GITLAB_TOKEN && projectParams().project_id);
+const configured = Boolean(process.env.GITLAB_TOKEN && projectPath(projectParams()));
 
 function capability(id: string): GeneratedCapabilityRuntimeMetadata {
   const found = generatedCapabilityMetadata.find((item) => item.capability_id === id);
@@ -25,7 +25,7 @@ function plan(parameters: Record<string, unknown>): BackendInvocationPlan {
 describe.skipIf(!configured)("GitLab live backend adapter", () => {
   it("executes reads and prepares write-adjacent previews without mutation", async () => {
     const project = projectParams();
-    process.env.ANIP_GITLAB_ALLOWED_PROJECTS ??= project.project_id;
+    process.env.ANIP_GITLAB_ALLOWED_PROJECTS ??= projectPath(project);
 
     const search = await backendAdapter.execute(capability("gitlab.project.search_context"), plan({ ...project, query: "ANIP", limit: 5 }), { ...project, query: "ANIP", limit: 5 }, {});
     expect(search.execution_status).toBe("completed");
@@ -42,7 +42,7 @@ describe.skipIf(!configured)("GitLab live backend adapter", () => {
     const capabilityDef = generatedCapabilities.find((item) => item.declaration.name === "gitlab.issue.prepare");
     expect(capabilityDef).toBeTruthy();
     const project = projectParams();
-    process.env.ANIP_GITLAB_ALLOWED_PROJECTS ??= project.project_id;
+    process.env.ANIP_GITLAB_ALLOWED_PROJECTS ??= projectPath(project);
     const parameters = {
       ...project,
       title: `ANIP approved GitLab TypeScript issue at ${Date.now()}`,
@@ -62,15 +62,18 @@ describe.skipIf(!configured)("GitLab live backend adapter", () => {
   });
 });
 
-function projectParams(): { project_id: string; namespace?: string; project?: string } {
+// The adapter takes the project from the declared namespace and project inputs.
+function projectParams(): { namespace?: string; project?: string } {
   const explicit = process.env.GITLAB_PROJECT_ID?.trim();
   if (explicit) {
     const [namespace, ...parts] = explicit.split("/");
-    return { project_id: explicit, namespace, project: parts.join("/") || undefined };
+    return { namespace, project: parts.join("/") || undefined };
   }
-  const namespace = process.env.GITLAB_NAMESPACE?.trim();
-  const project = process.env.GITLAB_PROJECT?.trim();
-  return { project_id: namespace && project ? `${namespace}/${project}` : "", namespace, project };
+  return { namespace: process.env.GITLAB_NAMESPACE?.trim(), project: process.env.GITLAB_PROJECT?.trim() };
+}
+
+function projectPath(params: { namespace?: string; project?: string }): string {
+  return params.namespace && params.project ? `${params.namespace}/${params.project}` : "";
 }
 
 function testContext(approvalGrant: string | null): InvocationContext {

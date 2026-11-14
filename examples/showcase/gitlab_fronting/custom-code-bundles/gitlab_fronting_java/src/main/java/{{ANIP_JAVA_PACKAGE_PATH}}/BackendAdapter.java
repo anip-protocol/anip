@@ -201,9 +201,8 @@ final class GitLabBackendAdapter implements BackendAdapter {
         return result(capability, plan, "restricted", record("project_id", project, "reason", "GitLab project is outside the configured ANIP project policy."));
     }
 
+    // The project path comes from the declared namespace and project inputs only.
     private static String projectId(Map<String, Object> params) {
-        String explicit = text(params.get("project_id"));
-        if (!explicit.isBlank()) return explicit;
         String namespace = text(params.get("namespace")).replaceAll("^/+|/+$", "");
         String project = text(params.get("project")).replaceAll("^/+|/+$", "");
         return !namespace.isBlank() && !project.isBlank() ? namespace + "/" + project : "";

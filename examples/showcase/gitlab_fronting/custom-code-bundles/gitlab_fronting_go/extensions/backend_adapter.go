@@ -275,10 +275,8 @@ func projectSummary(payload map[string]any) map[string]any {
 	return map[string]any{"id": payload["id"], "path_with_namespace": payload["path_with_namespace"], "default_branch": payload["default_branch"], "visibility": payload["visibility"], "web_url": payload["web_url"]}
 }
 
+// projectID is the project path from the declared namespace and project inputs.
 func projectID(params map[string]any) string {
-	if explicit := stringParam(params, "project_id"); explicit != "" {
-		return explicit
-	}
 	namespace := strings.Trim(stringParam(params, "namespace"), "/")
 	project := strings.Trim(stringParam(params, "project"), "/")
 	if namespace != "" && project != "" {

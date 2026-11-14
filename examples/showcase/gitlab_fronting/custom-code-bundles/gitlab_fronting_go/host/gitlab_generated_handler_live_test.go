@@ -19,7 +19,6 @@ func TestGitLabGeneratedHandlerApprovedIssueCreate(t *testing.T) {
 	}
 	capability := gitlabCapabilityDefForTest(t, "gitlab.issue.prepare")
 	params := map[string]any{
-		"project_id": project,
 		"namespace": gitlabNamespaceForTest(project),
 		"project": gitlabProjectNameForTest(project),
 		"title": "ANIP approved GitLab Go issue at " + time.Now().Format(time.RFC3339),
@@ -31,7 +30,7 @@ func TestGitLabGeneratedHandlerApprovedIssueCreate(t *testing.T) {
 		Subject: "agent:gitlab-live-smoke",
 		Scopes: []string{"gitlab.issue.prepare"},
 		InvocationID: "inv-test",
-	}, map[string]any{"project_id": project, "namespace": params["namespace"], "project": params["project"], "title": params["title"], "body": params["body"], "request_execution_approval": true})
+	}, map[string]any{"namespace": params["namespace"], "project": params["project"], "title": params["title"], "body": params["body"], "request_execution_approval": true})
 	if err != nil {
 		t.Fatal(err)
 	}

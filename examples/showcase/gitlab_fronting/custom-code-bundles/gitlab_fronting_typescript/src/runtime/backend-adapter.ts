@@ -21,9 +21,8 @@ function csvEnv(name: string): Set<string> {
   return new Set((process.env[name] ?? "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean));
 }
 
+// The project path comes from the declared namespace and project inputs only.
 function projectId(params: Record<string, unknown>): string {
-  const explicit = String(params.project_id ?? "").trim();
-  if (explicit) return explicit;
   const namespace = String(params.namespace ?? "").trim().replace(/^\/+|\/+$/g, "");
   const project = String(params.project ?? "").trim().replace(/^\/+|\/+$/g, "");
   return namespace && project ? `${namespace}/${project}` : "";

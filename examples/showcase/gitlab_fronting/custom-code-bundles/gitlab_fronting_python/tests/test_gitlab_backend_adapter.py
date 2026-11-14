@@ -85,6 +85,23 @@ def test_prepare_issue_with_grant_and_flag_creates_issue(monkeypatch: pytest.Mon
     assert ("POST", "/projects/group%2Fdemo/issues") in calls
 
 
+def test_project_comes_from_namespace_and_project_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    # project_id is not a declared input; the adapter must not honour one.
+    monkeypatch.setenv("GITLAB_TOKEN", "token")
+    monkeypatch.setenv("ANIP_GITLAB_ALLOWED_PROJECTS", "group/demo")
+    paths: list[str] = []
+    monkeypatch.setattr(adapter_module, "_gitlab_request_json", lambda _method, path, *_a, **_k: paths.append(path) or [])
+    result = asyncio.run(
+        async_execute(
+            _capability("gitlab.project.search_context"),
+            _plan(),
+            {"namespace": "group", "project": "demo", "project_id": "other/secret", "query": "issue"},
+        )
+    )
+    assert result["execution_status"] == "completed"
+    assert paths and all(path.startswith("/projects/group%2Fdemo/") for path in paths)
+
+
 def test_project_allowlist_restricts_unlisted_project(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITLAB_TOKEN", "token")
     monkeypatch.setenv("ANIP_GITLAB_ALLOWED_PROJECTS", "group/allowed")

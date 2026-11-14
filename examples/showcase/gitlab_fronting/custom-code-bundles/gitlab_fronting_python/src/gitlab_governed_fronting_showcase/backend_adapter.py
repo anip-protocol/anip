@@ -61,9 +61,7 @@ def _project_path(project_id: str) -> str:
 
 
 def _project_id_from_params(params: dict[str, Any]) -> str:
-    explicit = str(params.get("project_id") or "").strip()
-    if explicit:
-        return explicit
+    # The project path comes from the declared namespace and project inputs only.
     namespace = str(params.get("namespace") or "").strip().strip("/")
     project = str(params.get("project") or "").strip().strip("/")
     if namespace and project:

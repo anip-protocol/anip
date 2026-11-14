@@ -197,10 +197,9 @@ public static class BackendAdapter
     private static Dictionary<string, object?> Restricted(Dictionary<string, object?> capability, Dictionary<string, object?> plan, string project) =>
         Result(capability, plan, "restricted", new() { ["project_id"] = project, ["reason"] = "GitLab project is outside the configured ANIP project policy." });
 
+    // The project path comes from the declared namespace and project inputs only.
     private static string ProjectId(Dictionary<string, object?> parameters)
     {
-        var explicitId = Text(parameters.GetValueOrDefault("project_id"));
-        if (!string.IsNullOrWhiteSpace(explicitId)) return explicitId;
         var ns = Text(parameters.GetValueOrDefault("namespace")).Trim('/');
         var project = Text(parameters.GetValueOrDefault("project")).Trim('/');
         return !string.IsNullOrWhiteSpace(ns) && !string.IsNullOrWhiteSpace(project) ? $"{ns}/{project}" : "";

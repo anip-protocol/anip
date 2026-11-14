@@ -23,11 +23,11 @@ class GitLabLiveBackendAdapterTest {
         assertTrue(project != null && !project.isBlank(), "GITLAB_PROJECT_ID or GITLAB_NAMESPACE/GITLAB_PROJECT is required");
 
         BackendAdapter adapter = BackendAdapter.defaultAdapter();
-        assertEquals("completed", adapter.execute(capability("gitlab.project.search_context"), plan(record("project_id", project, "query", "ANIP", "limit", 5)), record("project_id", project, "query", "ANIP", "limit", 5), null).get("execution_status"));
-        Map<String, Object> issue = adapter.execute(capability("gitlab.issue.prepare"), plan(record("project_id", project, "title", "ANIP GitLab Java preview", "body", "Preview only")), record("project_id", project, "title", "ANIP GitLab Java preview", "body", "Preview only"), null);
+        assertEquals("completed", adapter.execute(capability("gitlab.project.search_context"), plan(record("namespace", namespace(project), "project", projectName(project), "query", "ANIP", "limit", 5)), record("namespace", namespace(project), "project", projectName(project), "query", "ANIP", "limit", 5), null).get("execution_status"));
+        Map<String, Object> issue = adapter.execute(capability("gitlab.issue.prepare"), plan(record("namespace", namespace(project), "project", projectName(project), "title", "ANIP GitLab Java preview", "body", "Preview only")), record("namespace", namespace(project), "project", projectName(project), "title", "ANIP GitLab Java preview", "body", "Preview only"), null);
         assertEquals("prepared", issue.get("execution_status"));
         assertEquals(false, issue.get("mutation_performed"));
-        assertEquals("completed", adapter.execute(capability("gitlab.release_notes.prepare"), plan(record("project_id", project, "range", "HEAD", "audience", "internal")), record("project_id", project, "range", "HEAD", "audience", "internal"), null).get("execution_status"));
+        assertEquals("completed", adapter.execute(capability("gitlab.release_notes.prepare"), plan(record("namespace", namespace(project), "project", projectName(project), "range", "HEAD", "audience", "internal")), record("namespace", namespace(project), "project", projectName(project), "range", "HEAD", "audience", "internal"), null).get("execution_status"));
     }
 
     @Test
@@ -39,7 +39,7 @@ class GitLabLiveBackendAdapterTest {
                 .filter(item -> "gitlab.issue.prepare".equals(item.getDeclaration().getName()))
                 .findFirst()
                 .orElseThrow();
-        Map<String, Object> params = record("project_id", project, "namespace", namespace(project), "project", projectName(project), "title", "ANIP approved GitLab Java issue at " + Instant.now(), "body", "Created by explicit ANIP GitLab Java generated-handler smoke.");
+        Map<String, Object> params = record("namespace", namespace(project), "project", projectName(project), "title", "ANIP approved GitLab Java issue at " + Instant.now(), "body", "Created by explicit ANIP GitLab Java generated-handler smoke.");
 
         Map<String, Object> preview = capability.getHandler().apply(approvalContext(null), withApprovalRequest(params));
         assertEquals("prepared", preview.get("execution_status"));
