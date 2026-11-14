@@ -604,21 +604,26 @@ def test_behavior_matrix_insufficient_scope_is_denied_before_execution() -> None
     _assert_resolution_action(payload, "request_broader_scope")
 
 
-def test_behavior_matrix_backend_only_required_input_blocks_stub_execution() -> None:
-    payload = _invoke_approved(
+def test_behavior_matrix_missing_backend_required_input_is_invalid_parameters() -> None:
+    payload = _invoke(
         _client(),
         "manager-key",
         "conformance.prepare_change",
         ["conformance.prepare"],
         {"record_ref": "CON-1", "new_status": "done"},
     )
+    _assert_failure_type(payload, "invalid_parameters")
+    assert "change_reason" in payload["failure"]["detail"]
+    payload = _invoke_approved(
+        _client(),
+        "manager-key",
+        "conformance.prepare_change",
+        ["conformance.prepare"],
+        {"record_ref": "CON-1", "new_status": "done", "change_reason": "conformance test"},
+    )
     assert payload["success"] is True
-    result = payload["result"]
-    assert result["execution_status"] == "backend_input_incomplete"
-    assert result["backend_input_contract"]["mode"] == "hybrid"
-    assert result["backend_input_contract"]["required"] == ["record_ref", "new_status", "change_reason"]
-    assert result["backend_input_contract"]["optional"] == []
-    assert result["unresolved_required_backend_inputs"] == ["change_reason"]
+    contract = payload["result"]["backend_input_contract"]
+    assert contract == {"mode": "hybrid", "required": ["record_ref", "new_status", "change_reason"], "optional": []}
 
 
 def test_behavior_matrix_backend_resolved_input_accepts_open_reference() -> None:
@@ -857,17 +862,20 @@ describe("generated behavior matrix", () => {
     expectResolutionAction(payload, "request_broader_scope");
   });
 
-  it("blocks generated stub execution when backend-only inputs are unresolved", async () => {
-    const payload = await invokeApproved("manager-key", "conformance.prepare_change", ["conformance.prepare"], {
+  it("refuses a call missing a backend-required input as invalid_parameters", async () => {
+    const refused = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"], {
       record_ref: "CON-1",
       new_status: "done",
     });
+    expectFailureType(refused, "invalid_parameters");
+    expect((refused as any).failure?.detail).toContain("change_reason");
+    const payload = await invokeApproved("manager-key", "conformance.prepare_change", ["conformance.prepare"], {
+      record_ref: "CON-1",
+      new_status: "done",
+      change_reason: "conformance test",
+    });
     expect(payload.success).toBe(true);
-    expect(payload.result?.execution_status).toBe("backend_input_incomplete");
-    expect(payload.result?.backend_input_contract?.mode).toBe("hybrid");
-    expect(payload.result?.backend_input_contract?.required).toEqual(["record_ref", "new_status", "change_reason"]);
-    expect(payload.result?.backend_input_contract?.optional).toEqual([]);
-    expect(payload.result?.unresolved_required_backend_inputs).toEqual(["change_reason"]);
+    expect(payload.result?.backend_input_contract).toEqual({ mode: "hybrid", required: ["record_ref", "new_status", "change_reason"], optional: [] });
   });
 
   it("accepts open references for backend-resolved inputs", async () => {
@@ -1191,16 +1199,22 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 	assertBehaviorMatrixFailureType(t, insufficientScope, "scope_insufficient")
 	assertBehaviorMatrixResolutionAction(t, insufficientScope, "request_broader_scope")
 
-	backendIncomplete := invokeBehaviorMatrixApproved(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
+	missingBackendInput := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
 		"record_ref": "CON-1",
 		"new_status": "done",
 	})
-	if backendIncomplete["success"] != true {
-		t.Fatalf("expected backend-incomplete success envelope, got %#v", backendIncomplete)
+	assertBehaviorMatrixFailureType(t, missingBackendInput, "invalid_parameters")
+	if detail, _ := missingBackendInput["failure"].(map[string]any)["detail"].(string); !bytes.Contains([]byte(detail), []byte("change_reason")) {
+		t.Fatalf("expected the refusal to name change_reason, got %#v", missingBackendInput)
 	}
-	backendResult, ok := backendIncomplete["result"].(map[string]any)
-	if !ok || backendResult["execution_status"] != "backend_input_incomplete" {
-		t.Fatalf("expected backend_input_incomplete, got %#v", backendIncomplete["result"])
+	withBackendInput := invokeBehaviorMatrixApproved(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
+		"record_ref":    "CON-1",
+		"new_status":    "done",
+		"change_reason": "conformance test",
+	})
+	backendResult, ok := withBackendInput["result"].(map[string]any)
+	if withBackendInput["success"] != true || !ok {
+		t.Fatalf("expected success with change_reason, got %#v", withBackendInput)
 	}
 	backendContract, ok := backendResult["backend_input_contract"].(map[string]any)
 	if !ok || backendContract["mode"] != "hybrid" {
@@ -1213,10 +1227,6 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 	backendOptional, ok := backendContract["optional"].([]any)
 	if !ok || len(backendOptional) != 0 {
 		t.Fatalf("expected no hybrid optional inputs, got %#v", backendContract["optional"])
-	}
-	unresolved, ok := backendResult["unresolved_required_backend_inputs"].([]any)
-	if !ok || len(unresolved) != 1 || unresolved[0] != "change_reason" {
-		t.Fatalf("expected unresolved change_reason, got %#v", backendResult["unresolved_required_backend_inputs"])
 	}
 
 	openReference := invokeBehaviorMatrixApproved(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
@@ -1512,22 +1522,30 @@ class GeneratedBehaviorMatrixTest {
             assertFailureType(insufficientScope, "scope_insufficient");
             assertResolutionAction(insufficientScope, "request_broader_scope");
 
-            Map<String, Object> backendIncomplete = invokeApproved(
+            Map<String, Object> missingBackendInput = invoke(
                     service,
                     "human:manager|actor_id=manager",
                     "conformance.prepare_change",
                     List.of("conformance.prepare"),
                     Map.of("record_ref", "CON-1", "new_status", "done"));
-            assertTrue((Boolean) backendIncomplete.get("success"));
+            assertFailureType(missingBackendInput, "invalid_parameters");
             @SuppressWarnings("unchecked")
-            Map<String, Object> backendResult = (Map<String, Object>) backendIncomplete.get("result");
-            assertEquals("backend_input_incomplete", backendResult.get("execution_status"));
+            Map<String, Object> missingFailure = (Map<String, Object>) missingBackendInput.get("failure");
+            assertTrue(String.valueOf(missingFailure.get("detail")).contains("change_reason"));
+            Map<String, Object> withBackendInput = invokeApproved(
+                    service,
+                    "human:manager|actor_id=manager",
+                    "conformance.prepare_change",
+                    List.of("conformance.prepare"),
+                    Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "conformance test"));
+            assertTrue((Boolean) withBackendInput.get("success"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> backendResult = (Map<String, Object>) withBackendInput.get("result");
             @SuppressWarnings("unchecked")
             Map<String, Object> backendContract = (Map<String, Object>) backendResult.get("backend_input_contract");
             assertEquals("hybrid", backendContract.get("mode"));
             assertEquals(List.of("record_ref", "new_status", "change_reason"), backendContract.get("required"));
             assertEquals(List.of(), backendContract.get("optional"));
-            assertEquals(List.of("change_reason"), backendResult.get("unresolved_required_backend_inputs"));
 
             Map<String, Object> openReference = invokeApproved(
                     service,
@@ -1809,7 +1827,7 @@ public class GeneratedBehaviorMatrixTests
             AssertFailureType(insufficientScope, "scope_insufficient");
             AssertResolutionAction(insufficientScope, "request_broader_scope");
 
-            var backendIncomplete = InvokeApproved(
+            var missingBackendInput = Invoke(
                 service,
                 "human:manager|actor_id=manager",
                 "conformance.prepare_change",
@@ -1819,15 +1837,25 @@ public class GeneratedBehaviorMatrixTests
                     ["record_ref"] = "CON-1",
                     ["new_status"] = "done",
                 });
-            Assert.True((bool)backendIncomplete["success"]!);
-            var backendResult = Assert.IsType<Dictionary<string, object?>>(backendIncomplete["result"]);
-            Assert.Equal("backend_input_incomplete", backendResult["execution_status"]);
+            AssertFailureType(missingBackendInput, "invalid_parameters");
+            Assert.Contains("change_reason", (string)Assert.IsType<Dictionary<string, object?>>(missingBackendInput["failure"])["detail"]!);
+            var withBackendInput = InvokeApproved(
+                service,
+                "human:manager|actor_id=manager",
+                "conformance.prepare_change",
+                ["conformance.prepare"],
+                new Dictionary<string, object?>
+                {
+                    ["record_ref"] = "CON-1",
+                    ["new_status"] = "done",
+                    ["change_reason"] = "conformance test",
+                });
+            Assert.True((bool)withBackendInput["success"]!);
+            var backendResult = Assert.IsType<Dictionary<string, object?>>(withBackendInput["result"]);
             var backendContract = Assert.IsType<Dictionary<string, object?>>(backendResult["backend_input_contract"]);
             Assert.Equal("hybrid", backendContract["mode"]);
             Assert.Equal(["record_ref", "new_status", "change_reason"], Assert.IsType<List<string>>(backendContract["required"]));
             Assert.Equal([], Assert.IsType<List<string>>(backendContract["optional"]));
-            var unresolved = Assert.IsType<List<string>>(backendResult["unresolved_required_backend_inputs"]);
-            Assert.Equal(["change_reason"], unresolved);
 
             var openReference = InvokeApproved(
                 service,

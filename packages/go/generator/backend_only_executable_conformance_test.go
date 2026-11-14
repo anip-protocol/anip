@@ -8,20 +8,36 @@ import (
 	"testing"
 )
 
-// Exercise the same public protocol against every generated target. Missing
-// backend input blocks the stub, but is not an ANIP failure in this contract.
+// Exercise the same public protocol against every generated target over
+// stdio. The child declares the explicit backend input change_reason that the
+// definition left out of its inputs, so a call without it, or with a key the
+// capability does not declare, is refused before the adapter runs. The parent
+// does not declare change_reason and supplies the child's from an earlier
+// step, so parent parameters reach the child only through input_mapping.
 func runGeneratedBackendOnlyStdio(t *testing.T, target, outputDir, repoRoot string) {
 	t.Helper()
 	client := startGeneratedStdioProcess(t, outputDir, generatedStdioCommandForTarget(t, target, outputDir, repoRoot))
 	defer client.close()
 	manifest := client.call(t, 1, "anip.manifest", nil)["manifest"].(map[string]any)
-	capability := manifest["capabilities"].(map[string]any)["conformance.prepare_change"].(map[string]any)
-	var names []string
-	for _, raw := range capability["inputs"].([]any) {
-		names = append(names, raw.(map[string]any)["name"].(string))
+	declaredInputs := func(capabilityID string) []string {
+		t.Helper()
+		capability := manifest["capabilities"].(map[string]any)[capabilityID].(map[string]any)
+		var names []string
+		for _, raw := range capability["inputs"].([]any) {
+			input := raw.(map[string]any)
+			name := input["name"].(string)
+			if input["required"] == false {
+				name += "?"
+			}
+			names = append(names, name)
+		}
+		return names
 	}
-	if !reflect.DeepEqual(names, []string{"record_ref", "new_status"}) {
-		t.Fatalf("public child inputs changed or leaked backend-only input: %#v", names)
+	if got := declaredInputs("conformance.prepare_change"); !reflect.DeepEqual(got, []string{"record_ref", "new_status", "change_reason"}) {
+		t.Fatalf("child must declare its explicit backend input as required: %#v", got)
+	}
+	if got := declaredInputs("conformance.lookup_and_prepare"); !reflect.DeepEqual(got, []string{"query", "requested_status"}) {
+		t.Fatalf("parent must not declare change_reason: %#v", got)
 	}
 	nextID := 2
 	invoke := func(capability string, parameters map[string]any) map[string]any {
@@ -39,26 +55,36 @@ func runGeneratedBackendOnlyStdio(t *testing.T, target, outputDir, repoRoot stri
 			"auth": map[string]any{"bearer": token}, "capability": capability, "parameters": parameters,
 		})
 		nextID++
-		if payload["success"] != true {
-			t.Fatalf("expected successful ANIP envelope: %#v", payload)
+		return payload
+	}
+	refused := func(payload map[string]any, name string) {
+		t.Helper()
+		failure, _ := payload["failure"].(map[string]any)
+		detail, _ := failure["detail"].(string)
+		if payload["success"] != false || failure["type"] != "invalid_parameters" || !strings.Contains(detail, name) {
+			t.Fatalf("expected invalid_parameters naming %s: %#v", name, payload)
 		}
-		return payload["result"].(map[string]any)
 	}
-	missing := invoke("conformance.prepare_change", map[string]any{"record_ref": "CON-1", "new_status": "done"})
-	if missing["execution_status"] != "backend_input_incomplete" || !reflect.DeepEqual(missing["unresolved_required_backend_inputs"], []any{"change_reason"}) {
-		t.Fatalf("missing backend requirement did not block stub: %#v", missing)
+	succeeded := func(payload map[string]any) map[string]any {
+		t.Helper()
+		result, ok := payload["result"].(map[string]any)
+		if payload["success"] != true || !ok {
+			t.Fatalf("expected a successful ANIP envelope: %#v", payload)
+		}
+		return result
 	}
+	refused(invoke("conformance.prepare_change", map[string]any{"record_ref": "CON-1", "new_status": "done"}), "change_reason")
+	refused(invoke("conformance.prepare_change", map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason", "unrelated_sentinel": "must-not-reach-adapter"}), "unrelated_sentinel")
+	valid := succeeded(invoke("conformance.prepare_change", map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"}))
 	wantContract := map[string]any{"mode": "hybrid", "required": []any{"record_ref", "new_status", "change_reason"}, "optional": []any{}}
-	if !reflect.DeepEqual(missing["backend_input_contract"], wantContract) {
-		t.Fatalf("backend-only contract changed: %#v", missing)
+	wantInput := map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"}
+	if valid["execution_status"] != "backend_execution_stub" || !reflect.DeepEqual(valid["semantic_input"], wantInput) || !reflect.DeepEqual(valid["backend_input_contract"], wantContract) {
+		t.Fatalf("valid request changed semantic input or contract: %#v", valid)
 	}
-	valid := invoke("conformance.prepare_change", map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-only-reason", "unrelated_sentinel": "must-not-reach-adapter"})
-	if valid["execution_status"] != "backend_execution_stub" || !reflect.DeepEqual(valid["semantic_input"], map[string]any{"record_ref": "CON-1", "new_status": "done"}) || !reflect.DeepEqual(valid["backend_input_contract"], wantContract) {
-		t.Fatalf("valid backend-only request changed semantic input or contract: %#v", valid)
-	}
-	parent := invoke("conformance.lookup_and_prepare", map[string]any{"query": "CON-1", "requested_status": "done", "change_reason": "not-mapped-to-child"})
-	if parent["prepared_status"] != "backend_input_incomplete" {
-		t.Fatalf("parent supplied an unmapped backend-only input: %#v", parent)
+	refused(invoke("conformance.lookup_and_prepare", map[string]any{"query": "CON-1", "requested_status": "done", "change_reason": "not-mapped-to-child"}), "change_reason")
+	parent := succeeded(invoke("conformance.lookup_and_prepare", map[string]any{"query": "CON-1", "requested_status": "done"}))
+	if parent["prepared_status"] != "backend_execution_stub" {
+		t.Fatalf("parent did not supply the child's change_reason from the lookup step: %#v", parent)
 	}
 }
 
@@ -87,18 +113,22 @@ func backendOnlyAdapterTest(t *testing.T, target, matrix string) string {
             return await original.execute(capability, plan, adapter_input, context)
 
     monkeypatch.setattr(module, "backend_adapter", Spy())
+    refused = _invoke(_client(), "dev-admin-key", "conformance.prepare_change", ["conformance.prepare"],
+                      {"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason", "unrelated_sentinel": "must-not-reach-adapter"})
+    _assert_failure_type(refused, "invalid_parameters")
+    assert "unrelated_sentinel" in refused["failure"]["detail"]
     payload = _invoke(_client(), "dev-admin-key", "conformance.prepare_change", ["conformance.prepare"],
-                      {"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-only-reason", "unrelated_sentinel": "must-not-reach-adapter"})
+                      {"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"})
     assert payload["success"] is True
     assert payload["result"]["execution_status"] == "backend_execution_stub"
-    assert captured == [({"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-only-reason"},
-                         {"record_ref": "CON-1", "new_status": "done"})]
+    declared = {"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"}
+    assert captured == [(declared, declared)]
 `
 	case "typescript":
 		return prefix + `import { vi } from "vitest";
 import { backendAdapter } from "../src/runtime/backend-adapter.js";
 
-it("preserves backend-only adapter input without semantic or unrelated keys", async () => {
+it("passes the declared backend input to the adapter and refuses undeclared keys", async () => {
   const original = backendAdapter.execute.bind(backendAdapter);
   const captured: unknown[] = [];
   const spy = vi.spyOn(backendAdapter, "execute").mockImplementation(async (capability, plan, adapterInput, context) => {
@@ -106,12 +136,16 @@ it("preserves backend-only adapter input without semantic or unrelated keys", as
     return original(capability, plan, adapterInput, context);
   });
   try {
+    const refused = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"],
+      { record_ref: "CON-1", new_status: "done", change_reason: "backend-reason", unrelated_sentinel: "must-not-reach-adapter" });
+    expectFailureType(refused, "invalid_parameters");
+    expect((refused as any).failure?.detail).toContain("unrelated_sentinel");
     const payload = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"],
-      { record_ref: "CON-1", new_status: "done", change_reason: "backend-only-reason", unrelated_sentinel: "must-not-reach-adapter" });
+      { record_ref: "CON-1", new_status: "done", change_reason: "backend-reason" });
     expect(payload.success).toBe(true);
     expect(payload.result?.execution_status).toBe("backend_execution_stub");
-    expect(captured).toEqual([[{ record_ref: "CON-1", new_status: "done", change_reason: "backend-only-reason" },
-      { record_ref: "CON-1", new_status: "done" }]]);
+    const declared = { record_ref: "CON-1", new_status: "done", change_reason: "backend-reason" };
+    expect(captured).toEqual([[declared, declared]]);
   } finally {
     spy.mockRestore();
   }
@@ -151,12 +185,17 @@ func TestBackendOnlyAdapterInput(t *testing.T) {
     defer svc.Shutdown()
     ts := httptest.NewServer(NewMux(svc))
     defer ts.Close()
+    refused := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"},
+        map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason", "unrelated_sentinel": "must-not-reach-adapter"})
+    assertBehaviorMatrixFailureType(t, refused, "invalid_parameters")
+    if detail, _ := refused["failure"].(map[string]any)["detail"].(string); !bytes.Contains([]byte(detail), []byte("unrelated_sentinel")) { t.Fatal(refused) }
     payload := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"},
-        map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-only-reason", "unrelated_sentinel": "must-not-reach-adapter"})
+        map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"})
     if payload["success"] != true || payload["result"].(map[string]any)["execution_status"] != "backend_execution_stub" { t.Fatal(payload) }
     select {
     case got := <-captured:
-        want := [2]map[string]any{{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-only-reason"}, {"record_ref": "CON-1", "new_status": "done"}}
+        declared := map[string]any{"record_ref": "CON-1", "new_status": "done", "change_reason": "backend-reason"}
+        want := [2]map[string]any{declared, declared}
         if !reflect.DeepEqual(got, want) { t.Fatalf("adapter/semantic inputs: %#v", got) }
     default:
         t.Fatal("adapter was not invoked")
@@ -180,12 +219,16 @@ func TestBackendOnlyAdapterInput(t *testing.T) {
                 .setStorage(":memory:").setTrust("signed").setKeyPath(null));
         service.start();
         try {
+            var refused = invoke(service, "human:local-developer", "conformance.prepare_change", List.of("conformance.prepare"),
+                    Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "backend-reason", "unrelated_sentinel", "must-not-reach-adapter"));
+            assertFailureType(refused, "invalid_parameters");
+            assertTrue(String.valueOf(((Map<?, ?>) refused.get("failure")).get("detail")).contains("unrelated_sentinel"));
             var payload = invoke(service, "human:local-developer", "conformance.prepare_change", List.of("conformance.prepare"),
-                    Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "backend-only-reason", "unrelated_sentinel", "must-not-reach-adapter"));
+                    Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "backend-reason"));
             assertEquals(true, payload.get("success"));
             assertEquals("backend_execution_stub", ((Map<?, ?>) payload.get("result")).get("execution_status"));
-            assertEquals(List.of(List.of(Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "backend-only-reason"),
-                    Map.of("record_ref", "CON-1", "new_status", "done"))), captured);
+            var declared = Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "backend-reason");
+            assertEquals(List.of(List.of(declared, declared)), captured);
         } finally { service.shutdown(); }
     }
 }
@@ -206,18 +249,22 @@ func TestBackendOnlyAdapterInput(t *testing.T) {
         });
         service.Start();
         try {
+            var refused = Invoke(service, "human:local-developer", "conformance.prepare_change", ["conformance.prepare"],
+                new() { ["record_ref"] = "CON-1", ["new_status"] = "done", ["change_reason"] = "backend-reason", ["unrelated_sentinel"] = "must-not-reach-adapter" });
+            AssertFailureType(refused, "invalid_parameters");
+            Assert.Contains("unrelated_sentinel", (string)Assert.IsType<Dictionary<string, object?>>(refused["failure"])["detail"]!);
             var payload = Invoke(service, "human:local-developer", "conformance.prepare_change", ["conformance.prepare"],
-                new() { ["record_ref"] = "CON-1", ["new_status"] = "done", ["change_reason"] = "backend-only-reason", ["unrelated_sentinel"] = "must-not-reach-adapter" });
+                new() { ["record_ref"] = "CON-1", ["new_status"] = "done", ["change_reason"] = "backend-reason" });
             Assert.True((bool)payload["success"]!);
             Assert.Equal("backend_execution_stub", Assert.IsType<Dictionary<string, object?>>(payload["result"])["execution_status"]);
             var call = Assert.Single(captured);
-            Assert.Equal(3, call.Adapter.Count);
-            Assert.Equal("CON-1", call.Adapter["record_ref"]);
-            Assert.Equal("done", call.Adapter["new_status"]);
-            Assert.Equal("backend-only-reason", call.Adapter["change_reason"]);
-            Assert.Equal(2, call.Semantic.Count);
-            Assert.Equal("CON-1", call.Semantic["record_ref"]);
-            Assert.Equal("done", call.Semantic["new_status"]);
+            foreach (var input in new[] { call.Adapter, call.Semantic })
+            {
+                Assert.Equal(3, input.Count);
+                Assert.Equal("CON-1", input["record_ref"]);
+                Assert.Equal("done", input["new_status"]);
+                Assert.Equal("backend-reason", input["change_reason"]);
+            }
         } finally { service.Shutdown(); }
     }
 }
@@ -235,7 +282,7 @@ func TestBackendOnlyExecutableTemplates(t *testing.T) {
 	} {
 		t.Run(target, func(t *testing.T) {
 			content := backendOnlyAdapterTest(t, target, matrix)
-			for _, required := range []string{"backend-only-reason", "unrelated_sentinel", "backend_execution_stub"} {
+			for _, required := range []string{"backend-reason", "unrelated_sentinel", "invalid_parameters", "backend_execution_stub"} {
 				if !strings.Contains(content, required) {
 					t.Fatalf("missing %s", required)
 				}
