@@ -118,6 +118,8 @@ The fronting contract should define:
 
 It should not require every backend parameter to be listed unless that parameter changes governed behavior. Backend-specific controls can be exposed as named governed inputs such as `backend_options`, `filters`, or `fields`, but those inputs must be bounded and audited.
 
+A value the backend adapter needs comes either from the caller or from the service itself, never both. A value the caller supplies is a declared input: runtimes refuse parameters a capability does not declare, so there are no hidden backend-only parameters. The generator declares each explicit backend input (`explicit_required_backend_inputs`, `explicit_optional_backend_inputs`) that the capability leaves out of `inputs`, and refuses a definition whose derived backend inputs are not declared inputs. A value the service supplies, such as a credential, tenant, workspace or the caller's principal, is read by the adapter from configuration or the invocation context and is not listed as a backend input.
+
 ## What belongs in implementation material
 
 Implementation material can include:
