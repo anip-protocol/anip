@@ -42,16 +42,17 @@ ANIP uses a **first-party issuer model**, introduced in v0.2: the service genera
 
 For the full threat model and architectural details, see [docs/trust-model.md](docs/trust-model.md).
 
-## Trust Modes
+## Trust Levels
 
-| Mode | Flag | Use Case |
-|------|------|----------|
-| **Signed** (default) | `ANIP_TRUST_LEVEL=signed` | Bronze — all tokens are server-issued JWTs with ES256 signatures |
-| **Anchored** | `ANIP_TRUST_LEVEL=anchored` | Silver — signed + Merkle tree checkpoints over audit log |
-| **Attested** | `ANIP_TRUST_LEVEL=attested` | Gold — anchored + third-party co-signing (future) |
-| **Declaration** | `ANIP_TRUST_MODE=declaration` | Development/migration — clients build token dicts locally, no signatures |
+A service sets its trust level in its configuration (`trust` in every runtime). The example and generated services read it from `ANIP_TRUST_LEVEL`.
 
-Declaration mode accepts unsigned token dicts for backward compatibility with v0.1 clients. It provides no cryptographic guarantees and exists only to support incremental migration.
+| Level | Status | What it gives |
+|-------|--------|---------------|
+| `signed` (default) | Implemented in all runtimes | Bronze — all tokens are server-issued JWTs with ES256 signatures |
+| `anchored` | Implemented in all runtimes; see the note on sinks | Silver — signed, plus Merkle tree checkpoints over the audit log |
+| `attested` | Specified, not implemented | Gold — anchored, plus third-party co-signing. Python and TypeScript refuse to start with it |
+
+No runtime accepts unsigned tokens. Earlier versions of this page described a `declaration` mode for v0.1 clients; no current runtime has it.
 
 ## Deployment Guidance
 
@@ -72,10 +73,10 @@ Declaration mode accepts unsigned token dicts for backward compatibility with v0
 
 ## What v0.3 Adds
 
-- **Trust levels** — `signed` (Bronze), `anchored` (Silver), `attested` (Gold) declared in discovery
-- **Merkle tree checkpoints** — RFC 6962-compatible trees over audit log entries, with inclusion and consistency proofs
+- **Trust levels** — `signed` (Bronze) and `anchored` (Silver) declared in discovery; `attested` (Gold) is specified but not implemented
+- **Merkle tree checkpoints** — RFC 6962-compatible trees over audit log entries, with inclusion proofs in all runtimes and consistency proofs in Python, TypeScript and Go
 - **Checkpoint scheduling** — automatic checkpoints by entry count and/or time interval
-- **Async sink publication** — checkpoints published to external sinks via background queue
+- **Sink publication** — Python and TypeScript publish checkpoints to sinks through a background queue, and ship a `file:` sink for development. No runtime ships a qualifying external sink (`witness:` or `https:`); a service that claims `anchored` must supply one. Go, Java and C# have no sink support
 - **Checkpoint endpoints** — `GET /anip/checkpoints` and `GET /anip/checkpoints/{id}` with proof support
 
 ## What v0.4–v0.6 Adds
