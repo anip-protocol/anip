@@ -22,8 +22,9 @@ carries a status.
 - **Observed:** For `"approval_grant": ""` Python and TypeScript answered
   `grant_not_found`, Go treated it as absent, and Java and C# skipped grant
   validation while still passing the value to the handler context. In Go the
-  cause is a `string` field whose zero value means "absent"; gRPC (proto3
-  `string`) still cannot tell the two apart.
+  cause is a `string` field whose zero value means "absent". gRPC had the
+  same problem with a proto3 `string`; `InvokeRequest.approval_grant` is now
+  `optional`, and the Python and Go servers validate any present grant.
 - **Status:** verified.
 - **Recommendation:** For every optional field that authorises something, test
   three inputs: absent, empty, whitespace. Decide what the handler may see
