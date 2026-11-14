@@ -1328,6 +1328,64 @@ class ANIPService:
                 "upstream_service": upstream_service,
             }
 
+        async def _refuse_before_handler(
+            failure: dict[str, Any],
+            budget_context: dict[str, Any] | None = None,
+        ) -> dict[str, Any]:
+            """Refuse before the handler (budget, binding, control requirement):
+            audit the refusal as other pre-handler refusals are, fire the
+            invocation-end hooks and return the failure response."""
+            _failure_type = failure["type"]
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, False, _failure_type)
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
+            _binding_context: dict[str, Any] | None = None
+            if decl.requires_binding:
+                _binding_context = {
+                    "bindings_required": [b.field for b in decl.requires_binding],
+                    "bindings_provided": [b.field for b in decl.requires_binding if b.field in params],
+                }
+            await self._safe_log_audit(
+                capability_name, resolved_token, success=False,
+                failure_type=_failure_type,
+                result_summary={"detail": failure.get("detail")},
+                cost_actual=None, cost_variance=None,
+                invocation_id=invocation_id, client_reference_id=client_reference_id,
+                task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
+                budget_context=budget_context,
+                binding_context=_binding_context,
+            )
+            _duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._safe_hook(self._log_hooks.on_invocation_end, {
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": _failure_type,
+                    "duration_ms": _duration_ms,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _duration_ms, "success": False})
+            response: dict[str, Any] = {
+                "success": False,
+                "failure": redact_failure(failure, effective_level),
+            }
+            if budget_context is not None:
+                response["budget_context"] = budget_context
+            response.update({
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+                "task_id": effective_task_id,
+                "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
+            })
+            return response
+
         # SPEC.md §6.3: a `parameters` value that is neither an object nor
         # null does not match the request schema. It is refused here, like a
         # body that is not JSON, before budget and binding enforcement.
@@ -1350,19 +1408,11 @@ class ANIPService:
             effective_budget = resolved_token.constraints.budget
             if request_budget is not None:
                 if request_budget.currency != effective_budget.currency:
-                    return {
-                        "success": False,
-                        "failure": redact_failure({
+                    return await _refuse_before_handler({
                             "type": "budget_currency_mismatch",
                             "detail": f"Invocation budget is in {request_budget.currency} but token budget is in {effective_budget.currency}",
                             "resolution": {"action": "request_matching_currency_delegation", "recovery_class": "redelegation_then_retry"},
-                        }, effective_level),
-                        "invocation_id": invocation_id,
-                        "client_reference_id": client_reference_id,
-                        "task_id": effective_task_id,
-                        "parent_invocation_id": parent_invocation_id,
-                        "upstream_service": upstream_service,
-                    }
+                        })
                 effective_budget = Budget(
                     currency=effective_budget.currency,
                     max_amount=min(effective_budget.max_amount, request_budget.max_amount),
@@ -1375,19 +1425,11 @@ class ANIPService:
         if effective_budget:
             if decl.cost and decl.cost.financial:
                 if decl.cost.financial.currency != effective_budget.currency:
-                    return {
-                        "success": False,
-                        "failure": redact_failure({
+                    return await _refuse_before_handler({
                             "type": "budget_currency_mismatch",
                             "detail": f"Token budget is in {effective_budget.currency} but capability cost is in {decl.cost.financial.currency}",
                             "resolution": {"action": "request_matching_currency_delegation", "recovery_class": "redelegation_then_retry"},
-                        }, effective_level),
-                        "invocation_id": invocation_id,
-                        "client_reference_id": client_reference_id,
-                        "task_id": effective_task_id,
-                        "parent_invocation_id": parent_invocation_id,
-                        "upstream_service": upstream_service,
-                    }
+                        })
 
                 if decl.cost.certainty == CostCertainty.FIXED:
                     check_amount = decl.cost.financial.amount
@@ -1401,66 +1443,39 @@ class ANIPService:
                             # If the binding field is missing entirely, binding_missing will also fire below,
                             # but we must not silently skip budget enforcement when the field IS present
                             # but doesn't carry a concrete price.
-                            return {
-                                "success": False,
-                                "failure": redact_failure({
+                            return await _refuse_before_handler({
                                     "type": "budget_not_enforceable",
                                     "detail": f"Capability {decl.name} has estimated cost with requires_binding but the provided binding does not carry a resolvable price",
                                     "resolution": {"action": "obtain_binding", "recovery_class": "refresh_then_retry", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
                                     "retry": False,
-                                }, effective_level),
-                                "invocation_id": invocation_id,
-                                "client_reference_id": client_reference_id,
-                                "task_id": effective_task_id,
-                                "parent_invocation_id": parent_invocation_id,
-                                "upstream_service": upstream_service,
-                            }
+                                })
                     else:
-                        return {
-                            "success": False,
-                            "failure": redact_failure({
+                        return await _refuse_before_handler({
                                 "type": "budget_not_enforceable",
                                 "detail": f"Capability {decl.name} has estimated cost but no requires_binding — budget cannot be enforced",
                                 "resolution": {"action": "escalate_to_root_principal", "recovery_class": "terminal"},
-                            }, effective_level),
-                            "invocation_id": invocation_id,
-                            "client_reference_id": client_reference_id,
-                            "task_id": effective_task_id,
-                            "parent_invocation_id": parent_invocation_id,
-                            "upstream_service": upstream_service,
-                        }
+                            })
                 elif decl.cost.certainty == CostCertainty.DYNAMIC:
                     check_amount = decl.cost.financial.upper_bound
 
                 if check_amount is not None and check_amount > effective_budget.max_amount:
-                    return {
-                        "success": False,
-                        "failure": redact_failure({
+                    return await _refuse_before_handler({
                             "type": "budget_exceeded",
                             "detail": f"Cost ${check_amount} exceeds budget ${effective_budget.max_amount}",
                             "resolution": {"action": "request_budget_increase", "recovery_class": "redelegation_then_retry"},
-                        }, effective_level),
-                        "budget_context": {
+                        }, budget_context={
                             "budget_max": effective_budget.max_amount,
                             "budget_currency": effective_budget.currency,
                             "cost_check_amount": check_amount,
                             "cost_certainty": decl.cost.certainty.value,
                             "cost_actual": None,
                             "within_budget": False,
-                        },
-                        "invocation_id": invocation_id,
-                        "client_reference_id": client_reference_id,
-                        "task_id": effective_task_id,
-                        "parent_invocation_id": parent_invocation_id,
-                        "upstream_service": upstream_service,
-                    }
+                        })
 
         # Binding enforcement
         for binding in decl.requires_binding:
             if binding.field not in params or params[binding.field] is None:
-                return {
-                    "success": False,
-                    "failure": redact_failure({
+                return await _refuse_before_handler({
                         "type": "binding_missing",
                         "detail": f"Capability {decl.name} requires '{binding.field}' (type: {binding.type})",
                         "resolution": {
@@ -1468,19 +1483,11 @@ class ANIPService:
                             "recovery_class": "refresh_then_retry",
                             "requires": f"invoke {binding.source_capability or 'source capability'} to obtain a {binding.field}",
                         },
-                    }, effective_level),
-                    "invocation_id": invocation_id,
-                    "client_reference_id": client_reference_id,
-                    "task_id": effective_task_id,
-                    "parent_invocation_id": parent_invocation_id,
-                    "upstream_service": upstream_service,
-                }
+                    })
             if binding.max_age:
                 age = _resolve_binding_age(params[binding.field])
                 if age is not None and age > _parse_iso8601_duration(binding.max_age):
-                    return {
-                        "success": False,
-                        "failure": redact_failure({
+                    return await _refuse_before_handler({
                             "type": "binding_stale",
                             "detail": f"Binding '{binding.field}' has exceeded max_age of {binding.max_age}",
                             "resolution": {
@@ -1488,13 +1495,7 @@ class ANIPService:
                                 "recovery_class": "refresh_then_retry",
                                 "requires": f"invoke {binding.source_capability or 'source capability'} again for a fresh {binding.field}",
                             },
-                        }, effective_level),
-                        "invocation_id": invocation_id,
-                        "client_reference_id": client_reference_id,
-                        "task_id": effective_task_id,
-                        "parent_invocation_id": parent_invocation_id,
-                        "upstream_service": upstream_service,
-                    }
+                        })
 
         # Control requirement enforcement (reject only — no warn in v0.14).
         # NOTE: The stronger_delegation_required check below is defence-in-depth.
@@ -1525,20 +1526,12 @@ class ANIPService:
                 if req.type == "non_delegable":
                     resolution_action = "request_root_capability_token"
                     recovery_class = "terminal"
-                return {
-                    "success": False,
-                    "failure": redact_failure({
+                return await _refuse_before_handler({
                         "type": "control_requirement_unsatisfied",
                         "detail": f"Capability {decl.name} requires {req.type}",
                         "unsatisfied_requirements": [req.type],
                         "resolution": {"action": resolution_action, "recovery_class": recovery_class},
-                    }, effective_level),
-                    "invocation_id": invocation_id,
-                    "client_reference_id": client_reference_id,
-                    "task_id": effective_task_id,
-                    "parent_invocation_id": parent_invocation_id,
-                    "upstream_service": upstream_service,
-                }
+                    })
 
         # Set up progress tracking for streaming
         events_emitted = 0
