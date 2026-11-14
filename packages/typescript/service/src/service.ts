@@ -1663,6 +1663,54 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       
       };
 
+      // Refuse before the handler (budget, binding, control requirement):
+      // audit the refusal as every pre-handler refusal is, fire the
+      // invocation-end hooks and return the failure (SPEC.md §6.3).
+      const refuseBeforeHandler = async (
+        failure: Record<string, unknown>,
+        budgetContext?: Record<string, unknown>,
+      ): Promise<Record<string, unknown>> => {
+        const failureTypeR = failure.type as string;
+        const sideEffectTypeR = (decl as any).side_effect?.type ?? null;
+        const eventClassR = classifyEvent(sideEffectTypeR, false, failureTypeR);
+        const retTierR = retentionPolicy.resolveTier(eventClassR);
+        const expiresAtR = retentionPolicy.computeExpiresAt(retTierR);
+        await logAudit(capabilityName, resolvedToken, {
+          success: false,
+          failureType: failureTypeR,
+          resultSummary: { detail: failure.detail ?? null },
+          invocationId,
+          clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
+          upstreamService,
+          eventClass: eventClassR,
+          retentionTier: retTierR,
+          expiresAt: expiresAtR,
+          parentSpan: rootSpan,
+        });
+        const refusedDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd, {
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: failureTypeR,
+          durationMs: refusedDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration, { capability: capabilityName, durationMs: refusedDurationMs, success: false });
+        return {
+          success: false,
+          failure: redactFailure(failure as any, effectiveLevel),
+          ...(budgetContext !== undefined ? { budget_context: budgetContext } : {}),
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
+          upstream_service: upstreamService,
+        };
+      };
+
       // SPEC.md §6.3: a `parameters` value that is neither an object nor
       // null does not match the request schema. It is refused here, like a
       // body that is not JSON, before budget and binding enforcement.
@@ -1687,19 +1735,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           const hintCurrency = budgetHint.currency as string;
           const hintMaxAmount = budgetHint.max_amount as number;
           if (hintCurrency !== effectiveBudget.currency) {
-            return {
-              success: false,
-              failure: redactFailure({
+            return refuseBeforeHandler({
                 type: "budget_currency_mismatch",
                 detail: `Invocation budget is in ${hintCurrency} but token budget is in ${effectiveBudget.currency}`,
                 resolution: { action: "request_matching_currency_delegation", recovery_class: recoveryClassForAction("request_matching_currency_delegation") },
-              }, effectiveLevel),
-              invocation_id: invocationId,
-              client_reference_id: clientReferenceId,
-              task_id: effectiveTaskId,
-              parent_invocation_id: parentInvocationId,
-              upstream_service: upstreamService,
-            };
+              });
           }
           effectiveBudget = {
             currency: effectiveBudget.currency,
@@ -1720,19 +1760,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const declFinancial = declCost?.financial as Record<string, unknown> | null;
         if (declCost && declFinancial) {
           if (declFinancial.currency !== effectiveBudget.currency) {
-            return {
-              success: false,
-              failure: redactFailure({
+            return refuseBeforeHandler({
                 type: "budget_currency_mismatch",
                 detail: `Token budget is in ${effectiveBudget.currency} but capability cost is in ${declFinancial.currency}`,
                 resolution: { action: "request_matching_currency_delegation", recovery_class: recoveryClassForAction("request_matching_currency_delegation") },
-              }, effectiveLevel),
-              invocation_id: invocationId,
-              client_reference_id: clientReferenceId,
-              task_id: effectiveTaskId,
-              parent_invocation_id: parentInvocationId,
-              upstream_service: upstreamService,
-            };
+              });
           }
 
           const certainty = declCost.certainty as string;
@@ -1746,60 +1778,35 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 checkAmount = boundPrice;
               } else {
                 // Binding exists but no resolvable price — budget cannot be enforced.
-                return {
-                  success: false,
-                  failure: redactFailure({
+                return refuseBeforeHandler({
                     type: "budget_not_enforceable",
                     detail: `Capability ${capabilityName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price`,
                     resolution: { action: "obtain_binding", recovery_class: recoveryClassForAction("obtain_binding"), requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
                     retry: false,
-                  }, effectiveLevel),
-                  invocation_id: invocationId,
-                  client_reference_id: clientReferenceId,
-                  task_id: effectiveTaskId,
-                  parent_invocation_id: parentInvocationId,
-                  upstream_service: upstreamService,
-                };
+                  });
               }
             } else {
-              return {
-                success: false,
-                failure: redactFailure({
+              return refuseBeforeHandler({
                   type: "budget_not_enforceable",
                   detail: `Capability ${capabilityName} has estimated cost but no requires_binding — budget cannot be enforced`,
                   resolution: { action: "escalate_to_root_principal", recovery_class: recoveryClassForAction("escalate_to_root_principal") },
-                }, effectiveLevel),
-                invocation_id: invocationId,
-                client_reference_id: clientReferenceId,
-                task_id: effectiveTaskId,
-                parent_invocation_id: parentInvocationId,
-                upstream_service: upstreamService,
-              };
+                });
             }
           } else if (certainty === "dynamic") {
             checkAmount = declFinancial.upper_bound as number | null;
           }
 
           if (checkAmount !== null && checkAmount > effectiveBudget.maxAmount) {
-            return {
-              success: false,
-              failure: redactFailure({
+            return refuseBeforeHandler({
                 type: "budget_exceeded",
                 detail: `Cost $${checkAmount} exceeds budget $${effectiveBudget.maxAmount}`,
                 resolution: { action: "request_budget_increase", recovery_class: recoveryClassForAction("request_budget_increase") },
-              }, effectiveLevel),
-              budget_context: {
+              }, {
                 budget_max: effectiveBudget.maxAmount,
                 budget_currency: effectiveBudget.currency,
                 cost_check_amount: checkAmount,
                 cost_certainty: certainty,
-              },
-              invocation_id: invocationId,
-              client_reference_id: clientReferenceId,
-              task_id: effectiveTaskId,
-              parent_invocation_id: parentInvocationId,
-              upstream_service: upstreamService,
-            };
+              });
           }
         }
       }
@@ -1809,9 +1816,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       for (const binding of requiresBinding as Array<Record<string, unknown>>) {
         const field = binding.field as string;
         if (!(field in params) || params[field] === null || params[field] === undefined) {
-          return {
-            success: false,
-            failure: redactFailure({
+          return refuseBeforeHandler({
               type: "binding_missing",
               detail: `Capability ${capabilityName} requires '${field}' (type: ${binding.type})`,
               resolution: {
@@ -1819,20 +1824,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 recovery_class: recoveryClassForAction("obtain_binding"),
                 requires: `invoke ${binding.source_capability ?? "source capability"} to obtain a ${field}`,
               },
-            }, effectiveLevel),
-            invocation_id: invocationId,
-            client_reference_id: clientReferenceId,
-            task_id: effectiveTaskId,
-            parent_invocation_id: parentInvocationId,
-            upstream_service: upstreamService,
-          };
+            });
         }
         if (binding.max_age) {
           const age = _resolveBindingAge(params[field]);
           if (age !== null && age > _parseISO8601Duration(binding.max_age as string)) {
-            return {
-              success: false,
-              failure: redactFailure({
+            return refuseBeforeHandler({
                 type: "binding_stale",
                 detail: `Binding '${field}' has exceeded max_age of ${binding.max_age}`,
                 resolution: {
@@ -1840,13 +1837,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                   recovery_class: recoveryClassForAction("refresh_binding"),
                   requires: `invoke ${binding.source_capability ?? "source capability"} again for a fresh ${field}`,
                 },
-              }, effectiveLevel),
-              invocation_id: invocationId,
-              client_reference_id: clientReferenceId,
-              task_id: effectiveTaskId,
-              parent_invocation_id: parentInvocationId,
-              upstream_service: upstreamService,
-            };
+              });
           }
         }
       }
@@ -1867,20 +1858,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         if (!satisfied) {
-          return {
-            success: false,
-            failure: redactFailure({
+          return refuseBeforeHandler({
               type: "control_requirement_unsatisfied",
               detail: `Capability ${capabilityName} requires ${reqType}`,
               unsatisfied_requirements: [reqType],
               resolution: { action: "request_capability_binding", recovery_class: recoveryClassForAction("request_capability_binding") },
-            }, effectiveLevel),
-            invocation_id: invocationId,
-            client_reference_id: clientReferenceId,
-            task_id: effectiveTaskId,
-            parent_invocation_id: parentInvocationId,
-            upstream_service: upstreamService,
-          };
+            });
         }
       }
 
