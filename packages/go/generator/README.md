@@ -270,17 +270,16 @@ requires built local SDK packages. Java and C# compile local SDK sources as part
 of the generated project. Package managers may download dependencies: local SDK
 sources do not imply an offline run.
 
-The backend-only variant removes `change_reason` from public inputs and the
-composition mapping while retaining it as a required backend input. It also
-removes the fixture's policy bindings and the approval gate on the child, so
-every actor reaches the backend adapter (rule 3) and the variant exercises only
-backend inputs; the main fixture carries the policy matrix. This tests
-the distinction between public contracts and backend adapter requirements without
-changing the protocol or handwritten SDK semantics. Generated Python compositions
-now match the SDK's mapped-only child input behavior: parent values are not
-implicitly copied into every child. Regenerated services that depended on that
-implicit forwarding must declare the intended public child input and an explicit
-composition mapping; backend-only requirements are not public input declarations.
+The backend-only variant removes `change_reason` from the child's `inputs` while
+keeping it in `explicit_required_backend_inputs`, and removes it from the parent.
+The generated child still declares it as a required input, a call without it or
+with an undeclared key is refused with `invalid_parameters`, and the parent,
+which no longer accepts `change_reason`, fills the child's from the lookup step's
+output. Parent values reach a child only through an explicit `input_mapping`.
+The variant also removes the fixture's policy bindings and the approval gate
+on the child, so every actor reaches the backend adapter (a capability without
+bindings is allowed) and it exercises only backend inputs; the main fixture
+carries the policy matrix.
 
 The TypeScript harness installs Vitest, Vite, Rolldown and PostCSS versions from the SDK's
 committed lock without modifying the generated `package.json`. This measures
@@ -294,6 +293,44 @@ An explicitly requested executable suite fails on missing executables. The local
 `ANIP_GENERATOR_EXECUTABLE_CONFORMANCE_SKIP` option can skip targets; CI clears it.
 The tests use temporary projects and synthetic identities, not a live
 business service or model provider.
+
+## Backend inputs
+
+A value a backend adapter needs comes from exactly one of two places: the caller,
+as a declared input of the capability, or the service itself (configuration, the
+token's principal, a default, or a value derived from another input). Runtimes
+refuse parameters a capability does not declare, and the generated adapter reads
+backend inputs from the invocation parameters, so the generator and the
+definition validator (`packages/go/definitionvalidation`) apply these rules to
+each `integration_fronting` capability mapping and each of its backend bindings:
+
+- An explicit backend input (`explicit_required_backend_inputs`,
+  `explicit_optional_backend_inputs`, used in `explicit` and `hybrid` mode) is a
+  declared input. If the capability does not list it in `inputs`, the generator
+  declares it, with type `string` and `required` matching the list it is in, in
+  every target, in the emitted `anip-service-definition.json`, in the manifest the
+  service serves and in the agent consumption kit. If the capability does list
+  it, its `required` must match, or the definition is refused.
+- A derived backend input (`derived_required_backend_inputs`,
+  `derived_optional_backend_inputs`, used in `implicit` and `hybrid` mode) comes
+  from backend discovery. It must be a declared input, or the definition is
+  refused because the input has no source. A required one declared optional needs
+  a `default_value` the service applies (not `resolution.on_missing: omit`), or
+  it has no source when the caller omits it.
+- A composition must map a child's required inputs, including the explicit
+  backend inputs the generator declares for it.
+
+The service definition has no field that marks a backend input as supplied by the
+service. A backend adapter that needs such a value (a credential, a tenant ID, the
+caller's principal) reads it from configuration or the invocation context and does
+not list it as a backend input.
+
+Because every backend input a valid definition lists is a declared input, a call
+that omits a required one is refused with `invalid_parameters` (or handled by the
+input's `resolution.on_missing`) before the adapter runs, rather than reaching the
+default adapter as a `backend_input_incomplete` success. The plan still carries
+`unresolved_required_backend_inputs`, and `backend_input_incomplete` remains for
+an adapter that sources a value from the service and finds it missing.
 
 Next steps:
 
