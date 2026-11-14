@@ -1,7 +1,7 @@
 /**
  * Core types for the ANIP service runtime.
  */
-import type { CapabilityDeclaration, DelegationToken } from "@anip-dev/core";
+import type { CapabilityDeclaration, CapabilityDeclarationInput, DelegationToken } from "@anip-dev/core";
 
 export interface InvocationContext {
   token: DelegationToken;
@@ -31,6 +31,16 @@ export type Handler = (
 
 export interface CapabilityDef {
   declaration: CapabilityDeclaration;
+  handler: Handler;
+  exclusiveLock?: boolean;
+}
+
+/**
+ * What `defineCapability` accepts: the declaration as you write it by hand,
+ * where every field that has a default may be left out.
+ */
+export interface CapabilityDefInput {
+  declaration: CapabilityDeclarationInput;
   handler: Handler;
   exclusiveLock?: boolean;
 }
