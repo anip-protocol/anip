@@ -120,7 +120,7 @@ This matters because the showcase should not require a very large model to compe
 
 When a question fails, triage in this order:
 
-1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.5`.
+1. Confirm the stack was generated from `gtm-pipeline-q2-review@0.4.6`.
 2. Confirm the expected language service exposes 23 capabilities.
 3. Confirm the agent runtime is pointed at the selected language stack.
 4. Confirm the dbt models and Metabase views return sane values.

@@ -85,7 +85,7 @@ Allowed overlays are intentionally narrow: backend adapters, policy files, proje
 
 ```bash
 anip generate \
-  --package-bundle ./gtm-pipeline-q2-review-0.4.5.anip-package.json \
+  --package-bundle ./gtm-pipeline-q2-review-0.4.6.anip-package.json \
   --target python \
   --transport http,stdio \
   --custom-code-bundle ./examples/showcase/gtm/custom-code-bundles/python \
@@ -138,8 +138,8 @@ If a package should advertise a bundle, publish a new package revision:
 
 ```bash
 anip package attach-implementation \
-  --package-bundle ./gtm-pipeline-q2-review-0.4.5.anip-package.json \
-  --package-version 0.4.1 \
+  --package-bundle ./gtm-pipeline-q2-review-0.4.6.anip-package.json \
+  --package-version 0.4.7 \
   --custom-code-bundle-ref git+https://github.com/anip-protocol/gtm-bundles.git@<commit>#sha256:<archive-digest> \
   --custom-code-bundle ./examples/showcase/gtm/custom-code-bundles/python \
   --implementation-material-title "GTM Python implementation bundle" \

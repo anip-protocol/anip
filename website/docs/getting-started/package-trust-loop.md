@@ -91,8 +91,8 @@ When a custom bundle should be advertised to consumers, create a new package rev
 
 ```bash
 go run ./cmd/anip package attach-implementation \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
-  --package-version 0.4.1 \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json \
+  --package-version 0.4.7 \
   --custom-code-bundle-ref git+https://github.com/anip-protocol/gtm-bundles.git@<commit>#sha256:<digest> \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/python \
   --implementation-material-title "GTM Python implementation bundle" \

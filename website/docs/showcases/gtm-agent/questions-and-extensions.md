@@ -7,7 +7,7 @@ description: Example GTM Agent questions, supported and unsupported request patt
 
 The GTM Agent showcase is not a generic chatbot over CRM data. It supports a declared set of governed revenue-operations questions and stops when a request crosses the contract boundary.
 
-This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.5` package supports, what it intentionally does not support, and how the project can be extended.
+This page gives practical examples of what the current `gtm-pipeline-q2-review@0.4.6` package supports, what it intentionally does not support, and how the project can be extended.
 
 ## Question Bank Shape
 

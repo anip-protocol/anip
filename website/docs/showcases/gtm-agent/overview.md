@@ -26,7 +26,7 @@ The showcase proves:
 
 | Item | Baseline |
 | --- | --- |
-| Package | `gtm-pipeline-q2-review@0.4.5` |
+| Package | `gtm-pipeline-q2-review@0.4.6` |
 | ANIP spec | `anip/0.24` |
 | Services | 4 |
 | Capabilities | 23 |
@@ -35,12 +35,12 @@ The showcase proves:
 | GTM benchmark suite | 540 cases |
 | Hard-mode governance bank | 24 cases |
 | Release validation surface | 564 cases |
-| Docker images | `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.5` |
+| Docker images | `anipprotocol/showcase-gtm-{python,typescript,go,java,csharp}:0.4.6` |
 
 The package artifact lives at:
 
 ```text
-examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json
+examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json
 ```
 
 The generated language outputs live at:

@@ -10,7 +10,7 @@ The GTM package exposes 23 ANIP capabilities across four services. This page is 
 Package:
 
 ```text
-gtm-pipeline-q2-review@0.4.5
+gtm-pipeline-q2-review@0.4.6
 ```
 
 ## Pipeline service
