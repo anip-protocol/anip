@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/anip-protocol/anip/packages/go/core"
+	"google.golang.org/protobuf/proto"
+
 	pb "github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1"
 	"github.com/anip-protocol/anip/packages/go/service"
 )
@@ -133,9 +135,10 @@ func transferFundsGrpcCapability() service.CapabilityDef {
 				{Name: "amount", Type: "number", Required: true},
 				{Name: "to_account", Type: "string", Required: true},
 			},
-			Output:       core.CapabilityOutput{Type: "transfer_confirmation", Fields: []string{"transfer_id"}},
-			SideEffect:   core.SideEffect{Type: "irreversible", RollbackWindow: "none"},
-			MinimumScope: []string{"finance.write"},
+			Output:        core.CapabilityOutput{Type: "transfer_confirmation", Fields: []string{"transfer_id"}},
+			SideEffect:    core.SideEffect{Type: "irreversible", RollbackWindow: "none"},
+			MinimumScope:  []string{"finance.write"},
+			ResponseModes: []string{"unary", "streaming"},
 			GrantPolicy: &core.GrantPolicy{
 				AllowedGrantTypes: []string{core.GrantTypeOneTime, core.GrantTypeSessionBound},
 				DefaultGrantType:  core.GrantTypeOneTime,
@@ -683,7 +686,7 @@ func TestApprovalGrantFlowPreservesFailureContextAndContinuation(t *testing.T) {
 	second, err := env.client.Invoke(ctx, &pb.InvokeRequest{
 		Capability:     "transfer_funds",
 		ParametersJson: `{"amount":50000,"to_account":"x"}`,
-		ApprovalGrant:  grantID,
+		ApprovalGrant:  proto.String(grantID),
 	})
 	if err != nil {
 		t.Fatalf("continuation Invoke() error: %v", err)
@@ -694,7 +697,7 @@ func TestApprovalGrantFlowPreservesFailureContextAndContinuation(t *testing.T) {
 	third, err := env.client.Invoke(ctx, &pb.InvokeRequest{
 		Capability:     "transfer_funds",
 		ParametersJson: `{"amount":50000,"to_account":"x"}`,
-		ApprovalGrant:  grantID,
+		ApprovalGrant:  proto.String(grantID),
 	})
 	if err != nil {
 		t.Fatalf("second continuation Invoke() error: %v", err)
@@ -937,5 +940,57 @@ func TestGetCheckpointConsistencyFrom(t *testing.T) {
 	// The response JSON should contain "consistency_proof".
 	if !strings.Contains(resp.Json, "consistency_proof") {
 		t.Errorf("expected consistency_proof in response, got: %s", resp.Json[:min(200, len(resp.Json))])
+	}
+}
+
+// proto3 optional: an empty approval_grant is present, so it is a supplied
+// grant that names none (SPEC.md §4.8), as over HTTP; an absent one is no
+// grant.
+func TestApprovalGrantPresenceIsVisible(t *testing.T) {
+	env := newApprovalTestEnv(t)
+	defer env.stop()
+	requester := issueCapabilityToken(t, env.svc, []string{"finance.write"}, "transfer_funds")
+	ctx := withBearer(context.Background(), requester)
+
+	for _, grant := range []string{"", "   "} {
+		for _, params := range []string{`{"amount":50000,"to_account":"x"}`, `{"amount":5,"to_account":"x"}`} {
+			req := &pb.InvokeRequest{Capability: "transfer_funds", ParametersJson: params, ApprovalGrant: proto.String(grant)}
+			resp, err := env.client.Invoke(ctx, req)
+			if err != nil {
+				t.Fatalf("Invoke() error: %v", err)
+			}
+			if resp.Success || resp.Failure == nil || resp.Failure.Type != "grant_not_found" {
+				t.Fatalf("approval_grant=%q %s: expected grant_not_found, got %#v", grant, params, resp)
+			}
+
+			stream, err := env.client.InvokeStream(ctx, req)
+			if err != nil {
+				t.Fatalf("InvokeStream() error: %v", err)
+			}
+			var last *pb.InvokeEvent
+			for {
+				event, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("Recv() error: %v", err)
+				}
+				last = event
+			}
+			if last.GetFailed() == nil || last.GetFailed().Failure.Type != "grant_not_found" {
+				t.Fatalf("stream approval_grant=%q %s: expected a grant_not_found failed event, got %#v", grant, params, last)
+			}
+		}
+	}
+
+	absent, err := env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability: "transfer_funds", ParametersJson: `{"amount":50000,"to_account":"x"}`,
+	})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+	if absent.Failure == nil || absent.Failure.Type != "approval_required" {
+		t.Fatalf("an absent grant is no grant: expected approval_required, got %#v", absent)
 	}
 }

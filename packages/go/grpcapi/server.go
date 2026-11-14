@@ -315,8 +315,10 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		ParentInvocationID: req.ParentInvocationId,
 		UpstreamService:    req.UpstreamService,
 		Budget:             budget,
-		ApprovalGrant:      req.ApprovalGrant,
-		RequestedEffects:   req.RequestedEffects,
+		// proto3 optional: a present field, even empty, is a supplied grant.
+		ApprovalGrant:         req.GetApprovalGrant(),
+		ApprovalGrantSupplied: req.ApprovalGrant != nil,
+		RequestedEffects:      req.RequestedEffects,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
@@ -409,8 +411,10 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 		ParentInvocationID: req.ParentInvocationId,
 		UpstreamService:    req.UpstreamService,
 		Stream:             true,
-		ApprovalGrant:      req.ApprovalGrant,
-		RequestedEffects:   req.RequestedEffects,
+		// proto3 optional: a present field, even empty, is a supplied grant.
+		ApprovalGrant:         req.GetApprovalGrant(),
+		ApprovalGrantSupplied: req.ApprovalGrant != nil,
+		RequestedEffects:      req.RequestedEffects,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
