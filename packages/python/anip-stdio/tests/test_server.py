@@ -357,3 +357,92 @@ class TestParameterValidation:
             "resolution": self.RESOLUTION,
             "retry": False,
         }
+
+
+# --- approval_grant on anip.invoke (SPEC.md §4.8) ---
+
+def _approval_capability() -> Capability:
+    from anip_core import GrantPolicy
+    from anip_service import ANIPError
+
+    async def handler(ctx: InvocationContext, params: dict) -> dict:
+        if params["amount"] > 1000 and ctx.approval_grant is None:
+            raise ANIPError(
+                "approval_required", "transfers above 1000 need approval",
+                approval_required={"preview": {"amount": params["amount"]}},
+            )
+        return {"transferred": params["amount"]}
+
+    return Capability(
+        declaration=CapabilityDeclaration(
+            name="transfer",
+            description="Transfer funds",
+            inputs=[CapabilityInput(name="amount", type="number", required=True)],
+            output=CapabilityOutput(type="object", fields=["transferred"]),
+            side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
+            minimum_scope=["finance.write"],
+            response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
+            grant_policy=GrantPolicy(
+                allowed_grant_types=["one_time"], default_grant_type="one_time",
+                expires_in_seconds=900, max_uses=1),
+        ),
+        handler=handler,
+    )
+
+
+class TestApprovalGrant:
+    @pytest.fixture
+    def approval_server(self):
+        return AnipStdioServer(ANIPService(
+            service_id="test-stdio-approvals",
+            capabilities=[_approval_capability()],
+            storage=":memory:",
+            authenticate=lambda bearer: "human:test@example.com" if bearer == "test-api-key" else None,
+        ))
+
+    async def _token(self, server) -> str:
+        resp = await server.handle_request(_req("anip.tokens.issue", {
+            "auth": {"bearer": "test-api-key"}, "subject": "agent:test-agent",
+            "scope": ["finance.write"], "capability": "transfer",
+        }))
+        return resp["result"]["token"]
+
+    async def _invoke(self, server, token, **extra):
+        return await server.handle_request(_req("anip.invoke", {
+            "auth": {"bearer": token}, "capability": "transfer",
+            "parameters": {"amount": 5000}, **extra,
+        }))
+
+    async def test_continuation_over_stdio_runs_with_the_grant(self, approval_server):
+        token = await self._token(approval_server)
+        first = await self._invoke(approval_server, token)
+        failure = first["result"]["failure"]
+        assert failure["type"] == "approval_required"
+        grant = await approval_server._service.issue_approval_grant(
+            failure["approval_required"]["approval_request_id"], "one_time",
+            {"principal": "human:approver@example.com"})
+
+        resp = await self._invoke(approval_server, token, approval_grant=grant["grant_id"])
+
+        assert resp["result"]["success"] is True, resp
+        assert resp["result"]["result"] == {"transferred": 5000}
+        again = await self._invoke(approval_server, token, approval_grant=grant["grant_id"])
+        assert again["result"]["failure"]["type"] == "grant_consumed"
+
+    @pytest.mark.parametrize("grant", ["", "   ", 7], ids=["empty", "whitespace", "not-a-string"])
+    @pytest.mark.parametrize("stream", [False, True], ids=["unary", "streaming"])
+    async def test_blank_grant_is_not_found(self, approval_server, grant, stream):
+        token = await self._token(approval_server)
+
+        resp = await self._invoke(approval_server, token, approval_grant=grant, stream=stream)
+
+        final = resp[-1] if isinstance(resp, list) else resp
+        assert final["result"]["success"] is False, final
+        assert final["result"]["failure"]["type"] == "grant_not_found"
+
+    async def test_null_grant_is_no_grant(self, approval_server):
+        token = await self._token(approval_server)
+
+        resp = await self._invoke(approval_server, token, approval_grant=None)
+
+        assert resp["result"]["failure"]["type"] == "approval_required"

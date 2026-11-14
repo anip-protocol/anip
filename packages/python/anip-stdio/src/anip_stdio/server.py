@@ -134,6 +134,10 @@ class AnipStdioServer:
         parent_invocation_id = params.get("parent_invocation_id")
         upstream_service = params.get("upstream_service")
         stream = params.get("stream", False)
+        # SPEC.md §4.8: a continuation supplies approval_grant. Absent or null
+        # is no grant; any other value is validated by the service (a blank
+        # or non-string one names no grant). session_id comes from the token.
+        approval_grant = params.get("approval_grant")
 
         if stream:
             notifications: list[dict[str, Any]] = []
@@ -151,6 +155,7 @@ class AnipStdioServer:
                 upstream_service=upstream_service,
                 stream=True,
                 _progress_sink=_progress_sink,
+                approval_grant=approval_grant,
             )
             return (notifications, result)
 
@@ -160,6 +165,7 @@ class AnipStdioServer:
             task_id=task_id,
             parent_invocation_id=parent_invocation_id,
             upstream_service=upstream_service,
+            approval_grant=approval_grant,
         )
         return result
 

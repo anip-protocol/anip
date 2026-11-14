@@ -164,6 +164,7 @@ class AnipStdioClient:
         *,
         client_reference_id: str | None = None,
         stream: bool = False,
+        approval_grant: str | None = None,
     ) -> dict[str, Any] | InvokeStream:
         """Call anip.invoke. Returns result dict, or InvokeStream if stream=True."""
         assert self._proc is not None and self._proc.stdin is not None and self._proc.stdout is not None
@@ -178,6 +179,8 @@ class AnipStdioClient:
             params["client_reference_id"] = client_reference_id
         if stream:
             params["stream"] = True
+        if approval_grant is not None:
+            params["approval_grant"] = approval_grant
 
         req_id = next(self._id_counter)
         request = {
