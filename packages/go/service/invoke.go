@@ -328,7 +328,12 @@ func (s *Service) runPreHandlerChecks(
 				failure := map[string]any{
 					"type":   core.FailureBudgetCurrencyMismatch,
 					"detail": fmt.Sprintf("Invocation budget is in %s but token budget is in %s", requestBudget.Currency, effectiveBudget.Currency),
+					"resolution": map[string]any{
+						"action":         "request_matching_currency_delegation",
+						"recovery_class": core.RecoveryClassForAction("request_matching_currency_delegation"),
+					},
 				}
+				s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 				failure = RedactFailure(failure, effectiveLevel)
 				return nil, map[string]any{
@@ -363,7 +368,12 @@ func (s *Service) runPreHandlerChecks(
 				failure := map[string]any{
 					"type":   core.FailureBudgetCurrencyMismatch,
 					"detail": fmt.Sprintf("Token budget is in %s but capability cost is in %s", effectiveBudget.Currency, decl.Cost.Financial.Currency),
+					"resolution": map[string]any{
+						"action":         "request_matching_currency_delegation",
+						"recovery_class": core.RecoveryClassForAction("request_matching_currency_delegation"),
+					},
 				}
+				s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 				failure = RedactFailure(failure, effectiveLevel)
 				return nil, map[string]any{
@@ -395,6 +405,7 @@ func (s *Service) runPreHandlerChecks(
 							},
 							"retry": false,
 						}
+						s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 						effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 						failure = RedactFailure(failure, effectiveLevel)
 						return nil, map[string]any{
@@ -411,7 +422,12 @@ func (s *Service) runPreHandlerChecks(
 					failure := map[string]any{
 						"type":   core.FailureBudgetNotEnforceable,
 						"detail": fmt.Sprintf("Capability %s has estimated cost but no requires_binding — budget cannot be enforced", capName),
+						"resolution": map[string]any{
+							"action":         "escalate_to_root_principal",
+							"recovery_class": core.RecoveryClassForAction("escalate_to_root_principal"),
+						},
 					}
+					s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 					failure = RedactFailure(failure, effectiveLevel)
 					return nil, map[string]any{
@@ -432,7 +448,12 @@ func (s *Service) runPreHandlerChecks(
 				failure := map[string]any{
 					"type":   core.FailureBudgetExceeded,
 					"detail": fmt.Sprintf("Cost $%v exceeds budget $%v", *checkAmount, effectiveBudget.MaxAmount),
+					"resolution": map[string]any{
+						"action":         "request_budget_increase",
+						"recovery_class": core.RecoveryClassForAction("request_budget_increase"),
+					},
 				}
+				s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 				failure = RedactFailure(failure, effectiveLevel)
 				resp := map[string]any{
@@ -472,6 +493,7 @@ func (s *Service) runPreHandlerChecks(
 					"requires":       fmt.Sprintf("invoke %s to obtain a %s", sourceDesc, binding.Field),
 				},
 			}
+			s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
 			return nil, map[string]any{
@@ -502,6 +524,7 @@ func (s *Service) runPreHandlerChecks(
 							"requires":       fmt.Sprintf("invoke %s again for a fresh %s", sourceDesc, binding.Field),
 						},
 					}
+					s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 					failure = RedactFailure(failure, effectiveLevel)
 					return nil, map[string]any{
@@ -537,7 +560,12 @@ func (s *Service) runPreHandlerChecks(
 				"type":                     core.FailureControlRequirementUnsatisfied,
 				"detail":                   fmt.Sprintf("Capability %s requires %s", capName, req.Type),
 				"unsatisfied_requirements": []string{req.Type},
+				"resolution": map[string]any{
+					"action":         "request_capability_binding",
+					"recovery_class": core.RecoveryClassForAction("request_capability_binding"),
+				},
 			}
+			s.auditRefusalBeforeHandler(capName, token, capDef, failure, invocationID, opts, effectiveTaskID)
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
 			return nil, map[string]any{
@@ -1233,6 +1261,13 @@ func tokenClaimsMap(token *core.DelegationToken) map[string]any {
 		claims["anip:caller_class"] = token.CallerClass
 	}
 	return claims
+}
+
+// auditRefusalBeforeHandler records a budget, binding or control-requirement
+// refusal like every refusal made before the handler (SPEC.md §6.3).
+func (s *Service) auditRefusalBeforeHandler(capName string, token *core.DelegationToken, capDef CapabilityDef, failure map[string]any, invocationID string, opts InvokeOpts, effectiveTaskID string) {
+	failureType, _ := failure["type"].(string)
+	s.appendAuditEntry(capName, token, false, failureType, map[string]any{"detail": failure["detail"]}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
 }
 
 // failWithGrant builds a failure response for a grant validation/reservation

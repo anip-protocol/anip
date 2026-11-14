@@ -116,26 +116,26 @@ func streamParityCases() []streamParityCase {
 	return []streamParityCase{
 		{row: 1, name: "budget exceeded", capability: "stream_book", want: core.FailureBudgetExceeded,
 			token:  tokenFor("stream_book", []string{"travel.book"}, &core.Budget{Currency: "USD", MaxAmount: 1}),
-			params: streamBookParams},
+			params: streamBookParams, audited: true},
 		{row: 2, name: "budget_not_enforceable", capability: "stream_book", want: core.FailureBudgetNotEnforceable,
 			token: tokenFor("stream_book", []string{"travel.book"}, &core.Budget{Currency: "USD", MaxAmount: 100000}),
 			params: func() map[string]any {
 				p := streamBookParams()
 				delete(p["quote_id"].(map[string]any), "price")
 				return p
-			}},
+			}, audited: true},
 		{row: 3, name: "binding_missing", capability: "stream_book", want: core.FailureBindingMissing,
-			token: bookToken, params: without("quote_id")},
+			token: bookToken, params: without("quote_id"), audited: true},
 		{row: 4, name: "binding_stale", capability: "stream_book", want: core.FailureBindingStale,
 			token: bookToken,
 			params: func() map[string]any {
 				p := streamBookParams()
 				p["quote_id"].(map[string]any)["issued_at"] = float64(time.Now().Add(-400 * 24 * time.Hour).Unix())
 				return p
-			}},
+			}, audited: true},
 		{row: 5, name: "control requirement unsatisfied", capability: "stream_capped", want: core.FailureControlRequirementUnsatisfied,
 			token:  tokenFor("stream_capped", []string{"travel.book"}, nil),
-			params: func() map[string]any { return map[string]any{"flight_number": "AA100"} }},
+			params: func() map[string]any { return map[string]any{"flight_number": "AA100"} }, audited: true},
 		{row: 6, name: "purpose mismatch", capability: "stream_book", want: core.FailurePurposeMismatch,
 			token:  tokenFor("stream_capped", []string{"travel.book"}, nil),
 			params: streamBookParams, audited: true},
