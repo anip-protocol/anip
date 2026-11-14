@@ -21,6 +21,10 @@ public class AnipServiceTests : IDisposable
                     new CapabilityDeclaration
                     {
                         Name = "echo",
+                        Inputs = new List<CapabilityInput>
+                        {
+                            new() { Name = "message", Type = "string", Required = false, Description = "Text to echo" },
+                        },
                         Description = "Echoes input back",
                         ContractVersion = "1.0",
                         SideEffect = new SideEffect { Type = "none" },

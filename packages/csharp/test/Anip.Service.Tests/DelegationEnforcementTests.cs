@@ -47,9 +47,9 @@ public class DelegationEnforcementTests : IDisposable
                 Recording("book_flight", new() { "travel.book" }, streaming: true,
                     new() { ["booking_id"] = "BK-001" }),
                 Recording("select_cap", new() { "inv.read" }, streaming: false,
-                    new() { ["items"] = new List<object?> { "a", "b" } }),
+                    new() { ["items"] = new List<object?> { "a", "b" } }, "q:string"),
                 Recording("enrich_cap", enrichScope, streaming: false,
-                    new() { ["count"] = 2 }),
+                    new() { ["count"] = 2 }, "items:array"),
                 new(SummaryDeclaration(), (ctx, parameters) => new Dictionary<string, object?>()),
             },
             Authenticate = bearer => bearer == "test-key" ? Human : null,
@@ -62,9 +62,14 @@ public class DelegationEnforcementTests : IDisposable
 
     // --- fixtures --------------------------------------------------------------
 
-    private static CapabilityDeclaration Declaration(string name, List<string> scope, bool streaming) => new()
+    private static CapabilityDeclaration Declaration(string name, List<string> scope, bool streaming,
+        params string[] optionalInputs) => new()
     {
         Name = name,
+        Inputs = optionalInputs
+            .Select(input => input.Split(':'))
+            .Select(parts => new CapabilityInput { Name = parts[0], Type = parts[1], Required = false })
+            .ToList(),
         Description = name,
         ContractVersion = "1.0",
         SideEffect = new SideEffect { Type = "read" },
@@ -73,8 +78,8 @@ public class DelegationEnforcementTests : IDisposable
     };
 
     private CapabilityDef Recording(string name, List<string> scope, bool streaming,
-        Dictionary<string, object?> result) =>
-        new(Declaration(name, scope, streaming), (ctx, parameters) =>
+        Dictionary<string, object?> result, params string[] optionalInputs) =>
+        new(Declaration(name, scope, streaming, optionalInputs), (ctx, parameters) =>
         {
             _seenTokens[name] = ctx.Token;
             return result;
@@ -82,7 +87,7 @@ public class DelegationEnforcementTests : IDisposable
 
     private static CapabilityDeclaration SummaryDeclaration()
     {
-        var decl = Declaration("summary", new() { "inv.read" }, streaming: false);
+        var decl = Declaration("summary", new() { "inv.read" }, streaming: false, "q:string");
         decl.Kind = "composed";
         decl.Composition = new Composition
         {

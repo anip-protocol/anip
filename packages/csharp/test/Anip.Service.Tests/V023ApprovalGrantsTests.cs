@@ -23,6 +23,10 @@ public class V023ApprovalGrantsTests : IDisposable
                     new CapabilityDeclaration
                     {
                         Name = "send_notice",
+                        Inputs = new List<CapabilityInput>
+                        {
+                            new() { Name = "msg", Type = "string", Required = false },
+                        },
                         Description = "side-effect cap requiring approval",
                         ContractVersion = "1.0",
                         SideEffect = new SideEffect { Type = "write" },

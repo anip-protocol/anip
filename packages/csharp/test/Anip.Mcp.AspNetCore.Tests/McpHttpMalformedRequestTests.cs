@@ -67,6 +67,7 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
     [InlineData("null for a required string", """{"message":null}""", "echo is missing required input(s): message")]
     [InlineData("boolean where an integer is declared", """{"message":"hi","count":true}""", "echo has invalid input(s): 'count' must be integer, got boolean")]
     [InlineData("fraction where an integer is declared", """{"message":"hi","count":1.5}""", "echo has invalid input(s): 'count' must be integer, got number")]
+    [InlineData("undeclared arguments", """{"message":"hi","surprise":"x","also":null}""", "echo has undeclared parameter(s): also, surprise")]
     public async Task ArgumentsThatBreakTheDeclaredInputs_AreRefused_AndNoHandlerRuns(
         string what, string argumentsJson, string detail)
     {
@@ -89,11 +90,9 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
 
     /// <summary>
     /// Arguments that match the declared inputs reach the handler as they were
-    /// sent: undeclared arguments are not checked, and an integral number is
-    /// an integer however it is written.
+    /// sent, and an integral number is an integer however it is written.
     /// </summary>
     [Theory]
-    [InlineData("undeclared argument", """{"message":"hi","surprise":"x"}""")]
     [InlineData("integral float where an integer is declared", """{"message":"hi","count":3.0}""")]
     [InlineData("null for an optional input", """{"message":"hi","count":null}""")]
     public async Task ArgumentsThatMatchTheDeclaredInputs_ReachTheHandlerUnchanged(string what, string argumentsJson)
@@ -118,6 +117,25 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
                 Assert.Equal(value.GetRawText(), JsonSerializer.Serialize(call.Parameters[key]));
             }
         }
+    }
+
+    /// <summary>
+    /// The binding's reserved <c>__approval_grant</c> argument is taken out
+    /// before the service checks the parameters (SPEC.md §6.3): it is not an
+    /// undeclared parameter, it is a grant, and an unknown one is not found.
+    /// </summary>
+    [Fact]
+    public async Task ReservedApprovalGrantArgument_IsNotAParameter()
+    {
+        var client = await ConnectAsync(_app.Http);
+        var arguments = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            """{"message":"hi","__approval_grant":"grant_conformance_none"}""")!;
+
+        var reply = await client.CallToolAsync("echo", arguments, Authorization);
+
+        Assert.True(reply.IsToolError, reply.ToString());
+        Assert.StartsWith("FAILED: grant_not_found\n", reply.ToolText);
+        Assert.Empty(_app.Calls);
     }
 
     [Fact]

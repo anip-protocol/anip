@@ -25,6 +25,10 @@ public class AnipStdioServerTests : IDisposable
                     new CapabilityDeclaration
                     {
                         Name = "echo",
+                        Inputs = new List<CapabilityInput>
+                        {
+                            new() { Name = "message", Type = "string", Required = false, Description = "Text to echo" },
+                        },
                         Description = "Echoes input back",
                         ContractVersion = "1.0",
                         SideEffect = new SideEffect { Type = "none" },
@@ -42,6 +46,10 @@ public class AnipStdioServerTests : IDisposable
                     new CapabilityDeclaration
                     {
                         Name = "stream-echo",
+                        Inputs = new List<CapabilityInput>
+                        {
+                            new() { Name = "message", Type = "string", Required = false, Description = "Text to echo" },
+                        },
                         Description = "Echoes input back with streaming progress",
                         ContractVersion = "1.0",
                         SideEffect = new SideEffect { Type = "none" },

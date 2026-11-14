@@ -25,16 +25,16 @@ public static class ParameterValidation
     /// Returns the failure detail when <paramref name="parameters"/> do not
     /// match the declared inputs, or null when they do. Absent parameters
     /// count as an empty object. Every missing required input is named, in
-    /// declaration order; when none is missing, every input whose value has
-    /// the wrong primitive type is.
+    /// declaration order; when none is missing, every undeclared parameter is,
+    /// in RFC 8785 member order (UTF-16 code units, §4.7); when none is
+    /// undeclared, every input whose value has the wrong primitive type is.
     /// </summary>
     public static string? Check(
         string capability,
         CapabilityDeclaration declaration,
         IReadOnlyDictionary<string, object?>? parameters)
     {
-        var inputs = declaration.Inputs;
-        if (inputs == null || inputs.Count == 0) return null;
+        var inputs = declaration.Inputs ?? new List<CapabilityInput>();
 
         var missing = new List<string>();
         foreach (var input in inputs)
@@ -47,6 +47,17 @@ public static class ParameterValidation
         if (missing.Count > 0)
         {
             return $"{capability} is missing required input(s): {string.Join(", ", missing)}";
+        }
+
+        // Every key must name a declared input, whatever its value.
+        var declaredNames = new HashSet<string>(inputs.Select(input => input.Name), StringComparer.Ordinal);
+        var undeclared = (parameters?.Keys ?? Enumerable.Empty<string>())
+            .Where(key => !declaredNames.Contains(key))
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+        if (undeclared.Count > 0)
+        {
+            return $"{capability} has undeclared parameter(s): {string.Join(", ", undeclared)}";
         }
 
         var wrong = new List<string>();

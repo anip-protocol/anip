@@ -285,7 +285,7 @@ public class InvokeParameterValidationTests : IDisposable
     }
 
     [Fact]
-    public void ValidCall_ReachesTheHandlerWithUndeclaredParameters()
+    public void ValidCall_ReachesTheHandler()
     {
         var token = Token("book");
 
@@ -295,15 +295,40 @@ public class InvokeParameterValidationTests : IDisposable
                 ["flight_number"] = "AA100",
                 ["date"] = "2026-03-10",
                 ["passengers"] = 2.0,
-                ["seat"] = "12A",
             },
             new InvokeOpts());
 
         Assert.Equal(true, response["success"]);
         var result = Assert.IsType<Dictionary<string, object?>>(response["result"]);
         Assert.Equal(2, result["booked"]);
-        Assert.Equal("12A", result["seat"]);
         Assert.Equal(1, Runs("book"));
+    }
+
+    [Fact]
+    public void UndeclaredParameters_AreRefusedBeforeTheHandler()
+    {
+        var token = Token("book");
+
+        var response = _service.Invoke("book", token,
+            Body(@"{""flight_number"":""AA100"",""date"":""2026-03-10"",""seat"":""12A"",""also"":null}"),
+            new InvokeOpts());
+
+        AssertInvalidParameters(response, "book has undeclared parameter(s): also, seat");
+        Assert.Equal(0, Runs("book"));
+    }
+
+    [Fact]
+    public void Streaming_UndeclaredParameter_IsRefused()
+    {
+        var token = Token("book");
+
+        var error = Assert.ThrowsAny<AnipError>(() => _service.InvokeStream("book", token,
+            Body(@"{""flight_number"":""AA100"",""date"":""2026-03-10"",""seat"":""12A""}"),
+            new InvokeOpts { Stream = true }));
+
+        Assert.Equal(Constants.FailureInvalidParameters, error.ErrorType);
+        Assert.Equal("book has undeclared parameter(s): seat", error.Detail);
+        Assert.Equal(0, Runs("book"));
     }
 
     [Fact]

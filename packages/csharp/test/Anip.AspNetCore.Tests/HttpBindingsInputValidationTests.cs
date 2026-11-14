@@ -73,7 +73,7 @@ public class HttpBindingsInputValidationTests : IAsyncLifetime
     [Theory]
     [InlineData("""{"flight_number": "AA100"}""")]
     [InlineData("""{"flight_number": "AA100", "passengers": 5.0}""")]
-    [InlineData("""{"flight_number": "AA100", "passengers": null, "seat": [1, 2]}""")]
+    [InlineData("""{"flight_number": "AA100", "passengers": null}""")]
     public async Task Invoke_ParametersThatMatch_Run(string parameters)
     {
         var (response, body) = await _app.SendAsync(HttpMethod.Post, "/anip/invoke/book", _app.Jwt("book"),

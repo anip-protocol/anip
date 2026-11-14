@@ -151,17 +151,50 @@ public class ParameterValidationTests
     }
 
     [Fact]
-    public void UndeclaredParametersAreNotChecked()
+    public void UndeclaredParametersAreNamed()
     {
-        Assert.Null(Check(BookFlight(),
-            Body(@"{""flight_number"":""AA100"",""date"":""2026-03-10"",""seat"":[1,2],""meal"":false}")));
+        Assert.Equal(
+            "book_flight has undeclared parameter(s): meal, seat",
+            Check(BookFlight(),
+                Body(@"{""flight_number"":""AA100"",""date"":""2026-03-10"",""seat"":[1,2],""meal"":false}")));
     }
 
     [Fact]
-    public void ADeclarationWithoutInputsAcceptsAnything()
+    public void AnUndeclaredParameterWithANullValueIsUndeclared()
     {
-        Assert.Null(Check(Declaration(), Body(@"{""anything"":1}")));
+        Assert.Equal(
+            "book_flight has undeclared parameter(s): seat",
+            Check(BookFlight(), Body(@"{""flight_number"":""AA100"",""date"":""2026-03-10"",""seat"":null}")));
+    }
+
+    [Fact]
+    public void UndeclaredParametersAreNamedInUtf16Order()
+    {
+        // RFC 8785 member order (SPEC.md §4.7): U+FF5E sorts after U+1F600.
+        Assert.Equal(
+            "book_flight has undeclared parameter(s): Beta, alpha, zeta, \U0001F600, \uFF5E",
+            Check(BookFlight(), Body(
+                @"{""flight_number"":""AA100"",""date"":""2026-03-10"",""zeta"":1,""\uff5e"":2,""Beta"":null,""\ud83d\ude00"":3,""alpha"":4}")));
+    }
+
+    [Fact]
+    public void MissingComesBeforeUndeclaredAndUndeclaredBeforeWrongTypes()
+    {
+        Assert.Equal(
+            "book_flight is missing required input(s): date",
+            Check(BookFlight(), Body(@"{""flight_number"":""AA100"",""seat"":1}")));
+        Assert.Equal(
+            "book_flight has undeclared parameter(s): seat",
+            Check(BookFlight(), Body(@"{""flight_number"":7,""date"":""2026-03-10"",""seat"":1}")));
+    }
+
+    [Fact]
+    public void ADeclarationWithoutInputsAcceptsOnlyEmptyParameters()
+    {
+        Assert.Equal("book_flight has undeclared parameter(s): anything",
+            ParameterValidation.Check("book_flight", Declaration(), Body(@"{""anything"":1}")));
         Assert.Null(Check(Declaration(), null));
+        Assert.Null(Check(Declaration(), Body("{}")));
     }
 
     // --- primitive types ---
