@@ -72,7 +72,12 @@ go run ./cmd/anip-generate \
 
 Set `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` to enable live Jira REST calls. The bundle performs bounded read and metadata calls. It returns governed previews for write-adjacent capabilities and does not mutate Jira.
 
-The live smoke script exercises one bounded read and one write-adjacent preview:
+The live smoke script authenticates with API keys mapped to the actors the
+package's policy bindings select. It exercises bounded reads and write-adjacent
+previews, follows the approval path for approval-gated capabilities
+(`approval_required`, a grant through `POST /anip/approval_grants`, then the
+granted invocation), and checks that unbound actors and deny bindings are
+refused:
 
 ```bash
 set -a

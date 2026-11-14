@@ -65,9 +65,14 @@ Credential file:
 /tmp/anip-jira.env
 ```
 
-Mutation is disabled unless both conditions are true:
-
-- `ANIP_JIRA_ALLOW_MUTATION=true`
-- the invoke request includes the required ANIP approval grant.
+The Jira bundles never mutate Jira: write-adjacent capabilities return governed
+previews, including after an approval grant.
 
 The important behavior is not "agent can create Jira issue". The important behavior is that the service can prepare the issue, stop at the approval boundary, and only continue when the host supplies the governed approval continuation.
+
+The live smoke authenticates with API keys mapped to the actors the package's
+policy bindings select. Each approval-gated capability returns
+`approval_required`; an approver issues a grant through
+`POST /anip/approval_grants`; and the requester's granted invocation returns the
+preview. It also checks that unbound actors, deny bindings and clarify bindings
+are refused.

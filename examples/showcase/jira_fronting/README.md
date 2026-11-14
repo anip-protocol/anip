@@ -61,7 +61,8 @@ The generated Python adapter includes live Jira REST behavior for:
 - `jira.backlog.search_context`: executes a bounded project-scoped search.
 - `jira.issue.get_context`: retrieves bounded issue context.
 - `jira.incident_bug.prepare`, `jira.story.prepare`, and `jira.subtask.prepare`: return issue creation previews without creating issues.
-- `jira.customer_escalation.comment.prepare`, `jira.workflow_transition.request`, `jira.sprint_move.request`, `jira.assignee_change.request`, and `jira.issue_link.request`: return approval-gated previews without mutating Jira.
+- `jira.customer_escalation.comment.prepare`: returns a comment preview without posting it.
+- `jira.workflow_transition.request`, `jira.sprint_move.request`, `jira.assignee_change.request`, and `jira.issue_link.request`: approval-gated. They return `approval_required` until the runtime validates an approval grant, then a preview; they never mutate Jira.
 - `jira.release_notes.prepare`: prepares bounded release-note draft context without publishing.
 
 The Python bundle never mutates Jira: write-adjacent capabilities return governed
@@ -77,6 +78,27 @@ export ANIP_JIRA_GENERATED_APP_MODULE=jira_governed_fronting_showcase.app
 PYTHONPATH=examples/showcase/jira_fronting/generated/studio_jira_fronting/src \
   python examples/showcase/jira_fronting/scripts/live_smoke.py
 ```
+
+The script sets the generated service's `ANIP_API_KEYS_JSON` itself, with one
+API key per actor the 0.2.3 policy bindings select. The generated policy refuses
+a principal no binding selects, so the old `dev-admin-key`, which carries no
+actor claim, no longer works. The smoke checks that:
+
+- reads and previews succeed for `jira_release_preparer`, and
+  `jira.release_notes.prepare` for `jira_triage_operator`;
+- each approval-gated capability returns `approval_required` with an
+  `approval_request_id`; a token without `approver:<capability>` scope cannot
+  grant it; `jira_change_approver` issues a one-time grant through
+  `POST /anip/approval_grants`; and the requester's second invocation, carrying
+  the top-level `approval_grant`, returns a preview with
+  `mutation_performed: false`;
+- a principal without an actor claim and an actor no binding names are denied,
+  as are the deny bindings (`jira_triage_operator` on
+  `jira.assignee_change.request`, `jira_release_preparer` on
+  `jira.release_notes.prepare`); the clarify binding on `jira.issue.get_context`
+  returns `clarification_required`.
+
+It prints a JSON summary with `"capabilities_tested": 11` and five refusals.
 
 Without credentials, the generated `tests/` (service smoke and bundle adapter
 tests) run offline.
