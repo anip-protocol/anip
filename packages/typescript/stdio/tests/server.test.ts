@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AnipStdioServer } from "../src/server.js";
 import {
+  ANIPError,
   createANIPService,
   defineCapability,
 } from "@anip-dev/service";
@@ -531,5 +532,103 @@ describe("AnipStdioServer: parameter validation", () => {
     expect(messages[0].result.success).toBe(false);
     expect(messages[0].result.failure).toEqual(unary.result.failure);
     expect(calls).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// approval_grant on anip.invoke (SPEC.md §4.8)
+// ---------------------------------------------------------------------------
+
+describe("AnipStdioServer approval_grant", () => {
+  function transferCap(): CapabilityDef {
+    return defineCapability({
+      declaration: {
+        name: "transfer",
+        description: "Transfer funds",
+        contract_version: "1.0",
+        inputs: [{ name: "amount", type: "number", required: true, description: "amount" }],
+        output: { type: "object", fields: ["transferred"] },
+        side_effect: { type: "irreversible", rollback_window: "none" },
+        minimum_scope: ["finance.write"],
+        response_modes: ["unary", "streaming"],
+        grant_policy: {
+          allowed_grant_types: ["one_time"],
+          default_grant_type: "one_time",
+          expires_in_seconds: 900,
+          max_uses: 1,
+        },
+      } as unknown as CapabilityDeclaration,
+      handler: (ctx, params) => {
+        if ((params.amount as number) > 1000 && !ctx.approvalGrant) {
+          throw new ANIPError("approval_required", "transfers above 1000 need approval", undefined, false, {
+            preview: { amount: params.amount },
+          });
+        }
+        return { transferred: params.amount };
+      },
+    });
+  }
+
+  async function setup() {
+    const service = createANIPService({
+      serviceId: "test-stdio-approvals",
+      capabilities: [transferCap()],
+      storage: { type: "memory" },
+      authenticate: (bearer) => (bearer === "test-api-key" ? "human:test@example.com" : null),
+    });
+    await service.start();
+    const server = new AnipStdioServer(service);
+    const issued = (await server.handleRequest(
+      rpc("anip.tokens.issue", {
+        auth: { bearer: "test-api-key" },
+        subject: "human:test@example.com",
+        scope: ["finance.write"],
+        capability: "transfer",
+      }),
+    )) as any;
+    return { service, server, token: issued.result.token as string };
+  }
+
+  async function invoke(server: AnipStdioServer, token: string, extra: Record<string, unknown> = {}) {
+    const resp = (await server.handleRequest(
+      rpc("anip.invoke", { auth: { bearer: token }, capability: "transfer", parameters: { amount: 5000 }, ...extra }),
+    )) as any;
+    return Array.isArray(resp) ? resp[resp.length - 1].result : resp.result;
+  }
+
+  it("runs a continuation with the grant", async () => {
+    const { service, server, token } = await setup();
+    const first = await invoke(server, token);
+    expect(first.failure.type).toBe("approval_required");
+    const grant = await service.issueApprovalGrant(
+      first.failure.approval_required.approval_request_id, "one_time", { principal: "human:approver@example.com" });
+
+    const result = await invoke(server, token, { approval_grant: grant.grant_id });
+
+    expect(result.success).toBe(true);
+    expect(result.result).toEqual({ transferred: 5000 });
+    expect((await invoke(server, token, { approval_grant: grant.grant_id })).failure.type).toBe("grant_consumed");
+    await service.shutdown();
+    service.stop();
+  });
+
+  for (const stream of [false, true]) {
+    for (const grant of ["", "   ", 7]) {
+      it(`refuses a blank grant ${JSON.stringify(grant)} as grant_not_found (${stream ? "streaming" : "unary"})`, async () => {
+        const { service, server, token } = await setup();
+        const result = await invoke(server, token, { approval_grant: grant, stream });
+        expect(result.success).toBe(false);
+        expect(result.failure.type).toBe("grant_not_found");
+        await service.shutdown();
+        service.stop();
+      });
+    }
+  }
+
+  it("treats a null grant as no grant", async () => {
+    const { service, server, token } = await setup();
+    expect((await invoke(server, token, { approval_grant: null })).failure.type).toBe("approval_required");
+    await service.shutdown();
+    service.stop();
   });
 });

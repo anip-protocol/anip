@@ -297,6 +297,10 @@ export class AnipStdioServer {
     const upstreamService = (params.upstream_service as string | undefined) ?? null;
     const stream = params.stream === true;
     const budget = (params.budget as Record<string, unknown> | undefined) ?? null;
+    // SPEC.md §4.8: a continuation supplies approval_grant. Absent or null is
+    // no grant; any other value is validated by the service (a blank or
+    // non-string one names no grant). session_id comes from the token.
+    const approvalGrant = (params.approval_grant as string | null | undefined) ?? null;
 
     // One set of invocation options for the unary and the streaming call:
     // a streaming invocation goes through the same checks with the same
@@ -307,6 +311,7 @@ export class AnipStdioServer {
       parentInvocationId,
       upstreamService,
       budget,
+      approvalGrant,
     };
 
     if (stream) {
