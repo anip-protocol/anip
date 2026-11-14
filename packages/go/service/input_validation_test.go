@@ -70,7 +70,6 @@ func TestValidateDeclaredInputsAcceptsValidParameters(t *testing.T) {
 		"domain type is not checked":   {"flight_number": "AA100", "date": true},
 		"domain type as number":        {"flight_number": "AA100", "date": 20260310},
 		"type name is case-sensitive":  {"flight_number": "AA100", "date": "2026-03-10", "cabin": 7},
-		"undeclared parameter":         {"flight_number": "AA100", "date": "2026-03-10", "seat": 12, "extra": map[string]any{}},
 		"empty string is still string": {"flight_number": "", "date": "2026-03-10"},
 	}
 	for name, params := range cases {
@@ -105,6 +104,18 @@ func TestValidateDeclaredInputsRefusals(t *testing.T) {
 			"book_flight is missing required input(s): date"},
 		{"missing wins over wrong type", map[string]any{"date": "2026-03-10", "passengers": "two"},
 			"book_flight is missing required input(s): flight_number"},
+		{"undeclared parameter", map[string]any{"flight_number": "AA100", "date": "2026-03-10", "seat": 12},
+			"book_flight has undeclared parameter(s): seat"},
+		{"undeclared with a null value", map[string]any{"flight_number": "AA100", "date": "2026-03-10", "seat": nil},
+			"book_flight has undeclared parameter(s): seat"},
+		{"every undeclared parameter in UTF-16 order", map[string]any{
+			"flight_number": "AA100", "date": "2026-03-10",
+			"zeta": 1, "\uff5e": 2, "Beta": nil, "\U0001F600": 3, "alpha": map[string]any{},
+		}, "book_flight has undeclared parameter(s): Beta, alpha, zeta, \U0001F600, \uff5e"},
+		{"missing wins over undeclared", map[string]any{"date": "2026-03-10", "seat": 12},
+			"book_flight is missing required input(s): flight_number"},
+		{"undeclared wins over wrong type", map[string]any{"flight_number": 7, "date": "2026-03-10", "seat": 12},
+			"book_flight has undeclared parameter(s): seat"},
 		{"string got number", map[string]any{"flight_number": 12345, "date": "2026-03-10"},
 			"book_flight has invalid input(s): 'flight_number' must be string, got number"},
 		{"string got boolean", map[string]any{"flight_number": true, "date": "2026-03-10"},
@@ -394,13 +405,12 @@ func TestInvokeRefusesWrongPrimitiveType(t *testing.T) {
 	}
 }
 
-func TestInvokePassesValidAndUndeclaredParametersToTheHandler(t *testing.T) {
+func TestInvokePassesValidParametersToTheHandler(t *testing.T) {
 	fx := newValidationService(t, nil)
 	token := bookToken(t, fx.svc)
 	params := bookParams()
 	params["passengers"] = 2.0
-	params["date"] = true         // domain type: the handler's business
-	params["seat_preference"] = 7 // undeclared
+	params["date"] = true // domain type: the handler's business
 
 	result, err := fx.svc.Invoke("book_flight", token, params, InvokeOpts{})
 	if err != nil {
@@ -410,8 +420,32 @@ func TestInvokePassesValidAndUndeclaredParametersToTheHandler(t *testing.T) {
 		t.Fatalf("expected success, got %#v", result)
 	}
 	seen := result["result"].(map[string]any)["seen"].(map[string]any)
-	if seen["seat_preference"] != 7 || seen["date"] != true {
+	if seen["date"] != true {
 		t.Fatalf("the handler did not receive the parameters as sent: %#v", seen)
+	}
+}
+
+func TestInvokeRefusesUndeclaredParameters(t *testing.T) {
+	fx := newValidationService(t, nil)
+	token := bookToken(t, fx.svc)
+	params := bookParams()
+	params["seat_preference"] = 7
+	params["also"] = nil
+
+	result, err := fx.svc.Invoke("book_flight", token, params, InvokeOpts{ClientReferenceID: "ref-undeclared"})
+	if err != nil {
+		t.Fatalf("Invoke: %v", err)
+	}
+	assertInvalidParameters(t, result, "book_flight has undeclared parameter(s): also, seat_preference")
+	if fx.handled.Load() != 0 {
+		t.Fatal("the handler ran for a refused invocation")
+	}
+	audit, err := fx.svc.QueryAudit(token, server.AuditFilters{ClientReferenceID: "ref-undeclared"})
+	if err != nil {
+		t.Fatalf("QueryAudit: %v", err)
+	}
+	if len(audit.Entries) != 1 || audit.Entries[0].Success || audit.Entries[0].FailureType != core.FailureInvalidParameters {
+		t.Fatalf("unexpected audit entries: %#v", audit.Entries)
 	}
 }
 
@@ -570,6 +604,8 @@ func TestInvokeStreamRefusesInvalidParameters(t *testing.T) {
 		{"nil parameters", nil, "watch_fares is missing required input(s): route"},
 		{"wrong type", map[string]any{"route": "SEA-SFO", "limit": "ten"},
 			"watch_fares has invalid input(s): 'limit' must be integer, got string"},
+		{"undeclared", map[string]any{"route": "SEA-SFO", "extra": true},
+			"watch_fares has undeclared parameter(s): extra"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

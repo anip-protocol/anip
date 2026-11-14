@@ -182,8 +182,16 @@ func TestInvokeWrongTypedInputIsInvalidParameters(t *testing.T) {
 		t.Fatal("the handler ran for a refused invocation")
 	}
 
-	// 5.0 is the integer 5; a domain-typed input and an undeclared one are not checked.
-	resp, data = postInvoke(t, ts, jwt, "watch_fares", `{"parameters": {"route": "SEA-SFO", "limit": 5.0, "date": true, "extra": [1]}}`)
+	// Undeclared parameters are refused and named.
+	resp, data = postInvoke(t, ts, jwt, "watch_fares", `{"parameters": {"route": "SEA-SFO", "extra": [1], "also": null}}`)
+	assertInvalidParametersResponse(t, resp, data,
+		"watch_fares has undeclared parameter(s): also, extra", false)
+	if handled.Load() != 0 {
+		t.Fatal("the handler ran for a refused invocation")
+	}
+
+	// 5.0 is the integer 5; a domain-typed input is not checked.
+	resp, data = postInvoke(t, ts, jwt, "watch_fares", `{"parameters": {"route": "SEA-SFO", "limit": 5.0, "date": true}}`)
 	if resp.StatusCode != 200 || data["success"] != true {
 		t.Fatalf("expected 200 success, got %d %v", resp.StatusCode, data)
 	}

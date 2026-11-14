@@ -29,9 +29,10 @@ var primitiveInputTypes = map[string]bool{
 // capability's declared inputs. It returns nil when the call may proceed and
 // the invalid_parameters failure otherwise.
 //
-// The check does not apply defaults (a declared default does not satisfy
-// required), does not enforce allowed_values or the resolution block, and
-// does not touch undeclared parameters. params is never modified.
+// Missing inputs are reported first, then undeclared parameters, then values
+// of the wrong type. The check does not apply defaults (a declared default
+// does not satisfy required) and does not enforce allowed_values or the
+// resolution block. params is never modified.
 //
 // A required input whose resolution block sets on_missing (§4.10) is not
 // reported as missing: the declaration already says what happens when the
@@ -49,6 +50,23 @@ func validateDeclaredInputs(capName string, decl *core.CapabilityDeclaration, pa
 	}
 	if len(missing) > 0 {
 		return invalidParametersError(capName + " is missing required input(s): " + strings.Join(missing, ", "))
+	}
+
+	// Every key must name a declared input, whatever its value. The names
+	// are listed as RFC 8785 sorts member names (§4.7).
+	declared := make(map[string]bool, len(decl.Inputs))
+	for _, input := range decl.Inputs {
+		declared[input.Name] = true
+	}
+	var undeclared []string
+	for name := range params {
+		if !declared[name] {
+			undeclared = append(undeclared, name)
+		}
+	}
+	if len(undeclared) > 0 {
+		sortByUTF16CodeUnits(undeclared)
+		return invalidParametersError(capName + " has undeclared parameter(s): " + strings.Join(undeclared, ", "))
 	}
 
 	var wrong []string
