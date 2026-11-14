@@ -1794,7 +1794,9 @@ public class AnipService : IDisposable
                     {
                         ["type"] = Constants.FailureBudgetCurrencyMismatch,
                         ["detail"] = $"Invocation budget is in {requestBudget.Currency} but token budget is in {effectiveBudget.Currency}",
+                        ["resolution"] = Resolution("request_matching_currency_delegation"),
                     };
+                    AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failure = FailureRedaction.Redact(failure, effectiveLevel);
                     return new Dictionary<string, object?>
@@ -1838,7 +1840,9 @@ public class AnipService : IDisposable
                     {
                         ["type"] = Constants.FailureBudgetCurrencyMismatch,
                         ["detail"] = $"Token budget is in {effectiveBudget.Currency} but capability cost is in {decl.Cost.Financial.Currency}",
+                        ["resolution"] = Resolution("request_matching_currency_delegation"),
                     };
+                    AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failure = FailureRedaction.Redact(failure, effectiveLevel);
                     return new Dictionary<string, object?>
@@ -1879,6 +1883,7 @@ public class AnipService : IDisposable
                                     },
                                     ["retry"] = false,
                                 };
+                                AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                                 var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                                 failure = FailureRedaction.Redact(failure, effectiveLevel);
                                 return new Dictionary<string, object?>
@@ -1899,7 +1904,9 @@ public class AnipService : IDisposable
                             {
                                 ["type"] = Constants.FailureBudgetNotEnforceable,
                                 ["detail"] = $"Capability {capName} has estimated cost but no requires_binding — budget cannot be enforced",
+                                ["resolution"] = Resolution("escalate_to_root_principal"),
                             };
+                            AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                             var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                             failure = FailureRedaction.Redact(failure, effectiveLevel);
                             return new Dictionary<string, object?>
@@ -1925,7 +1932,9 @@ public class AnipService : IDisposable
                     {
                         ["type"] = Constants.FailureBudgetExceeded,
                         ["detail"] = $"Cost ${checkAmount.Value} exceeds budget ${effectiveBudget.MaxAmount}",
+                        ["resolution"] = Resolution("request_budget_increase"),
                     };
+                    AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failure = FailureRedaction.Redact(failure, effectiveLevel);
                     return new Dictionary<string, object?>
@@ -1971,6 +1980,7 @@ public class AnipService : IDisposable
                             ["requires"] = $"invoke {sourceDesc} to obtain a {binding.Field}",
                         },
                     };
+                    AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failure = FailureRedaction.Redact(failure, effectiveLevel);
                     return new Dictionary<string, object?>
@@ -2007,6 +2017,7 @@ public class AnipService : IDisposable
                                     ["requires"] = $"invoke {sourceDesc} again for a fresh {binding.Field}",
                                 },
                             };
+                            AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                             var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                             failure = FailureRedaction.Redact(failure, effectiveLevel);
                             return new Dictionary<string, object?>
@@ -2048,7 +2059,9 @@ public class AnipService : IDisposable
                         ["type"] = Constants.FailureControlRequirementUnsatisfied,
                         ["detail"] = $"Capability {capName} requires {req.Type}",
                         ["unsatisfied_requirements"] = new List<string> { req.Type },
+                        ["resolution"] = Resolution("request_capability_binding"),
                     };
+                    AuditRefusalBeforeHandler(capName, capDef, token, failure, invocationId, opts, effectiveTaskId);
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failure = FailureRedaction.Redact(failure, effectiveLevel);
                     return new Dictionary<string, object?>
@@ -2188,6 +2201,33 @@ public class AnipService : IDisposable
             V023.ResolutionFromMap(failure.GetValueOrDefault("resolution")),
             retry: failure.GetValueOrDefault("retry") is true,
             response);
+    }
+
+    /// <summary>A resolution with the canonical recovery class of its action (SPEC.md §4.5).</summary>
+    private static Dictionary<string, object?> Resolution(string action) => new()
+    {
+        ["action"] = action,
+        ["recovery_class"] = Constants.RecoveryClassForAction(action),
+    };
+
+    /// <summary>
+    /// Records a budget, binding or control-requirement refusal like every
+    /// refusal made before the handler (SPEC.md §6.3).
+    /// </summary>
+    private void AuditRefusalBeforeHandler(
+        string capName,
+        CapabilityDef capDef,
+        DelegationToken token,
+        Dictionary<string, object?> failure,
+        string invocationId,
+        InvokeOpts opts,
+        string? effectiveTaskId)
+    {
+        AppendAuditEntry(capName, token, false, (string?)failure["type"],
+            new Dictionary<string, object?> { ["detail"] = failure.GetValueOrDefault("detail") }, null,
+            invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+            opts.UpstreamService,
+            capDef.Declaration.SideEffect?.Type);
     }
 
     private Dictionary<string, object?> RefuseInvalidParameters(
