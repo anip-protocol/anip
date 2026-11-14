@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -64,6 +65,11 @@ func searchRepositoryContext(capability generated.GeneratedCapabilityRuntimeMeta
 	if !repoAllowed(owner, repo) {
 		return restricted(capability, plan, owner, repo), nil
 	}
+	if scopeQualifier.MatchString(stringParam(params, "query")) {
+		result := restricted(capability, plan, owner, repo)
+		result["reason"] = scopeQualifierReason
+		return result, nil
+	}
 	limit := boundedLimit(params["limit"])
 	query := strings.TrimSpace(fmt.Sprintf("repo:%s/%s %s", owner, repo, stringParam(params, "query")))
 	payload := githubRequest("GET", "/search/issues?"+url.Values{"q": {query}, "per_page": {strconv.Itoa(limit)}}.Encode(), token, nil)
@@ -71,10 +77,19 @@ func searchRepositoryContext(capability generated.GeneratedCapabilityRuntimeMeta
 		return withMetadata(capability, plan, map[string]any{"execution_status": "backend_error", "github_error": payload}), nil
 	}
 	items := make([]map[string]any, 0)
+	dropped := 0
 	if rawItems, ok := payload["items"].([]any); ok {
 		for _, raw := range rawItems {
 			item, ok := raw.(map[string]any)
-			if !ok || len(items) >= limit {
+			if !ok {
+				continue
+			}
+			// Defence in depth: return only items from the requested repository.
+			if !itemInRepo(item, owner, repo) {
+				dropped++
+				continue
+			}
+			if len(items) >= limit {
 				continue
 			}
 			kind := "issue"
@@ -93,8 +108,26 @@ func searchRepositoryContext(capability generated.GeneratedCapabilityRuntimeMeta
 	return withMetadata(capability, plan, map[string]any{
 		"execution_status": "completed",
 		"github_query": query,
-		"result": map[string]any{"items": items, "count": len(items), "total_count": payload["total_count"]},
+		"result": map[string]any{"items": items, "count": len(items), "total_count": totalCount(payload, dropped)},
 	}), nil
+}
+
+// GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen
+// the search past one repository, so a caller-supplied query must not carry them.
+var scopeQualifier = regexp.MustCompile(`(?i)\b(?:repo|org|user|owner)\s*:`)
+
+const scopeQualifierReason = "The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo."
+
+func itemInRepo(item map[string]any, owner string, repo string) bool {
+	repositoryURL, _ := item["repository_url"].(string)
+	return strings.HasSuffix(strings.ToLower(repositoryURL), "/repos/"+strings.ToLower(owner+"/"+repo))
+}
+
+func totalCount(payload map[string]any, dropped int) any {
+	if dropped > 0 {
+		return nil
+	}
+	return payload["total_count"]
 }
 
 func prepareOrCreateIssue(capability generated.GeneratedCapabilityRuntimeMetadata, plan generated.BackendInvocationPlan, params map[string]any, token string, context BackendInvocationContext) (map[string]any, error) {

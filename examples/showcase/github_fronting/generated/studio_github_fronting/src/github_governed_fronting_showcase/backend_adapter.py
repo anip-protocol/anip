@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,6 +23,20 @@ def _csv_env(name: str) -> set[str]:
 
 def _repo_key(owner: str, repo: str) -> str:
     return f"{owner}/{repo}".lower()
+
+
+# GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen the
+# search past one repository, so a caller-supplied query must not carry any of them.
+_SCOPE_QUALIFIER = re.compile(r"\b(?:repo|org|user|owner)\s*:", re.IGNORECASE)
+
+
+def _query_widens_scope(query: str) -> bool:
+    return bool(_SCOPE_QUALIFIER.search(query))
+
+
+def _item_in_repo(item: dict[str, Any], owner: str, repo: str) -> bool:
+    repository_url = str(item.get("repository_url") or "")
+    return repository_url.lower().endswith(f"/repos/{_repo_key(owner, repo)}")
 
 
 def _repo_allowed(owner: str, repo: str) -> bool:
@@ -104,12 +119,18 @@ def _metadata(capability: GeneratedCapability, plan: BackendInvocationPlan) -> d
     }
 
 
-def _restricted_repo_response(capability: GeneratedCapability, plan: BackendInvocationPlan, owner: str, repo: str) -> dict[str, Any]:
+def _restricted_repo_response(
+    capability: GeneratedCapability,
+    plan: BackendInvocationPlan,
+    owner: str,
+    repo: str,
+    reason: str = "GitHub repository is outside the configured ANIP repository policy.",
+) -> dict[str, Any]:
     return {
         "execution_status": "restricted",
         **_metadata(capability, plan),
         "repository": {"owner": owner, "repo": repo},
-        "reason": "GitHub repository is outside the configured ANIP repository policy.",
+        "reason": reason,
     }
 
 
@@ -178,6 +199,11 @@ class DefaultBackendAdapter:
         if not _repo_allowed(owner, repo):
             return _restricted_repo_response(capability, plan, owner, repo)
         query = str(params.get("query") or "").strip()
+        if _query_widens_scope(query):
+            return _restricted_repo_response(
+                capability, plan, owner, repo,
+                reason="The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo.",
+            )
         limit = _bounded_limit(params.get("limit"))
         search_query = f"repo:{owner}/{repo} {query}".strip()
         payload = _github_request_json(
@@ -187,6 +213,9 @@ class DefaultBackendAdapter:
         )
         if payload.get("error"):
             return {"execution_status": "backend_error", **_metadata(capability, plan), "github_error": payload}
+        # Defence in depth: return only items from the requested repository.
+        in_scope = [item for item in payload.get("items", []) if isinstance(item, dict) and _item_in_repo(item, owner, repo)]
+        dropped = len(payload.get("items", [])) - len(in_scope)
         items = [
             {
                 "number": item.get("number"),
@@ -195,13 +224,13 @@ class DefaultBackendAdapter:
                 "html_url": item.get("html_url"),
                 "kind": "pull_request" if item.get("pull_request") else "issue",
             }
-            for item in payload.get("items", [])[:limit]
+            for item in in_scope[:limit]
         ]
         return {
             "execution_status": "completed",
             **_metadata(capability, plan),
             "github_query": search_query,
-            "result": {"items": items, "count": len(items), "total_count": payload.get("total_count")},
+            "result": {"items": items, "count": len(items), "total_count": payload.get("total_count") if dropped == 0 else None},
         }
 
     def _prepare_or_create_issue(

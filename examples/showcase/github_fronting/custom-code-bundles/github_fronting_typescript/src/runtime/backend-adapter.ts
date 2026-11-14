@@ -65,6 +65,19 @@ function metadata(capability: GeneratedCapabilityRuntimeMetadata, plan: BackendI
   };
 }
 
+// GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen the
+// search past one repository, so a caller-supplied query must not carry any of them.
+const SCOPE_QUALIFIER = /\b(?:repo|org|user|owner)\s*:/i;
+const SCOPE_QUALIFIER_REASON = "The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo.";
+
+export function queryWidensScope(query: string): boolean {
+  return SCOPE_QUALIFIER.test(query);
+}
+
+export function itemInRepo(item: Record<string, unknown>, owner: string, repo: string): boolean {
+  return String(item.repository_url ?? "").toLowerCase().endsWith(`/repos/${owner}/${repo}`.toLowerCase());
+}
+
 function restricted(capability: GeneratedCapabilityRuntimeMetadata, plan: BackendInvocationPlan, owner: string, repo: string): Record<string, unknown> {
   return {
     execution_status: "restricted",
@@ -157,11 +170,15 @@ async function searchRepositoryContext(
   const repo = String(params.repo ?? "").trim();
   if (!repoAllowed(owner, repo)) return restricted(capability, plan, owner, repo);
   const query = String(params.query ?? "").trim();
+  if (queryWidensScope(query)) return { ...restricted(capability, plan, owner, repo), reason: SCOPE_QUALIFIER_REASON };
   const limit = limitValue(params.limit);
   const githubQuery = `repo:${owner}/${repo} ${query}`.trim();
   const payload = await githubRequest("GET", `/search/issues?${new URLSearchParams({ q: githubQuery, per_page: String(limit) })}`, token);
   if (payload.error) return { execution_status: "backend_error", ...metadata(capability, plan), github_error: payload };
-  const items = ((payload.items ?? []) as Record<string, unknown>[]).slice(0, limit).map((item) => ({
+  // Defence in depth: return only items from the requested repository.
+  const returned = (payload.items ?? []) as Record<string, unknown>[];
+  const inScope = returned.filter((item) => itemInRepo(item, owner, repo));
+  const items = inScope.slice(0, limit).map((item) => ({
     number: item.number,
     title: item.title,
     state: item.state,
@@ -172,7 +189,7 @@ async function searchRepositoryContext(
     execution_status: "completed",
     ...metadata(capability, plan),
     github_query: githubQuery,
-    result: { items, count: items.length, total_count: payload.total_count },
+    result: { items, count: items.length, total_count: inScope.length === returned.length ? payload.total_count : null },
   };
 }
 

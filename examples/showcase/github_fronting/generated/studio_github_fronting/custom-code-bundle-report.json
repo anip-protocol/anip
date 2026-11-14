@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/github_fronting/custom-code-bundles/github_fronting_python",
-  "bundle_sha256": "sha256:fd771b5565bd09e2ec7cee774abb46f1e6a577f923650c0354690bc3cf70b07e",
+  "bundle_sha256": "sha256:604dc4eaea05e487abbdfacb0808679c179df38916292749e9b0cb0ec39f8489",
   "files": [
     {
       "path": "README.md",
@@ -13,19 +13,19 @@
     },
     {
       "path": "src/github_governed_fronting_showcase/backend_adapter.py",
-      "sha256": "sha256:b2c5975a06dd0e47738cb38e855121c639f5b04fa079c8e0eab605ca7074e692",
+      "sha256": "sha256:1709ea70e22f0cf91ea9af4a85d82a89e3d84710ff56317852df2f94c00f6d44",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 16345,
+      "bytes": 17520,
       "overlaid": true,
       "substrate": false
     },
     {
       "path": "tests/test_github_backend_adapter.py",
-      "sha256": "sha256:af0c0624d2e93cb935c81d76c0d56b01c2a65e8cc223205562442f86b266e572",
+      "sha256": "sha256:1aa97212d8b3346b3bb18f27b7ea406ae0ac426218a032d603b987fa2c8a0470",
       "seam": "custom_file",
       "mode": "custom_file",
-      "bytes": 3676,
+      "bytes": 6038,
       "overlaid": false,
       "substrate": false
     }

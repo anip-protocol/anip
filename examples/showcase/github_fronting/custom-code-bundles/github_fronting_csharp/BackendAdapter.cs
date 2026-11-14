@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Anip.Service;
 
 namespace {{ANIP_CSHARP_ROOT_NAMESPACE}};
@@ -51,13 +52,30 @@ public static class BackendAdapter
         var owner = Text(parameters.GetValueOrDefault("owner"));
         var repo = Text(parameters.GetValueOrDefault("repo"));
         if (!RepoAllowed(owner, repo)) return Restricted(capability, plan, owner, repo);
+        if (ScopeQualifier.IsMatch(Text(parameters.GetValueOrDefault("query"))))
+        {
+            var refused = Restricted(capability, plan, owner, repo);
+            refused["reason"] = ScopeQualifierReason;
+            return refused;
+        }
         var limit = BoundedLimit(parameters.GetValueOrDefault("limit"), 20, 50);
         var query = $"repo:{owner}/{repo} {Text(parameters.GetValueOrDefault("query"))}".Trim();
         var payload = GitHub("GET", $"/search/issues?q={Uri.EscapeDataString(query)}&per_page={limit}", token, null);
         if (payload.ContainsKey("error")) return Result(capability, plan, "backend_error", new() { ["github_error"] = payload });
-        var items = IssueItems(payload.GetValueOrDefault("items"), limit);
-        return Result(capability, plan, "completed", new() { ["github_query"] = query, ["result"] = new Dictionary<string, object?> { ["items"] = items, ["count"] = items.Count, ["total_count"] = payload.GetValueOrDefault("total_count") } });
+        var items = IssueItems(payload.GetValueOrDefault("items"), limit, owner, repo, out var dropped);
+        return Result(capability, plan, "completed", new() { ["github_query"] = query, ["result"] = new Dictionary<string, object?> { ["items"] = items, ["count"] = items.Count, ["total_count"] = dropped == 0 ? payload.GetValueOrDefault("total_count") : null } });
     }
+
+    // GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen the
+    // search past one repository, so a caller-supplied query must not carry any of them.
+    public static readonly Regex ScopeQualifier = new(@"\b(?:repo|org|user|owner)\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private const string ScopeQualifierReason = "The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo.";
+
+    public static bool ItemInRepo(JsonElement item, string owner, string repo) =>
+        item.ValueKind == JsonValueKind.Object
+        && item.TryGetProperty("repository_url", out var url)
+        && url.ValueKind == JsonValueKind.String
+        && (url.GetString() ?? "").EndsWith($"/repos/{owner}/{repo}", StringComparison.OrdinalIgnoreCase);
 
     private static Dictionary<string, object?> PrepareOrCreateIssue(Dictionary<string, object?> capability, Dictionary<string, object?> plan, Dictionary<string, object?> parameters, string token, InvocationContext context)
     {
@@ -218,14 +236,21 @@ public static class BackendAdapter
     private static bool MutationEnabled(InvocationContext context) =>
         Environment.GetEnvironmentVariable("ANIP_GITHUB_ALLOW_MUTATION") == "true" && !string.IsNullOrWhiteSpace(context?.ApprovalGrant);
 
-    private static List<Dictionary<string, object?>> IssueItems(object? value, int limit)
+    private static List<Dictionary<string, object?>> IssueItems(object? value, int limit, string owner, string repo, out int dropped)
     {
         var result = new List<Dictionary<string, object?>>();
+        dropped = 0;
         if (value is JsonElement element && element.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in element.EnumerateArray())
             {
-                if (result.Count >= limit) break;
+                // Defence in depth: return only items from the requested repository.
+                if (!ItemInRepo(item, owner, repo))
+                {
+                    dropped++;
+                    continue;
+                }
+                if (result.Count >= limit) continue;
                 result.Add(new()
                 {
                     ["number"] = Get(item, "number"),

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @FunctionalInterface
 public interface BackendAdapter {
@@ -51,16 +52,37 @@ final class GitHubBackendAdapter implements BackendAdapter {
         String owner = text(params.get("owner"));
         String repo = text(params.get("repo"));
         if (!repoAllowed(owner, repo)) return restricted(capability, plan, owner, repo);
+        if (SCOPE_QUALIFIER.matcher(text(params.get("query"))).find()) {
+            Map<String, Object> refused = restricted(capability, plan, owner, repo);
+            refused.put("reason", SCOPE_QUALIFIER_REASON);
+            return refused;
+        }
         int limit = boundedLimit(params.get("limit"), 20, 50);
         String query = ("repo:" + owner + "/" + repo + " " + text(params.get("query"))).trim();
         Map<String, Object> payload = github("GET", "/search/issues?q=" + url(query) + "&per_page=" + limit, token, null);
         if (payload.containsKey("error")) return result(capability, plan, "backend_error", record("github_error", payload));
         List<Map<String, Object>> items = new ArrayList<>();
+        int dropped = 0;
         for (Map<String, Object> item : mapList(payload.get("items"))) {
-            if (items.size() >= limit) break;
+            // Defence in depth: return only items from the requested repository.
+            if (!itemInRepo(item, owner, repo)) {
+                dropped++;
+                continue;
+            }
+            if (items.size() >= limit) continue;
             items.add(record("number", item.get("number"), "title", item.get("title"), "state", item.get("state"), "html_url", item.get("html_url"), "kind", item.get("pull_request") == null ? "issue" : "pull_request"));
         }
-        return result(capability, plan, "completed", record("github_query", query, "result", record("items", items, "count", items.size(), "total_count", payload.get("total_count"))));
+        return result(capability, plan, "completed", record("github_query", query, "result", record("items", items, "count", items.size(), "total_count", dropped == 0 ? payload.get("total_count") : null)));
+    }
+
+    // GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen the
+    // search past one repository, so a caller-supplied query must not carry any of them.
+    static final Pattern SCOPE_QUALIFIER = Pattern.compile("\\b(?:repo|org|user|owner)\\s*:", Pattern.CASE_INSENSITIVE);
+    private static final String SCOPE_QUALIFIER_REASON = "The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo.";
+
+    static boolean itemInRepo(Map<String, Object> item, String owner, String repo) {
+        Object repositoryUrl = item.get("repository_url");
+        return repositoryUrl != null && String.valueOf(repositoryUrl).toLowerCase().endsWith(("/repos/" + owner + "/" + repo).toLowerCase());
     }
 
     private static Map<String, Object> prepareOrCreateIssue(Map<String, Object> capability, Map<String, Object> plan, Map<String, Object> params, String token, InvocationContext context) {
