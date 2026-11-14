@@ -59,3 +59,7 @@ Credential file:
 
 Mutation is disabled unless `ANIP_GITLAB_ALLOW_MUTATION=true` and the request supplies the required approval grant. The live project should be disposable and scoped to the showcase.
 
+Package 0.2.0 declares no runtime policy bindings, so any authenticated
+principal may invoke its capabilities. The read-only smoke fails if a generated
+service declares bindings, and checks that an unknown API key is refused.
+

@@ -53,9 +53,26 @@ target language.
 
 ## Live GitLab Tests
 
+The 0.2.0 package bundle predates `package_execution_signature`, so the
+"Generate From Package" command above refuses it. Generate the Python service
+from the package's service definition instead:
+
+```bash
+cd packages/go
+go run ./cmd/anip generate \
+  --definition ../../examples/showcase/gitlab_fronting/registry-packages/gitlab-fronting-showcase-0.2.0-service-definition.json \
+  --package-name gitlab_governed_fronting_showcase \
+  --target python \
+  --dependency-source local \
+  --custom-code-bundle ../../examples/showcase/gitlab_fronting/custom-code-bundles/gitlab_fronting_python \
+  --transport http,stdio \
+  --output ../../examples/showcase/gitlab_fronting/generated/studio_gitlab_fronting \
+  --force
+```
+
 ```bash
 export GITLAB_TOKEN="glpat-or-project-token"
-export GITLAB_PROJECT_ID="group/project-or-numeric-id"
+export GITLAB_PROJECT_ID="group/project"  # a namespace/project path, not a numeric id
 cd examples/showcase/gitlab_fronting/generated/studio_gitlab_fronting
 PYTHON=.venv/bin/python ../../scripts/live_smoke.sh
 ```
@@ -71,9 +88,19 @@ The shell wrappers set the generated project on `PYTHONPATH` before Python
 starts. This avoids import-bootstrap differences between direct script
 execution and generated editable installs.
 
-The approved issue smoke confirms `gitlab.issue.prepare` stops at preview first,
-then creates a pending ANIP approval request, issues a one-time grant, and
-resubmits the same parameters with `approval_grant`.
+The live smoke never mutates GitLab: it sets `ANIP_GITLAB_ALLOW_MUTATION=false`.
+It invokes the generated service over HTTP with an API key it adds to
+`ANIP_API_KEYS_JSON`. Package 0.2.0 declares no runtime policy bindings and no
+approval-gated capability, so every authenticated principal may invoke every
+capability, and write-adjacent capabilities return previews without a grant. The
+smoke fails if the generated service declares policy bindings (a package that
+adds them needs actor-specific keys in the smoke), and checks that an unknown
+API key is refused with HTTP 401.
+
+The approved issue smoke confirms `gitlab.issue.prepare` stops at preview first.
+Because package 0.2.0 never answers `approval_required`, it then creates the
+pending ANIP approval request in-process, issues a one-time grant, and resubmits
+the same parameters with `approval_grant`.
 
 The TypeScript, Go, Java, and C# bundles also include live tests that run when
 `GITLAB_TOKEN` and `GITLAB_PROJECT_ID` are present. They validate read/preview
