@@ -29,34 +29,34 @@ const (
 
 // failureTypeToCode maps ANIP failure types to JSON-RPC error codes.
 var failureTypeToCode = map[string]int{
-	"authentication_required":          codeAuthError,
-	"invalid_token":                    codeAuthError,
-	"token_expired":                    codeAuthError,
-	"scope_insufficient":               codeScopeError,
-	"budget_exceeded":                  codeScopeError,
-	"budget_currency_mismatch":         codeScopeError,
-	"budget_not_enforceable":           codeScopeError,
-	"binding_missing":                  codeScopeError,
-	"binding_stale":                    codeScopeError,
-	"control_requirement_unsatisfied":  codeScopeError,
-	"purpose_mismatch":                 codeScopeError,
-	"scope_escalation":                 codeScopeError,
-	"unknown_capability":               codeNotFound,
-	"not_found":                        codeNotFound,
-	"internal_error":                   codeInternalError,
-	"unavailable":                      codeInternalError,
-	"concurrent_lock":                  codeInternalError,
+	"authentication_required":         codeAuthError,
+	"invalid_token":                   codeAuthError,
+	"token_expired":                   codeAuthError,
+	"scope_insufficient":              codeScopeError,
+	"budget_exceeded":                 codeScopeError,
+	"budget_currency_mismatch":        codeScopeError,
+	"budget_not_enforceable":          codeScopeError,
+	"binding_missing":                 codeScopeError,
+	"binding_stale":                   codeScopeError,
+	"control_requirement_unsatisfied": codeScopeError,
+	"purpose_mismatch":                codeScopeError,
+	"scope_escalation":                codeScopeError,
+	"unknown_capability":              codeNotFound,
+	"not_found":                       codeNotFound,
+	"internal_error":                  codeInternalError,
+	"unavailable":                     codeInternalError,
+	"concurrent_lock":                 codeInternalError,
 }
 
 // validMethods is the set of supported ANIP JSON-RPC methods.
 var validMethods = map[string]bool{
-	"anip.discovery":       true,
-	"anip.manifest":        true,
-	"anip.jwks":            true,
-	"anip.tokens.issue":    true,
-	"anip.permissions":     true,
-	"anip.invoke":          true,
-	"anip.audit.query":     true,
+	"anip.discovery":        true,
+	"anip.manifest":         true,
+	"anip.jwks":             true,
+	"anip.tokens.issue":     true,
+	"anip.permissions":      true,
+	"anip.invoke":           true,
+	"anip.audit.query":      true,
 	"anip.checkpoints.list": true,
 	"anip.checkpoints.get":  true,
 	"anip.graph":            true,
@@ -404,6 +404,10 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 	parentInvID, _ := params["parent_invocation_id"].(string)
 	upstreamSvc, _ := params["upstream_service"].(string)
 	stream, _ := params["stream"].(bool)
+	// SPEC.md §4.8: a continuation supplies approval_grant. Absent or null is
+	// no grant; any other value is validated by the service (a blank or
+	// non-string one names no grant). session_id comes from the token.
+	approvalGrant, grantSupplied := service.ApprovalGrantFromBody(params)
 
 	// Extract budget from params.
 	var budget *core.Budget
@@ -418,12 +422,14 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 	if stream {
 		// Streaming invocation — collect progress notifications then return final result.
 		sr, err := s.svc.InvokeStream(capability, token, parameters, service.InvokeOpts{
-			ClientReferenceID:  clientRefID,
-			TaskID:             taskID,
-			ParentInvocationID: parentInvID,
-			UpstreamService:    upstreamSvc,
-			Stream:             true,
-			Budget:             budget,
+			ClientReferenceID:     clientRefID,
+			TaskID:                taskID,
+			ParentInvocationID:    parentInvID,
+			UpstreamService:       upstreamSvc,
+			Stream:                true,
+			Budget:                budget,
+			ApprovalGrant:         approvalGrant,
+			ApprovalGrantSupplied: grantSupplied,
 		})
 		if err != nil {
 			return nil, err
@@ -449,11 +455,13 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 
 	// Unary invocation.
 	result, err := s.svc.Invoke(capability, token, parameters, service.InvokeOpts{
-		ClientReferenceID:  clientRefID,
-		TaskID:             taskID,
-		ParentInvocationID: parentInvID,
-		UpstreamService:    upstreamSvc,
-		Budget:             budget,
+		ClientReferenceID:     clientRefID,
+		TaskID:                taskID,
+		ParentInvocationID:    parentInvID,
+		UpstreamService:       upstreamSvc,
+		Budget:                budget,
+		ApprovalGrant:         approvalGrant,
+		ApprovalGrantSupplied: grantSupplied,
 	})
 	if err != nil {
 		return nil, err
