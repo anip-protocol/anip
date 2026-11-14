@@ -94,7 +94,7 @@ def _route_question(question: str) -> tuple[str, dict[str, Any], list[str], list
 
     if "follow-up" in lowered or "follow up" in lowered:
         capability = "gtm.prepare_followup_tasks"
-        params = {"ranking_basis": "risk_score", "top_n": _parse_top_n(question, 5)}
+        params = {"ranking_basis": "risk_score", "limit": _parse_top_n(question, 5)}
         scope = ["gtm.pipeline.followup"]
     elif "stuck" in lowered or "stalled" in lowered:
         capability = "gtm.stalled_opportunity_review"
@@ -104,7 +104,7 @@ def _route_question(question: str) -> tuple[str, dict[str, Any], list[str], list
             notes.append("The Maven Phase 1 dataset uses Prospecting and Engaging rather than Negotiation.")
     elif "at risk" in lowered or "risk" in lowered or "top deals" in lowered or "close probability" in lowered:
         capability = "gtm.account_risk_summary"
-        params = {"ranking_basis": "risk_score", "top_n": _parse_top_n(question, 10)}
+        params = {"ranking_basis": "risk_score", "limit": _parse_top_n(question, 10)}
         scope = ["gtm.pipeline.read"]
     else:
         capability = "gtm.pipeline_summary"

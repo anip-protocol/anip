@@ -191,13 +191,13 @@ def _build_parameters(question: str, capability: str) -> tuple[dict[str, Any], l
     notes: list[str] = []
 
     if capability == "gtm.prepare_followup_tasks":
-        params.update({"ranking_basis": "risk_score", "top_n": _parse_top_n(question, 5)})
+        params.update({"ranking_basis": "risk_score", "limit": _parse_top_n(question, 5)})
     elif capability == "gtm.stalled_opportunity_review":
         params.update({"min_days_open": 30, "limit": _parse_top_n(question, 10)})
         if "negotiation" in lowered:
             notes.append("The Phase 1 dataset uses Prospecting and Engaging instead of Negotiation.")
     elif capability == "gtm.account_risk_summary":
-        params.update({"ranking_basis": "risk_score", "top_n": _parse_top_n(question, 10)})
+        params.update({"ranking_basis": "risk_score", "limit": _parse_top_n(question, 10)})
     else:
         params.update({"detail_level": "stage_breakdown" if "stage" in lowered or "breakdown" in lowered else "summary"})
         if "raw" in lowered or "row-level" in lowered or "row level" in lowered:
