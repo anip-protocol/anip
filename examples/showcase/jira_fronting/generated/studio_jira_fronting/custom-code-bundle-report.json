@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/jira_fronting/custom-code-bundles/jira_fronting_python",
-  "bundle_sha256": "sha256:68017b5ca59eb0602aca5abb0b616b183b8215fa9f30e02dbdbb245ddd801ae4",
+  "bundle_sha256": "sha256:00c50efc394a7d7186cce3574002b0db5bdf805bc361afe0d796cf0e26d4590d",
   "files": [
     {
       "path": "README.md",
@@ -22,10 +22,10 @@
     },
     {
       "path": "tests/test_jira_backend_adapter.py",
-      "sha256": "sha256:85eea2ceabd3605e48388998ca2412fcd4fca3a0292d78979a3be340278c3685",
+      "sha256": "sha256:8fbefd018d2582e650ae59a8659c78a57dc4fd374b01d6f24ef5687d598a97e9",
       "seam": "custom_file",
       "mode": "custom_file",
-      "bytes": 922,
+      "bytes": 1904,
       "overlaid": false,
       "substrate": false
     }
