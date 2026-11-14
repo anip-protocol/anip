@@ -198,7 +198,9 @@ def _build_parameters(question: str, capability: str) -> tuple[dict[str, Any], l
             notes.append("The Phase 1 dataset uses Prospecting and Engaging instead of Negotiation.")
     elif capability == "gtm.account_risk_summary":
         params.update({"ranking_basis": "risk_score", "limit": _parse_top_n(question, 10)})
-    else:
+    elif capability == "gtm.pipeline_summary":
+        # detail_level is declared by gtm.pipeline_summary only; other
+        # capabilities refuse it as an undeclared parameter.
         params.update({"detail_level": "stage_breakdown" if "stage" in lowered or "breakdown" in lowered else "summary"})
         if "raw" in lowered or "row-level" in lowered or "row level" in lowered:
             params["detail_level"] = "raw_records"
