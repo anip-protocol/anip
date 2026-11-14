@@ -1,9 +1,10 @@
 """Validation of invocation parameters against declared inputs.
 
 SPEC.md §6.3 "Parameter Validation": a required input that is absent or JSON
-``null`` is missing, and a supplied value must be of the JSON type named by a
-primitive declared type. Declared type names other than the six primitives
-are not checked here; the handler validates them.
+``null`` is missing, a parameter that names no declared input is undeclared,
+and a supplied value must be of the JSON type named by a primitive declared
+type. Declared type names other than the six primitives are not checked
+here; the handler validates them.
 """
 from __future__ import annotations
 
@@ -82,6 +83,11 @@ _ACCEPTS = {
 }
 
 
+def _utf16_order(name: str) -> bytes:
+    """Sort key of RFC 8785 member names (§4.7): UTF-16 code units."""
+    return name.encode("utf-16-be", "surrogatepass")
+
+
 def check_declared_inputs(
     capability_name: str,
     inputs: Iterable[Any] | None,
@@ -90,10 +96,11 @@ def check_declared_inputs(
     """Check ``parameters`` as the caller sent them against declared ``inputs``.
 
     Returns the ``detail`` of the ``invalid_parameters`` failure, or ``None``
-    when the parameters are acceptable. A required input that declares
-    ``resolution.on_missing`` is not reported as missing; a value supplied
-    for it is type-checked like any other. Defaults, ``allowed_values`` and the
-    ``resolution`` block are not applied; undeclared parameters are ignored.
+    when the parameters are acceptable. Missing inputs are reported first,
+    then undeclared parameters, then values of the wrong type. A required
+    input that declares ``resolution.on_missing`` is not reported as missing;
+    a value supplied for it is type-checked like any other. Defaults,
+    ``allowed_values`` and the ``resolution`` block are not applied.
     """
     supplied: Mapping[str, Any] = parameters if parameters is not None else {}
     declared = list(inputs or [])
@@ -109,6 +116,11 @@ def check_declared_inputs(
     ]
     if missing:
         return f"{capability_name} is missing required input(s): " + ", ".join(missing)
+
+    declared_names = {i.name for i in declared}
+    undeclared = sorted((k for k in supplied if k not in declared_names), key=_utf16_order)
+    if undeclared:
+        return f"{capability_name} has undeclared parameter(s): " + ", ".join(undeclared)
 
     wrong: list[str] = []
     for declared_input in declared:

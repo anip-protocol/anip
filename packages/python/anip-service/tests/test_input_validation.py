@@ -172,9 +172,44 @@ class TestCheckDeclaredInputs:
         for value in ("x", 1, 1.5, True, [], {}):
             assert check_declared_inputs("cap", inputs, {"v": value}) is None
 
-    def test_undeclared_parameters_are_ignored(self):
+    def test_an_undeclared_parameter_is_named(self):
         inputs = _inputs(("a", "string"))
-        assert check_declared_inputs("cap", inputs, {"a": "x", "extra": object()}) is None
+        assert check_declared_inputs("cap", inputs, {"a": "x", "extra": object()}) == (
+            "cap has undeclared parameter(s): extra"
+        )
+
+    def test_every_undeclared_parameter_is_named_in_utf16_order(self):
+        # RFC 8785 member order (§4.7): by UTF-16 code units, so U+FF5E sorts
+        # after U+1F600 (a surrogate pair starting 0xD83D).
+        inputs = _inputs(("a", "string"))
+        assert check_declared_inputs("cap", inputs, {
+            "zeta": 1, "a": "x", "\uff5e": 2, "Beta": None, "\U0001f600": 3, "alpha": 4,
+        }) == "cap has undeclared parameter(s): Beta, alpha, zeta, \U0001f600, \uff5e"
+
+    def test_an_undeclared_parameter_with_a_null_value_is_undeclared(self):
+        inputs = _inputs(("a", "string", {"required": False}))
+        assert check_declared_inputs("cap", inputs, {"extra": None}) == (
+            "cap has undeclared parameter(s): extra"
+        )
+
+    def test_missing_is_reported_before_undeclared(self):
+        inputs = _inputs(("a", "string"))
+        assert check_declared_inputs("cap", inputs, {"b": "x"}) == (
+            "cap is missing required input(s): a"
+        )
+
+    def test_undeclared_is_reported_before_wrong_types(self):
+        inputs = _inputs(("a", "integer"))
+        assert check_declared_inputs("cap", inputs, {"a": "x", "b": 1}) == (
+            "cap has undeclared parameter(s): b"
+        )
+
+    def test_no_declared_inputs_accept_only_empty_parameters(self):
+        assert check_declared_inputs("cap", [], {}) is None
+        assert check_declared_inputs("cap", None, None) is None
+        assert check_declared_inputs("cap", [], {"anything": 1}) == (
+            "cap has undeclared parameter(s): anything"
+        )
 
     def test_allowed_values_are_not_enforced(self):
         inputs = _inputs(("a", "string", {"allowed_values": ["x", "y"]}))
@@ -327,17 +362,48 @@ class TestRefusal:
         _assert_invalid_parameters(result, "book is missing required input(s): region")
         assert handler.calls == []
 
-    async def test_valid_call_reaches_the_handler_with_defaults_and_extras(self):
+    async def test_valid_call_reaches_the_handler_with_defaults(self):
         handler = _Recorder()
         service = _service(Capability(declaration=_declaration(), handler=handler))
         token = await _token(service, ["book"], "book")
 
-        result = await service.invoke("book", token, {**VALID, "undeclared": {"k": [1]}})
+        result = await service.invoke("book", token, dict(VALID))
 
         assert result["success"] is True, result
-        assert handler.calls == [
-            {**VALID, "passengers": 1, "undeclared": {"k": [1]}},
-        ]
+        assert handler.calls == [{**VALID, "passengers": 1}]
+
+    async def test_undeclared_parameters_are_refused_and_audited(self):
+        handler = _Recorder()
+        service = _service(Capability(declaration=_declaration(), handler=handler))
+        token = await _token(service, ["book"], "book")
+
+        result = await service.invoke(
+            "book", token, {**VALID, "undeclared": {"k": [1]}, "also": 1})
+
+        _assert_invalid_parameters(result, "book has undeclared parameter(s): also, undeclared")
+        assert handler.calls == []
+        entry = await _audit_entry(service, token, result["invocation_id"])
+        assert entry["success"] is False
+        assert entry["failure_type"] == "invalid_parameters"
+
+    async def test_undeclared_parameter_is_refused_on_the_streaming_path(self):
+        handler = _Recorder()
+        events: list[dict[str, Any]] = []
+
+        async def sink(event):
+            events.append(event)
+
+        declaration = _declaration(
+            response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING])
+        service = _service(Capability(declaration=declaration, handler=handler))
+        token = await _token(service, ["book"], "book")
+
+        result = await service.invoke(
+            "book", token, {**VALID, "extra": True}, stream=True, _progress_sink=sink)
+
+        _assert_invalid_parameters(result, "book has undeclared parameter(s): extra")
+        assert handler.calls == []
+        assert events == []
 
     async def test_integral_float_reaches_the_handler(self):
         handler = _Recorder()
@@ -349,14 +415,16 @@ class TestRefusal:
         assert result["success"] is True, result
         assert handler.calls[0]["passengers"] == 5
 
-    async def test_capability_without_inputs_accepts_anything(self):
+    async def test_capability_without_inputs_accepts_only_empty_parameters(self):
         handler = _Recorder()
         service = _service(Capability(declaration=_declaration(inputs=[]), handler=handler))
         token = await _token(service, ["book"], "book")
 
-        for parameters in ({}, None, {"anything": 1}):
+        for parameters in ({}, None):
             result = await service.invoke("book", token, parameters)  # type: ignore[arg-type]
             assert result["success"] is True, result
+        refused = await service.invoke("book", token, {"anything": 1})
+        _assert_invalid_parameters(refused, "book has undeclared parameter(s): anything")
 
     async def test_hooks_see_the_refusal(self):
         ended: list[dict[str, Any]] = []
@@ -670,6 +738,21 @@ class TestComposition:
         assert result["failure"]["type"] == "invalid_parameters"
         assert result["failure"]["detail"] == (
             "lookup has invalid input(s): 'q' must be string, got number")
+        assert child.calls == []
+
+    async def test_child_step_refuses_a_key_the_child_does_not_declare(self):
+        child = _Recorder({"items": [1]})
+        service = self._service(child)
+        token = await _token(service, ["s"], "summary")
+
+        result = await service._invoke_composition_child(
+            "lookup", {"q": "x", "limit": 3},
+            caller_token=token, parent_invocation_id="inv-aaaaaaaaaaaa",
+            task_id=None, client_reference_id=None, upstream_service=None,
+        )
+
+        assert result["failure"]["type"] == "invalid_parameters"
+        assert result["failure"]["detail"] == "lookup has undeclared parameter(s): limit"
         assert child.calls == []
 
 

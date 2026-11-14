@@ -37,11 +37,12 @@ from anip_service.types import ANIPError
 HUMAN = "human:test@example.com"
 
 
-def _decl(name: str, scope: list[str], **extra) -> CapabilityDeclaration:
+def _decl(name: str, scope: list[str], inputs: list[CapabilityInput] | None = None,
+          **extra) -> CapabilityDeclaration:
     return CapabilityDeclaration(
         name=name,
         description=name,
-        inputs=[CapabilityInput(name="q", type="string", required=False, description="q")],
+        inputs=inputs or [CapabilityInput(name="q", type="string", required=False, description="q")],
         output=CapabilityOutput(type="object", fields=[]),
         side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
         minimum_scope=scope,
@@ -72,11 +73,12 @@ def _service(seen: dict | None = None, *, composition: Composition | None = None
              enrich_scope: list[str] | None = None) -> ANIPService:
     seen = seen if seen is not None else {}
 
-    def recording(name: str, scope: list[str], result: dict) -> Capability:
+    def recording(name: str, scope: list[str], result: dict,
+                  inputs: list[CapabilityInput] | None = None) -> Capability:
         def handler(ctx, params):
             seen[name] = {"token": ctx.token, "params": dict(params)}
             return result
-        return Capability(declaration=_decl(name, scope), handler=handler)
+        return Capability(declaration=_decl(name, scope, inputs), handler=handler)
 
     def composed_handler(ctx, params):
         seen["summary_handler_called"] = True
@@ -88,7 +90,8 @@ def _service(seen: dict | None = None, *, composition: Composition | None = None
             recording("search_flights", ["travel.search"], {"flights": ["FL-001"]}),
             recording("book_flight", ["travel.book"], {"booking_id": "BK-001"}),
             recording("select_cap", ["inv.read"], {"items": ["a", "b"]}),
-            recording("enrich_cap", enrich_scope or ["inv.read"], {"count": 2}),
+            recording("enrich_cap", enrich_scope or ["inv.read"], {"count": 2},
+                      [CapabilityInput(name="items", type="array", required=False)]),
             Capability(
                 declaration=_decl("summary", ["inv.read"], kind="composed",
                                   composition=composition or _summary_composition()),
