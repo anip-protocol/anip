@@ -100,9 +100,11 @@ func firstGeneratedCapabilityID(model *GenerationModel) string {
 }
 
 func BuildGenerationModel(definition *AnipServiceDefinition) (*GenerationModel, error) {
-	if err := assertDefinition(definition); err != nil {
+	payload, err := assertDefinition(definition)
+	if err != nil {
 		return nil, err
 	}
+	definition = declareExplicitBackendInputs(definition, payload)
 
 	generation := definition.Generation
 	if generation == nil {
@@ -273,19 +275,56 @@ func policyDecisionForPermission(binding PermissionIntentBinding) string {
 	return "allow"
 }
 
-func assertDefinition(definition *AnipServiceDefinition) error {
+func assertDefinition(definition *AnipServiceDefinition) (map[string]any, error) {
 	if definition == nil {
-		return fmt.Errorf("service definition is required")
+		return nil, fmt.Errorf("service definition is required")
 	}
 	bytes, err := json.Marshal(definition)
 	if err != nil {
-		return fmt.Errorf("encode service definition for validation: %w", err)
+		return nil, fmt.Errorf("encode service definition for validation: %w", err)
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(bytes, &payload); err != nil {
-		return fmt.Errorf("decode service definition for validation: %w", err)
+		return nil, fmt.Errorf("decode service definition for validation: %w", err)
 	}
-	return definitionvalidation.ValidateServiceDefinition(payload)
+	if err := definitionvalidation.ValidateServiceDefinition(payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
+
+// declareExplicitBackendInputs returns the definition the generator builds
+// from: each explicit backend input a capability does not declare becomes a
+// declared input, required or optional to match its explicit list. The
+// generated adapter reads backend inputs from the invocation parameters, and
+// a runtime refuses parameters a capability does not declare, so a backend
+// input the caller supplies must be declared. The argument is not modified.
+func declareExplicitBackendInputs(definition *AnipServiceDefinition, payload map[string]any) *AnipServiceDefinition {
+	additions := definitionvalidation.UndeclaredExplicitBackendInputs(payload)
+	if len(additions) == 0 {
+		return definition
+	}
+	declared := *definition
+	declared.CapabilityFormalizations = make([]CapabilityFormalization, len(definition.CapabilityFormalizations))
+	for index, capability := range definition.CapabilityFormalizations {
+		extra := additions[capability.CapabilityID]
+		if len(extra) > 0 {
+			inputs := make([]CapabilityInputFormalization, 0, len(capability.Inputs)+len(extra))
+			inputs = append(inputs, capability.Inputs...)
+			for _, input := range extra {
+				required, _ := input["required"].(bool)
+				inputs = append(inputs, CapabilityInputFormalization{
+					InputName: fmt.Sprint(input["input_name"]),
+					InputType: fmt.Sprint(input["input_type"]),
+					Required:  required,
+					Summary:   fmt.Sprint(input["summary"]),
+				})
+			}
+			capability.Inputs = inputs
+		}
+		declared.CapabilityFormalizations[index] = capability
+	}
+	return &declared
 }
 
 func buildServiceMetadata(definition *AnipServiceDefinition) []GeneratedServiceMetadata {

@@ -68,9 +68,18 @@ func TestGeneratorConformanceSuite(t *testing.T) {
 	}
 }
 
-func TestGeneratorConformancePreservesUnmappedBackendOnlyInput(t *testing.T) {
+func TestGeneratorConformanceDeclaresExplicitBackendInput(t *testing.T) {
 	definition := backendOnlyConformanceDefinition(t)
-	buildGeneratorConformanceProjects(t, definition)
+	marker := "Required by the backend adapter (explicit backend input)."
+	for _, target := range buildGeneratorConformanceProjects(t, definition) {
+		// The emitted service definition and the runtime metadata the
+		// manifest is built from both declare change_reason.
+		for _, path := range []string{"anip-service-definition.json", target.RuntimePath} {
+			if !containsGeneratedMarker(fileContent(target.Project.Files, path), marker) {
+				t.Fatalf("%s: %s does not declare the explicit backend input", target.Name, path)
+			}
+		}
+	}
 }
 
 // withoutPolicyOrApprovalGate removes the fixture's policy bindings and the
@@ -100,24 +109,39 @@ func withoutPolicyOrApprovalGate(definition *AnipServiceDefinition) {
 	}
 }
 
+// backendOnlyConformanceDefinition leaves change_reason out of the child's
+// public inputs while its backend still requires it explicitly. The generator
+// declares it, so the generated child accepts it from the caller. The parent
+// takes no change_reason: it maps the child's change_reason from the lookup
+// step's output, a value the service derives, and parent parameters reach the
+// child only through input_mapping.
 func backendOnlyConformanceDefinition(t *testing.T) *AnipServiceDefinition {
 	t.Helper()
 	suite := mustReadGeneratorConformanceSuite(t)
 	definition := mustReadGeneratorConformanceDefinition(t, suite.DefinitionFixture)
+	withoutChangeReason := func(inputs []CapabilityInputFormalization) []CapabilityInputFormalization {
+		var kept []CapabilityInputFormalization
+		for _, input := range inputs {
+			if input.InputName != "change_reason" {
+				kept = append(kept, input)
+			}
+		}
+		return kept
+	}
 	for i := range definition.CapabilityFormalizations {
 		capability := &definition.CapabilityFormalizations[i]
-		if capability.CapabilityID == "conformance.prepare_change" {
-			var inputs []CapabilityInputFormalization
-			for _, input := range capability.Inputs {
-				if input.InputName != "change_reason" {
-					inputs = append(inputs, input)
-				}
-			}
-			capability.Inputs = inputs
+		switch capability.CapabilityID {
+		case "conformance.prepare_change":
+			capability.Inputs = withoutChangeReason(capability.Inputs)
+		case "conformance.lookup_and_prepare":
+			capability.Inputs = withoutChangeReason(capability.Inputs)
+			capability.Composition.InputMapping["prepare_change"]["change_reason"] = "$.steps.lookup.output.capability_id"
 		}
-		if capability.CapabilityID == "conformance.lookup_and_prepare" {
-			// Backend-only values remain legal, but cannot be composition targets.
-			delete(capability.Composition.InputMapping["prepare_change"], "change_reason")
+	}
+	for i := range definition.IntegrationFronting.CapabilityMappings {
+		mapping := &definition.IntegrationFronting.CapabilityMappings[i]
+		if mapping.CapabilityID == "conformance.lookup_and_prepare" {
+			mapping.ExplicitRequiredBackendInputs = nil
 		}
 	}
 	withoutPolicyOrApprovalGate(definition)
@@ -125,25 +149,30 @@ func backendOnlyConformanceDefinition(t *testing.T) *AnipServiceDefinition {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
-	for _, capability := range model.Capabilities {
-		if capability.CapabilityID != "conformance.prepare_change" {
-			continue
-		}
-		found = true
-		if capability.BackendInputMode != "hybrid" || len(capability.ExplicitRequiredBackendInputs) != 1 || capability.ExplicitRequiredBackendInputs[0] != "change_reason" {
-			t.Fatalf("child backend requirement was lost: %#v", capability)
-		}
-		for _, inputs := range [][]CapabilityInputFormalization{capability.RequiredInputs, capability.OptionalInputs} {
-			for _, input := range inputs {
-				if input.InputName == "change_reason" {
-					t.Fatal("backend-only child input leaked into public input metadata")
-				}
+	for _, capability := range definition.CapabilityFormalizations {
+		for _, input := range capability.Inputs {
+			if input.InputName == "change_reason" {
+				t.Fatalf("BuildGenerationModel modified the definition it was given: %s", capability.CapabilityID)
 			}
 		}
 	}
-	if !found {
-		t.Fatal("missing generated child capability")
+	declared := map[string][]string{}
+	for _, capability := range model.Capabilities {
+		if capability.CapabilityID == "conformance.prepare_change" && (capability.BackendInputMode != "hybrid" || len(capability.ExplicitRequiredBackendInputs) != 1 || capability.ExplicitRequiredBackendInputs[0] != "change_reason") {
+			t.Fatalf("child backend requirement was lost: %#v", capability)
+		}
+		for _, input := range capability.RequiredInputs {
+			declared[capability.CapabilityID] = append(declared[capability.CapabilityID], input.InputName)
+		}
+		for _, input := range capability.OptionalInputs {
+			declared[capability.CapabilityID] = append(declared[capability.CapabilityID], input.InputName+"?")
+		}
+	}
+	if got := strings.Join(declared["conformance.prepare_change"], ","); got != "record_ref,new_status,change_reason" {
+		t.Fatalf("child must declare its explicit backend input as required: %s", got)
+	}
+	if got := strings.Join(declared["conformance.lookup_and_prepare"], ","); got != "query,requested_status" {
+		t.Fatalf("parent must not declare change_reason: %s", got)
 	}
 	return definition
 }

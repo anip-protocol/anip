@@ -170,8 +170,8 @@
         {
           "input_name": "change_reason",
           "input_type": "string",
-          "required": false,
-          "summary": "Reason passed by composition; backend execution still requires it.",
+          "required": true,
+          "summary": "Reason for the change; the backend requires it, so the capability declares it required.",
           "default_value": "",
           "allowed_values": []
         }

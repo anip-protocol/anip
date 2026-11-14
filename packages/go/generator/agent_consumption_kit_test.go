@@ -303,3 +303,52 @@ func containsAny(values []any, expected string) bool {
 	}
 	return false
 }
+
+func TestBuildAgentConsumptionKitListsDeclaredExplicitBackendInputs(t *testing.T) {
+	resolved := &ResolvedServiceDefinition{
+		Definition: map[string]any{
+			"capability_formalizations": []any{
+				map[string]any{
+					"capability_id": "work_item.prepare_update",
+					"service_id":    "work-items",
+					"inputs":        []any{map[string]any{"input_name": "issue_id", "required": true}},
+				},
+			},
+			"integration_fronting": map[string]any{
+				"capability_mappings": []any{
+					map[string]any{
+						"capability_id":                    "work_item.prepare_update",
+						"backend_input_mode":               "explicit",
+						"explicit_required_backend_inputs": []any{"issue_id", "change_reason"},
+					},
+				},
+			},
+		},
+	}
+	files, err := BuildAgentConsumptionKit(resolved)
+	if err != nil {
+		t.Fatalf("BuildAgentConsumptionKit: %v", err)
+	}
+	for _, file := range files {
+		if file.Path != "agent-consumption/capability-index.json" {
+			continue
+		}
+		var index struct {
+			Capabilities []struct {
+				Inputs []map[string]any `json:"inputs"`
+			} `json:"capabilities"`
+		}
+		if err := json.Unmarshal([]byte(file.Content), &index); err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, input := range index.Capabilities[0].Inputs {
+			names = append(names, stringValue(input["input_name"]))
+		}
+		if strings.Join(names, ",") != "issue_id,change_reason" {
+			t.Fatalf("capability index must list the declared explicit backend input: %v", names)
+		}
+		return
+	}
+	t.Fatal("capability index was not generated")
+}

@@ -85,9 +85,13 @@ func ValidateServiceDefinition(definition map[string]any) error {
 		capabilityByID[capabilityID] = capability
 		capabilityIndexByID[capabilityID] = index
 	}
+	// Compositions see each capability with the explicit backend inputs the
+	// generator declares for it: a child's declared explicit backend input is
+	// a mapping target, and a required one must be mapped.
+	declaredByID := capabilitiesByID(DeclareExplicitBackendInputs(definition))
 	for index, item := range capabilities {
 		capability := item.(map[string]any)
-		if err := validateCapability(index, capability, serviceIDs, capabilityByID, capabilityIndexByID); err != nil {
+		if err := validateCapability(index, capability, serviceIDs, declaredByID, capabilityIndexByID); err != nil {
 			return err
 		}
 	}
@@ -377,7 +381,11 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 	stepIndexByID := map[string]int{}
 	stepChildInputNames := map[string]map[string]bool{}
 	parentInputNames := map[string]bool{}
-	for _, parentItem := range sliceField(parent, "inputs") {
+	declaredParent := parent
+	if declared, ok := capabilityByID[stringField(parent, "capability_id")]; ok {
+		declaredParent = declared
+	}
+	for _, parentItem := range sliceField(declaredParent, "inputs") {
 		parentInput, ok := parentItem.(map[string]any)
 		if !ok {
 			continue
@@ -594,6 +602,9 @@ func validateIntegrationFronting(fronting map[string]any, serviceIDs map[string]
 		if err := validateIntegrationBackendBindings(index, mapping); err != nil {
 			return err
 		}
+		if err := validateBackendInputSources(index, mapping, capability); err != nil {
+			return err
+		}
 		for _, field := range []string{"required_inputs", "optional_inputs", "approval_rule_refs", "denial_rule_refs", "clarification_rule_refs"} {
 			if value, exists := mapping[field]; exists && !stringSliceValue(value) {
 				return fmt.Errorf("integration_fronting.capability_mappings[%d].%s must be strings", index, field)
@@ -607,6 +618,15 @@ func validateIntegrationBackendBindings(mappingIndex int, mapping map[string]any
 	bindings := sliceField(mapping, "backend_bindings")
 	if len(bindings) == 0 {
 		return validateIntegrationBackendBinding(mappingIndex, -1, mapping)
+	}
+	// Bindings inherit the mapping's lists, so the mapping's explicit backend
+	// input names must be valid input names too.
+	for _, field := range []string{"explicit_required_backend_inputs", "explicit_optional_backend_inputs"} {
+		for _, name := range stringSliceField(mapping, field) {
+			if !inputNamePattern.MatchString(name) {
+				return fmt.Errorf("integration_fronting.capability_mappings[%d].%s contains %q, which is not a valid input name", mappingIndex, field, name)
+			}
+		}
 	}
 	for bindingIndex, item := range bindings {
 		binding, ok := item.(map[string]any)
@@ -654,6 +674,15 @@ func validateIntegrationBackendBinding(mappingIndex int, bindingIndex int, bindi
 	} {
 		if value, exists := binding[field]; exists && !stringSliceValue(value) {
 			return fmt.Errorf("%s.%s must be strings", prefix, field)
+		}
+	}
+	// An explicit backend input is a declared input of the capability, so it
+	// needs a valid input name.
+	for _, field := range []string{"explicit_required_backend_inputs", "explicit_optional_backend_inputs"} {
+		for _, name := range stringSliceField(binding, field) {
+			if !inputNamePattern.MatchString(name) {
+				return fmt.Errorf("%s.%s contains %q, which is not a valid input name", prefix, field, name)
+			}
 		}
 	}
 	return nil

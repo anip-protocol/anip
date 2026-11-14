@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/anip-protocol/anip/packages/go/definitionvalidation"
 )
 
 func BuildAgentConsumptionKit(resolved *ResolvedServiceDefinition) ([]GeneratedFile, error) {
@@ -26,7 +28,10 @@ func BuildAgentConsumptionKit(resolved *ResolvedServiceDefinition) ([]GeneratedF
 		}
 		files = append(files, GeneratedFile{Path: "agent-consumption/agent-readiness.json", Content: content})
 	}
-	appProfile := buildAgentAppProfile(resolved.Definition, resolved.AgentConsumability)
+	// Describe the inputs the generated service declares, including the
+	// explicit backend inputs the generator declares for a capability.
+	definition := definitionvalidation.DeclareExplicitBackendInputs(resolved.Definition)
+	appProfile := buildAgentAppProfile(definition, resolved.AgentConsumability)
 	if len(appProfile) > 0 {
 		content, err := prettyJSON(appProfile)
 		if err != nil {
@@ -34,7 +39,7 @@ func BuildAgentConsumptionKit(resolved *ResolvedServiceDefinition) ([]GeneratedF
 		}
 		files = append(files, GeneratedFile{Path: "agent-consumption/agent-app-profile.json", Content: content})
 	}
-	capabilityIndex := buildCapabilityIndex(resolved.Definition, resolved.AgentConsumability)
+	capabilityIndex := buildCapabilityIndex(definition, resolved.AgentConsumability)
 	if len(capabilityIndex) > 0 {
 		content, err := prettyJSON(map[string]any{
 			"artifact_type":  "agent_capability_index",
@@ -407,10 +412,10 @@ func buildRuntimeCustomization(consumability map[string]any) map[string]any {
 			"approval_boundary_min_score": float64(0.12),
 			"effect_rewrite_min_score":    float64(0.12),
 			"effect_rewrite_margin":       float64(0.1),
-			"effect_floor_min_score":       float64(0.12),
-			"effect_floor_margin":          float64(0.02),
-			"business_language_rules":      runtimeRules["business_language_rules"],
-			"selection_hints":              runtimeRules["selection_hints"],
+			"effect_floor_min_score":      float64(0.12),
+			"effect_floor_margin":         float64(0.02),
+			"business_language_rules":     runtimeRules["business_language_rules"],
+			"selection_hints":             runtimeRules["selection_hints"],
 		},
 	}
 }
