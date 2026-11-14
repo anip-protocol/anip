@@ -19,10 +19,10 @@ endpoints. It needs no database and no Studio backend.
 | Discovery | `/.well-known/anip`: protocol version, compliance, trust level, posture, each capability's side effect, scope, financial flag and contract version, and the endpoint map |
 | Manifest | Full capability declarations (inputs, output, side effect, cost, bindings), manifest metadata, service identity and the manifest signature |
 | JWKS | The service's public signing keys |
-| Audit | Audit entries with filters (needs a delegation token) |
+| Audit | Audit entries with filters (needs a credential, see below) |
 | Approvals | Lists and approves pending approval requests from the service's own approval routes (default `/approvals`, needs a bearer credential that those routes accept). These routes are service-specific, not ANIP protocol endpoints, so the view is empty for a service that does not have them |
 | Checkpoints | Merkle checkpoints and their detail |
-| Invoke | Invoke a capability from a form built from its declared inputs, with a permissions check and structured failures (needs a delegation token) |
+| Invoke | Invoke a capability from a form built from its declared inputs, with a permissions check and structured failures (needs a credential, see below) |
 
 The side-effect badge is the quickest way to see which capabilities are safe to
 try: `read` is green, `write` and `transactional` are amber, `irreversible` is
@@ -51,20 +51,20 @@ mount_anip_studio(app, service)
 # Start the service, then open http://localhost:9100/studio/
 ```
 
-Audit, Invoke and the permissions check in Invoke need an **ANIP delegation
-token** (a JWT), pasted into the Authentication field of the view. Inspect does
-not exchange an API key for a token: with an API key these views show the
-service's `401 invalid_token` response. Issue a token from the service first.
-For the Python flight example (`examples/anip`, bootstrap key
-`demo-human-key`):
+Audit, Invoke and the permissions check in Invoke need a credential, pasted
+into the Authentication field of the view. Either works:
 
-```bash
-curl -s -X POST http://localhost:9100/anip/tokens \
-  -H "Authorization: Bearer demo-human-key" \
-  -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.search"], "capability": "search_flights"}'
-# Paste the "token" value from the response into Inspect.
-```
+- **The service's own credential**, such as an API key (`demo-human-key` for the
+  Python flight example). Inspect exchanges it at the service's token endpoint
+  for a delegation token bound to the capability you are looking at, with that
+  capability's minimum scope, as an agent would, and says so under the field.
+  For Audit it uses the capability in the filter, or the first one the service
+  declares; the audit log shows the same entries for any token with the same
+  root principal.
+- **An ANIP delegation token** (a JWT), used as it is. Use this to see what a
+  particular token, with its own scope and purpose, is allowed to do.
+
+The credential is kept in memory only, so a page reload asks for it again.
 
 The embedded bundle contains Inspect only. It has no Design routes and does not
 show the Design entry on the home screen.

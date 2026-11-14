@@ -3,6 +3,21 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { AnipClientKey } from '@anip-dev/vue'
 import PermissionsPanel from '../components/PermissionsPanel.vue'
 
+// Inspect exchanges a pasted API key for a token bound to the capability.
+// The exchange itself is tested in credentials.test.ts; here it is replaced
+// so the test can check that the issued token, not the key, is what is sent.
+const issueForCapability = async (_credential: string, capability: string | null) => ({
+  token: `token-for-${capability}`,
+  issuedFor: { capability, scope: ['scope.' + capability] },
+})
+const mockResolveToken = vi.fn(issueForCapability)
+vi.mock('../anip', () => ({
+  studioTokens: {
+    resolve: (credential: string, capability: string | null) => mockResolveToken(credential, capability),
+    clear: () => {},
+  },
+}))
+
 const mockQueryPermissions = vi.fn()
 
 const mockClient = {
@@ -22,6 +37,8 @@ function mountPanel(props: { bearer: string; capability: string | null }) {
 
 beforeEach(() => {
   mockQueryPermissions.mockReset()
+  mockResolveToken.mockReset()
+  mockResolveToken.mockImplementation(issueForCapability)
 })
 
 describe('PermissionsPanel', () => {
@@ -48,6 +65,27 @@ describe('PermissionsPanel', () => {
     expect(wrapper.text()).toContain('Available')
     expect(wrapper.text()).toContain('flights:search')
     expect(wrapper.find('.available-dot').exists()).toBe(true)
+  })
+
+  it('checks permissions with the token issued for the capability, not the pasted key', async () => {
+    mockQueryPermissions.mockResolvedValue({ available: [], restricted: [], denied: [] })
+
+    mountPanel({ bearer: 'demo-human-key', capability: 'book_flight' })
+    await flushPromises()
+
+    expect(mockResolveToken).toHaveBeenCalledWith('demo-human-key', 'book_flight')
+    expect(mockQueryPermissions).toHaveBeenCalledWith('token-for-book_flight')
+  })
+
+  it('shows why a pasted key could not be exchanged', async () => {
+    mockResolveToken.mockRejectedValue(new Error('authentication_required: unknown credential'))
+
+    const wrapper = mountPanel({ bearer: 'wrong-key', capability: 'search_flights' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unable to check permissions')
+    expect(wrapper.text()).toContain('authentication_required: unknown credential')
+    expect(mockQueryPermissions).not.toHaveBeenCalled()
   })
 
   it('shows restricted state with normalized detail', async () => {
