@@ -318,7 +318,10 @@ public class AnipStdioServer
 
         // v0.23: continuation grant_id from JSON-RPC params. session_id is
         // NEVER read from JSON-RPC params — it must come from the signed token.
-        var approvalGrant = GetString(parameters, "approval_grant");
+        // Absent or null is no grant; any other value is validated by the
+        // service, as over HTTP (a blank or non-string one names no grant).
+        var approvalGrant = InvokeOpts.ApprovalGrantFromRequest(
+            parameters.TryGetValue("approval_grant", out var approvalGrantValue) ? approvalGrantValue : null);
 
         if (stream)
         {
