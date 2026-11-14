@@ -67,3 +67,10 @@ Typical test scope:
 - issue preparation smoke;
 - approved issue creation smoke only when `ANIP_GITHUB_ALLOW_MUTATION=true` and an approval grant is supplied.
 
+The smokes authenticate with API keys mapped to the actors the package's policy
+bindings select; a principal no binding selects is refused. Where an actor's
+binding requires approval, the smoke expects `approval_required`, has an approver
+issue a grant through `POST /anip/approval_grants`, and invokes again with the
+grant. The read-only smoke keeps mutation off, so the granted call returns a
+preview, and it checks that unbound actors and deny bindings are refused.
+

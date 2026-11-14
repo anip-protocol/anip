@@ -73,6 +73,30 @@ PYTHONPATH="<repo python packages>:<generated src>" \
   python examples/showcase/github_fronting/scripts/live_smoke.py
 ```
 
+The live smoke never mutates GitHub: it sets `ANIP_GITHUB_ALLOW_MUTATION=false`.
+It also sets the generated service's `ANIP_API_KEYS_JSON`, with one API key per
+actor the 0.2.0 policy bindings select. The generated policy refuses a principal
+no binding selects, so the old `dev-admin-key`, which carries no actor claim, no
+longer works. The smoke checks that:
+
+- `release_notes_drafter` can search and prepare issue, pull request comment
+  and workflow dispatch previews, and `repository_operator` can prepare
+  release notes;
+- `issue_requester`, `pr_comment_requester` and `workflow_requester`, whose
+  bindings require approval, get `approval_required` with an
+  `approval_request_id`; a token without `approver:<capability>` scope cannot
+  grant it; an approver issues a one-time grant through
+  `POST /anip/approval_grants`; and the requester's second invocation, carrying
+  the top-level `approval_grant`, returns a preview with
+  `mutation_performed: false`;
+- a principal without an actor claim, an actor no binding names, and an actor
+  bound only to other capabilities are denied; `repository_operator` is denied
+  repository search by its deny binding; and `release_notes_drafter` gets
+  `clarification_required` on release notes.
+
+The pull request comment and workflow dispatch checks run only when the
+repository has a pull request and a workflow.
+
 Run the issue-creation smoke test only against a disposable repository:
 
 ```bash
@@ -81,11 +105,11 @@ PYTHONPATH="<repo python packages>:<generated src>" \
   python examples/showcase/github_fronting/scripts/approved_issue_smoke.py
 ```
 
-The approved issue smoke first invokes `github.issue.prepare` and confirms that it
-stops at a preview-only result. It then creates a pending ANIP approval request,
-issues a one-time grant, and resubmits the same parameters with the top-level
-`approval_grant`. The GitHub adapter only creates the issue after the ANIP runtime
-validates and reserves that grant.
+The approved issue smoke invokes `github.issue.prepare` as `issue_requester`, whose
+binding requires approval, and expects `approval_required`. An approver then issues
+a one-time grant through `POST /anip/approval_grants`, and the requester resubmits
+the same parameters with the top-level `approval_grant`. The GitHub adapter only
+creates the issue after the ANIP runtime validates and reserves that grant.
 
 ## Design point
 
