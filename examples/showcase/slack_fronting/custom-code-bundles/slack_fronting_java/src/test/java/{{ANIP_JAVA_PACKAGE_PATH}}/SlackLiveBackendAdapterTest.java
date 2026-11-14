@@ -12,9 +12,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlackLiveBackendAdapterTest {
+
+    // Package 0.2.1 binds every capability to the collaborator actor
+    // (allow_with_limits) and requires approval nowhere.
+    private static final String COLLABORATOR = "human:local-dev|actor_id=collaborator";
+    private static final String NO_BINDING_DETAIL = "No runtime policy binding matches the current actor for this capability.";
 
     @Test
     @EnabledIfEnvironmentVariable(named = "SLACK_BOT_TOKEN", matches = ".+")
@@ -49,7 +55,7 @@ class SlackLiveBackendAdapterTest {
         }
         if ("true".equals(System.getenv("ANIP_SLACK_ALLOW_SEND"))) {
             Map<String, Object> params = record("channel_id", channelId, "text", "ANIP approved Slack Java post");
-            Map<String, Object> sent = adapter.execute(capability("slack.message.prepare"), plan(params), params, approvalContext("grant_live_java_smoke"));
+            Map<String, Object> sent = adapter.execute(capability("slack.message.prepare"), plan(params), params, context(COLLABORATOR, "grant_live_java_smoke"));
             assertEquals("completed", sent.get("execution_status"));
             assertEquals(true, sent.get("mutation_performed"));
             assertTrue(!text(((Map<?, ?>) sent.get("posted_message")).get("ts")).isBlank());
@@ -58,28 +64,44 @@ class SlackLiveBackendAdapterTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "SLACK_BOT_TOKEN", matches = ".+")
-    void generatedHandlerStopsWithoutApprovalAndSendsWithGrant() {
+    void generatedHandlerPreviewsWithoutGrantAndSendsWithGrant() {
         String channelId = System.getenv("SLACK_CHANNEL_ID");
         assertTrue(channelId != null && !channelId.isBlank(), "SLACK_CHANNEL_ID is required");
-        CapabilityDef capability = GeneratedCapabilities.createAll(BackendAdapter.defaultAdapter()).stream()
-                .filter(item -> "slack.announcement.request".equals(item.getDeclaration().getName()))
-                .findFirst()
-                .orElseThrow();
+        CapabilityDef capability = announcementCapability();
         Map<String, Object> params = record("channel_id", channelId, "announcement", "ANIP approved Slack Java generated handler post", "audience", "test");
 
-        try {
-            capability.getHandler().apply(approvalContext(null), params);
-            throw new AssertionError("Expected approval_required without grant");
-        } catch (ANIPError error) {
-            assertEquals("approval_required", error.getErrorType());
-        }
+        // Without a grant the collaborator gets a preview; nothing is posted.
+        Map<String, Object> preview = capability.getHandler().apply(context(COLLABORATOR, null), params);
+        assertEquals("prepared", preview.get("execution_status"));
+        assertEquals(false, preview.get("mutation_performed"));
 
         if ("true".equals(System.getenv("ANIP_SLACK_ALLOW_SEND"))) {
-            Map<String, Object> sent = capability.getHandler().apply(approvalContext("grant_live_java_handler_smoke"), params);
+            // The runtime sets the approval grant only after validating it.
+            Map<String, Object> sent = capability.getHandler().apply(context(COLLABORATOR, "grant_live_java_handler_smoke"), params);
             assertEquals("completed", sent.get("execution_status"));
             assertEquals(true, sent.get("mutation_performed"));
             assertTrue(!text(((Map<?, ?>) sent.get("posted_message")).get("ts")).isBlank());
         }
+    }
+
+    // The generated policy refuses a principal no binding selects before the
+    // backend adapter runs, so this needs no Slack credentials.
+    @Test
+    void generatedHandlerRefusesUnboundActors() {
+        CapabilityDef capability = announcementCapability();
+        Map<String, Object> params = record("channel_id", "C0SMOKE01", "announcement", "Refused", "audience", "test");
+        for (String principal : List.of("human:local-dev", "human:local-dev|actor_id=slack_requester")) {
+            ANIPError error = assertThrows(ANIPError.class, () -> capability.getHandler().apply(context(principal, "grant_live_java_handler_smoke"), params), principal);
+            assertEquals("denied", error.getErrorType(), principal);
+            assertEquals(NO_BINDING_DETAIL, error.getDetail(), principal);
+        }
+    }
+
+    private static CapabilityDef announcementCapability() {
+        return GeneratedCapabilities.createAll(BackendAdapter.defaultAdapter()).stream()
+                .filter(item -> "slack.announcement.request".equals(item.getDeclaration().getName()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static Map<String, Object> capability(String id) {
@@ -90,8 +112,8 @@ class SlackLiveBackendAdapterTest {
         return record("selected_binding", null, "semantic_input", params, "adapter_input", params, "backend_input_contract", record("mode", "explicit", "required", List.of(), "optional", List.of()), "unresolved_required_backend_inputs", List.of());
     }
 
-    private static InvocationContext approvalContext(String grantId) {
-        return new InvocationContext(null, "human:local-dev|actor_id=slack_requester", "agent:slack-live-smoke", "inv-test", null, null, null, null, grantId, List.of("slack.message.prepare", "slack.announcement.request"), List.of(), ignored -> true);
+    private static InvocationContext context(String principal, String grantId) {
+        return new InvocationContext(null, principal, "agent:slack-live-smoke", "inv-test", null, null, null, null, grantId, List.of("slack.message.prepare", "slack.announcement.request"), List.of(), ignored -> true);
     }
 
     private static String text(Object value) {
