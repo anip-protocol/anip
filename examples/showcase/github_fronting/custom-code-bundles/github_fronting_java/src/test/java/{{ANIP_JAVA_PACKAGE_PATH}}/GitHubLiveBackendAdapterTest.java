@@ -3,6 +3,7 @@ package {{ANIP_JAVA_PACKAGE_NAME}};
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
+import dev.anip.core.ANIPError;
 import dev.anip.service.CapabilityDef;
 import dev.anip.service.InvocationContext;
 
@@ -12,9 +13,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GitHubLiveBackendAdapterTest {
+
+    // Principals the 0.2.0 runtime policy bindings select.
+    private static final String DRAFTER = "human:local-dev|actor_id=release_notes_drafter";
+    private static final String ISSUE_REQUESTER = "human:local-dev|actor_id=issue_requester";
+    private static final String NO_BINDING_DETAIL = "No runtime policy binding matches the current actor for this capability.";
 
     @Test
     @EnabledIfEnvironmentVariable(named = "GITHUB_TOKEN", matches = ".+")
@@ -39,22 +46,45 @@ class GitHubLiveBackendAdapterTest {
         String repo = System.getenv("GITHUB_REPO");
         assertTrue(owner != null && !owner.isBlank(), "GITHUB_OWNER is required");
         assertTrue(repo != null && !repo.isBlank(), "GITHUB_REPO is required");
-        CapabilityDef capability = GeneratedCapabilities.createAll(BackendAdapter.defaultAdapter()).stream()
-                .filter(item -> "github.issue.prepare".equals(item.getDeclaration().getName()))
-                .findFirst()
-                .orElseThrow();
+        CapabilityDef capability = issueCapability();
         Map<String, Object> params = record("owner", owner, "repo", repo, "title", "ANIP approved GitHub Java issue at " + Instant.now(), "body", "Created by explicit ANIP GitHub Java generated-handler smoke.");
 
-        Map<String, Object> preview = capability.getHandler().apply(approvalContext(null), withApprovalRequest(params));
+        // release_notes_drafter may prepare issues: without a grant it gets a preview.
+        Map<String, Object> preview = capability.getHandler().apply(context(DRAFTER, null), params);
         assertEquals("prepared", preview.get("execution_status"));
         assertEquals(false, preview.get("mutation_performed"));
 
+        // issue_requester's binding requires approval: no grant, no adapter call.
+        ANIPError approval = assertThrows(ANIPError.class, () -> capability.getHandler().apply(context(ISSUE_REQUESTER, null), params));
+        assertEquals("approval_required", approval.getErrorType());
+
         if ("true".equals(System.getenv("ANIP_GITHUB_ALLOW_MUTATION"))) {
-            Map<String, Object> created = capability.getHandler().apply(approvalContext("grant_live_java_github_smoke"), params);
+            // The runtime sets the approval grant only after validating it.
+            Map<String, Object> created = capability.getHandler().apply(context(ISSUE_REQUESTER, "grant_live_java_github_smoke"), params);
             assertEquals("completed", created.get("execution_status"));
             assertEquals(true, created.get("mutation_performed"));
             assertTrue(((Map<?, ?>) created.get("created_issue")).get("number") != null);
         }
+    }
+
+    // The generated policy refuses a principal no binding selects before the
+    // backend adapter runs, so this needs no GitHub credentials.
+    @Test
+    void generatedHandlerRefusesUnboundActors() {
+        CapabilityDef capability = issueCapability();
+        Map<String, Object> params = record("owner", "anip-smoke", "repo", "sandbox", "title", "Refused", "body", "Never reaches GitHub.");
+        for (String principal : List.of("human:local-dev", "human:local-dev|actor_id=github_fronting_consumer")) {
+            ANIPError error = assertThrows(ANIPError.class, () -> capability.getHandler().apply(context(principal, "grant_live_java_github_smoke"), params), principal);
+            assertEquals("denied", error.getErrorType(), principal);
+            assertEquals(NO_BINDING_DETAIL, error.getDetail(), principal);
+        }
+    }
+
+    private static CapabilityDef issueCapability() {
+        return GeneratedCapabilities.createAll(BackendAdapter.defaultAdapter()).stream()
+                .filter(item -> "github.issue.prepare".equals(item.getDeclaration().getName()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static Map<String, Object> capability(String id) {
@@ -65,14 +95,8 @@ class GitHubLiveBackendAdapterTest {
         return record("selected_binding", null, "semantic_input", params, "adapter_input", params, "backend_input_contract", record("mode", "explicit", "required", List.of(), "optional", List.of()), "unresolved_required_backend_inputs", List.of());
     }
 
-    private static InvocationContext approvalContext(String grantId) {
-        return new InvocationContext(null, "human:local-dev|actor_id=github_fronting_consumer", "agent:github-live-smoke", "inv-test", null, null, null, null, grantId, List.of("github.issue.prepare"), List.of(), ignored -> true);
-    }
-
-    private static Map<String, Object> withApprovalRequest(Map<String, Object> source) {
-        Map<String, Object> result = new LinkedHashMap<>(source);
-        result.put("request_execution_approval", true);
-        return result;
+    private static InvocationContext context(String principal, String grantId) {
+        return new InvocationContext(null, principal, "agent:github-live-smoke", "inv-test", null, null, null, null, grantId, List.of("github.issue.prepare"), List.of(), ignored -> true);
     }
 
     private static Map<String, Object> record(Object... pairs) {
