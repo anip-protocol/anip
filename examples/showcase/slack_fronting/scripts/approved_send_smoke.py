@@ -46,8 +46,9 @@ async def main() -> None:
             "channel_id": channel_id,
             "text": f"ANIP approved Slack post through generated service at {int(time.time())}",
         }
+        # Package 0.2.1 binds every capability to the collaborator actor.
         token_response = await service.issue_token(
-            "human:local-dev",
+            "human:local-dev|actor_id=collaborator",
             {
                 "subject": "agent:live-slack-approved-send",
                 "scope": [capability_id],

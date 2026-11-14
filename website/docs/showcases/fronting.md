@@ -99,7 +99,7 @@ When a showcase claims five-language live adapter parity, it means all five gene
 | [Jira](/docs/showcases/fronting-apps/jira) | Jira REST API | `jira-fronting-showcase@0.2.3` | Issue and workflow operations become preview/approval-governed workflows. |
 | [GitHub](/docs/showcases/fronting-apps/github) | GitHub REST/GraphQL APIs | `github-fronting-showcase@0.2.0` | Repository and delivery operations become repo-scoped, approval-aware capabilities. |
 | [GitLab](/docs/showcases/fronting-apps/gitlab) | GitLab REST/GraphQL APIs | `gitlab-fronting-showcase@0.2.0` | Project, MR, pipeline, and release-note operations are bounded by project policy. |
-| [Slack](/docs/showcases/fronting-apps/slack) | Slack Web API | `slack-fronting-showcase@0.2.0` | Channel reads and sends are controlled through scope, preview, and approval grants. |
+| [Slack](/docs/showcases/fronting-apps/slack) | Slack Web API | `slack-fronting-showcase@0.2.1` | Channel reads and sends are controlled through scope, preview, and approval grants. |
 | [Linear](/docs/showcases/fronting-apps/linear) | Linear GraphQL API | `linear-fronting-showcase@0.2.0` | Product-work mutations become team-scoped, preview/approval flows. |
 | [Notion](/docs/showcases/fronting-apps/notion) | Notion API | `notion-fronting-showcase@0.2.0` | Workspace search, page updates, database queries, and comments are bounded and approval-aware. |
 | [Superset](/docs/showcases/fronting-apps/superset) | Superset REST/native API | `superset-fronting-showcase@0.2.0` | Analytics actions avoid raw SQL exposure and use governed semantic/chart/dataset workflows. |

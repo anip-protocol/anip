@@ -10,7 +10,7 @@ Slack demonstrates governed communication behavior. It is the clearest fronting 
 The package is:
 
 ```text
-slack-fronting-showcase@0.2.0
+slack-fronting-showcase@0.2.1
 ```
 
 ## What It Proves
@@ -44,8 +44,8 @@ The backend is Slack Web API. The contract does not expose raw `chat.postMessage
 | Artifact | Path |
 | --- | --- |
 | Source spec | `docs/examples/slack-fronting-showcase/source-spec.md` |
-| Package | `examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.0.anip-package.json` |
-| Service definition | `examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.0-service-definition.json` |
+| Package | `examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.1.anip-package.json` |
+| Service definition | `examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.1-service-definition.json` |
 | Custom bundles | `examples/showcase/slack_fronting/custom-code-bundles/` |
 | Generated services | `examples/showcase/slack_fronting/generated/` |
 

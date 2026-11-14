@@ -5,11 +5,28 @@ raw Slack operations are downstream implementation details; agents invoke govern
 
 ## Build artifacts
 
+Package 0.2.1 is built from its service definition with the deterministic
+development Registry key, the documented path for showcase packages. Against
+0.2.0 it declares `limit` on `slack.thread.summarize`, which the adapters read,
+and binds every capability to the `collaborator` actor (`allow_with_limits`), as
+0.1.0 did. Generated hosts refuse any other actor, and a principal without an
+`actor_id` claim.
+
 ```bash
-python3 examples/showcase/slack_fronting/build_showcase.py
 cd packages/go
-go run ./cmd/anip-generate \
-  --package-bundle ../../examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.0.anip-package.json \
+go run ./cmd/anip package build-local \
+  --definition ../../examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.1-service-definition.json \
+  --package-id slack-fronting-showcase \
+  --package-version 0.2.1 \
+  --output-dir ../../examples/showcase/slack_fronting/registry-packages \
+  --port 9160 \
+  --write-definition \
+  --project-ref studio:slack-fronting-studio-20260516141413 \
+  --product-revision-ref "slack-fronting-studio-20260516141413-product-design-revision-1@r1" \
+  --developer-revision-ref slack-fronting-studio-20260516141413-developer-definition-revision-2
+go run ./cmd/anip generate \
+  --package-bundle ../../examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.1.anip-package.json \
+  --package-name slack_governed_fronting_showcase \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/slack_fronting/custom-code-bundles/slack_fronting_python \
@@ -18,6 +35,11 @@ go run ./cmd/anip-generate \
   --output ../../examples/showcase/slack_fronting/generated/studio_slack_fronting \
   --force
 ```
+
+The 0.2.1 bundle carries `package_execution_signature`, so the generator reads
+it directly and writes `agent-consumption/` from its `agent_consumability` and
+`agent_consumption_readiness` metadata. The 0.2.0 package predates that field
+and can only be generated from its bare service definition.
 
 Generate directly from the reviewed fronting starter:
 
@@ -37,12 +59,12 @@ Verify the local service definition:
 ```bash
 cd packages/go
 go run ./cmd/anip-verify \
-  --definition ../../examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.0-service-definition.json
+  --definition ../../examples/showcase/slack_fronting/registry-packages/slack-fronting-showcase-0.2.1-service-definition.json
 ```
 
 ## What to inspect
 
-- `registry-packages/slack-fronting-showcase-0.2.0-service-definition.json`: signed behavior contract with `integration_fronting` mappings.
+- `registry-packages/slack-fronting-showcase-0.2.1-service-definition.json`: signed behavior contract with `integration_fronting` mappings.
 - `generated/studio_slack_fronting/integration-fronting/adapter-bindings.json`: capability-to-backend binding pack.
 - `generated/studio_slack_fronting/integration-fronting/backend-selection.example.json`: deployment-time backend selection template.
 - `generated/studio_slack_fronting/integration-fronting/conformance.json`: static check that raw backend operations are governed.

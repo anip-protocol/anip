@@ -1,6 +1,6 @@
 # slack_governed_fronting_showcase
 
-ANIP package `slack-fronting-showcase@0.2.0` for local showcase and registry smoke usage.
+ANIP package `slack-fronting-showcase@0.2.1` for local showcase and registry smoke usage.
 
 ## Contents
 
@@ -27,7 +27,7 @@ go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.js
 From a trusted registry package:
 
 ```bash
-go run ./cmd/anip-generate --registry-url <registry-url> --package-id slack-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/slack-fronting-showcase --force
+go run ./cmd/anip-generate --registry-url <registry-url> --package-id slack-fronting-showcase --package-version 0.2.1 --target python --dependency-source registry --output ./generated/slack-fronting-showcase --force
 ```
 
 ## Verify

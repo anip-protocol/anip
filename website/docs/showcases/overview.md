@@ -130,7 +130,7 @@ Fronting showcases demonstrate ANIP as the governed layer in front of existing s
 | --- | --- | --- |
 | Jira | Native Jira REST API | `jira-fronting-showcase@0.2.3` |
 | GitHub | Native GitHub REST/GraphQL APIs | `github-fronting-showcase@0.2.0` |
-| Slack | Native Slack Web API | `slack-fronting-showcase@0.2.0` |
+| Slack | Native Slack Web API | `slack-fronting-showcase@0.2.1` |
 | GitLab | Native GitLab REST/GraphQL APIs | `gitlab-fronting-showcase@0.2.0` |
 | Linear | Native Linear GraphQL API | `linear-fronting-showcase@0.2.0` |
 | Notion | Native Notion API | `notion-fronting-showcase@0.2.0` |

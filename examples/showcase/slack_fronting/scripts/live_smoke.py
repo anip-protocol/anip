@@ -35,10 +35,16 @@ def slack_post(path: str, body: dict) -> dict:
         return json.loads(response.read().decode())
 
 
+# Package 0.2.1 binds every capability to the collaborator actor; a principal
+# without that actor claim is refused.
+LIVE_SMOKE_KEY = "live-slack-smoke-key"
+LIVE_SMOKE_PRINCIPAL = "human:live-slack-smoke|actor_id=collaborator"
+
+
 def issue_token(client: TestClient, capability_id: str) -> str:
     response = client.post(
         "/anip/tokens",
-        headers={"Authorization": "Bearer dev-admin-key"},
+        headers={"Authorization": f"Bearer {LIVE_SMOKE_KEY}"},
         json={
             "capability": capability_id,
             "scope": [capability_id],
@@ -67,6 +73,7 @@ def invoke(client: TestClient, capability_id: str, parameters: dict) -> dict:
 def main() -> None:
     channel_id = os.environ["SLACK_CHANNEL_ID"]
     os.environ.setdefault("ANIP_SLACK_ALLOWED_CHANNELS", channel_id)
+    os.environ.setdefault("ANIP_API_KEYS_JSON", json.dumps({LIVE_SMOKE_KEY: LIVE_SMOKE_PRINCIPAL}))
     history = slack_post("conversations.history", {"channel": channel_id, "limit": 1})
     if not history.get("ok"):
         raise RuntimeError(history)
