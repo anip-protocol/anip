@@ -5005,8 +5005,7 @@
               "score_leads": {
                 "cohort_ref": "$.input.cohort_ref",
                 "limit": "$.input.limit",
-                "owner_scope": "$.input.owner_scope",
-                "ranking_basis": "$.input.ranking_basis"
+                "owner_scope": "$.input.owner_scope"
               },
               "route_leads": {
                 "cohort_ref": "$.input.cohort_ref",
@@ -9305,8 +9304,7 @@
               "score_leads": {
                 "cohort_ref": "$.input.cohort_ref",
                 "limit": "$.input.limit",
-                "owner_scope": "$.input.owner_scope",
-                "ranking_basis": "$.input.ranking_basis"
+                "owner_scope": "$.input.owner_scope"
               },
               "route_leads": {
                 "cohort_ref": "$.input.cohort_ref",

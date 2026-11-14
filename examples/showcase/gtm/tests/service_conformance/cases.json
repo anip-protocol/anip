@@ -16,7 +16,7 @@
     "capability": "gtm.at_risk_followup_preparation",
     "parameters": {
       "quarter": "2017-Q2",
-      "region": "East"
+      "owner_scope": "East"
     },
     "actor": "sales_leader",
     "scope": ["gtm.at_risk_followup_preparation", "gtm.prepare_followup_tasks"],
@@ -28,8 +28,7 @@
     "capability": "gtm.pipeline_summary",
     "parameters": {
       "quarter": "2017-Q2",
-      "owner_scope": "company",
-      "export_format": "raw_csv"
+      "owner_scope": "company"
     },
     "actor": "sales_leader",
     "scope": ["gtm.pipeline_summary"],

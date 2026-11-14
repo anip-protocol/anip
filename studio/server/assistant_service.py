@@ -1131,6 +1131,25 @@ def create_studio_assistant_service() -> ANIPService:
         ]
     )
 
+    # Options every proposal capability reads from its parameters (SPEC.md
+    # §4.1: inputs is the complete list of parameters a capability accepts).
+    for capability in capabilities:
+        declaration = capability.declaration
+        if declaration.name.startswith("propose_") or declaration.name == "identify_missing_business_info":
+            declaration.inputs.append(CapabilityInput(
+                name="use_deterministic",
+                type="boolean",
+                required=False,
+                description="Draft with the deterministic assistant instead of the configured model.",
+            ))
+        if declaration.name == "propose_service_design":
+            declaration.inputs.append(CapabilityInput(
+                name="service_topology_preference",
+                type="object",
+                required=False,
+                description="Optional topology preference, e.g. {\"target_service_count\": 3}.",
+            ))
+
     return ANIPService(
         service_id="studio-assistant",
         capabilities=capabilities,

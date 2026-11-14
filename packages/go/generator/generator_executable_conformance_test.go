@@ -532,13 +532,23 @@ def test_behavior_matrix_lookup_success() -> None:
     assert payload["result"]["execution_status"] == "backend_execution_stub"
 
 
-def test_behavior_matrix_lookup_filters_unknown_inputs() -> None:
-    payload = _invoke(
+def test_behavior_matrix_lookup_refuses_undeclared_inputs() -> None:
+    refused = _invoke(
         _client(),
         "analyst-key",
         "conformance.lookup",
         ["conformance.read"],
         {"query": "records", "limit": 3, "unexpected_extra": "leak"},
+    )
+    assert refused["success"] is False
+    assert refused["failure"]["type"] == "invalid_parameters"
+    assert "unexpected_extra" in refused["failure"]["detail"]
+    payload = _invoke(
+        _client(),
+        "analyst-key",
+        "conformance.lookup",
+        ["conformance.read"],
+        {"query": "records", "limit": 3},
     )
     assert payload["success"] is True
     assert payload["result"]["semantic_input"] == {"query": "records", "limit": 3}
@@ -798,11 +808,18 @@ describe("generated behavior matrix", () => {
     expect(payload.result?.execution_status).toBe("backend_execution_stub");
   });
 
-  it("filters unknown inputs from semantic input", async () => {
-    const payload = await invoke("analyst-key", "conformance.lookup", ["conformance.read"], {
+  it("refuses undeclared inputs and keeps declared ones in semantic input", async () => {
+    const refused = await invoke("analyst-key", "conformance.lookup", ["conformance.read"], {
       query: "records",
       limit: 3,
       unexpected_extra: "leak",
+    });
+    expect(refused.success).toBe(false);
+    expect((refused as any).failure?.type).toBe("invalid_parameters");
+    expect((refused as any).failure?.detail).toContain("unexpected_extra");
+    const payload = await invoke("analyst-key", "conformance.lookup", ["conformance.read"], {
+      query: "records",
+      limit: 3,
     });
     expect(payload.success).toBe(true);
     expect(payload.result?.semantic_input).toEqual({ query: "records", limit: 3 });
@@ -1095,10 +1112,19 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 		t.Fatalf("expected backend_execution_stub, got %#v", lookup["result"])
 	}
 
-	filtered := invokeBehaviorMatrixCapability(t, ts, "analyst-key", "conformance.lookup", []string{"conformance.read"}, map[string]any{
+	refused := invokeBehaviorMatrixCapability(t, ts, "analyst-key", "conformance.lookup", []string{"conformance.read"}, map[string]any{
 		"query":            "records",
 		"limit":            float64(3),
 		"unexpected_extra": "leak",
+	})
+	refusal, _ := refused["failure"].(map[string]any)
+	refusalDetail, _ := refusal["detail"].(string)
+	if refused["success"] != false || refusal["type"] != "invalid_parameters" || !bytes.Contains([]byte(refusalDetail), []byte("unexpected_extra")) {
+		t.Fatalf("expected the undeclared input to be refused as invalid_parameters, got %#v", refused)
+	}
+	filtered := invokeBehaviorMatrixCapability(t, ts, "analyst-key", "conformance.lookup", []string{"conformance.read"}, map[string]any{
+		"query": "records",
+		"limit": float64(3),
 	})
 	filteredResult, ok := filtered["result"].(map[string]any)
 	if !ok {
@@ -1414,12 +1440,23 @@ class GeneratedBehaviorMatrixTest {
             Map<String, Object> result = (Map<String, Object>) lookup.get("result");
             assertEquals("backend_execution_stub", result.get("execution_status"));
 
-            Map<String, Object> filtered = invoke(
+            Map<String, Object> refused = invoke(
                     service,
                     "human:analyst|actor_id=analyst",
                     "conformance.lookup",
                     List.of("conformance.read"),
                     Map.of("query", "records", "limit", 3, "unexpected_extra", "leak"));
+            assertEquals(false, refused.get("success"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> refusal = (Map<String, Object>) refused.get("failure");
+            assertEquals("invalid_parameters", refusal.get("type"));
+            assertTrue(String.valueOf(refusal.get("detail")).contains("unexpected_extra"));
+            Map<String, Object> filtered = invoke(
+                    service,
+                    "human:analyst|actor_id=analyst",
+                    "conformance.lookup",
+                    List.of("conformance.read"),
+                    Map.of("query", "records", "limit", 3));
             @SuppressWarnings("unchecked")
             Map<String, Object> filteredResult = (Map<String, Object>) filtered.get("result");
             @SuppressWarnings("unchecked")
@@ -1688,7 +1725,7 @@ public class GeneratedBehaviorMatrixTests
             var result = Assert.IsType<Dictionary<string, object?>>(lookup["result"]);
             Assert.Equal("backend_execution_stub", result["execution_status"]);
 
-            var filtered = Invoke(
+            var refused = Invoke(
                 service,
                 "human:analyst|actor_id=analyst",
                 "conformance.lookup",
@@ -1698,6 +1735,20 @@ public class GeneratedBehaviorMatrixTests
                     ["query"] = "records",
                     ["limit"] = 3,
                     ["unexpected_extra"] = "leak",
+                });
+            Assert.False((bool)refused["success"]!);
+            var refusal = Assert.IsType<Dictionary<string, object?>>(refused["failure"]);
+            Assert.Equal("invalid_parameters", refusal["type"]);
+            Assert.Contains("unexpected_extra", (string)refusal["detail"]!);
+            var filtered = Invoke(
+                service,
+                "human:analyst|actor_id=analyst",
+                "conformance.lookup",
+                ["conformance.read"],
+                new Dictionary<string, object?>
+                {
+                    ["query"] = "records",
+                    ["limit"] = 3,
                 });
             var filteredResult = Assert.IsType<Dictionary<string, object?>>(filtered["result"]);
             var semanticInput = Assert.IsType<Dictionary<string, object?>>(filteredResult["semantic_input"]);
