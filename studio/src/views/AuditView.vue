@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
 import { useAnipAudit, useAnipDiscovery } from '@anip-dev/vue'
+import { studioTokens } from '../anip'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store'
 import { recordRuntimeObservation } from '../design/store'
@@ -72,10 +73,26 @@ onMounted(() => {
   }
 })
 
+// Set when an API key could not be exchanged for a token.
+const credentialError = ref('')
+
 async function fetchEntries() {
   if (!store.connected || !store.bearer) return
+  credentialError.value = ''
+  let token: string
   try {
-    await query(store.bearer, {
+    // The audit log is filtered by the root principal of the token, not by its
+    // capability, so a token for any capability shows the same entries. With an
+    // API key, use the filtered capability, or the first one the service declares.
+    if (!discoveryData.value) await refreshDiscovery()
+    const capability = capabilityFilter.value || capabilityNames.value[0] || null
+    token = (await studioTokens.resolve(store.bearer, capability)).token
+  } catch (e) {
+    credentialError.value = e instanceof Error ? e.message : String(e)
+    return
+  }
+  try {
+    await query(token, {
       capability: capabilityFilter.value || undefined,
       since: sinceFilter.value || undefined,
       limit: limitFilter.value || undefined,
@@ -165,6 +182,7 @@ function openEntryInEvaluation(entry: Record<string, any>) {
       <section class="section">
         <h3 class="section-title">Authentication</h3>
         <BearerInput @authenticated="onAuthenticated" />
+        <p v-if="credentialError" class="error-text credential-message">{{ credentialError }}</p>
       </section>
 
       <!-- Filter Bar -->
@@ -674,4 +692,5 @@ function openEntryInEvaluation(entry: Record<string, any>) {
   color: var(--text-muted);
   font-size: 14px;
 }
+.credential-message { margin: 8px 0 0; font-size: 13px; color: var(--error); }
 </style>

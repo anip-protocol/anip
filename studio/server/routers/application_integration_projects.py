@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from psycopg.errors import UniqueViolation
 
 from ..db import get_pool
+from ..db_backends import timestamp_to_iso
 from ..application_integration_types import (
     ApplicationIntegrationProjectRecord,
     ApplicationIntegrationProjectSummary,
@@ -24,8 +25,8 @@ def _record(row: dict) -> ApplicationIntegrationProjectRecord:
         title=row["title"],
         studio_project_id=row.get("studio_project_id"),
         state=row["state"],
-        created_at=row["created_at"].isoformat(),
-        updated_at=row["updated_at"].isoformat(),
+        created_at=timestamp_to_iso(row["created_at"]),
+        updated_at=timestamp_to_iso(row["updated_at"]),
     )
 
 
@@ -34,8 +35,8 @@ def _summary(row: dict) -> ApplicationIntegrationProjectSummary:
         id=row["id"],
         title=row["title"],
         studio_project_id=row.get("studio_project_id"),
-        created_at=row["created_at"].isoformat(),
-        updated_at=row["updated_at"].isoformat(),
+        created_at=timestamp_to_iso(row["created_at"]),
+        updated_at=timestamp_to_iso(row["updated_at"]),
     )
 
 

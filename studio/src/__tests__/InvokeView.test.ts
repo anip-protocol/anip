@@ -4,6 +4,21 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { AnipClientKey } from '@anip-dev/vue'
 import InvokeView from '../views/InvokeView.vue'
 
+// Inspect exchanges a pasted API key for a token bound to the capability.
+// The exchange itself is tested in credentials.test.ts; here it is replaced
+// so the test can check that the issued token, not the key, is what is sent.
+const issueForCapability = async (_credential: string, capability: string | null) => ({
+  token: `token-for-${capability}`,
+  issuedFor: { capability, scope: ['scope.' + capability] },
+})
+const mockResolveToken = vi.fn(issueForCapability)
+vi.mock('../anip', () => ({
+  studioTokens: {
+    resolve: (credential: string, capability: string | null) => mockResolveToken(credential, capability),
+    clear: () => {},
+  },
+}))
+
 const recordRuntimeObservation = vi.fn()
 
 vi.mock('../store', () => ({
@@ -82,6 +97,8 @@ async function mountView(initialRoute = '/inspect/invoke') {
 
 beforeEach(() => {
   mockGetManifest.mockReset()
+  mockResolveToken.mockReset()
+  mockResolveToken.mockImplementation(issueForCapability)
   mockQueryPermissions.mockReset()
   mockInvoke.mockReset()
   recordRuntimeObservation.mockReset()
@@ -136,8 +153,10 @@ describe('InvokeView', () => {
     form.vm.$emit('submit', { origin: 'SEA', destination: 'SFO' })
     await flushPromises()
 
+    // The pasted key is exchanged for a token bound to search_flights.
+    expect(mockResolveToken).toHaveBeenCalledWith('demo-human-key', 'search_flights')
     expect(mockInvoke).toHaveBeenCalledWith(
-      'demo-human-key',
+      'token-for-search_flights',
       'search_flights',
       { origin: 'SEA', destination: 'SFO' },
       { taskId: undefined, parentInvocationId: undefined },
@@ -170,6 +189,27 @@ describe('InvokeView', () => {
       backend_context: 'search_flights:read',
     }))
     expect(recordRuntimeObservation.mock.calls[0][0].observed_at).toBeTruthy()
+  })
+
+  it('says which token it issued from a pasted key', async () => {
+    mockInvoke.mockResolvedValue({ success: true, invocationId: 'inv-1', result: {} })
+
+    const { wrapper } = await mountView('/inspect/invoke/search_flights')
+    wrapper.findComponent({ name: 'InvokeForm' }).vm.$emit('submit', {})
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Using a token issued from your key for search_flights (scope: scope.search_flights).')
+  })
+
+  it('shows why a pasted key could not be exchanged, and does not invoke', async () => {
+    mockResolveToken.mockRejectedValue(new Error('authentication_required: unknown credential'))
+
+    const { wrapper } = await mountView('/inspect/invoke/search_flights')
+    wrapper.findComponent({ name: 'InvokeForm' }).vm.$emit('submit', {})
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('authentication_required: unknown credential')
+    expect(mockInvoke).not.toHaveBeenCalled()
   })
 
   it('clears the previous result when switching capabilities', async () => {
