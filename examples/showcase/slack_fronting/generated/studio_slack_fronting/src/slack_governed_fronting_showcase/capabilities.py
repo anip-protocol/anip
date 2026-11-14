@@ -1,7 +1,6 @@
 """Generated capability declarations and handlers."""
 from __future__ import annotations
 
-import inspect
 import re
 from typing import Any
 
@@ -77,13 +76,40 @@ def _build_backend_invocation_plan(capability: dict[str, Any], params: dict[str,
         "unresolved_required_backend_inputs": unresolved,
     }
 
+def _capability_forbidden_effects(capability: dict[str, Any]) -> set[str]:
+    effects = capability.get("business_effects") or {}
+    values = effects.get("does_not_produce") if isinstance(effects, dict) else []
+    return {str(item) for item in values or [] if str(item or '').strip()}
+
+def _requested_effects(ctx: InvocationContext) -> set[str]:
+    values = getattr(ctx, "requested_effects", []) or []
+    return {str(item) for item in values if str(item or '').strip()}
+
+def _assert_requested_effects_allowed(capability: dict[str, Any], ctx: InvocationContext) -> None:
+    requested = _requested_effects(ctx)
+    forbidden = _capability_forbidden_effects(capability)
+    blocked = sorted(requested & forbidden)
+    if blocked:
+        raise ANIPError(
+            "denied",
+            f"Capability {capability['capability_id']} does not produce requested effect(s): {', '.join(blocked)}.",
+            {"action": "request_declared_capability", "recovery_class": "terminal", "unsupported_effects": blocked},
+            retry=False,
+        )
+
 def _assert_required_semantic_inputs(capability: dict[str, Any], params: dict[str, Any]) -> None:
-    missing = [item['input_name'] for item in capability.get('required_inputs', []) if not item.get('default_value') and params.get(item['input_name']) in (None, '')]
+    missing = []
+    for item in capability.get('required_inputs', []):
+        resolution = item.get('resolution') or {}
+        if resolution.get("on_missing") in {"app_select_or_clarify"}:
+            continue
+        if not item.get('default_value') and params.get(item['input_name']) in (None, ''):
+            missing.append(item['input_name'])
     if missing:
         raise ANIPError(
             "clarification_required",
             f"Required semantic inputs are missing for {capability['capability_id']}.",
-            {"action": "clarify", "missing_inputs": missing, "required_by": capability["capability_id"]},
+            {"action": "obtain_binding", "recovery_class": "refresh_then_retry", "requires": ",".join(missing)},
             retry=False,
         )
 
@@ -92,6 +118,9 @@ def _apply_input_defaults(capability: dict[str, Any], params: dict[str, Any]) ->
     for item in [*capability.get('required_inputs', []), *capability.get('optional_inputs', [])]:
         name = item.get('input_name')
         default_value = item.get('default_value')
+        resolution = item.get("resolution") or {}
+        if resolution.get("on_missing") == "omit":
+            continue
         if name and default_value not in (None, '') and normalized.get(name) in (None, ''):
             normalized[name] = default_value
     return normalized
@@ -104,10 +133,14 @@ def _validate_input_behavior(capability: dict[str, Any], params: dict[str, Any])
         value = params.get(name)
         allowed_values = item.get('allowed_values') or []
         if allowed_values and str(value) not in {str(allowed) for allowed in allowed_values}:
+            resolution = item.get('resolution') or {}
+            failure_type = "denied" if resolution.get("mode") == "closed_values" and resolution.get("on_unresolved") == "deny" else "clarification_required"
+            action = "contact_service_owner" if failure_type == "denied" else "obtain_binding"
+            recovery_class = "terminal" if failure_type == "denied" else "refresh_then_retry"
             raise ANIPError(
-                "clarification_required",
+                failure_type,
                 item.get("clarification_hint") or f"Input {name} must use one of the declared allowed values.",
-                {"action": "provide_allowed_value", "requires": name, "allowed_values": allowed_values},
+                {"action": action, "recovery_class": recovery_class, "requires": name},
                 retry=False,
             )
         pattern = item.get('validation_pattern')
@@ -121,6 +154,14 @@ def _validate_input_behavior(capability: dict[str, Any], params: dict[str, Any])
                 retry=False,
             )
 
+def _requires_approval(capability: dict[str, Any]) -> bool:
+    return capability.get('side_effect_level') == 'approval_required' or capability.get('execution_posture') in {'approval_required', 'approval_gated'} or capability.get('operation_type') == 'approval_gated'
+
+def _approval_granted(ctx: InvocationContext) -> bool:
+    # The runtime sets approval_grant only after it validated and reserved the
+    # grant supplied with this invocation (SPEC.md §4.8).
+    return getattr(ctx, "approval_grant", None) is not None
+
 def _side_effect_type(side_effect_level: str) -> str:
     value = side_effect_level.lower()
     if "irreversible" in value:
@@ -131,128 +172,35 @@ def _side_effect_type(side_effect_level: str) -> str:
         return "write"
     return "read"
 
-def _resolve_json_path(payload: dict[str, Any], path: str | None) -> Any:
-    if not path or not path.startswith('$.'):
-        return None
-    current: Any = payload
-    for part in path[2:].split('.'):
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            return None
-    return current
-
-def _is_empty_result(payload: Any) -> bool:
-    target = payload.get('result') if isinstance(payload, dict) else payload
-    if isinstance(target, dict):
-        if target.get('empty') is True:
-            return True
-        for key in ('accounts', 'items', 'rows', 'results', 'tasks'):
-            if key in target and target.get(key) == []:
-                return True
-    return target == []
-
-async def _invoke_composition_child(capability_registry: dict[str, Capability], capability_id: str, ctx: InvocationContext, params: dict[str, Any]) -> Any:
-    child = capability_registry.get(capability_id)
-    if child is None:
-        raise ANIPError('temporarily_unavailable', f'Generated composition child {capability_id} is not registered.')
-    result = child.handler(ctx, params)
-    if inspect.isawaitable(result):
-        result = await result
-    return result
-
-async def _execute_generated_composition(capability: dict[str, Any], ctx: InvocationContext, params: dict[str, Any], capability_registry: dict[str, Capability] | None) -> dict[str, Any]:
-    if capability_registry is None:
-        raise ANIPError('temporarily_unavailable', f'Generated composition {capability["capability_id"]} requires a capability registry.')
-    composition = capability.get('composition') or {}
-    if composition.get('authority_boundary') != 'same_service':
-        raise ANIPError('temporarily_unavailable', 'Generated Python host only executes same-service composition locally.')
-    state: dict[str, Any] = {'steps': {}}
-    input_mapping = composition.get('input_mapping') or {}
-    for step in composition.get('steps') or []:
-        step_id = step.get('id')
-        child_capability = step.get('capability')
-        if not step_id or not child_capability:
-            raise ANIPError('temporarily_unavailable', 'Generated composition step is missing id or capability.')
-        child_params = dict(params)
-        mapping = input_mapping.get(step_id) or {}
-        context = _resolve_json_path(state, mapping.get('context')) if isinstance(mapping, dict) else None
-        if context is not None:
-            child_params['context'] = context
-        child_output = await _invoke_composition_child(capability_registry, child_capability, ctx, child_params)
-        state['steps'][step_id] = {'output': child_output}
-        if step.get('empty_result_source') is True and _is_empty_result(child_output):
-            if composition.get('empty_result_policy') == 'return_success_no_results':
-                return composition.get('empty_result_output') or {'result': None, 'empty': True}
-    output_mapping = composition.get('output_mapping') or {}
-    result = _resolve_json_path(state, output_mapping.get('result'))
-    if result is None:
-        return {'result': state}
-    if isinstance(result, dict) and 'result' in result and len(result) == 1:
-        return result
-    return {'result': result}
-
 async def _handle_generated_capability(capability: dict[str, Any], ctx: InvocationContext, params: dict[str, Any], capability_registry: dict[str, Capability] | None = None) -> dict[str, Any]:
+    _assert_requested_effects_allowed(capability, ctx)
     params = _apply_input_defaults(capability, params)
     _assert_required_semantic_inputs(capability, params)
     _validate_input_behavior(capability, params)
     policy = await evaluate_policy({"capability": capability, "params": params, "root_principal": ctx.root_principal, "token": ctx.token})
     if policy.get("decision") == "deny":
-        raise ANIPError("denied", policy.get("detail") or f"Request denied for {capability['capability_id']}.")
-    if policy.get("decision") == "no_match" and (capability.get("kind") or "atomic") != "composed":
-        raise ANIPError("denied", policy.get("detail") or f"Request denied for {capability['capability_id']}.")
+        raise ANIPError("denied", policy.get("detail") or f"Request denied for {capability['capability_id']}.", {"action": "contact_service_owner", "recovery_class": "terminal"})
     if policy.get("decision") == "clarify":
-        raise ANIPError("clarification_required", policy.get("detail") or f"Clarification required for {capability['capability_id']}.")
+        raise ANIPError("clarification_required", policy.get("detail") or f"Clarification required for {capability['capability_id']}.", {"action": "obtain_binding", "recovery_class": "refresh_then_retry"})
     if (capability.get("kind") or "atomic") == "composed":
-        return await _execute_generated_composition(capability, ctx, params, capability_registry)
+        # The ANIP runtime executes composed capabilities itself (SPEC.md §4.6):
+        # it invokes each step through the normal pipeline, with its own
+        # token and audit entry, and never calls this handler for them.
+        raise ANIPError("internal_error", f"Composed capability {capability['capability_id']} must be executed by the ANIP runtime; upgrade anip-service.")
     plan = _build_backend_invocation_plan(capability, params)
-    if policy.get("decision") == "approval_required" or capability.get("execution_posture") == "approval_gated":
-        if capability["capability_id"] == "slack.announcement.request":
-            prepared = await backend_adapter.execute(capability, plan, plan["adapter_input"], ctx)
-            if prepared.get("execution_status") != "backend_execution_stub":
-                if ctx.approval_grant is None:
-                    raise ANIPError(
-                        "approval_required",
-                        "Slack announcement posting requires an ANIP approval grant before send.",
-                        approval_required={"preview": prepared},
-                    )
-                return prepared
-        return {
-            "execution_status": "approval_required",
-            "capability_id": capability["capability_id"],
-            "title": capability["title"],
-            "summary": capability["summary"],
-            "semantic_input": plan["semantic_input"],
-            "backend_input_contract": plan["backend_input_contract"],
-            "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", []),
-            "note": "Generated host requires approval before backend execution.",
-        }
-    if capability.get("execution_posture") == "prepare_only":
-        if capability["capability_id"] in {"slack.message.prepare", "slack.incident_update.prepare"}:
-            prepared = await backend_adapter.execute(capability, plan, plan["adapter_input"], ctx)
-            if prepared.get("execution_status") != "backend_execution_stub":
-                if params.get("request_send_approval") is True and ctx.approval_grant is None:
-                    raise ANIPError(
-                        "approval_required",
-                        "Slack message sending requires an ANIP approval grant before send.",
-                        approval_required={"preview": prepared},
-                    )
-                return prepared
-        return {
-            "execution_status": "prepared",
-            "capability_id": capability["capability_id"],
-            "semantic_input": plan["semantic_input"],
-            "backend_input_contract": plan["backend_input_contract"],
-            "note": "Generated host prepared a governed preview and did not execute the backend.",
-        }
+    # An approval-gated capability, or an actor whose binding requires approval,
+    # stops here, before the backend adapter, until the runtime has validated an
+    # approval grant for this invocation.
+    if (policy.get("decision") == "approval_required" or _requires_approval(capability)) and not _approval_granted(ctx):
+        raise ANIPError("approval_required", (policy.get("detail") if policy.get("decision") == "approval_required" else None) or f"Approval required for {capability['capability_id']}.", {"action": "request_approval", "capability_id": capability["capability_id"], "semantic_input": plan["semantic_input"], "backend_input_contract": plan["backend_input_contract"], "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", [])})
     return await backend_adapter.execute(capability, plan, plan["adapter_input"], ctx)
 
 def _build_declaration(capability: dict[str, Any]) -> CapabilityDeclaration:
     inputs = [
-        CapabilityInput(name=item['input_name'], type=item.get('input_type') or 'string', required=True, default=item.get('default_value') or None, allowed_values=item.get('allowed_values') or [], description=item.get('summary') or item['input_name'])
+        CapabilityInput(name=item['input_name'], type=item.get('input_type') or 'string', required=True, default=item.get('default_value') or None, allowed_values=item.get('allowed_values') or [], description=item.get('summary') or item['input_name'], semantic_type=item.get('semantic_type') or None, entity_reference=bool(item.get('entity_reference')), catalog_ref=item.get('catalog_ref') or None, resolution=item.get('resolution') or None)
         for item in capability.get('required_inputs', [])
     ] + [
-        CapabilityInput(name=item['input_name'], type=item.get('input_type') or 'string', required=False, default=item.get('default_value') or None, allowed_values=item.get('allowed_values') or [], description=item.get('summary') or item['input_name'])
+        CapabilityInput(name=item['input_name'], type=item.get('input_type') or 'string', required=False, default=item.get('default_value') or None, allowed_values=item.get('allowed_values') or [], description=item.get('summary') or item['input_name'], semantic_type=item.get('semantic_type') or None, entity_reference=bool(item.get('entity_reference')), catalog_ref=item.get('catalog_ref') or None, resolution=item.get('resolution') or None)
         for item in capability.get('optional_inputs', [])
     ]
     rollback_window = 'not_applicable' if _side_effect_type(capability.get('side_effect_level', 'read')) == 'read' else 'none' if _side_effect_type(capability.get('side_effect_level', 'read')) == 'irreversible' else 'PT15M'

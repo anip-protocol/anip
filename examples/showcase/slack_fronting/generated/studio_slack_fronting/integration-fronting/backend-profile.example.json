@@ -1,0 +1,62 @@
+{
+  "backend_families": [
+    "native-api"
+  ],
+  "contract_boundary": "Agents invoke ANIP capabilities. Generated policy, approval, clarification, and audit logic runs before backend execution. Backend profiles may change when the implementation moves from REST to MCP, SQL, dbt, Cube, or another provider, as long as governed capability behavior is unchanged.",
+  "description": "Implementation profile for local backend code. This is replaceable deployment material, not the governed ANIP behavior contract.",
+  "profiles": [
+    {
+      "backend_family": "native-api",
+      "capabilities": [
+        {
+          "backend_kind": "native_api",
+          "capability_id": "slack.channel.read_context",
+          "connection_ref": "slack_fronting",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "slack.web.read_channel_context"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "slack.thread.summarize",
+          "connection_ref": "slack_fronting",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "slack.web.summarize_thread"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "slack.message.prepare",
+          "connection_ref": "slack_fronting",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "slack.web.prepare_channel_message"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "slack.incident_update.prepare",
+          "connection_ref": "slack_fronting",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "slack.web.prepare_incident_update"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "slack.announcement.request",
+          "connection_ref": "slack_fronting",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "slack.web.request_channel_announcement"
+          ]
+        }
+      ],
+      "profile_id": "native-api-default",
+      "template": "backend-templates/native-api.md"
+    }
+  ],
+  "schema_version": "anip-backend-implementation-profile/v0"
+}

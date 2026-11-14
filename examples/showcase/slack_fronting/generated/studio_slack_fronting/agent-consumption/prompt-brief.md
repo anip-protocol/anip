@@ -2,8 +2,8 @@
 
 This directory is generated from signed ANIP package metadata. It is framework-agnostic and can be loaded by LangGraph, Mastra, CrewAI, or custom agents.
 
-- Package: `slack-fronting-showcase@0.1.0`
-- Contract signature: `sha256:a98b9fa1f3abc5e5f0444f88aea74b878c15f8d60f31500a73395b786aac7e2e`
+- Package: `slack-fronting-showcase@0.2.1`
+- Contract signature: `sha256:6872b4db1fe9144c4fb62ff4d262fe432d9ff21230c3a323e6586d4ab9a0e86f`
 - Consumability schema: `anip-agent-consumability/v0`
 - Capability hints: `5`
 - Required app glue items: `0`

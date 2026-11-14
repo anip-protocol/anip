@@ -1,172 +1,323 @@
 {
+  "artifact_type": "agent_consumability_metadata",
   "capabilities": {
     "slack.announcement.request": {
-      "app_owned_behavior": [
-        "Select native Slack Web API or Slack MCP backend at deployment time.",
-        "Never route agents directly to raw Slack API or MCP operations."
-      ],
-      "business_effects": {
-        "does_not_produce": [
-          "Send outside the system",
-          "Bypass communication policy"
-        ],
-        "produces": [
-          "Preview a change",
-          "Ask for approval"
-        ]
-      },
+      "business_effects": {},
       "intent": {
         "category": "slack.announcement.request",
         "summary": "Prepare a channel announcement request that requires approval before posting."
       },
       "required_context": [
         {
-          "behavior": "clarify",
           "input": "channel_id",
-          "summary": "Slack channel ID."
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
         },
         {
-          "behavior": "clarify",
           "input": "announcement",
-          "summary": "Announcement text."
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "audience",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
         }
       ]
     },
     "slack.channel.read_context": {
-      "app_owned_behavior": [
-        "Select native Slack Web API or Slack MCP backend at deployment time.",
-        "Never route agents directly to raw Slack API or MCP operations."
-      ],
-      "business_effects": {
-        "does_not_produce": [
-          "Send outside the system",
-          "Export raw data"
-        ],
-        "produces": [
-          "Read bounded data",
-          "Summarize information"
-        ]
-      },
+      "business_effects": {},
       "intent": {
         "category": "slack.channel.read_context",
         "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools."
       },
       "required_context": [
         {
-          "behavior": "clarify",
           "input": "channel_id",
-          "summary": "Slack channel ID."
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "query",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "limit",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
         }
       ]
     },
     "slack.incident_update.prepare": {
-      "app_owned_behavior": [
-        "Select native Slack Web API or Slack MCP backend at deployment time.",
-        "Never route agents directly to raw Slack API or MCP operations."
-      ],
-      "business_effects": {
-        "does_not_produce": [
-          "Send outside the system",
-          "Change workspace state"
-        ],
-        "produces": [
-          "Draft content",
-          "Preview a change",
-          "Ask for approval"
-        ]
-      },
+      "business_effects": {},
       "intent": {
         "category": "slack.incident_update.prepare",
         "summary": "Prepare a structured incident update for a Slack channel and stop before sending."
       },
       "required_context": [
         {
-          "behavior": "clarify",
           "input": "channel_id",
-          "summary": "Slack channel ID."
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
         },
         {
-          "behavior": "clarify",
           "input": "incident_id",
-          "summary": "Incident identifier."
+          "posture": "required:clarify",
+          "semantic_type": "incident_ref"
         },
         {
-          "behavior": "clarify",
           "input": "status",
-          "summary": "Incident status."
+          "posture": "required:clarify",
+          "semantic_type": ""
         },
         {
-          "behavior": "clarify",
           "input": "summary",
-          "summary": "Human-readable update summary."
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "next_update_time",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
         }
       ]
     },
     "slack.message.prepare": {
-      "app_owned_behavior": [
-        "Select native Slack Web API or Slack MCP backend at deployment time.",
-        "Never route agents directly to raw Slack API or MCP operations."
-      ],
-      "business_effects": {
-        "does_not_produce": [
-          "Send outside the system",
-          "Change workspace state"
-        ],
-        "produces": [
-          "Draft content",
-          "Preview a change",
-          "Ask for approval"
-        ]
-      },
+      "business_effects": {},
       "intent": {
         "category": "slack.message.prepare",
         "summary": "Prepare a Slack channel message preview without sending it."
       },
       "required_context": [
         {
-          "behavior": "clarify",
           "input": "channel_id",
-          "summary": "Slack channel ID."
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
         },
         {
-          "behavior": "clarify",
           "input": "text",
-          "summary": "Message text to preview."
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "thread_ts",
+          "posture": "optional:clarify",
+          "semantic_type": "thread_ref"
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
         }
       ]
     },
     "slack.thread.summarize": {
-      "app_owned_behavior": [
-        "Select native Slack Web API or Slack MCP backend at deployment time.",
-        "Never route agents directly to raw Slack API or MCP operations."
-      ],
-      "business_effects": {
-        "does_not_produce": [
-          "Send outside the system",
-          "Export raw data"
-        ],
-        "produces": [
-          "Read bounded data",
-          "Summarize information"
-        ]
-      },
+      "business_effects": {},
       "intent": {
         "category": "slack.thread.summarize",
         "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting."
       },
       "required_context": [
         {
-          "behavior": "clarify",
           "input": "channel_id",
-          "summary": "Slack channel ID."
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
         },
         {
-          "behavior": "clarify",
           "input": "thread_ts",
-          "summary": "Slack thread timestamp."
+          "posture": "required:clarify",
+          "semantic_type": "thread_ref"
+        },
+        {
+          "input": "focus",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "limit",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
         }
       ]
     }
   },
+  "capability_hints": [
+    {
+      "capability_id": "slack.channel.read_context",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "query",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "limit",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
+        }
+      ],
+      "side_effect_level": "read",
+      "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+      "title": "Read Channel Context"
+    },
+    {
+      "capability_id": "slack.thread.summarize",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "thread_ts",
+          "posture": "required:clarify",
+          "semantic_type": "thread_ref"
+        },
+        {
+          "input": "focus",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "limit",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
+        }
+      ],
+      "side_effect_level": "read",
+      "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+      "title": "Summarize Thread"
+    },
+    {
+      "capability_id": "slack.message.prepare",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "text",
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "thread_ts",
+          "posture": "optional:clarify",
+          "semantic_type": "thread_ref"
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
+        }
+      ],
+      "side_effect_level": "write_adjacent",
+      "summary": "Prepare a Slack channel message preview without sending it.",
+      "title": "Prepare Channel Message"
+    },
+    {
+      "capability_id": "slack.incident_update.prepare",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "incident_id",
+          "posture": "required:clarify",
+          "semantic_type": "incident_ref"
+        },
+        {
+          "input": "status",
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "summary",
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "next_update_time",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
+        }
+      ],
+      "side_effect_level": "write_adjacent",
+      "summary": "Prepare a structured incident update for a Slack channel and stop before sending.",
+      "title": "Prepare Incident Update"
+    },
+    {
+      "capability_id": "slack.announcement.request",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "posture": "required:clarify",
+          "semantic_type": "channel_ref"
+        },
+        {
+          "input": "announcement",
+          "posture": "required:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "audience",
+          "posture": "optional:clarify",
+          "semantic_type": ""
+        },
+        {
+          "input": "backend_options",
+          "posture": "optional:clarify",
+          "semantic_type": "backend_options"
+        }
+      ],
+      "side_effect_level": "write_adjacent",
+      "summary": "Prepare a channel announcement request that requires approval before posting.",
+      "title": "Request Channel Announcement"
+    }
+  ],
   "schema_version": "anip-agent-consumability/v0"
 }

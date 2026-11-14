@@ -1,0 +1,33 @@
+{
+  "bundle_path": "../../examples/showcase/slack_fronting/custom-code-bundles/slack_fronting_python",
+  "bundle_sha256": "sha256:7fa4fd387d00607f4d281e429391d59c8e917661c32f0521fa6eb3f8a0df42f1",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:364ef9398238e918428c5c672df3333b7aee11bafdb83e03466a03b7918e24ee",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 1287,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/slack_governed_fronting_showcase/backend_adapter.py",
+      "sha256": "sha256:7062fc267f4e701dce6b90e8eace51fb0fc31c8744fa46c2eea99de0b48d651a",
+      "seam": "backend_adapter",
+      "mode": "extension_overlay",
+      "bytes": 10962,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "tests/test_slack_backend_adapter.py",
+      "sha256": "sha256:af25e3e8f9a24dac13efb8e2c8f201880da8ff5c25f3c887f95228287fdc31fe",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 895,
+      "overlaid": false,
+      "substrate": false
+    }
+  ]
+}

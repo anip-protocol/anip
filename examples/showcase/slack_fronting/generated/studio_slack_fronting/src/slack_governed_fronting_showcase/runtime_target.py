@@ -4,19 +4,18 @@ from __future__ import annotations
 import json
 
 RUNTIME_TARGET = json.loads(r'''{
-  "system_name": "Slack Governed Fronting Showcase",
+  "system_name": "slack_governed_fronting_showcase",
   "domain_name": "slack",
   "delivery_model": "governed_integration_fronting",
   "architecture_shape": "single_service",
   "protocols": [
-    "https",
-    "mcp"
+    "https"
   ],
   "services": [
     {
       "service_id": "slack-governance-service",
       "service_name": "Slack Governance Service",
-      "source_role": "governed_integration_fronting",
+      "source_role": "integration_fronting",
       "source_capabilities": [
         "slack.channel.read_context",
         "slack.thread.summarize",
@@ -32,9 +31,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "slack.announcement.request"
       ],
       "owned_concept_ids": [
-        "slack_channel",
-        "slack_thread",
-        "slack_message"
+        "fronted_resource"
       ]
     }
   ],
@@ -60,8 +57,10 @@ RUNTIME_TARGET = json.loads(r'''{
         "slack.announcement.request"
       ],
       "required_scopes": [
-        "slack.read",
+        "slack.channel.read_context",
+        "slack.thread.summarize",
         "slack.message.prepare",
+        "slack.incident_update.prepare",
         "slack.announcement.request"
       ],
       "decision": "allow_with_limits",
@@ -70,7 +69,7 @@ RUNTIME_TARGET = json.loads(r'''{
     }
   ],
   "authority": {
-    "approval_expectation": "approval_gated_for_send_actions",
+    "approval_expectation": "approval_gated_for_write_like_actions",
     "blocked_failure_posture": "clarify_or_stop"
   },
   "audit": {
@@ -93,24 +92,14 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "operation_type": "read",
     "execution_posture": "read_only",
     "side_effect_level": "read",
-    "business_effects": {
-      "produces": [
-        "Read bounded data",
-        "Summarize information"
-      ],
-      "does_not_produce": [
-        "Send outside the system",
-        "Export raw data"
-      ]
-    },
-    "backend_operation": "read_channel_context",
+    "backend_operation": "slack_channel_read_context",
     "path_template": "/slack/channels/{channel_id}/context",
-    "output_shape": "bounded_channel_messages",
+    "output_shape": "slack_channel_read_context_result",
     "subject_kind": "slack_channel",
     "context_type": "channel_context",
     "output_intent": "bounded_message_results",
     "minimum_scope": [
-      "slack.read"
+      "slack.channel.read_context"
     ],
     "required_inputs": [
       {
@@ -119,6 +108,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack channel ID.",
         "default_value": "",
+        "semantic_type": "channel_ref",
         "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
         "entity_reference": true
       }
@@ -139,9 +129,19 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "summary": "Maximum messages to return.",
         "default_value": "20",
         "clarification_hint": "Ask for limit when it is missing or ambiguous."
+      },
+      {
+        "input_name": "backend_options",
+        "input_type": "object",
+        "required": false,
+        "summary": "Bounded Slack provider options such as formatting mode or unfurl posture. Must not bypass channel scope, approval, or send policy.",
+        "default_value": "",
+        "semantic_type": "backend_options",
+        "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls."
       }
     ],
     "sample_parameters": {
+      "backend_options": {},
       "channel_id": "channel_id-value",
       "limit": 20,
       "query": "query-value"
@@ -149,71 +149,30 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "backend_input_mode": "explicit",
     "derived_required_backend_inputs": [],
     "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [
-      "channel_id"
-    ],
-    "explicit_optional_backend_inputs": [
-      "query",
-      "limit"
-    ],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
     "backend_bindings": [
       {
         "backend_kind": "native_api",
-        "connection_ref": "slack_web_api",
+        "connection_ref": "slack_fronting",
         "raw_operation_refs": [
           "slack.web.read_channel_context"
         ],
         "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id"
-        ],
-        "explicit_optional_backend_inputs": [
-          "query",
-          "limit"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-web-read_channel_context"
-        ],
-        "status": "ready",
-        "status_detail": "Native Slack Web API implementation seam."
-      },
-      {
-        "backend_kind": "mcp",
-        "connection_ref": "slack_mcp",
-        "raw_operation_refs": [
-          "slack.mcp.read_channel_context"
-        ],
-        "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id"
-        ],
-        "explicit_optional_backend_inputs": [
-          "query",
-          "limit"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-mcp-read_channel_context"
-        ],
-        "status": "candidate",
-        "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+        "status": "ready"
       }
     ],
     "governance": {
       "approval_rule_refs": [],
-      "denial_rule_refs": [
-        "deny.raw_export",
-        "deny.unapproved_send",
-        "deny.workspace_admin_bypass"
-      ],
+      "denial_rule_refs": [],
       "clarification_rule_refs": [
-        "clarify.channel_id"
+        "missing_required_inputs"
       ],
       "audit_required": true
     },
     "outbound_controls": {
-      "block_private_channel_exfiltration": true,
-      "block_unbounded_payloads": true,
-      "redact_sensitive_values": true
+      "raw_backend_not_agent_visible": true,
+      "redaction_required": true
     }
   },
   {
@@ -227,24 +186,14 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "operation_type": "read",
     "execution_posture": "read_only",
     "side_effect_level": "read",
-    "business_effects": {
-      "produces": [
-        "Read bounded data",
-        "Summarize information"
-      ],
-      "does_not_produce": [
-        "Send outside the system",
-        "Export raw data"
-      ]
-    },
-    "backend_operation": "summarize_thread",
+    "backend_operation": "slack_thread_summarize",
     "path_template": "/slack/channels/{channel_id}/threads/{thread_ts}/summary",
-    "output_shape": "bounded_thread_context",
+    "output_shape": "slack_thread_summarize_result",
     "subject_kind": "slack_thread",
     "context_type": "thread_context",
     "output_intent": "thread_summary_context",
     "minimum_scope": [
-      "slack.read"
+      "slack.thread.summarize"
     ],
     "required_inputs": [
       {
@@ -253,6 +202,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack channel ID.",
         "default_value": "",
+        "semantic_type": "channel_ref",
         "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
         "entity_reference": true
       },
@@ -262,6 +212,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack thread timestamp.",
         "default_value": "",
+        "semantic_type": "thread_ref",
         "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
         "entity_reference": true
       }
@@ -274,82 +225,59 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "summary": "Optional summary focus.",
         "default_value": "",
         "clarification_hint": "Ask for focus when it is missing or ambiguous."
+      },
+      {
+        "input_name": "limit",
+        "input_type": "integer",
+        "required": false,
+        "summary": "Maximum thread replies to return; the adapter caps it at 100.",
+        "default_value": "50",
+        "clarification_hint": "Ask for limit when it is missing or ambiguous."
+      },
+      {
+        "input_name": "backend_options",
+        "input_type": "object",
+        "required": false,
+        "summary": "Bounded Slack provider options such as formatting mode or unfurl posture. Must not bypass channel scope, approval, or send policy.",
+        "default_value": "",
+        "semantic_type": "backend_options",
+        "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls."
       }
     ],
     "sample_parameters": {
+      "backend_options": {},
       "channel_id": "channel_id-value",
       "focus": "focus-value",
+      "limit": 50,
       "thread_ts": "thread_ts-value"
     },
     "backend_input_mode": "explicit",
     "derived_required_backend_inputs": [],
     "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [
-      "channel_id",
-      "thread_ts"
-    ],
-    "explicit_optional_backend_inputs": [
-      "focus"
-    ],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
     "backend_bindings": [
       {
         "backend_kind": "native_api",
-        "connection_ref": "slack_web_api",
+        "connection_ref": "slack_fronting",
         "raw_operation_refs": [
           "slack.web.summarize_thread"
         ],
         "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "thread_ts"
-        ],
-        "explicit_optional_backend_inputs": [
-          "focus"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-web-summarize_thread"
-        ],
-        "status": "ready",
-        "status_detail": "Native Slack Web API implementation seam."
-      },
-      {
-        "backend_kind": "mcp",
-        "connection_ref": "slack_mcp",
-        "raw_operation_refs": [
-          "slack.mcp.summarize_thread"
-        ],
-        "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "thread_ts"
-        ],
-        "explicit_optional_backend_inputs": [
-          "focus"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-mcp-summarize_thread"
-        ],
-        "status": "candidate",
-        "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+        "status": "ready"
       }
     ],
     "governance": {
       "approval_rule_refs": [],
-      "denial_rule_refs": [
-        "deny.raw_export",
-        "deny.unapproved_send",
-        "deny.workspace_admin_bypass"
-      ],
+      "denial_rule_refs": [],
       "clarification_rule_refs": [
-        "clarify.channel_id",
-        "clarify.thread_ts"
+        "missing_required_inputs"
       ],
       "audit_required": true
     },
     "outbound_controls": {
-      "block_private_channel_exfiltration": true,
-      "block_unbounded_payloads": true,
-      "redact_sensitive_values": true
+      "raw_backend_not_agent_visible": true,
+      "redaction_required": true
     }
   },
   {
@@ -372,20 +300,9 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "operation_type": "write",
     "execution_posture": "prepare_only",
     "side_effect_level": "write_adjacent",
-    "business_effects": {
-      "produces": [
-        "Draft content",
-        "Preview a change",
-        "Ask for approval"
-      ],
-      "does_not_produce": [
-        "Send outside the system",
-        "Change workspace state"
-      ]
-    },
-    "backend_operation": "prepare_channel_message",
+    "backend_operation": "slack_message_prepare",
     "path_template": "/slack/channels/{channel_id}/messages/preview",
-    "output_shape": "message_preview",
+    "output_shape": "slack_message_prepare_result",
     "subject_kind": "slack_message",
     "context_type": "message_preparation",
     "output_intent": "message_preview",
@@ -399,6 +316,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack channel ID.",
         "default_value": "",
+        "semantic_type": "channel_ref",
         "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
         "entity_reference": true
       },
@@ -418,11 +336,22 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": false,
         "summary": "Optional thread timestamp.",
         "default_value": "",
+        "semantic_type": "thread_ref",
         "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
         "entity_reference": true
+      },
+      {
+        "input_name": "backend_options",
+        "input_type": "object",
+        "required": false,
+        "summary": "Bounded Slack provider options such as formatting mode or unfurl posture. Must not bypass channel scope, approval, or send policy.",
+        "default_value": "",
+        "semantic_type": "backend_options",
+        "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls."
       }
     ],
     "sample_parameters": {
+      "backend_options": {},
       "channel_id": "channel_id-value",
       "text": "text-value",
       "thread_ts": "thread_ts-value"
@@ -430,74 +359,30 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "backend_input_mode": "explicit",
     "derived_required_backend_inputs": [],
     "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [
-      "channel_id",
-      "text"
-    ],
-    "explicit_optional_backend_inputs": [
-      "thread_ts"
-    ],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
     "backend_bindings": [
       {
         "backend_kind": "native_api",
-        "connection_ref": "slack_web_api",
+        "connection_ref": "slack_fronting",
         "raw_operation_refs": [
           "slack.web.prepare_channel_message"
         ],
         "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "text"
-        ],
-        "explicit_optional_backend_inputs": [
-          "thread_ts"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-web-prepare_channel_message"
-        ],
-        "status": "ready",
-        "status_detail": "Native Slack Web API implementation seam."
-      },
-      {
-        "backend_kind": "mcp",
-        "connection_ref": "slack_mcp",
-        "raw_operation_refs": [
-          "slack.mcp.prepare_channel_message"
-        ],
-        "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "text"
-        ],
-        "explicit_optional_backend_inputs": [
-          "thread_ts"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-mcp-prepare_channel_message"
-        ],
-        "status": "candidate",
-        "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+        "status": "ready"
       }
     ],
     "governance": {
-      "approval_rule_refs": [
-        "approval.message_send_required"
-      ],
-      "denial_rule_refs": [
-        "deny.raw_export",
-        "deny.unapproved_send",
-        "deny.workspace_admin_bypass"
-      ],
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
       "clarification_rule_refs": [
-        "clarify.channel_id",
-        "clarify.text"
+        "missing_required_inputs"
       ],
       "audit_required": true
     },
     "outbound_controls": {
-      "block_private_channel_exfiltration": true,
-      "block_unbounded_payloads": true,
-      "redact_sensitive_values": true
+      "raw_backend_not_agent_visible": true,
+      "redaction_required": true
     }
   },
   {
@@ -520,25 +405,14 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "operation_type": "write",
     "execution_posture": "prepare_only",
     "side_effect_level": "write_adjacent",
-    "business_effects": {
-      "produces": [
-        "Draft content",
-        "Preview a change",
-        "Ask for approval"
-      ],
-      "does_not_produce": [
-        "Send outside the system",
-        "Change workspace state"
-      ]
-    },
-    "backend_operation": "prepare_incident_update",
+    "backend_operation": "slack_incident_update_prepare",
     "path_template": "/slack/channels/{channel_id}/incident-updates/preview",
-    "output_shape": "incident_update_preview",
+    "output_shape": "slack_incident_update_prepare_result",
     "subject_kind": "slack_message",
     "context_type": "incident_update",
     "output_intent": "incident_update_preview",
     "minimum_scope": [
-      "slack.message.prepare"
+      "slack.incident_update.prepare"
     ],
     "required_inputs": [
       {
@@ -547,6 +421,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack channel ID.",
         "default_value": "",
+        "semantic_type": "channel_ref",
         "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
         "entity_reference": true
       },
@@ -556,6 +431,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Incident identifier.",
         "default_value": "",
+        "semantic_type": "incident_ref",
         "clarification_hint": "Ask for incident_id when it is missing or ambiguous.",
         "entity_reference": true
       },
@@ -590,9 +466,19 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "summary": "Optional next update time.",
         "default_value": "",
         "clarification_hint": "Ask for next_update_time when it is missing or ambiguous."
+      },
+      {
+        "input_name": "backend_options",
+        "input_type": "object",
+        "required": false,
+        "summary": "Bounded Slack provider options such as formatting mode or unfurl posture. Must not bypass channel scope, approval, or send policy.",
+        "default_value": "",
+        "semantic_type": "backend_options",
+        "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls."
       }
     ],
     "sample_parameters": {
+      "backend_options": {},
       "channel_id": "channel_id-value",
       "incident_id": "incident_id-value",
       "next_update_time": "next_update_time-value",
@@ -602,82 +488,30 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
     "backend_input_mode": "explicit",
     "derived_required_backend_inputs": [],
     "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [
-      "channel_id",
-      "incident_id",
-      "status",
-      "summary"
-    ],
-    "explicit_optional_backend_inputs": [
-      "next_update_time"
-    ],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
     "backend_bindings": [
       {
         "backend_kind": "native_api",
-        "connection_ref": "slack_web_api",
+        "connection_ref": "slack_fronting",
         "raw_operation_refs": [
           "slack.web.prepare_incident_update"
         ],
         "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "incident_id",
-          "status",
-          "summary"
-        ],
-        "explicit_optional_backend_inputs": [
-          "next_update_time"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-web-prepare_incident_update"
-        ],
-        "status": "ready",
-        "status_detail": "Native Slack Web API implementation seam."
-      },
-      {
-        "backend_kind": "mcp",
-        "connection_ref": "slack_mcp",
-        "raw_operation_refs": [
-          "slack.mcp.prepare_incident_update"
-        ],
-        "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "incident_id",
-          "status",
-          "summary"
-        ],
-        "explicit_optional_backend_inputs": [
-          "next_update_time"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-mcp-prepare_incident_update"
-        ],
-        "status": "candidate",
-        "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+        "status": "ready"
       }
     ],
     "governance": {
-      "approval_rule_refs": [
-        "approval.message_send_required"
-      ],
-      "denial_rule_refs": [
-        "deny.raw_export",
-        "deny.unapproved_send",
-        "deny.workspace_admin_bypass"
-      ],
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
       "clarification_rule_refs": [
-        "clarify.channel_id",
-        "clarify.incident_id",
-        "clarify.status",
-        "clarify.summary"
+        "missing_required_inputs"
       ],
       "audit_required": true
     },
     "outbound_controls": {
-      "block_private_channel_exfiltration": true,
-      "block_unbounded_payloads": true,
-      "redact_sensitive_values": true
+      "raw_backend_not_agent_visible": true,
+      "redaction_required": true
     }
   },
   {
@@ -696,23 +530,13 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
       "expires_in_seconds": 900,
       "max_uses": 1
     },
-    "intent_type": "approval_gated_action",
-    "operation_type": "approval_gated",
-    "execution_posture": "approval_gated_action",
+    "intent_type": "prepare_only",
+    "operation_type": "write",
+    "execution_posture": "prepare_only",
     "side_effect_level": "write_adjacent",
-    "business_effects": {
-      "produces": [
-        "Preview a change",
-        "Ask for approval"
-      ],
-      "does_not_produce": [
-        "Send outside the system",
-        "Bypass communication policy"
-      ]
-    },
-    "backend_operation": "request_channel_announcement",
+    "backend_operation": "slack_announcement_request",
     "path_template": "/slack/channels/{channel_id}/announcements/request",
-    "output_shape": "announcement_preview",
+    "output_shape": "slack_announcement_request_result",
     "subject_kind": "slack_message",
     "context_type": "announcement_request",
     "output_intent": "announcement_preview",
@@ -726,6 +550,7 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "required": true,
         "summary": "Slack channel ID.",
         "default_value": "",
+        "semantic_type": "channel_ref",
         "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
         "entity_reference": true
       },
@@ -746,84 +571,50 @@ GENERATED_CAPABILITY_METADATA = json.loads(r'''[
         "summary": "Intended audience.",
         "default_value": "",
         "clarification_hint": "Ask for audience when it is missing or ambiguous."
+      },
+      {
+        "input_name": "backend_options",
+        "input_type": "object",
+        "required": false,
+        "summary": "Bounded Slack provider options such as formatting mode or unfurl posture. Must not bypass channel scope, approval, or send policy.",
+        "default_value": "",
+        "semantic_type": "backend_options",
+        "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls."
       }
     ],
     "sample_parameters": {
       "announcement": "announcement-value",
       "audience": "audience-value",
+      "backend_options": {},
       "channel_id": "channel_id-value"
     },
     "backend_input_mode": "explicit",
     "derived_required_backend_inputs": [],
     "derived_optional_backend_inputs": [],
-    "explicit_required_backend_inputs": [
-      "channel_id",
-      "announcement"
-    ],
-    "explicit_optional_backend_inputs": [
-      "audience"
-    ],
+    "explicit_required_backend_inputs": [],
+    "explicit_optional_backend_inputs": [],
     "backend_bindings": [
       {
         "backend_kind": "native_api",
-        "connection_ref": "slack_web_api",
+        "connection_ref": "slack_fronting",
         "raw_operation_refs": [
           "slack.web.request_channel_announcement"
         ],
         "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "announcement"
-        ],
-        "explicit_optional_backend_inputs": [
-          "audience"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-web-request_channel_announcement"
-        ],
-        "status": "ready",
-        "status_detail": "Native Slack Web API implementation seam."
-      },
-      {
-        "backend_kind": "mcp",
-        "connection_ref": "slack_mcp",
-        "raw_operation_refs": [
-          "slack.mcp.request_channel_announcement"
-        ],
-        "backend_input_mode": "explicit",
-        "explicit_required_backend_inputs": [
-          "channel_id",
-          "announcement"
-        ],
-        "explicit_optional_backend_inputs": [
-          "audience"
-        ],
-        "matched_discovery_record_ids": [
-          "slack-mcp-request_channel_announcement"
-        ],
-        "status": "candidate",
-        "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+        "status": "ready"
       }
     ],
     "governance": {
-      "approval_rule_refs": [
-        "approval.message_send_required"
-      ],
-      "denial_rule_refs": [
-        "deny.raw_export",
-        "deny.unapproved_send",
-        "deny.workspace_admin_bypass"
-      ],
+      "approval_rule_refs": [],
+      "denial_rule_refs": [],
       "clarification_rule_refs": [
-        "clarify.channel_id",
-        "clarify.announcement"
+        "missing_required_inputs"
       ],
       "audit_required": true
     },
     "outbound_controls": {
-      "block_private_channel_exfiltration": true,
-      "block_unbounded_payloads": true,
-      "redact_sensitive_values": true
+      "raw_backend_not_agent_visible": true,
+      "redaction_required": true
     }
   }
 ]
