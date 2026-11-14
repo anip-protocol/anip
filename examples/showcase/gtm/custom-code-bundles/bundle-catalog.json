@@ -11,7 +11,7 @@
       "language": "python",
       "target": "python",
       "path": "gtm_pipeline_python_native",
-      "bundle_tree_sha256": "sha256:4c7d8ffa416aa1db7988b71ffa6f0f68b9c5e6d7b85ce2265256ee1e8eae2b59",
+      "bundle_tree_sha256": "sha256:c4d1fa21c8eea12bb3500d965c3879c554f129736828236a628e58738e547aa7",
       "role": "native_language_parity"
     },
     {

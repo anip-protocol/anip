@@ -1,6 +1,6 @@
 {
   "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native",
-  "bundle_sha256": "sha256:4c7d8ffa416aa1db7988b71ffa6f0f68b9c5e6d7b85ce2265256ee1e8eae2b59",
+  "bundle_sha256": "sha256:c4d1fa21c8eea12bb3500d965c3879c554f129736828236a628e58738e547aa7",
   "files": [
     {
       "path": "README.md",
@@ -31,10 +31,10 @@
     },
     {
       "path": "src/gtm_pipeline_q2_review/backend_adapter.py",
-      "sha256": "sha256:c28d4b2c6c744b707e1a77a62c6edf0d1433c2b2bab3c32b20850b86d52834b6",
+      "sha256": "sha256:6aa3d4d283c2a053f04778f17babcf280c2d22a3584dc05b61dcdb11b74b3cd0",
       "seam": "backend_adapter",
       "mode": "extension_overlay",
-      "bytes": 40531,
+      "bytes": 42587,
       "overlaid": true,
       "substrate": false
     },

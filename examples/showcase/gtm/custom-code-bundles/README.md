@@ -35,7 +35,7 @@ go run ./cmd/anip generate \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native \
-  --verify-custom-code-bundle-digest sha256:4c7d8ffa416aa1db7988b71ffa6f0f68b9c5e6d7b85ce2265256ee1e8eae2b59 \
+  --verify-custom-code-bundle-digest sha256:c4d1fa21c8eea12bb3500d965c3879c554f129736828236a628e58738e547aa7 \
   --output /tmp/anip-gtm-python-native \
   --force
 ```
