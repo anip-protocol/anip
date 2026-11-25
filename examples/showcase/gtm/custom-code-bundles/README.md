@@ -19,8 +19,8 @@ Use these bundles for the generated GTM showcase services:
 - `gtm_pipeline_java_native`
 - `gtm_pipeline_csharp_native`
 
-The older proxy/reference bundles remain for historical comparison. They are not
-the language-parity release target.
+The older `gtm_pipeline_typescript_proxy` and `gtm_pipeline_python` bundles
+remain as reference material. They are not the language-parity release target.
 
 ## Local Generation
 
