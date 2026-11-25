@@ -658,7 +658,9 @@ jobs:
           done
 
   publish-showcase-docker:
-    needs: bump-and-validate
+    # The images install the ANIP packages from PyPI, so they must wait until
+    # this version is published there.
+    needs: [bump-and-validate, publish-python]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -679,6 +681,7 @@ jobs:
             echo "=== Building showcase-$app ==="
             docker build \
               --build-arg SHOWCASE_APP=$app \
+              --build-arg ANIP_VERSION="$VERSION" \
               -t anipprotocol/showcase-$app:"$VERSION" \
               -t anipprotocol/showcase-$app:latest \
               -f examples/showcase/Dockerfile \

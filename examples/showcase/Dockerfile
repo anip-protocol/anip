@@ -4,15 +4,20 @@ ARG SHOWCASE_APP=travel
 
 WORKDIR /app
 
+# The ANIP release to install. The release workflow passes the version it
+# just published, so an image never carries an older runtime than its tag.
+ARG ANIP_VERSION
+
 # Install ANIP packages from PyPI + server deps
+RUN test -n "$ANIP_VERSION" || { echo "ANIP_VERSION build arg is required (e.g. --build-arg ANIP_VERSION=0.24.20)"; exit 1; }
 RUN pip install --no-cache-dir \
-    anip-service \
-    anip-fastapi \
-    anip-rest \
-    anip-graphql \
-    anip-mcp \
-    anip-studio \
-    anip-stdio \
+    "anip-service==${ANIP_VERSION}" \
+    "anip-fastapi==${ANIP_VERSION}" \
+    "anip-rest==${ANIP_VERSION}" \
+    "anip-graphql==${ANIP_VERSION}" \
+    "anip-mcp==${ANIP_VERSION}" \
+    "anip-studio==${ANIP_VERSION}" \
+    "anip-stdio==${ANIP_VERSION}" \
     uvicorn httpx
 
 # Copy the showcase app

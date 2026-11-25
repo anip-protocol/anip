@@ -167,6 +167,7 @@ const sidebars: SidebarsConfig = {
         'releases/version-history',
         'releases/delegation-enforcement-0-24-18',
         'releases/mcp-bindings-0-24-19',
+        'releases/approval-policy-enforcement-0-24-20',
       ],
     },
   ],
