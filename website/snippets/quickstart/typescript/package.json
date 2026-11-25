@@ -6,8 +6,8 @@
     "start": "tsx app.ts"
   },
   "dependencies": {
-    "@anip-dev/hono": "0.24.19",
-    "@anip-dev/service": "0.24.19",
+    "@anip-dev/hono": "0.24.20",
+    "@anip-dev/service": "0.24.20",
     "@hono/node-server": "^1.13.0",
     "hono": "^4.6.0"
   },

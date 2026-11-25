@@ -116,7 +116,7 @@ Published to **Maven Central** under group `dev.anip`:
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.24.19</version>
+  <version>0.24.20</version>
 </dependency>
 ```
 
@@ -141,8 +141,8 @@ Published to **Maven Central** under group `dev.anip`:
 C# packages are published by the release workflow to **NuGet**:
 
 ```bash
-dotnet add package Anip.Service --version 0.24.19
-dotnet add package Anip.AspNetCore --version 0.24.19
+dotnet add package Anip.Service --version 0.24.20
+dotnet add package Anip.AspNetCore --version 0.24.20
 ```
 
 **All projects:** `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
