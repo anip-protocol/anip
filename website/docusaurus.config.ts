@@ -54,9 +54,9 @@ const config: Config = {
   ],
   themeConfig: {
     announcementBar: {
-      id: 'security-release-0-24-18',
+      id: 'direction-2026-11',
       content:
-        'Security release 0.24.18: upgrade if your ANIP service has more than one principal or capability. <a href="/docs/releases/delegation-enforcement-0-24-18">What changed</a> · <a href="/blog/delegation-enforcement-0-24-18">Why it happened</a>',
+        'ANIP\'s ideas are moving into MCP; the protocol receives security fixes only. <a href="https://github.com/anip-protocol/anip#direction-november-2026">What this means</a> · Latest security release: <a href="/docs/releases/approval-policy-enforcement-0-24-20">0.24.20</a>',
       isCloseable: true,
     },
     image: 'img/anip-social-card.png',

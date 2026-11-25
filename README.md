@@ -6,6 +6,20 @@ The value is not "agents can call APIs better." The value is "agents can reason 
 
 [anip.dev](https://anip.dev) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
 
+## Direction (November 2026)
+
+ANIP's ideas are moving into the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). ANIP will not keep growing as a separate protocol. The work now is:
+
+- **Tool annotations.** Bringing ANIP's reversibility window, cost and review reasons to MCP's tool annotation drafts.
+- **Refusals and approvals.** Proposing structured refusals (what was refused, how to recover, who can grant it) and approval grants bound to exact parameters as MCP extensions, with a reference implementation on the official MCP Python SDK.
+- **Conformance.** A harness that checks whether an MCP server's tools behave the way their annotations claim.
+
+For current users:
+
+- The ANIP packages, CLI, Studio and Registry stay available and receive **security fixes only**. No new features are planned.
+- Upgrade to [0.24.20](https://anip.dev/docs/releases/approval-policy-enforcement-0-24-20), the latest security release.
+- If you use ANIP or want to help with the MCP work, [open an issue](https://github.com/anip-protocol/anip/issues).
+
 ---
 
 ## Try ANIP Now
