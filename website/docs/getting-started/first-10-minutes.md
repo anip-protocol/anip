@@ -59,6 +59,10 @@ sequenceDiagram
   end
 ```
 
+:::warning Registry walkthrough paused
+The GTM package version these steps fetch from registry.anip.dev (`gtm-pipeline-q2-review@0.4.5`) no longer passes validation in the `anip` CLI 0.24.20 and later. It places policy rules on composed capabilities, which the CLI now refuses. The corrected package, 0.4.6, is in the repository at `examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json` but is not yet published to the Registry. Until it is, the Registry commands in steps 2 to 4 fail. You can still generate from the local 0.4.6 bundle with `anip generate --package-bundle`.
+:::
+
 ## 2. Inspect a real package
 
 Open the hosted Registry package list:
