@@ -54,7 +54,7 @@ class V023ApprovalGrantsTest {
                 new CapabilityOutput("object", List.of("status")),
                 new SideEffect("irreversible", "none"),
                 List.of("finance.transfer"),
-                null, null, List.of("sync"))
+                null, null, List.of("sync", "streaming"))
                 .setGrantPolicy(new GrantPolicy(
                         List.of("one_time", "session_bound"), "one_time", 600, 3));
     }
@@ -101,7 +101,7 @@ class V023ApprovalGrantsTest {
     private ApprovalRequest persistRequest(String id, GrantPolicy gp) throws Exception {
         ApprovalRequest req = new ApprovalRequest(
                 id, "transfer_funds", List.of("finance.transfer"),
-                Map.of("subject", "alice"), null,
+                Map.of("subject", "alice", "root_principal", "alice"), null,
                 Map.of(), V023.sha256Digest(Map.of()),
                 Map.of("amount", 100), V023.sha256Digest(Map.of("amount", 100)),
                 gp, ApprovalRequest.STATUS_PENDING, null, null,
@@ -163,7 +163,7 @@ class V023ApprovalGrantsTest {
         V023.ContinuationValidation cv = V023.validateContinuationGrant(
                 storage(), keys(), g.getGrantId(),
                 "transfer_funds", Map.of("amount", 100),
-                List.of("finance.transfer"), null, V023.utcNowIso());
+                List.of("finance.transfer"), null, "alice", V023.utcNowIso());
         assertNull(cv.failureType());
         assertNotNull(cv.grant());
     }
@@ -177,7 +177,7 @@ class V023ApprovalGrantsTest {
         V023.ContinuationValidation cv = V023.validateContinuationGrant(
                 storage(), keys(), g.getGrantId(),
                 "transfer_funds", Map.of("amount", 999),  // different param
-                List.of("finance.transfer"), null, V023.utcNowIso());
+                List.of("finance.transfer"), null, "alice", V023.utcNowIso());
         assertEquals(Constants.FAILURE_GRANT_PARAM_DRIFT, cv.failureType());
     }
 
@@ -191,13 +191,13 @@ class V023ApprovalGrantsTest {
         V023.ContinuationValidation cv = V023.validateContinuationGrant(
                 storage(), keys(), g.getGrantId(),
                 "transfer_funds", Map.of("amount", 100),
-                List.of("finance.transfer"), null, V023.utcNowIso());
+                List.of("finance.transfer"), null, "alice", V023.utcNowIso());
         assertEquals(Constants.FAILURE_GRANT_SESSION_INVALID, cv.failureType());
         // Token with WRONG session_id — same failure.
         cv = V023.validateContinuationGrant(
                 storage(), keys(), g.getGrantId(),
                 "transfer_funds", Map.of("amount", 100),
-                List.of("finance.transfer"), "sess-B", V023.utcNowIso());
+                List.of("finance.transfer"), "sess-B", "alice", V023.utcNowIso());
         assertEquals(Constants.FAILURE_GRANT_SESSION_INVALID, cv.failureType());
     }
 
@@ -211,8 +211,59 @@ class V023ApprovalGrantsTest {
         V023.ContinuationValidation cv = V023.validateContinuationGrant(
                 storage(), keys(), g.getGrantId(),
                 "transfer_funds", Map.of("amount", 100),
-                List.of("other.scope"), null, V023.utcNowIso());
+                List.of("other.scope"), null, "alice", V023.utcNowIso());
         assertEquals(Constants.FAILURE_GRANT_SCOPE_MISMATCH, cv.failureType());
+    }
+
+    @Test
+    void validateContinuationGrantRequesterMismatchAfterCapabilityBeforeScope() throws Exception {
+        persistRequest("apr_rq", new GrantPolicy(
+                List.of("one_time"), "one_time", 600, 1));
+        ApprovalGrant g = service.issueApprovalGrant("apr_rq", "one_time",
+                Map.of("subject", "ap"), null, null, null);
+        // SPEC.md §4.8 step 5: after the capability check, before the scope check.
+        V023.ContinuationValidation cv = V023.validateContinuationGrant(
+                storage(), keys(), g.getGrantId(),
+                "other_capability", Map.of("amount", 100),
+                List.of("finance.transfer"), null, "bob", V023.utcNowIso());
+        assertEquals(Constants.FAILURE_GRANT_CAPABILITY_MISMATCH, cv.failureType());
+        cv = V023.validateContinuationGrant(
+                storage(), keys(), g.getGrantId(),
+                "transfer_funds", Map.of("amount", 100),
+                List.of("other.scope"), null, "bob", V023.utcNowIso());
+        assertEquals(Constants.FAILURE_GRANT_REQUESTER_MISMATCH, cv.failureType());
+    }
+
+    @Test
+    void anotherPrincipalCannotRedeemAndTheGrantIsNotSpent() throws Exception {
+        DelegationToken alice = service.resolveBearerToken(service.issueCapabilityToken(
+                "alice", "transfer_funds", List.of("finance.transfer")).getToken());
+        Map<String, Object> params = new HashMap<>();
+        params.put("amount", 100);
+        params.put("__force_approval", true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> approval = (Map<String, Object>) ((Map<String, Object>)
+                service.invoke("transfer_funds", alice, params, null).get("failure")).get("approval_required");
+        String aprId = (String) approval.get("approval_request_id");
+        ApprovalRequest stored = storage().getApprovalRequest(aprId).orElseThrow();
+        assertEquals("alice", stored.getRequester().get("root_principal"));
+        ApprovalGrant g = service.issueApprovalGrant(aprId, "one_time",
+                Map.of("subject", "ap"), null, null, null);
+
+        DelegationToken bob = service.resolveBearerToken(service.issueCapabilityToken(
+                "bob", "transfer_funds", List.of("finance.transfer")).getToken());
+        Map<String, Object> refused = service.invoke("transfer_funds", bob, params,
+                new InvokeOpts().setApprovalGrant(g.getGrantId()));
+        assertEquals(false, refused.get("success"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> failure = (Map<String, Object>) refused.get("failure");
+        assertEquals(Constants.FAILURE_GRANT_REQUESTER_MISMATCH, failure.get("type"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resolution = (Map<String, Object>) failure.get("resolution");
+        assertEquals("contact_service_owner", resolution.get("action"));
+        assertEquals("terminal", resolution.get("recovery_class"));
+        assertEquals(0, storage().getGrant(g.getGrantId()).orElseThrow().getUseCount());
+        assertEquals(403, Constants.failureStatusCode(Constants.FAILURE_GRANT_REQUESTER_MISMATCH));
     }
 
     @Test
@@ -263,7 +314,7 @@ class V023ApprovalGrantsTest {
         // continuation submission ({amount:100}).
         ApprovalRequest req2 = new ApprovalRequest(
                 "apr_e2e", "transfer_funds", List.of("finance.transfer"),
-                Map.of("subject", "alice"), failResp.get("invocation_id").toString(),
+                Map.of("subject", "alice", "root_principal", "alice"), failResp.get("invocation_id").toString(),
                 Map.of(), V023.sha256Digest(Map.of()),
                 Map.of("amount", 100), V023.sha256Digest(Map.of("amount", 100)),
                 new GrantPolicy(List.of("one_time"), "one_time", 600, 1),
@@ -356,5 +407,142 @@ class V023ApprovalGrantsTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> endpoints = (Map<String, Object>) doc.get("endpoints");
         assertEquals("/anip/approval_grants", endpoints.get("approval_grants"));
+    }
+
+    // --- Blank grants, resolution and retry ---
+
+    private DelegationToken aliceToken() throws Exception {
+        TokenResponse tok = service.issueToken("alice", new dev.anip.core.TokenRequest(
+                "alice", List.of("finance.transfer"), "transfer_funds", null, null, 1, null));
+        return service.resolveBearerToken(tok.getToken());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> failureOf(Map<String, Object> response) {
+        assertEquals(false, response.get("success"), "expected a failure: " + response);
+        return (Map<String, Object>) response.get("failure");
+    }
+
+    @Test
+    void blankSuppliedGrantIsNotFoundBeforeTheHandler() throws Exception {
+        // A supplied approval_grant is always validated. A blank one names no
+        // grant, whether or not the invocation would have needed approval.
+        DelegationToken token = aliceToken();
+        for (String grant : List.of("", "   ", "\t\n")) {
+            for (boolean needsApproval : List.of(true, false)) {
+                Map<String, Object> params = new HashMap<>();
+                params.put("amount", 100);
+                params.put("__force_approval", needsApproval);
+                Map<String, Object> failure = failureOf(service.invoke(
+                        "transfer_funds", token, params, new InvokeOpts().setApprovalGrant(grant)));
+                assertEquals(Constants.FAILURE_GRANT_NOT_FOUND, failure.get("type"));
+                assertNull(failure.get("approval_required"));
+                Map<String, Object> resolution = (Map<String, Object>) failure.get("resolution");
+                assertNotNull(resolution, "grant failures carry a resolution");
+                assertEquals("contact_service_owner", resolution.get("action"));
+                assertEquals("terminal", resolution.get("recovery_class"));
+            }
+        }
+    }
+
+    @Test
+    void blankSuppliedGrantIsNotFoundOnTheStreamingPath() throws Exception {
+        DelegationToken token = aliceToken();
+        ANIPError error = assertThrows(ANIPError.class, () -> service.invokeStream(
+                "transfer_funds", token, Map.of("amount", 100),
+                new InvokeOpts().setApprovalGrant(" ")));
+        assertEquals(Constants.FAILURE_GRANT_NOT_FOUND, error.getErrorType());
+        assertNotNull(error.getResolution());
+        assertEquals("terminal", error.getResolution().getRecoveryClass());
+    }
+
+    @Test
+    void approvalGrantFromRequestKeepsAbsentAndSuppliedApart() {
+        assertNull(InvokeOpts.approvalGrantFromRequest(null));
+        assertEquals("", InvokeOpts.approvalGrantFromRequest(""));
+        assertEquals("grant_1", InvokeOpts.approvalGrantFromRequest("grant_1"));
+        assertEquals("", InvokeOpts.approvalGrantFromRequest(7));
+    }
+
+    @Test
+    void unknownGrantFailureCarriesResolution() throws Exception {
+        // SPEC.md §4.5: every failure carries a resolution with a recovery_class.
+        Map<String, Object> failure = failureOf(service.invoke(
+                "transfer_funds", aliceToken(), Map.of("amount", 100),
+                new InvokeOpts().setApprovalGrant("grant_missing")));
+        assertEquals(Constants.FAILURE_GRANT_NOT_FOUND, failure.get("type"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resolution = (Map<String, Object>) failure.get("resolution");
+        assertNotNull(resolution);
+        assertEquals("terminal", resolution.get("recovery_class"));
+    }
+
+    @Test
+    void approvalRequiredCarriesRetryFalse() throws Exception {
+        // SPEC.md §4.7: the approval_required failure carries retry: false.
+        Map<String, Object> params = new HashMap<>();
+        params.put("amount", 100);
+        params.put("__force_approval", true);
+        Map<String, Object> failure = failureOf(service.invoke(
+                "transfer_funds", aliceToken(), params, null));
+        assertEquals(Constants.FAILURE_APPROVAL_REQUIRED, failure.get("type"));
+        assertEquals(false, failure.get("retry"));
+    }
+
+    /**
+     * SPEC.md §4.7: when the ApprovalRequest cannot be persisted the failure
+     * is {@code service_unavailable} (HTTP 503), not {@code approval_required}.
+     */
+    @Test
+    void approvalRequestPersistFailureIsServiceUnavailable() throws Exception {
+        TokenResponse tok = service.issueToken("alice", new dev.anip.core.TokenRequest(
+                "alice", List.of("finance.transfer"), "transfer_funds", null, null, 1, null));
+        DelegationToken token = service.resolveBearerToken(tok.getToken());
+
+        var field = ANIPService.class.getDeclaredField("storage");
+        field.setAccessible(true);
+        dev.anip.server.Storage real = (dev.anip.server.Storage) field.get(service);
+        dev.anip.server.Storage failing = (dev.anip.server.Storage) java.lang.reflect.Proxy.newProxyInstance(
+                dev.anip.server.Storage.class.getClassLoader(),
+                new Class<?>[] {dev.anip.server.Storage.class},
+                (proxy, method, args) -> {
+                    if ("storeApprovalRequest".equals(method.getName())) {
+                        throw new IllegalStateException("storage is down");
+                    }
+                    try {
+                        return method.invoke(real, args);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+        field.set(service, failing);
+        Map<String, Object> response;
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("amount", 100);
+            params.put("__force_approval", true);
+            response = service.invoke("transfer_funds", token, params, null);
+        } finally {
+            field.set(service, real);
+        }
+
+        assertEquals(false, response.get("success"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> failure = (Map<String, Object>) response.get("failure");
+        assertEquals(Constants.FAILURE_SERVICE_UNAVAILABLE, failure.get("type"));
+        assertEquals("service_unavailable", failure.get("type"));
+        assertEquals(503, Constants.failureStatusCode((String) failure.get("type")));
+        assertFalse(failure.containsKey("approval_required"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resolution = (Map<String, Object>) failure.get("resolution");
+        assertEquals("wait_and_retry", resolution.get("action"));
+        assertEquals("wait_then_retry", resolution.get("recovery_class"));
+        assertEquals(true, failure.get("retry"));
+
+        List<AuditEntry> entries = storage().queryAuditEntries(new AuditFilters(
+                null, null, null, (String) response.get("invocation_id"), null, null, null, 10));
+        assertEquals(1, entries.size());
+        assertEquals("service_unavailable", entries.get(0).getFailureType());
+        assertNull(entries.get(0).getApprovalRequestId());
     }
 }

@@ -30,8 +30,12 @@ func FailureResponse(anipErr *core.ANIPError) (int, map[string]any) {
 }
 
 // SimpleFailureResponse formats a simple failure as (statusCode, responseBody).
+// A nil resolution is replaced by the failure type's default resolution.
 func SimpleFailureResponse(failureType, detail string, resolution *core.Resolution) (int, map[string]any) {
 	status := core.FailureStatusCode(failureType)
+	if resolution == nil {
+		resolution = DefaultResolution(failureType)
+	}
 	resp := map[string]any{
 		"success": false,
 		"failure": BuildFailureBody(failureType, detail, resolution, false),
@@ -56,7 +60,7 @@ func AuthFailureTokenEndpoint() (int, map[string]any) {
 			"retry": true,
 		},
 	}
-	return 401, resp
+	return core.FailureStatusCode(core.FailureAuthRequired), resp
 }
 
 // AuthFailureJWTEndpoint returns the standard 401 for missing JWT on protected routes.
@@ -76,7 +80,7 @@ func AuthFailureJWTEndpoint() (int, map[string]any) {
 			"retry": true,
 		},
 	}
-	return 401, resp
+	return core.FailureStatusCode(core.FailureAuthRequired), resp
 }
 
 // BuildFailureBody builds the failure body map used in ANIP error responses.
@@ -106,6 +110,10 @@ func BuildFailureBody(failureType, detail string, resolution *core.Resolution, r
 	return body
 }
 
+// InvalidRequestRequires is what the default invalid_parameters resolution
+// asks for when the request itself (its body) is at fault.
+const InvalidRequestRequires = "a JSON request body that matches the endpoint's contract"
+
 // DefaultResolution returns a default resolution for known failure types.
 func DefaultResolution(failureType string) *core.Resolution {
 	switch failureType {
@@ -127,6 +135,15 @@ func DefaultResolution(failureType string) *core.Resolution {
 			RecoveryClass: core.RecoveryClassForAction("check_manifest"),
 			Requires:      "Valid capability name from GET /anip/manifest",
 		}
+	case core.FailureStreamingNotSupported:
+		// The manifest says which response modes a capability supports.
+		return &core.Resolution{
+			Action:        "check_manifest",
+			RecoveryClass: core.RecoveryClassForAction("check_manifest"),
+		}
+	case core.FailureInvalidParameters:
+		// SPEC.md §6.3: the caller corrects the request and sends it again.
+		return core.InvalidParametersResolution(InvalidRequestRequires)
 	default:
 		return &core.Resolution{
 			Action:        "contact_service_owner",

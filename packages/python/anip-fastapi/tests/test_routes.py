@@ -383,6 +383,15 @@ class TestAuthErrors:
         assert data["failure"]["resolution"]["action"] == "provide_credentials"
         assert data["failure"]["retry"] is True
 
+    def test_token_endpoint_with_an_unrecognised_credential_is_authentication_required(self, client):
+        # SPEC.md §6.3 Token Issuance: like no credential at all.
+        resp = client.post("/anip/tokens", json={"scope": ["greet"]},
+                           headers={"Authorization": "Bearer not-a-known-credential"})
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "provide_credentials"
+
     def test_invoke_without_auth_returns_anip_failure(self, client):
         resp = client.post("/anip/invoke/greet", json={"parameters": {"name": "X"}})
         assert resp.status_code == 401

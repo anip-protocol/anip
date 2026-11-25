@@ -1,5 +1,7 @@
 package generator
 
+import "encoding/json"
+
 type DependencySource string
 
 const (
@@ -155,6 +157,11 @@ type GrantPolicy struct {
 	MaxUses           int      `json:"max_uses"`
 }
 
+// CapabilityInputFormalization is one declared input of a service definition.
+//
+// Required defaults to true (SPEC.md §4.1): decoding applies the default
+// (UnmarshalJSON below) and encoding always writes the member. Go code states
+// Required explicitly, because a struct literal leaves an unset bool false.
 type CapabilityInputFormalization struct {
 	InputName         string                      `json:"input_name"`
 	InputType         string                      `json:"input_type"`
@@ -171,6 +178,29 @@ type CapabilityInputFormalization struct {
 	Resolution        *InputResolutionMetadata    `json:"resolution,omitempty"`
 	SemanticAliases   []string                    `json:"semantic_aliases,omitempty"`
 	InputMeanings     []InputMeaningFormalization `json:"input_meanings,omitempty"`
+}
+
+// UnmarshalJSON decodes a declared input and applies the SPEC.md §4.1
+// default: required is true when the member is absent or null.
+func (c *CapabilityInputFormalization) UnmarshalJSON(data []byte) error {
+	type plain CapabilityInputFormalization
+	raw := struct {
+		*plain
+		Required *bool `json:"required"`
+	}{plain: (*plain)(c)}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	c.Required = raw.Required == nil || *raw.Required
+	return nil
+}
+
+// InputRequired reports whether a declared input read as a JSON object is
+// required. SPEC.md §4.1: required defaults to true, so only an explicit
+// false makes an input optional.
+func InputRequired(input map[string]any) bool {
+	required, stated := input["required"].(bool)
+	return !stated || required
 }
 
 type InputResolutionMetadata struct {

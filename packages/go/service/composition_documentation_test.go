@@ -220,7 +220,7 @@ func docAtomicDecl(name, input string, fields []string) *core.CapabilityDeclarat
 	return &core.CapabilityDeclaration{
 		Name:         name,
 		Description:  "fixture for " + name,
-		Inputs:       []core.CapabilityInput{{Name: input, Type: "string"}},
+		Inputs:       []core.CapabilityInput{{Name: input, Type: "string", Required: true}},
 		Output:       core.CapabilityOutput{Type: "x", Fields: fields},
 		SideEffect:   core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
 		MinimumScope: []string{"gtm"},
@@ -239,7 +239,7 @@ func docParentDecl(name string, comp *core.Composition) *core.CapabilityDeclarat
 	return &core.CapabilityDeclaration{
 		Name:         name,
 		Description:  "documented composed capability",
-		Inputs:       []core.CapabilityInput{{Name: "quarter", Type: "string"}},
+		Inputs:       []core.CapabilityInput{{Name: "quarter", Type: "string", Required: true}},
 		Output:       core.CapabilityOutput{Type: "accounts", Fields: []string{"accounts"}},
 		SideEffect:   core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
 		MinimumScope: []string{"gtm"},

@@ -54,8 +54,11 @@ The conformance suite is a set of HTTP tests that run against any ANIP service, 
 pip install -e ./conformance
 pytest conformance/ --base-url=http://localhost:9100 \
   --bootstrap-bearer=demo-human-key \
+  --other-bootstrap-bearer=demo-agent-key \
   --sample-inputs=conformance/samples/flight-service.json
 ```
+
+`--other-bootstrap-bearer` is a credential of a second principal. The approval tests use it to check that a grant cannot be redeemed by another principal; without it, those tests skip.
 
 What it covers, and what it does not yet cover, is listed in the [Spec's status table](SPEC.md#13-roadmap-v01--v1).
 

@@ -94,6 +94,10 @@ type InvokeOpts struct {
 	// ApprovalGrant is a previously-issued grant_id presented as a
 	// continuation. v0.23 §4.8. Empty when the call is not a continuation.
 	ApprovalGrant string
+	// ApprovalGrantSupplied is true when the request carried an
+	// approval_grant member at all, even an empty one. A supplied grant is
+	// always validated: a blank one is refused with grant_not_found.
+	ApprovalGrantSupplied bool
 	// RequestedEffects is a caller-supplied list of canonical business effect
 	// ids the caller is asking this capability to produce.
 	RequestedEffects []string

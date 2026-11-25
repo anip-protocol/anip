@@ -413,11 +413,11 @@ class ApprovalGrant(BaseModel):
 
 class IssueApprovalGrantRequest(BaseModel):
     """Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
-    approval_request_id: str
+    approval_request_id: str = Field(min_length=1)
     grant_type: GrantType
-    session_id: str | None = None
-    expires_in_seconds: int | None = None
-    max_uses: int | None = None
+    session_id: str | None = Field(default=None, min_length=1)
+    expires_in_seconds: int | None = Field(default=None, ge=1)
+    max_uses: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def _validate_grant_type_invariants(self) -> "IssueApprovalGrantRequest":

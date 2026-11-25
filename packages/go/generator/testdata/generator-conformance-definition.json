@@ -296,7 +296,7 @@
       "business_area": "change",
       "business_area_label": "Change",
       "service_ids": ["generator-conformance-service"],
-      "capability_ids": ["conformance.prepare_change", "conformance.lookup_and_prepare"],
+      "capability_ids": ["conformance.prepare_change"],
       "decision": "deny",
       "business_rule": "Analysts cannot prepare changes."
     },
@@ -310,9 +310,93 @@
       "business_area": "change",
       "business_area_label": "Change",
       "service_ids": ["generator-conformance-service"],
-      "capability_ids": ["conformance.prepare_change", "conformance.lookup_and_prepare"],
+      "capability_ids": ["conformance.prepare_change"],
       "decision": "approval_required",
       "business_rule": "Managers require approval before changes execute."
+    },
+    {
+      "id": "manager-read",
+      "actor_id": "manager",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "manager"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "allow",
+      "business_rule": "Managers can read records."
+    },
+    {
+      "id": "contractor-read",
+      "actor_id": "contractor",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "contractor"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "allow_with_limits",
+      "business_rule": "Contractors were once allowed bounded reads."
+    },
+    {
+      "id": "contractor-no-read",
+      "actor_id": "contractor",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "contractor"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "deny",
+      "business_rule": "Contractors cannot read records."
+    },
+    {
+      "id": "contractor-change",
+      "actor_id": "contractor",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "contractor"
+      },
+      "business_area": "change",
+      "business_area_label": "Change",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.prepare_change"],
+      "decision": "allow",
+      "business_rule": "Contractors may prepare changes once approved."
+    },
+    {
+      "id": "intern-clarify",
+      "actor_id": "intern",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "intern"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "clarify",
+      "business_rule": "Interns must say which team they read for."
+    },
+    {
+      "id": "auditor-unrecognised",
+      "actor_id": "auditor",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "auditor"
+      },
+      "business_area": "lookup",
+      "business_area_label": "Lookup",
+      "service_ids": ["generator-conformance-service"],
+      "capability_ids": ["conformance.lookup"],
+      "decision": "review_later",
+      "business_rule": "A decision the generated host does not recognise."
     }
   ],
   "integration_fronting": {

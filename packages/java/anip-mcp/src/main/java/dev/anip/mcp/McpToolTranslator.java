@@ -24,6 +24,10 @@ public class McpToolTranslator {
             "integer", "integer",
             "number", "number",
             "boolean", "boolean",
+            // The service checks these two against the JSON type (SPEC.md §6.3),
+            // so the schema must not ask for a string.
+            "array", "array",
+            "object", "object",
             "date", "string",
             "airport_code", "string"
     );
@@ -87,7 +91,9 @@ public class McpToolTranslator {
 
                 properties.put(input.getName(), prop);
 
-                if (input.isRequired()) {
+                // An input that declares resolution.on_missing is not demanded
+                // of the caller (SPEC.md §6.3): the service answers when it is absent.
+                if (input.mustBeSupplied()) {
                     required.add(input.getName());
                 }
             }

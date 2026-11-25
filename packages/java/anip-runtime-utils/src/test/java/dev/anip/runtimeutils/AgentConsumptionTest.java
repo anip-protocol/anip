@@ -79,6 +79,22 @@ class AgentConsumptionTest {
         return (List<Map<String, Object>>) value;
     }
 
+    /** SPEC.md §4.1: an input spec that does not state `required` is required. */
+    @Test
+    void inputSpecWithoutRequiredIsRequired() {
+        Map<String, Object> stated = Map.of("input_specs", List.of(
+                Map.of("name", "record_ref", "type", "string", "required", true),
+                Map.of("name", "note", "type", "string", "required", false)));
+        Map<String, Object> unstated = Map.of("input_specs", List.of(
+                Map.of("name", "record_ref", "type", "string"),
+                Map.of("name", "note", "type", "string", "required", false)));
+
+        assertEquals(List.of("record_ref"),
+                AgentConsumption.missingRequiredInputNames("draft something", stated));
+        assertEquals(List.of("record_ref"),
+                AgentConsumption.missingRequiredInputNames("draft something", unstated));
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Map<String, Object>> metadataByCapability(Object value) {
         return (Map<String, Map<String, Object>>) value;

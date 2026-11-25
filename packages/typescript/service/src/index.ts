@@ -20,6 +20,7 @@ export {
   FAILURE_GRANT_PARAM_DRIFT,
   FAILURE_GRANT_SCOPE_MISMATCH,
   FAILURE_GRANT_SESSION_INVALID,
+  FAILURE_GRANT_REQUESTER_MISMATCH,
   FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
   canonicalJson,
   executeComposition,
@@ -36,6 +37,17 @@ export {
   verifyGrantSignature,
 } from "./v023.js";
 export type { InvokeStepFn } from "./v023.js";
+export {
+  INVALID_PARAMETERS_RESOLUTION,
+  PRIMITIVE_INPUT_TYPES,
+  checkDeclaredInputs,
+  declaresOnMissing,
+  invalidParametersFailure,
+  isRequiredInput,
+  jsonTypeOf,
+  mustBeSupplied,
+} from "./input-validation.js";
+export type { DeclaredInput, JsonTypeName, PrimitiveInputType } from "./input-validation.js";
 export type {
   ANIPHooks,
   LoggingHooks,

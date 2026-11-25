@@ -186,8 +186,10 @@ func BuildSchema(svc *service.Service, resolverFactory func(capName string) grap
 			argName := ToCamelCase(inp.Name)
 			gqlTypeName := anipTypeToGraphQL(inp.Type)
 			gqlType := graphqlScalarType(gqlTypeName)
+			// An input that declares resolution.on_missing is left to the
+			// service when absent (SPEC.md §6.3), so the argument stays nullable.
 			var argType graphql.Input
-			if inp.Required {
+			if inp.MustBeSupplied() {
 				argType = graphql.NewNonNull(gqlType)
 			} else {
 				argType = gqlType
@@ -335,7 +337,7 @@ func buildSDLArgs(decl *core.CapabilityDeclaration) string {
 	for _, inp := range decl.Inputs {
 		argName := ToCamelCase(inp.Name)
 		gqlType := anipTypeToGraphQL(inp.Type)
-		if inp.Required {
+		if inp.MustBeSupplied() {
 			gqlType += "!"
 		}
 		args = append(args, fmt.Sprintf("%s: %s", argName, gqlType))

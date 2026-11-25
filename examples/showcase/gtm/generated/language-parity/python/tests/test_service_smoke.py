@@ -1,4 +1,5 @@
 import importlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,10 +7,10 @@ from fastapi.testclient import TestClient
 from gtm_pipeline_q2_review.runtime_target import GENERATED_CAPABILITY_METADATA
 
 SERVICE_MODULES = [
-    {"service_id": "gtm-pipeline-service", "module": "gtm_pipeline_q2_review.app", "capabilities": ["gtm.pipeline_summary", "gtm.pipeline_forecast_summary", "gtm.stage_bottleneck_summary", "gtm.sales_team_performance_summary", "gtm.product_pipeline_summary", "gtm.stalled_opportunity_review", "gtm.account_risk_summary", "gtm.prepare_followup_tasks", "gtm.prepare_reassignment_plan", "gtm.at_risk_followup_preparation", "gtm.at_risk_reassignment_preparation"]},
-    {"service_id": "gtm-enrichment-service", "module": "gtm_pipeline_q2_review.services.gtm_enrichment_service.app", "capabilities": ["gtm.account_enrichment_summary", "gtm.lookalike_accounts", "gtm.at_risk_account_enrichment_summary"]},
-    {"service_id": "gtm-prioritization-service", "module": "gtm_pipeline_q2_review.services.gtm_prioritization_service.app", "capabilities": ["gtm.score_leads", "gtm.prioritize_accounts", "gtm.route_leads", "gtm.prioritized_routing_preparation"]},
-    {"service_id": "gtm-outreach-service", "module": "gtm_pipeline_q2_review.services.gtm_outreach_service.app", "capabilities": ["gtm.draft_outreach_message", "gtm.suggest_followup_content", "gtm.objection_response_variants", "gtm.prioritized_outreach_draft", "gtm.bottleneck_account_outreach_draft"]},
+    {"service_id": "gtm-pipeline-service", "module": "gtm_pipeline_q2_review.app", "capabilities": ["gtm.pipeline_summary", "gtm.pipeline_forecast_summary", "gtm.stage_bottleneck_summary", "gtm.sales_team_performance_summary", "gtm.product_pipeline_summary", "gtm.stalled_opportunity_review", "gtm.account_risk_summary", "gtm.prepare_followup_tasks", "gtm.prepare_reassignment_plan", "gtm.at_risk_followup_preparation", "gtm.at_risk_reassignment_preparation"], "principal": "human:smoke-test|actor_id=sales_leader", "expect": "success"},
+    {"service_id": "gtm-enrichment-service", "module": "gtm_pipeline_q2_review.services.gtm_enrichment_service.app", "capabilities": ["gtm.account_enrichment_summary", "gtm.lookalike_accounts", "gtm.at_risk_account_enrichment_summary"], "principal": "human:local-developer", "expect": "success"},
+    {"service_id": "gtm-prioritization-service", "module": "gtm_pipeline_q2_review.services.gtm_prioritization_service.app", "capabilities": ["gtm.score_leads", "gtm.prioritize_accounts", "gtm.route_leads", "gtm.prioritized_routing_preparation"], "principal": "human:local-developer", "expect": "success"},
+    {"service_id": "gtm-outreach-service", "module": "gtm_pipeline_q2_review.services.gtm_outreach_service.app", "capabilities": ["gtm.draft_outreach_message", "gtm.suggest_followup_content", "gtm.objection_response_variants", "gtm.prioritized_outreach_draft", "gtm.bottleneck_account_outreach_draft"], "principal": "human:smoke-test|actor_id=sales_leader", "expect": "success"},
 ]
 
 def _capability_map(payload: dict) -> dict:
@@ -25,7 +26,7 @@ def _capability_map(payload: dict) -> dict:
 def _issue_token(client: TestClient, capability_id: str, scope: list[str]) -> str:
     response = client.post(
         "/anip/tokens",
-        headers={"Authorization": "Bearer dev-admin-key"},
+        headers={"Authorization": "Bearer smoke-test-key"},
         json={
             "capability": capability_id,
             "scope": scope,
@@ -44,7 +45,10 @@ def _minimum_scope(client: TestClient, capability_id: str, fallback: list[str]) 
     return capability.get('minimum_scope') or fallback
 
 @pytest.mark.parametrize('service', SERVICE_MODULES)
-def test_generated_service_discovery_and_invoke(service: dict[str, object]) -> None:
+def test_generated_service_discovery_and_invoke(service: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:
+    # Invoke as the principal the generated policy lets reach the backend, if any;
+    # the generator recorded the outcome its policy gives that principal.
+    monkeypatch.setenv('ANIP_API_KEYS_JSON', json.dumps({'smoke-test-key': service['principal']}))
     module = importlib.import_module(str(service['module']))
     client = TestClient(module.create_app())
     discovery = client.get('/.well-known/anip')
@@ -59,7 +63,11 @@ def test_generated_service_discovery_and_invoke(service: dict[str, object]) -> N
         headers={"Authorization": f"Bearer {token}"},
         json={"parameters": capability["sample_parameters"]},
     )
-    assert invoke.status_code == 200
     payload = invoke.json()
-    assert payload["success"] is True
-    assert payload["result"]["execution_status"]
+    if service['expect'] == 'success':
+        assert invoke.status_code == 200
+        assert payload["success"] is True
+        assert payload["result"]["execution_status"]
+    else:
+        assert payload["success"] is False
+        assert payload["failure"]["type"] == service['expect']

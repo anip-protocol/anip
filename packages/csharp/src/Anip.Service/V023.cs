@@ -59,29 +59,210 @@ public static class V023
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Serializes a value with recursively sorted keys, no whitespace.
-    /// Matches Python's <c>json.dumps(value, sort_keys=True, separators=(",", ":"))</c>
-    /// byte-for-byte and TS / Go / Java <c>canonicalJson</c> — load-bearing for
-    /// cross-runtime grant verification.
+    /// Canonical JSON of a value: RFC 8785, the JSON Canonicalization Scheme
+    /// (SPEC.md §4.7). Object members are sorted by the UTF-16 code units of
+    /// their names, there is no whitespace, strings escape only what RFC 8785
+    /// §3.2.2.2 requires, and every number is an IEEE 754 double written the
+    /// way ECMAScript's <c>Number.prototype.toString</c> writes it, so
+    /// <c>5</c>, <c>5.0</c> and <c>5e0</c> are the same text. The approval
+    /// digests are computed over the UTF-8 bytes of this string.
     /// </summary>
+    /// <exception cref="ArgumentException">A number is not finite as a double.</exception>
     public static string CanonicalJson(object? value)
     {
         var sb = new StringBuilder();
-        CanonicalEncode(sb, Normalize(value));
+        WriteCanonical(sb, ToJsonElement(value));
         return sb.ToString();
     }
 
-    private static object? Normalize(object? value)
+    /// <summary>
+    /// The value as parsed JSON. A <see cref="JsonElement"/> is used as it is;
+    /// anything else (CLR values, dictionaries holding JsonElements, typed
+    /// objects) is serialised by its JSON names first.
+    /// </summary>
+    private static JsonElement ToJsonElement(object? value)
     {
-        if (value == null) return null;
-        // Roundtrip through STJ to canonicalise property names + collapse types
-        // into JsonElement-friendly primitives.
-        var json = JsonSerializer.Serialize(value, s_serializer);
-        using var doc = JsonDocument.Parse(json);
-        return ToCanonicalNode(doc.RootElement.Clone());
+        if (value is JsonElement element)
+        {
+            return element;
+        }
+        return JsonSerializer.SerializeToElement(value, s_serializer);
     }
 
-    private static object? ToCanonicalNode(JsonElement el)
+    private static void WriteCanonical(StringBuilder sb, JsonElement el)
+    {
+        switch (el.ValueKind)
+        {
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                sb.Append("null");
+                return;
+            case JsonValueKind.True:
+                sb.Append("true");
+                return;
+            case JsonValueKind.False:
+                sb.Append("false");
+                return;
+            case JsonValueKind.String:
+                WriteCanonicalString(sb, el.GetString()!);
+                return;
+            case JsonValueKind.Number:
+                // Every number is a double first: the value, not the text the
+                // client wrote, and not a 64-bit integer.
+                if (!el.TryGetDouble(out var number) || !double.IsFinite(number))
+                {
+                    throw new ArgumentException(
+                        $"canonical JSON: {el.GetRawText()} is not a finite IEEE 754 double");
+                }
+                sb.Append(FormatEcmaScriptNumber(number));
+                return;
+            case JsonValueKind.Array:
+                {
+                    sb.Append('[');
+                    var first = true;
+                    foreach (var item in el.EnumerateArray())
+                    {
+                        if (!first) sb.Append(',');
+                        first = false;
+                        WriteCanonical(sb, item);
+                    }
+                    sb.Append(']');
+                    return;
+                }
+            case JsonValueKind.Object:
+                {
+                    // string.CompareOrdinal compares UTF-16 code units, which is
+                    // the order RFC 8785 §3.2.3 asks for. A repeated name keeps
+                    // its last value.
+                    var members = new SortedDictionary<string, JsonElement>(StringComparer.Ordinal);
+                    foreach (var prop in el.EnumerateObject())
+                    {
+                        members[prop.Name] = prop.Value;
+                    }
+                    sb.Append('{');
+                    var first = true;
+                    foreach (var member in members)
+                    {
+                        if (!first) sb.Append(',');
+                        first = false;
+                        WriteCanonicalString(sb, member.Key);
+                        sb.Append(':');
+                        WriteCanonical(sb, member.Value);
+                    }
+                    sb.Append('}');
+                    return;
+                }
+            default:
+                throw new ArgumentException($"canonical JSON: unsupported value kind {el.ValueKind}");
+        }
+    }
+
+    /// <summary>
+    /// RFC 8785 §3.2.2.2: only <c>"</c>, <c>\</c> and U+0000..U+001F are
+    /// escaped; every other character, non-ASCII included, is written as it is.
+    /// </summary>
+    private static void WriteCanonicalString(StringBuilder sb, string value)
+    {
+        sb.Append('"');
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\b': sb.Append("\\b"); break;
+                case '\t': sb.Append("\\t"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\f': sb.Append("\\f"); break;
+                case '\r': sb.Append("\\r"); break;
+                default:
+                    if (c < 0x20)
+                    {
+                        sb.Append("\\u00");
+                        sb.Append(((int)c).ToString("x2", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+                    break;
+            }
+        }
+        sb.Append('"');
+    }
+
+    /// <summary>
+    /// A finite double as ECMAScript's <c>Number.prototype.toString</c> writes
+    /// it (RFC 8785 §3.2.2.3): the shortest digits that round-trip, plain
+    /// decimal notation for 1e-6 &lt;= |x| &lt; 1e21, exponent notation
+    /// (<c>1e+21</c>, <c>1.5e-7</c>) otherwise, and <c>-0</c> as <c>0</c>.
+    /// </summary>
+    internal static string FormatEcmaScriptNumber(double value)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new ArgumentException("canonical JSON: NaN and Infinity are not JSON numbers");
+        }
+        if (value == 0)
+        {
+            return "0";
+        }
+
+        // "R" gives the shortest digits that round-trip (.NET Core 3.0 and
+        // later), as "123.45", "1E+21" or "1.5E-07". Take the digits and the
+        // decimal exponent out of it and lay them out the ECMAScript way.
+        var text = Math.Abs(value).ToString("R", CultureInfo.InvariantCulture);
+        var exponent = 0;
+        var exponentAt = text.IndexOfAny(new[] { 'E', 'e' });
+        if (exponentAt >= 0)
+        {
+            exponent = int.Parse(text.AsSpan(exponentAt + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+            text = text[..exponentAt];
+        }
+        var pointAt = text.IndexOf('.');
+        var integerPart = pointAt >= 0 ? text[..pointAt] : text;
+        var fractionPart = pointAt >= 0 ? text[(pointAt + 1)..] : "";
+
+        // value = 0.<digits> x 10^n, digits without leading or trailing zeros.
+        var allDigits = integerPart + fractionPart;
+        var n = integerPart.Length + exponent;
+        var leadingZeros = 0;
+        while (leadingZeros < allDigits.Length - 1 && allDigits[leadingZeros] == '0') leadingZeros++;
+        var digits = allDigits[leadingZeros..].TrimEnd('0');
+        n -= leadingZeros;
+        var k = digits.Length;
+
+        var sb = new StringBuilder();
+        if (value < 0) sb.Append('-');
+        if (k <= n && n <= 21)
+        {
+            sb.Append(digits).Append('0', n - k);
+        }
+        else if (0 < n && n <= 21)
+        {
+            sb.Append(digits, 0, n).Append('.').Append(digits, n, k - n);
+        }
+        else if (-6 < n && n <= 0)
+        {
+            sb.Append("0.").Append('0', -n).Append(digits);
+        }
+        else
+        {
+            var e = n - 1;
+            sb.Append(digits[0]);
+            if (k > 1) sb.Append('.').Append(digits, 1, k - 1);
+            sb.Append('e').Append(e < 0 ? '-' : '+').Append(Math.Abs(e).ToString(CultureInfo.InvariantCulture));
+        }
+        return sb.ToString();
+    }
+
+    // -----------------------------------------------------------------------
+    // Grant signing payload encoding. Not RFC 8785: the signed bytes of an
+    // approval grant keep the encoding they have always had (sorted keys, no
+    // whitespace, System.Text.Json string escaping).
+    // -----------------------------------------------------------------------
+
+    private static object? ToSigningNode(JsonElement el)
     {
         switch (el.ValueKind)
         {
@@ -101,7 +282,7 @@ public static class V023
                     var list = new List<object?>();
                     foreach (var item in el.EnumerateArray())
                     {
-                        list.Add(ToCanonicalNode(item));
+                        list.Add(ToSigningNode(item));
                     }
                     return list;
                 }
@@ -110,7 +291,7 @@ public static class V023
                     var dict = new SortedDictionary<string, object?>(StringComparer.Ordinal);
                     foreach (var prop in el.EnumerateObject())
                     {
-                        dict[prop.Name] = ToCanonicalNode(prop.Value);
+                        dict[prop.Name] = ToSigningNode(prop.Value);
                     }
                     return dict;
                 }
@@ -119,7 +300,7 @@ public static class V023
         }
     }
 
-    private static void CanonicalEncode(StringBuilder sb, object? v)
+    private static void SigningEncode(StringBuilder sb, object? v)
     {
         switch (v)
         {
@@ -160,7 +341,7 @@ public static class V023
                 for (var i2 = 0; i2 < list.Count; i2++)
                 {
                     if (i2 > 0) sb.Append(',');
-                    CanonicalEncode(sb, list[i2]);
+                    SigningEncode(sb, list[i2]);
                 }
                 sb.Append(']');
                 return;
@@ -173,7 +354,7 @@ public static class V023
                     first = false;
                     sb.Append(JsonSerializer.Serialize(kv.Key));
                     sb.Append(':');
-                    CanonicalEncode(sb, kv.Value);
+                    SigningEncode(sb, kv.Value);
                 }
                 sb.Append('}');
                 return;
@@ -675,10 +856,10 @@ public static class V023
         foreach (var prop in doc.RootElement.EnumerateObject())
         {
             if (prop.Name == "signature" || prop.Name == "use_count") continue;
-            sd[prop.Name] = ToCanonicalNode(prop.Value);
+            sd[prop.Name] = ToSigningNode(prop.Value);
         }
         var sb = new StringBuilder();
-        CanonicalEncode(sb, sd);
+        SigningEncode(sb, sd);
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
@@ -841,6 +1022,7 @@ public static class V023
         Dictionary<string, object?> parameters,
         IList<string> tokenScope,
         string? tokenSessionId,
+        string tokenRootPrincipal,
         string nowIso)
     {
         var grant = storage.GetGrant(grantId);
@@ -857,6 +1039,20 @@ public static class V023
         if (capability != grant.Capability)
         {
             return ContinuationValidation.Fail(Constants.FailureGrantCapabilityMismatch);
+        }
+        // §4.8 Phase A: only tokens of the requester's root principal may redeem.
+        object? requesterRoot = null;
+        grant.Requester?.TryGetValue("root_principal", out requesterRoot);
+        // A grant read back from storage holds JSON values.
+        var root = requesterRoot switch
+        {
+            string text => text,
+            JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(),
+            _ => null,
+        };
+        if (string.IsNullOrEmpty(root) || root != tokenRootPrincipal)
+        {
+            return ContinuationValidation.Fail(Constants.FailureGrantRequesterMismatch);
         }
         if (!GrantScopeSubsetOfToken(grant.Scope ?? new List<string>(), tokenScope ?? new List<string>()))
         {

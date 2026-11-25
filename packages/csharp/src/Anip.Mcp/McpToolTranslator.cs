@@ -16,6 +16,8 @@ public static class McpToolTranslator
         ["integer"] = "integer",
         ["number"] = "number",
         ["boolean"] = "boolean",
+        ["array"] = "array",
+        ["object"] = "object",
         ["date"] = "string",
         ["airport_code"] = "string",
     };
@@ -87,7 +89,7 @@ public static class McpToolTranslator
 
                 properties[input.Name] = prop;
 
-                if (input.Required)
+                if (input.MustBeSupplied())
                 {
                     required.Add(input.Name);
                 }

@@ -19,6 +19,7 @@ public static class FailureRedaction
         ["unknown_capability"] = "Capability not found",
         ["not_found"] = "Resource not found",
         ["unavailable"] = "Service temporarily unavailable",
+        ["service_unavailable"] = "Service temporarily unavailable",
         ["concurrent_lock"] = "Operation conflict",
         ["internal_error"] = "Internal error",
         ["streaming_not_supported"] = "Streaming not supported for this capability",

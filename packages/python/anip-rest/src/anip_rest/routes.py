@@ -1,30 +1,15 @@
 """ANIP REST bindings — mount RESTful API endpoints on a FastAPI app."""
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from anip_service import ANIPService, ANIPError
+from anip_core import failure_status_code
+from anip_service import ANIPService, ANIPError, INVALID_PARAMETERS_RESOLUTION, invalid_parameters_failure
 from .translation import generate_routes, generate_openapi_spec, RouteOverride, RESTRoute
-
-_FAILURE_STATUS = {
-    "authentication_required": 401,
-    "invalid_token": 401,
-    "scope_insufficient": 403,
-    "denied": 403,
-    "budget_exceeded": 403,
-    "purpose_mismatch": 403,
-    "unknown_capability": 404,
-    "invalid_parameters": 400,
-    "clarification_required": 409,
-    "approval_required": 409,
-    "restricted": 409,
-    "unavailable": 409,
-    "internal_error": 500,
-}
-
 
 async def _resolve_auth(
     request: Request,
@@ -69,37 +54,58 @@ async def _resolve_auth(
     return None
 
 
+def _failure_response(body: dict[str, Any]) -> JSONResponse:
+    """A failed response with the HTTP status of its failure type (SPEC.md §6.3)."""
+    failure = body.get("failure") or {}
+    return JSONResponse(body, status_code=failure_status_code(failure.get("type")))
+
+
 def _error_response(error: ANIPError) -> JSONResponse:
-    status = _FAILURE_STATUS.get(error.error_type, 400)
-    return JSONResponse(
-        {
-            "success": False,
-            "failure": {
-                "type": error.error_type,
-                "detail": error.detail,
-                "resolution": error.resolution,
-                "retry": error.retry,
-            },
+    resolution = error.resolution
+    retry = error.retry
+    if error.error_type == "invalid_parameters":
+        resolution = resolution or dict(INVALID_PARAMETERS_RESOLUTION)
+        retry = False
+    return _failure_response({
+        "success": False,
+        "failure": {
+            "type": error.error_type,
+            "detail": error.detail,
+            "resolution": resolution,
+            "retry": retry,
         },
-        status_code=status,
-    )
+    })
+
+
+_JSON_BODY_REQUIRES = "a JSON object as the request body"
+
+
+def _convert_query_value(value: str, declared_type: str | None) -> Any:
+    """Read a query-string value as the declared primitive type.
+
+    A value that cannot be read as that type is passed on as the string it
+    is, so the service refuses it as ``invalid_parameters`` (SPEC.md §6.3).
+    """
+    if declared_type in ("integer", "number"):
+        try:
+            if declared_type == "integer":
+                try:
+                    return int(value)
+                except ValueError:
+                    pass
+            number = float(value)
+        except ValueError:
+            return value
+        return number if math.isfinite(number) else value
+    if declared_type == "boolean":
+        return {"true": True, "false": False}.get(value.lower(), value)
+    return value
 
 
 def _convert_query_params(query: dict[str, str], decl) -> dict[str, Any]:
     """Convert query string values to appropriate types."""
     type_map = {inp.name: inp.type for inp in decl.inputs}
-    result = {}
-    for key, value in query.items():
-        t = type_map.get(key)
-        if t == "integer":
-            result[key] = int(value)
-        elif t == "number":
-            result[key] = float(value)
-        elif t == "boolean":
-            result[key] = value.lower() == "true"
-        else:
-            result[key] = value
-    return result
+    return {key: _convert_query_value(value, type_map.get(key)) for key, value in query.items()}
 
 
 def mount_anip_rest(
@@ -162,23 +168,33 @@ def _register_route(app: FastAPI, service: ANIPService, route: RESTRoute, prefix
             return _error_response(e)
 
         if token is None:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "authentication_required",
-                        "detail": "Authorization header with Bearer token or API key required",
-                        "resolution": {"action": "provide_credentials", "recovery_class": "retry_now"},
-                        "retry": True,
-                    },
+            return _failure_response({
+                "success": False,
+                "failure": {
+                    "type": "authentication_required",
+                    "detail": "Authorization header with Bearer token or API key required",
+                    "resolution": {"action": "provide_credentials", "recovery_class": "retry_now"},
+                    "retry": True,
                 },
-                status_code=401,
-            )
+            })
 
         if route.method == "GET":
             params = _convert_query_params(dict(request.query_params), route.declaration)
         else:
-            body = await request.json()
+            # The credential is checked first; a body that is not a JSON
+            # object is then invalid_parameters (SPEC.md §6.3).
+            try:
+                body = await request.json()
+            except Exception:
+                body = None
+                detail = "request body must be JSON"
+            else:
+                detail = "request body must be a JSON object"
+            if not isinstance(body, dict):
+                return _failure_response({
+                    "success": False,
+                    "failure": invalid_parameters_failure(detail, requires=_JSON_BODY_REQUIRES),
+                })
             params = body.get("parameters", body)
 
         client_reference_id = request.headers.get("x-client-reference-id")
@@ -188,6 +204,8 @@ def _register_route(app: FastAPI, service: ANIPService, route: RESTRoute, prefix
                 route.capability_name, token, params,
                 client_reference_id=client_reference_id,
             )
+            if not result.get("success"):
+                return _failure_response(result)
             return JSONResponse(result)
         except ANIPError as e:
             return _error_response(e)

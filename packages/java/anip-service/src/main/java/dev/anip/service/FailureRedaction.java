@@ -13,6 +13,7 @@ public final class FailureRedaction {
         Map.entry("unknown_capability", "Capability not found"),
         Map.entry("not_found", "Resource not found"),
         Map.entry("unavailable", "Service temporarily unavailable"),
+        Map.entry("service_unavailable", "Service temporarily unavailable"),
         Map.entry("concurrent_lock", "Operation conflict"),
         Map.entry("internal_error", "Internal error"),
         Map.entry("streaming_not_supported", "Streaming not supported for this capability"),

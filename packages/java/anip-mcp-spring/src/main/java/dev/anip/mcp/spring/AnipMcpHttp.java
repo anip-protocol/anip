@@ -107,8 +107,12 @@ public class AnipMcpHttp {
                         // session_id is never read from args — token only.
                         InvokeOpts opts = new InvokeOpts();
                         Map<String, Object> invokeArgs = args;
-                        if (args != null && args.get("__approval_grant") instanceof String grant && !grant.isEmpty()) {
-                            opts.setApprovalGrant(grant);
+                        if (args != null && args.containsKey("__approval_grant")) {
+                            // A string, even a blank one, is a supplied grant and is validated.
+                            // Any other value is not a grant: the call proceeds without one.
+                            if (args.get("__approval_grant") instanceof String grant) {
+                                opts.setApprovalGrant(grant);
+                            }
                             invokeArgs = new java.util.LinkedHashMap<>(args);
                             invokeArgs.remove("__approval_grant");
                         }

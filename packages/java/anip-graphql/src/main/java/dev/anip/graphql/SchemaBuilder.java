@@ -128,7 +128,9 @@ public class SchemaBuilder {
                 for (CapabilityInput inp : decl.getInputs()) {
                     String argName = GraphQLResponseMapper.toCamelCase(inp.getName());
                     GraphQLOutputType gqlType = anipTypeToGraphQL(inp.getType());
-                    GraphQLInputType inputType = inp.isRequired()
+                    // Non-null only when the caller has to supply the input: one that
+                    // declares resolution.on_missing is left to the service (SPEC.md §6.3).
+                    GraphQLInputType inputType = inp.mustBeSupplied()
                             ? GraphQLNonNull.nonNull((GraphQLInputType) gqlType)
                             : (GraphQLInputType) gqlType;
                     args.add(GraphQLArgument.newArgument()
@@ -255,8 +257,11 @@ public class SchemaBuilder {
             // from header or args — comes from the signed token only.
             InvokeOpts opts = new InvokeOpts();
             String approvalGrant = env.getGraphQlContext().get("approvalGrant");
-            if (approvalGrant != null && !approvalGrant.isEmpty()) {
-                opts.setApprovalGrant(approvalGrant);
+            Boolean approvalGrantSupplied = env.getGraphQlContext().get("approvalGrantSupplied");
+            if (Boolean.TRUE.equals(approvalGrantSupplied)
+                    || (approvalGrant != null && !approvalGrant.isEmpty())) {
+                // A supplied grant is always validated; a blank one names no grant.
+                opts.setApprovalGrant(approvalGrant != null ? approvalGrant : "");
             }
 
             Map<String, Object> result = service.invoke(capName, token, snakeArgs, opts);
@@ -345,7 +350,7 @@ public class SchemaBuilder {
         for (CapabilityInput inp : decl.getInputs()) {
             String argName = GraphQLResponseMapper.toCamelCase(inp.getName());
             String gqlType = anipTypeToGraphQLName(inp.getType());
-            if (inp.isRequired()) {
+            if (inp.mustBeSupplied()) {
                 gqlType += "!";
             }
             args.add(argName + ": " + gqlType);

@@ -279,6 +279,9 @@ class AnipStdioServerTest {
         Map<String, Object> error = getError(resp);
         assertNotNull(error);
         assertEquals(-32001, error.get("code"));
+        // SPEC.md §6.3 Token Issuance: a credential the service does not
+        // recognise is authentication_required, like no credential at all.
+        assertEquals("authentication_required", ((Map<?, ?>) error.get("data")).get("type"));
     }
 
     // --- anip.permissions ---
@@ -338,6 +341,75 @@ class AnipStdioServerTest {
         Map<String, Object> error = getError(resp);
         assertNotNull(error);
         assertEquals(-32001, error.get("code"));
+    }
+
+    // --- anip.invoke: parameter validation (SPEC.md §6.3) ---
+
+    @SuppressWarnings("unchecked")
+    private static void assertInvalidParameters(Map<String, Object> result, String detail) {
+        assertNotNull(result);
+        assertEquals(false, result.get("success"));
+        assertNull(result.get("result"));
+        assertNotNull(result.get("invocation_id"));
+        Map<String, Object> failure = (Map<String, Object>) result.get("failure");
+        assertEquals("invalid_parameters", failure.get("type"));
+        assertEquals(detail, failure.get("detail"));
+        assertEquals(false, failure.get("retry"));
+        Map<String, Object> resolution = (Map<String, Object>) failure.get("resolution");
+        assertEquals("retry_now", resolution.get("action"));
+        assertEquals("retry_now", resolution.get("recovery_class"));
+        assertEquals("parameters that match the capability's declared inputs",
+                resolution.get("requires"));
+    }
+
+    @Test
+    void testInvokeMissingRequiredInput() throws Exception {
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("capability", "echo");
+        extra.put("parameters", Map.of());
+
+        Map<String, Object> resp = call("anip.invoke", authParams(issueTestToken(), extra));
+
+        assertNull(resp.get("error"));
+        assertInvalidParameters(getResult(resp), "echo is missing required input(s): message");
+    }
+
+    @Test
+    void testInvokeWithoutParametersMember() throws Exception {
+        Map<String, Object> resp = call("anip.invoke",
+                authParams(issueTestToken(), Map.of("capability", "echo")));
+
+        assertInvalidParameters(getResult(resp), "echo is missing required input(s): message");
+    }
+
+    @Test
+    void testInvokeWrongType() throws Exception {
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("capability", "echo");
+        extra.put("parameters", Map.of("message", List.of("hello")));
+
+        Map<String, Object> resp = call("anip.invoke", authParams(issueTestToken(), extra));
+
+        assertInvalidParameters(getResult(resp),
+                "echo has invalid input(s): 'message' must be string, got array");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testInvokeStreamingMissingRequiredInput() throws Exception {
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("capability", "stream-echo");
+        extra.put("parameters", Map.of());
+        extra.put("stream", true);
+
+        Object result = server.handleRequest(
+                request("anip.invoke", authParams(issueTestToken("stream-echo"), extra)));
+
+        // No progress notification: the handler did not run.
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) result;
+        assertEquals(1, messages.size());
+        assertInvalidParameters((Map<String, Object>) messages.get(0).get("result"),
+                "stream-echo is missing required input(s): message");
     }
 
     // --- anip.invoke streaming ---

@@ -24,19 +24,110 @@ import { ANIPError } from "./types.js";
 // Canonical JSON / digest helpers
 // ---------------------------------------------------------------------------
 
-/** Canonical JSON: sorted keys (recursive), no whitespace, UTF-8.
- *  Matches Python's `json.dumps(value, sort_keys=True, separators=(",", ":"))`. */
+/**
+ * Canonical JSON for approval digests and grant signatures: the JSON
+ * Canonicalization Scheme, RFC 8785 (SPEC.md §4.7 "Canonical JSON and
+ * Digests"). The result is the canonical text; its UTF-8 encoding is what is
+ * hashed and signed.
+ *
+ * - members sorted by the UTF-16 code units of their names;
+ * - no insignificant whitespace;
+ * - strings escaped as RFC 8785 §3.2.2.2: `\"`, `\\`, `\b`, `\t`, `\n`,
+ *   `\f`, `\r`, `\u00xx` for the other characters below U+0020, everything
+ *   else literal;
+ * - numbers as ECMAScript `Number.prototype.toString` (§3.2.2.3), `-0` as `0`.
+ *
+ * A value that did not come from a JSON text is treated the way
+ * `JSON.stringify` treats it (`toJSON` is honoured, an `undefined` member is
+ * left out, an `undefined` array element is `null`), except that a `bigint` is
+ * converted to an IEEE 754 double and that NaN, the infinities and a lone
+ * surrogate are errors, as the RFC requires.
+ */
 export function canonicalJson(value: unknown): string {
-  if (value === null || value === undefined) return "null";
-  if (typeof value === "string") return JSON.stringify(value);
-  if (typeof value === "number" || typeof value === "boolean") return JSON.stringify(value);
+  return serializeCanonical(value) ?? "null";
+}
+
+/** Serialize one value, or `undefined` when JSON has no form for it. */
+function serializeCanonical(input: unknown): string | undefined {
+  let value = input;
+  if (
+    value !== null &&
+    (typeof value === "object" || typeof value === "bigint") &&
+    typeof (value as { toJSON?: unknown }).toJSON === "function"
+  ) {
+    value = (value as { toJSON: () => unknown }).toJSON();
+  }
+  if (value === null) return "null";
+  switch (typeof value) {
+    case "boolean":
+      return value ? "true" : "false";
+    case "string":
+      return canonicalString(value);
+    case "number":
+      return canonicalNumber(value);
+    case "bigint":
+      return canonicalNumber(Number(value));
+    case "object":
+      break;
+    default:
+      // undefined, function, symbol
+      return undefined;
+  }
   if (Array.isArray(value)) {
-    return `[${value.map((v) => canonicalJson(v)).join(",")}]`;
+    return `[${value.map((item) => serializeCanonical(item) ?? "null").join(",")}]`;
   }
   const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  const parts = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`);
+  const parts: string[] = [];
+  // Array.prototype.sort() on strings compares UTF-16 code units.
+  for (const key of Object.keys(obj).sort()) {
+    const member = serializeCanonical(obj[key]);
+    if (member !== undefined) parts.push(`${canonicalString(key)}:${member}`);
+  }
   return `{${parts.join(",")}}`;
+}
+
+function canonicalNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new TypeError(`RFC 8785 canonical JSON cannot represent the number ${String(value)}`);
+  }
+  // Number.prototype.toString is the serialization RFC 8785 §3.2.2.3 names;
+  // it writes -0 as "0".
+  return String(value);
+}
+
+const SHORT_ESCAPES: Record<number, string> = {
+  0x08: "\\b",
+  0x09: "\\t",
+  0x0a: "\\n",
+  0x0c: "\\f",
+  0x0d: "\\r",
+  0x22: '\\"',
+  0x5c: "\\\\",
+};
+
+function canonicalString(value: string): string {
+  let out = '"';
+  for (let i = 0; i < value.length; i++) {
+    const unit = value.charCodeAt(i);
+    const short = SHORT_ESCAPES[unit];
+    if (short !== undefined) {
+      out += short;
+    } else if (unit < 0x20) {
+      out += `\\u${unit.toString(16).padStart(4, "0")}`;
+    } else if (unit >= 0xd800 && unit <= 0xdfff) {
+      const next = i + 1 < value.length ? value.charCodeAt(i + 1) : 0;
+      if (unit >= 0xdc00 || next < 0xdc00 || next > 0xdfff) {
+        throw new TypeError(
+          `RFC 8785 canonical JSON cannot represent a lone surrogate (U+${unit.toString(16).toUpperCase()})`,
+        );
+      }
+      out += value[i] + value[i + 1];
+      i++;
+    } else {
+      out += value[i];
+    }
+  }
+  return `${out}"`;
 }
 
 /** SHA-256 of canonical JSON, returned as `sha256:<hex>`. */
@@ -503,6 +594,7 @@ export const FAILURE_GRANT_CAPABILITY_MISMATCH = "grant_capability_mismatch";
 export const FAILURE_GRANT_SCOPE_MISMATCH = "grant_scope_mismatch";
 export const FAILURE_GRANT_PARAM_DRIFT = "grant_param_drift";
 export const FAILURE_GRANT_SESSION_INVALID = "grant_session_invalid";
+export const FAILURE_GRANT_REQUESTER_MISMATCH = "grant_requester_mismatch";
 
 export const FAILURE_APPROVAL_REQUEST_NOT_FOUND = "approval_request_not_found";
 export const FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED = "approval_request_already_decided";
@@ -577,6 +669,7 @@ export async function validateContinuationGrant(opts: {
   parameters: Record<string, unknown>;
   tokenScope: string[];
   tokenSessionId: string | null;
+  tokenRootPrincipal: string;
   keyManager: KeyManager;
   nowIso: string;
 }): Promise<[Record<string, unknown> | null, string | null]> {
@@ -586,6 +679,13 @@ export async function validateContinuationGrant(opts: {
   if (!sigOk) return [null, FAILURE_GRANT_NOT_FOUND];
   if ((grant.expires_at as string) <= opts.nowIso) return [null, FAILURE_GRANT_EXPIRED];
   if (grant.capability !== opts.capability) return [null, FAILURE_GRANT_CAPABILITY_MISMATCH];
+  // §4.8 Phase A: only tokens of the requester's root principal may redeem.
+  const requester = grant.requester as Record<string, unknown> | null | undefined;
+  const requesterRoot =
+    requester !== null && typeof requester === "object" ? requester.root_principal : undefined;
+  if (typeof requesterRoot !== "string" || requesterRoot !== opts.tokenRootPrincipal) {
+    return [null, FAILURE_GRANT_REQUESTER_MISMATCH];
+  }
   if (!grantScopeSubsetOfToken(grant.scope as string[], opts.tokenScope)) {
     return [null, FAILURE_GRANT_SCOPE_MISMATCH];
   }

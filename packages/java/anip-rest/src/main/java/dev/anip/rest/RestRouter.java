@@ -3,11 +3,15 @@ package dev.anip.rest;
 import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.CapabilityInput;
 import dev.anip.service.ANIPService;
+import dev.anip.service.JsonRequestBody;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Shared route generation and parameter conversion for REST interface.
@@ -68,23 +72,52 @@ public final class RestRouter {
             if (values == null || values.length == 0) continue;
             String value = values[0];
 
-            String inputType = typeMap.getOrDefault(key, "string");
-
-            switch (inputType) {
-                case "integer" -> {
-                    try { result.put(key, Integer.parseInt(value)); }
-                    catch (NumberFormatException e) { result.put(key, value); }
-                }
-                case "number" -> {
-                    try { result.put(key, Double.parseDouble(value)); }
-                    catch (NumberFormatException e) { result.put(key, value); }
-                }
-                case "boolean" -> result.put(key, "true".equals(value));
-                default -> result.put(key, value);
-            }
+            result.put(key, convertQueryValue(value, typeMap.getOrDefault(key, "string")));
         }
 
         return result;
+    }
+
+    /** The JSON number grammar (RFC 8259 §6). */
+    private static final Pattern JSON_NUMBER =
+            Pattern.compile("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?");
+
+    /**
+     * Reads a query string value as the JSON value its declared type calls
+     * for: a JSON number for integer and number, true or false for boolean,
+     * JSON text for array and object (the only way a query string can carry
+     * one). A value that cannot be read that way stays a string, and the
+     * service's parameter validation (SPEC.md §6.3) refuses it by name.
+     */
+    static Object convertQueryValue(String value, String declaredType) {
+        switch (declaredType) {
+            case "integer", "number" -> {
+                if (JSON_NUMBER.matcher(value).matches() && parseJson(value) instanceof Number number) {
+                    return number;
+                }
+            }
+            case "boolean" -> {
+                if ("true".equals(value)) return true;
+                if ("false".equals(value)) return false;
+            }
+            case "array" -> {
+                if (parseJson(value) instanceof List<?> items) return items;
+            }
+            case "object" -> {
+                if (parseJson(value) instanceof Map<?, ?> object) return object;
+            }
+            default -> { }
+        }
+        return value;
+    }
+
+    /** The value of a JSON text, as a request body would carry it; null when it is not JSON. */
+    private static Object parseJson(String text) {
+        try {
+            return JsonRequestBody.parseValue(text.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public static RestRoute findRoute(List<RestRoute> routes, String capabilityName) {

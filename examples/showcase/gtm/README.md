@@ -279,6 +279,36 @@ the demo implementation with your own code, keep the contract and generated
 service substrate, then replace the custom bundle implementation behind the
 same extension points.
 
+## Current Package And Policy Rules
+
+The current package is `gtm-pipeline-q2-review@0.4.6`
+(`registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json`). The
+language-parity services, the parity image build, the custom bundle smoke and
+the public Studio snapshot all use it.
+
+ANIP runs a composed capability's steps itself, each with the caller's root
+principal, and never evaluates a policy binding that names the composed
+capability. Validation, generation and Registry publication refuse such a
+binding, so packages 0.3.6 to 0.4.5, which bind rules to
+`gtm.at_risk_followup_preparation` and `gtm.at_risk_reassignment_preparation`,
+no longer validate. 0.4.6 keeps every rule on the child capabilities:
+
+- rules that named a preparation flow and its child keep only the child;
+- the `sales_leader` approval rule (rule 5) names the two child preparation
+  capabilities, where the `sales_leader` deny (rule 8) still wins;
+- the `rev_ops_manager` approval rule (rule 9) names
+  `gtm.prepare_followup_tasks`, so `rev_ops_manager` now gets the approval stop
+  on the follow-up flow that 0.4.5 declared but never enforced, and the same
+  approval stop when invoking the child directly.
+
+No other actor's effective decision changes.
+
+The custom bundles replace the generated policy seam with an allow-all policy
+and enforce actors in their backend adapters, so the binding changes do not
+affect them. The generated handler's approval stop is not part of the seam:
+approval-gated capabilities stop with `approval_required` before the bundle's
+adapter until the runtime has validated an approval grant.
+
 ## Validation And Package Promotion
 
 Do not promote a GTM package or showcase snapshot because one LLM question-bank

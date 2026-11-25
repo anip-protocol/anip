@@ -208,7 +208,8 @@ export function missingRequiredInputNames(
   const metadata = metadataRecord(rawMetadata);
   const missing: string[] = [];
   for (const spec of metadata.input_specs ?? []) {
-    if (!isRecord(spec) || spec.required !== true) {
+    // SPEC.md §4.1: `required` defaults to true; only `false` makes an input optional.
+    if (!isRecord(spec) || spec.required === false) {
       continue;
     }
     const inputSpec = spec as InputSpec;

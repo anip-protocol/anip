@@ -70,12 +70,49 @@ class V023ApprovalGrantsEndpointTest {
     }
 
     @Test
-    void malformedJsonReturns400Or415() {
+    void malformedJsonIsInvalidParameters() {
+        // SPEC.md §4.9 step 2: "Malformed → invalid_parameters", as an ANIP
+        // failure object rather than the framework's empty 400.
         given().contentType("application/json")
             .header("Authorization", "Bearer " + approverJwt)
             .body("{not json")
             .when().post("/anip/approval_grants")
-            .then().statusCode(anyOf(equalTo(400), equalTo(415)));
+            .then().statusCode(400)
+            .body("failure.type", equalTo("invalid_parameters"));
+    }
+
+    @Test
+    void oneTimeGrantAskingForMoreThanOneUseIsInvalid() throws Exception {
+        // Schema: one_time allows max_uses 1 only. Refused, not lowered to 1;
+        // the request stays pending.
+        String id = persistRequest("apr_one_time_two_uses",
+                new GrantPolicy(List.of("one_time", "session_bound"), "one_time", 600, 2));
+        given().contentType("application/json")
+            .header("Authorization", "Bearer " + approverJwt)
+            .body("{\"approval_request_id\":\"" + id + "\",\"grant_type\":\"one_time\",\"max_uses\":2}")
+            .when().post("/anip/approval_grants")
+            .then().statusCode(400)
+            .body("failure.type", equalTo("invalid_parameters"));
+        given().contentType("application/json")
+            .header("Authorization", "Bearer " + approverJwt)
+            .body("{\"approval_request_id\":\"" + id + "\",\"grant_type\":\"one_time\"}")
+            .when().post("/anip/approval_grants")
+            .then().statusCode(200);
+    }
+
+    @Test
+    void wronglyTypedFieldsAreInvalidParameters() {
+        for (String body : List.of(
+                "{\"approval_request_id\":7,\"grant_type\":\"one_time\"}",
+                "{\"approval_request_id\":\"apr_x\",\"grant_type\":\"one_time\",\"expires_in_seconds\":\"60\"}",
+                "[\"apr_x\"]")) {
+            given().contentType("application/json")
+                .header("Authorization", "Bearer " + approverJwt)
+                .body(body)
+                .when().post("/anip/approval_grants")
+                .then().statusCode(400)
+                .body("failure.type", equalTo("invalid_parameters"));
+        }
     }
 
     @Test

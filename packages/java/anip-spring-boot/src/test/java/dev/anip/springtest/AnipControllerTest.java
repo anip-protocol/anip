@@ -69,6 +69,22 @@ class AnipControllerTest {
                             ),
                             new CapabilityDef(
                                     new CapabilityDeclaration(
+                                            "hold_seat", "Hold a seat at a quoted price", "1.0",
+                                            List.of(
+                                                    new CapabilityInput("quote_id", "object", false, "Priced quote")
+                                            ),
+                                            new CapabilityOutput("object", List.of("held")),
+                                            new SideEffect("write", "none"),
+                                            List.of("travel"), null, null,
+                                            List.of("sync", "streaming"),
+                                            List.of(new dev.anip.core.BindingRequirement(
+                                                    "quote", "quote_id", "search_flights", null)),
+                                            List.of()
+                                    ),
+                                    (ctx, params) -> Map.of("held", true)
+                            ),
+                            new CapabilityDef(
+                                    new CapabilityDeclaration(
                                             "book_flight", "Book a flight", "1.0",
                                             List.of(
                                                     new CapabilityInput("flight_id", "string", true, "Flight ID")
@@ -173,9 +189,15 @@ class AnipControllerTest {
                         .header("Authorization", "Bearer bad-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"subject\":\"agent\",\"scope\":[\"travel\"]}"))
+                // SPEC.md §6.3 Token Issuance: a credential the service does not
+                // recognise is authentication_required, like no credential at all.
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.failure.type").value("invalid_token"));
+                .andExpect(jsonPath("$.failure.type").value("authentication_required"))
+                .andExpect(jsonPath("$.failure.resolution.action").value("provide_credentials"))
+                .andExpect(jsonPath("$.failure.resolution.recovery_class").value("retry_now"))
+                .andExpect(jsonPath("$.failure.retry").value(true))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     // --- Invoke ---

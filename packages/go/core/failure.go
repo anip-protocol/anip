@@ -41,32 +41,57 @@ func (e *ANIPError) WithRetry() *ANIPError {
 	return e
 }
 
-// FailureStatusCode maps failure types to HTTP status codes.
+// InvalidParametersResolution is the resolution every invalid_parameters
+// failure carries (SPEC.md §6.3): the caller corrects the request and sends a
+// new one, nothing outside the request has to change. requires says what a
+// correct request looks like.
+func InvalidParametersResolution(requires string) *Resolution {
+	return &Resolution{
+		Action:        "retry_now",
+		RecoveryClass: RecoveryClassForAction("retry_now"),
+		Requires:      requires,
+	}
+}
+
+// FailureStatusCode maps a failure type to its HTTP status. It is the table
+// of SPEC.md §6.3 "HTTP Status Codes" and the one mapping every HTTP binding
+// of this runtime uses (protocol endpoints and the REST adapter); a type the
+// table does not list, including one a capability handler defines, is 400.
 func FailureStatusCode(failureType string) int {
 	switch failureType {
-	case FailureAuthRequired, FailureInvalidToken, FailureTokenExpired:
+	// The caller has not presented a usable credential.
+	case FailureAuthRequired, FailureInvalidToken, FailureTokenExpired,
+		FailureTokenNotRegistered:
 		return 401
-	case FailureScopeInsufficient, FailureBudgetExceeded, FailureBudgetCurrencyMismatch,
-		FailureBudgetNotEnforceable, FailureBindingMissing, FailureBindingStale,
-		FailureControlRequirementUnsatisfied, FailurePurposeMismatch, FailureScopeEscalation,
-		FailureInsufficientAuthority, FailureBrokenDelegationChain,
+	// The credential is valid; its delegated authority (scope, purpose,
+	// chain, budget, binding, control requirement, approver role, the
+	// principal a grant was issued to) does not cover the request.
+	case FailureScopeInsufficient, FailureInsufficientAuthority,
+		FailurePurposeMismatch, FailureScopeEscalation,
+		FailureConstraintEscalation, FailureBrokenDelegationChain,
 		FailureDelegationDepthExceeded, FailureParentTokenExpired,
-		// v0.23: approver does not have authority for this capability.
-		"approver_not_authorized":
+		FailureBudgetExceeded, FailureBudgetCurrencyMismatch,
+		FailureBudgetNotEnforceable, FailureBindingMissing,
+		FailureBindingStale, FailureControlRequirementUnsatisfied,
+		"approver_not_authorized", "grant_requester_mismatch":
 		return 403
+	// The named capability, resource or approval request does not exist.
 	case FailureUnknownCapability, FailureNotFound,
-		// v0.23: approval_request_id refers to nothing.
 		"approval_request_not_found":
 		return 404
-	case FailureUnavailable, FailureConcurrentLock,
-		// v0.23: state-conflict failures from §4.7 / §4.8 / §4.9.
+	// The request conflicts with the current state of a grant, an approval
+	// request or a lock.
+	case "grant_consumed", "grant_expired",
 		"approval_request_already_decided", "approval_request_expired",
-		"grant_consumed", "grant_expired":
+		FailureConcurrentLock, FailureConcurrentRequestRejected,
+		FailureUnavailable:
 		return 409
+	// The service failed.
 	case FailureInternalError:
 		return 500
-	case FailureInvalidParameters:
-		return 400
+	case FailureServiceUnavailable:
+		return 503
+	// Everything else: the caller has to change the request.
 	default:
 		return 400
 	}

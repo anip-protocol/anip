@@ -165,7 +165,9 @@ func handleTokens(svc *service.Service) http.HandlerFunc {
 
 		var req core.TokenRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Invalid request body", nil)
+			// SPEC.md §6.3: a body that is not JSON is invalid_parameters,
+			// after the credential check above.
+			status, body := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "request body must be a JSON object", nil)
 			writeJSON(w, status, body)
 			return
 		}
@@ -209,7 +211,17 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invalid request body", nil)
+			// SPEC.md §6.3: a body that is not JSON is invalid_parameters,
+			// after the credential check above.
+			status, respBody := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "request body must be a JSON object", nil)
+			writeJSON(w, status, respBody)
+			return
+		}
+
+		// SPEC.md §6.3: a `parameters` value that is neither an object nor
+		// null does not match the request schema.
+		if shapeErr := service.ParametersShapeError(capName, body["parameters"]); shapeErr != nil {
+			status, respBody := httputil.FailureResponse(shapeErr)
 			writeJSON(w, status, respBody)
 			return
 		}
@@ -224,7 +236,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		parentInvID, _ := body["parent_invocation_id"].(string)
 		upstreamSvc, _ := body["upstream_service"].(string)
 		stream, _ := body["stream"].(bool)
-		approvalGrant, _ := body["approval_grant"].(string) // v0.23
+		approvalGrant, grantSupplied := service.ApprovalGrantFromBody(body) // v0.23
 
 		// Extract budget from request body.
 		var budget *core.Budget
@@ -237,18 +249,19 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		}
 
 		if stream {
-			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, upstreamSvc, budget, approvalGrant)
+			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, upstreamSvc, budget, approvalGrant, grantSupplied)
 			return
 		}
 
 		result, err := svc.Invoke(capName, token, params, service.InvokeOpts{
-			ClientReferenceID:  clientRefID,
-			TaskID:             taskID,
-			ParentInvocationID: parentInvID,
-			UpstreamService:    upstreamSvc,
-			Stream:             false,
-			Budget:             budget,
-			ApprovalGrant:      approvalGrant,
+			ClientReferenceID:     clientRefID,
+			TaskID:                taskID,
+			ParentInvocationID:    parentInvID,
+			UpstreamService:       upstreamSvc,
+			Stream:                false,
+			Budget:                budget,
+			ApprovalGrant:         approvalGrant,
+			ApprovalGrantSupplied: grantSupplied,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -315,20 +328,19 @@ func handleApprovalGrants(svc *service.Service) http.HandlerFunc {
 		if req.Status != core.ApprovalRequestStatusPending {
 			status, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestAlreadyDone,
 				fmt.Sprintf("approval_request %q status=%s", body.ApprovalRequestID, req.Status), nil)
-			writeJSON(w, 409, resp)
-			_ = status
+			writeJSON(w, status, resp)
 			return
 		}
 		if req.ExpiresAt <= now {
-			_, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestExpired,
+			status, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestExpired,
 				fmt.Sprintf("approval_request %q expired", body.ApprovalRequestID), nil)
-			writeJSON(w, 409, resp)
+			writeJSON(w, status, resp)
 			return
 		}
 
 		// Approver authority: token scope contains approver:* OR approver:<capability>.
 		accepted := map[string]struct{}{
-			"approver:*":                {},
+			"approver:*":                 {},
 			"approver:" + req.Capability: {},
 		}
 		authorized := false
@@ -339,9 +351,9 @@ func handleApprovalGrants(svc *service.Service) http.HandlerFunc {
 			}
 		}
 		if !authorized {
-			_, resp := httputil.SimpleFailureResponse(service.FailureApproverNotAuthorized,
+			status, resp := httputil.SimpleFailureResponse(service.FailureApproverNotAuthorized,
 				fmt.Sprintf("token lacks approver:%s scope", req.Capability), nil)
-			writeJSON(w, 403, resp)
+			writeJSON(w, status, resp)
 			return
 		}
 
@@ -396,18 +408,24 @@ func validateIssueGrantBody(b *core.IssueApprovalGrantRequest) error {
 	if b.MaxUses != nil && *b.MaxUses < 1 {
 		return fmt.Errorf("max_uses: must be a positive integer")
 	}
+	// Schema: a one_time grant allows max_uses 1 only (SPEC.md §4.8: "MUST
+	// set max_uses: 1"). Asking for more is refused, not silently lowered.
+	if b.GrantType == core.GrantTypeOneTime && b.MaxUses != nil && *b.MaxUses != 1 {
+		return fmt.Errorf("max_uses: must be 1 or omitted when grant_type=one_time")
+	}
 	return nil
 }
 
-func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget, approvalGrant string) {
+func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget, approvalGrant string, grantSupplied bool) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
-		ClientReferenceID:  clientRefID,
-		TaskID:             taskID,
-		ParentInvocationID: parentInvID,
-		UpstreamService:    upstreamSvc,
-		Stream:             true,
-		Budget:             budget,
-		ApprovalGrant:      approvalGrant,
+		ClientReferenceID:     clientRefID,
+		TaskID:                taskID,
+		ParentInvocationID:    parentInvID,
+		UpstreamService:       upstreamSvc,
+		Stream:                true,
+		Budget:                budget,
+		ApprovalGrant:         approvalGrant,
+		ApprovalGrantSupplied: grantSupplied,
 	})
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {

@@ -102,7 +102,7 @@ Start an example service, then:
 ```bash
 pip install -e ./conformance
 pytest conformance/ --base-url=http://localhost:<port> \
-  --bootstrap-bearer=demo-human-key \
+  --bootstrap-bearer=demo-human-key --other-bootstrap-bearer=demo-agent-key \
   --sample-inputs=conformance/samples/flight-service.json
 ```
 

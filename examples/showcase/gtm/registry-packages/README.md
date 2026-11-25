@@ -1,12 +1,51 @@
 # GTM Pipeline Q2 Review
 
-ANIP package `gtm-pipeline-q2-review@0.4.5` for local showcase and registry smoke usage.
+ANIP package `gtm-pipeline-q2-review@0.4.6` for local showcase and registry smoke usage.
 
-`0.4.5` is the current signed Studio-local publication export. It includes
-`package_execution_signature`, manifest/lock/service-definition digests, receipt
-metadata, and Product/Developer revision lineage. Older package files in this
-folder are retained as historical artifacts and should not be treated as the
-latest trusted package source.
+`0.4.6` is the current package. It is `0.4.5` with its policy rules moved off the
+composed capabilities: the runtime runs a composition's steps itself and never
+evaluates a binding that names a composed capability, so current validators and
+generators refuse such a definition. Rules 0 to 4, 8 and 12 drop
+`gtm.at_risk_followup_preparation` and `gtm.at_risk_reassignment_preparation`
+(they already name the child preparation capabilities). Rule 5 moves to the two
+children, where rule 8 still denies them to `sales_leader`. Rule 9 moves to
+`gtm.prepare_followup_tasks`, so `rev_ops_manager` now reaches the approval stop
+of `gtm.at_risk_followup_preparation` that 0.4.5 declared but never enforced, and
+the same approval stop when invoking the child directly.
+
+It is built from its service definition with `anip package build-local` and the
+deterministic development Registry key, and carries `package_execution_signature`,
+manifest/lock/service-definition digests, the Registry receipt and Product/Developer
+revision lineage:
+
+```bash
+cd packages/go
+go run ./cmd/anip package build-local \
+  --definition ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6-service-definition.json \
+  --package-id gtm-pipeline-q2-review \
+  --package-version 0.4.6 \
+  --name "GTM Pipeline Q2 Review" \
+  --output-dir <scratch-dir> \
+  --write-definition \
+  --generated-at 2026-11-14T00:00:00Z \
+  --project-ref studio:e19bba7f-ce1d-4ca8-bfb2-60fad064f007 \
+  --product-revision-ref "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-product-design-revision-1@r1" \
+  --developer-revision-ref e19bba7f-ce1d-4ca8-bfb2-60fad064f007-developer-definition-revision-2 \
+  --source-package ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json
+```
+
+`--source-package` carries the agent metadata Studio reviewed for 0.4.5
+(consumability, readiness with its finding reviews, the simulation report and
+the publication gate) into 0.4.6. None of it depends on the policy bindings, and
+build-local cannot derive the simulation or the reviews from the definition.
+
+Copy the four `gtm-pipeline-q2-review-0.4.6*` files from the scratch directory;
+the command also writes a generic `README.md` there.
+
+Older package files in this folder are signed history and are kept unchanged.
+Packages 0.3.6 to 0.4.5 bind policy rules to composed capabilities, so
+`anip validate`/`anip-verify`, `anip generate` and Registry publication refuse
+them; use 0.4.6.
 
 ## Contents
 
@@ -51,7 +90,7 @@ go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.js
 From a trusted registry package:
 
 ```bash
-go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.5 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
+go run ./cmd/anip-generate --registry-url <registry-url> --package-id gtm-pipeline-q2-review --package-version 0.4.6 --target python --dependency-source registry --output ./generated/gtm-pipeline-q2-review --force
 ```
 
 ## Verify

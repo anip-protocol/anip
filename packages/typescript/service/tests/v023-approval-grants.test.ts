@@ -61,9 +61,10 @@ function approvalRequiredCapability(opts?: {
   } as unknown as CapabilityDeclaration;
   return defineCapability({
     declaration: decl,
-    handler: async (_ctx, params) => {
+    handler: async (ctx, params) => {
       const amount = (params.amount as number) ?? 0;
-      if (amount > 10000) {
+      // Ask for approval only when no grant was reserved for this call.
+      if (amount > 10000 && !ctx.approvalGrant) {
         throw new ANIPError(
           "approval_required",
           "transfer_funds requires approval for amounts above $10000",
@@ -406,6 +407,7 @@ describe("validateContinuationGrant", () => {
       parameters: { amount: 50000, to_account: "x" },
       tokenScope: token.scope ?? [],
       tokenSessionId: null,
+      tokenRootPrincipal: "human:samir@example.com",
       keyManager,
       nowIso: utcNowIso(),
     });
@@ -424,6 +426,7 @@ describe("validateContinuationGrant", () => {
       parameters: { amount: 50000, to_account: "x" },
       tokenScope: ["other.scope"], // missing finance.write
       tokenSessionId: null,
+      tokenRootPrincipal: "human:samir@example.com",
       keyManager,
       nowIso: utcNowIso(),
     });
@@ -442,6 +445,7 @@ describe("validateContinuationGrant", () => {
       parameters: { amount: 99999, to_account: "y" }, // changed from approved
       tokenScope: token.scope ?? [],
       tokenSessionId: null,
+      tokenRootPrincipal: "human:samir@example.com",
       keyManager,
       nowIso: utcNowIso(),
     });
@@ -461,6 +465,7 @@ describe("validateContinuationGrant", () => {
       parameters: { amount: 50000, to_account: "x" },
       tokenScope: token.scope ?? [],
       tokenSessionId: null,
+      tokenRootPrincipal: "human:samir@example.com",
       keyManager,
       nowIso: futureNow,
     });
@@ -491,11 +496,88 @@ describe("validateContinuationGrant", () => {
       parameters: { amount: 50000, to_account: "x" },
       tokenScope: token.scope ?? [],
       tokenSessionId: "sess-B", // wrong session
+      tokenRootPrincipal: "human:samir@example.com",
       keyManager,
       nowIso: utcNowIso(),
     });
     expect(g).toBeNull();
     expect(fail).toBe("grant_session_invalid");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The grant binds its requester's root principal (SPEC.md §4.8 step 5)
+// ---------------------------------------------------------------------------
+
+describe("Requester binding", () => {
+  async function tokenOf(service: ANIPService, principal: string): Promise<DelegationToken> {
+    const issued = (await service.issueToken(principal, {
+      subject: principal,
+      scope: ["finance.write"],
+      capability: "transfer_funds",
+      ttl_hours: 1,
+    })) as Record<string, unknown>;
+    return service.resolveBearerToken(issued.token as string);
+  }
+
+  async function grantFor(service: ANIPService): Promise<Record<string, unknown>> {
+    const token = await issueResolvedToken(service);
+    const first = await service.invoke("transfer_funds", token, { amount: 50000, to_account: "x" });
+    const requestId = ((first.failure as Record<string, unknown>)
+      .approval_required as Record<string, unknown>).approval_request_id as string;
+    return service.issueApprovalGrant(requestId, "one_time", { p: "u" });
+  }
+
+  it("records_the_root_principal_in_the_requester", async () => {
+    const { service } = makeService();
+    const grant = await grantFor(service);
+    expect((grant.requester as Record<string, unknown>).root_principal).toBe("human:samir@example.com");
+  });
+
+  it("refuses_another_principal_without_spending_the_grant", async () => {
+    const { service, storage } = makeService();
+    const grant = await grantFor(service);
+    const other = await tokenOf(service, "agent:demo-agent");
+
+    const refused = await service.invoke(
+      "transfer_funds", other, { amount: 50000, to_account: "x" },
+      { approvalGrant: grant.grant_id as string },
+    );
+
+    expect(refused.success).toBe(false);
+    const failure = refused.failure as Record<string, any>;
+    expect(failure.type).toBe("grant_requester_mismatch");
+    expect(failure.resolution.action).toBe("contact_service_owner");
+    expect(failure.resolution.recovery_class).toBe("terminal");
+    expect((await storage.getGrant(grant.grant_id as string))!.use_count).toBe(0);
+
+    const same = await tokenOf(service, "human:samir@example.com");
+    const ok = await service.invoke(
+      "transfer_funds", same, { amount: 50000, to_account: "x" },
+      { approvalGrant: grant.grant_id as string },
+    );
+    expect(ok.success).toBe(true);
+  });
+
+  it("checks_the_requester_after_the_capability_and_before_the_scope", async () => {
+    const keyDir = makeKeyPath();
+    const storage = new InMemoryStorage();
+    const service = createANIPService({
+      serviceId: "test-finance", capabilities: [approvalRequiredCapability()], storage, keyPath: keyDir,
+    });
+    const grant = await grantFor(service);
+    const keyManager = new KeyManager(keyDir);
+    await keyManager.ready();
+    const check = async (capability: string, tokenScope: string[]) =>
+      (await validateContinuationGrant({
+        storage, grantId: grant.grant_id as string, capability,
+        parameters: { amount: 50000, to_account: "x" }, tokenScope,
+        tokenSessionId: null, tokenRootPrincipal: "agent:demo-agent",
+        keyManager, nowIso: utcNowIso(),
+      }))[1];
+
+    expect(await check("some_other_capability", ["finance.write"])).toBe("grant_capability_mismatch");
+    expect(await check("transfer_funds", ["other.scope"])).toBe("grant_requester_mismatch");
   });
 });
 
@@ -703,5 +785,49 @@ describe("Concurrent issuance", () => {
     }
     const stored = await storage.getApprovalRequest(requestId);
     expect(stored!.status).toBe("approved");
+  });
+});
+
+describe("Blank grants, resolution and retry", () => {
+  it.each(["", "   ", "\t\n", 7 as unknown as string])(
+    "blank_grant_%j_is_not_found_before_the_handler",
+    async (grant) => {
+      // A supplied approval_grant is always validated: a blank or non-string
+      // one names no grant, whether or not approval would have been needed.
+      const { service } = makeService();
+      {
+        const token = await issueResolvedToken(service);
+        for (const amount of [50000, 5]) {
+          const result = await service.invoke(
+            "transfer_funds",
+            token,
+            { amount, to_account: "x" },
+            { approvalGrant: grant },
+          );
+          expect(result.success).toBe(false);
+          const failure = result.failure as Record<string, unknown>;
+          expect(failure.type).toBe("grant_not_found");
+          expect(failure.approval_required).toBeUndefined();
+          const resolution = failure.resolution as Record<string, unknown>;
+          expect(resolution.action).toBe("contact_service_owner");
+          expect(resolution.recovery_class).toBe("terminal");
+        }
+      }
+    },
+  );
+
+  it("approval_required_carries_retry_false", async () => {
+    // SPEC.md §4.7: the approval_required failure carries retry: false.
+    const { service } = makeService();
+    {
+      const token = await issueResolvedToken(service);
+      const result = await service.invoke("transfer_funds", token, {
+        amount: 50000,
+        to_account: "x",
+      });
+      const failure = result.failure as Record<string, unknown>;
+      expect(failure.type).toBe("approval_required");
+      expect(failure.retry).toBe(false);
+    }
   });
 });

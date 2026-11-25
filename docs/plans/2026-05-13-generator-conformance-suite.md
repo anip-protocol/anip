@@ -32,10 +32,16 @@ This suite is deterministic and does not call an LLM.
 The first suite checks generated artifact semantics, not full live service execution. It covers the surfaces that recently caused parity drift:
 
 - v0.24 input-resolution metadata is preserved into runtime target metadata and generated capability declarations.
-- Sparse runtime policy bindings are treated as overrides, not an exhaustive allowlist.
-- Read-like capabilities prefer allow/allow-with-limits over unrelated deny bindings.
-- Governed-stop capabilities prefer deny, approval, then clarification before allow.
-- Approval-required generated hosts produce a preview path before stopping.
+- Generated policy fails closed, the same way in every target:
+  1. A matching `deny` binding refuses (`denied`), whatever the capability posture. A binding whose decision the host does not recognise refuses too.
+  2. When a capability has bindings and none matches the actor, the request is refused (`denied`). A principal without actor claims matches none.
+  3. A capability without bindings is allowed. Bindings stay sparse overrides at the capability level: once a capability has any, they are its allowlist.
+  4. An approval-gated capability (`side_effect_level` or `execution_posture` `approval_required`, `execution_posture` or `operation_type` `approval_gated`) stops before the backend adapter runs, unless the runtime validated an approval grant for this invocation.
+- Among matching bindings, `deny` wins over `approval_required`, which wins over `clarify`, which wins over `allow` and `allow_with_limits`, for every capability.
+- An `approval_required` stop is an ANIP failure that carries an approval request; its preview is the governed request (semantic input and backend input contract), not backend output. A validated grant for the same capability, parameters and principal lets the continuation reach the adapter.
+- A composed capability is executed by the runtime, not by generated code, so generated policy never evaluates the parent. Each child step goes through the full invoke pipeline with a token delegated from the caller's, carrying the same root principal and only its mapped inputs, so every child applies these rules itself. A composition cannot reach anything its caller could not reach by invoking the children directly.
+- Because the parent is never evaluated, definition validation refuses a runtime policy binding or permission intent that names a composed capability (a permission intent targeting a whole service is accepted), and generation refuses such a definition. The rule belongs on the child capabilities; the executable suite checks that a child's deny applies when the child runs as a composition step.
+- A policy refusal carries the same failure type, detail and resolution on HTTP and on stdio.
 - Backend adapter input is filtered through the declared backend input contract.
 - Composed capabilities preserve child approval/denial/clarification propagation metadata.
 - Integration-fronting bindings and backend template material are emitted for every target.

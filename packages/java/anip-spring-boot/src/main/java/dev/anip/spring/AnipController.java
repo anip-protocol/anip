@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import dev.anip.core.ANIPError;
+import dev.anip.core.ApprovalGrant;
 import dev.anip.core.AuditFilters;
 import dev.anip.server.AnipJacksonModule;
 import dev.anip.core.AuditResponse;
@@ -20,6 +21,7 @@ import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
+import dev.anip.service.JsonRequestBody;
 import dev.anip.service.SignedManifest;
 import dev.anip.service.StreamEvent;
 import dev.anip.service.StreamResult;
@@ -97,7 +99,7 @@ public class AnipController {
     // --- 4. Token issuance (bootstrap auth only) ---
 
     @PostMapping(value = "/anip/tokens", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Object> issueToken(@RequestBody Map<String, Object> body,
+    public ResponseEntity<Object> issueToken(@RequestBody(required = false) byte[] rawBody,
                                               HttpServletRequest request) {
         String bearer = extractBearer(request);
         if (bearer == null || bearer.isEmpty()) {
@@ -107,9 +109,23 @@ public class AnipController {
         // Bootstrap credential, or a delegation token issued by this service.
         Optional<dev.anip.service.Issuer> issuer = service.authenticateIssuer(bearer);
         if (issuer.isEmpty()) {
-            return failureResponse(HttpStatus.UNAUTHORIZED, Constants.FAILURE_INVALID_TOKEN,
+            // SPEC.md §6.3 Token Issuance: a credential the service does not
+            // recognise is authentication_required, like no credential at all.
+            return failureResponse(
+                    HttpStatus.valueOf(Constants.failureStatusCode(Constants.FAILURE_AUTH_REQUIRED)),
+                    Constants.FAILURE_AUTH_REQUIRED,
                     "Bearer value is neither the bootstrap credential nor a delegation token "
                             + "issued by this service", true);
+        }
+
+        // The body is read after the credential check, so that a body that is
+        // not JSON is an ANIP failure and not the framework's error page.
+        Map<String, Object> body;
+        try {
+            body = JsonRequestBody.requireObject(rawBody);
+        } catch (ANIPError e) {
+            return failureResponse(
+                    HttpStatus.valueOf(Constants.failureStatusCode(e.getErrorType())), e);
         }
 
         try {
@@ -175,7 +191,7 @@ public class AnipController {
 
     @PostMapping(value = "/anip/invoke/{capability}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Object invoke(@PathVariable String capability,
-                          @RequestBody(required = false) Map<String, Object> body,
+                          @RequestBody(required = false) byte[] rawBody,
                           HttpServletRequest request) {
         DelegationToken token;
         try {
@@ -184,10 +200,20 @@ public class AnipController {
             return re.toResponse();
         }
 
+        // The body is read after the credential check, so that a body that is
+        // not JSON is an ANIP failure and not the framework's error page.
+        Map<String, Object> body;
+        Map<String, Object> p;
+        try {
+            body = JsonRequestBody.readObject(rawBody);
+            p = JsonRequestBody.parametersOf(capability, body);
+        } catch (ANIPError e) {
+            return failureResponse(
+                    HttpStatus.valueOf(Constants.failureStatusCode(e.getErrorType())), e);
+        }
+
         Map<String, Object> params = new LinkedHashMap<>();
         if (body != null) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> p = (Map<String, Object>) body.get("parameters");
             if (p != null) {
                 params = p;
             } else {
@@ -217,7 +243,8 @@ public class AnipController {
         String upstreamService = body != null ? (String) body.get("upstream_service") : null;
         // v0.23: continuation invocations supply approval_grant. session_id
         // for session_bound grants is read from the signed token, never the body.
-        String approvalGrant = body != null ? (String) body.get("approval_grant") : null;
+        String approvalGrant = InvokeOpts.approvalGrantFromRequest(
+                body != null ? body.get("approval_grant") : null);
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
@@ -244,6 +271,46 @@ public class AnipController {
         }
 
         return ResponseEntity.ok(result);
+    }
+
+    // --- v0.23: Approval grants (JWT auth) ---
+
+    /**
+     * SPEC.md §4.9 — POST /anip/approval_grants. The bearer is authenticated
+     * here; the body checks, request state, approver authority and issuance
+     * run in {@link ANIPService#issueApprovalGrantForToken}, in the order the
+     * spec gives. The 200 body IS the signed grant — no wrapper.
+     */
+    @PostMapping(value = "/anip/approval_grants", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Object> approvalGrants(@RequestBody(required = false) String rawBody,
+                                                 HttpServletRequest request) {
+        DelegationToken token;
+        try {
+            token = resolveJwtAuth(request);
+        } catch (ResponseException re) {
+            return re.toResponse();
+        }
+
+        // The body is read as text so that malformed JSON gets an ANIP
+        // failure instead of the framework's error page.
+        Object body;
+        try {
+            body = MAPPER.readValue(rawBody == null ? "" : rawBody, Object.class);
+        } catch (Exception e) {
+            return failureResponse(HttpStatus.BAD_REQUEST, Constants.FAILURE_INVALID_PARAMETERS,
+                    "request body must be JSON", false);
+        }
+
+        try {
+            ApprovalGrant grant = service.issueApprovalGrantForToken(token, body);
+            return ResponseEntity.ok(toMap(grant));
+        } catch (ANIPError e) {
+            return failureResponse(
+                    HttpStatus.valueOf(Constants.failureStatusCode(e.getErrorType())), e);
+        } catch (Exception e) {
+            return failureResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    Constants.FAILURE_INTERNAL_ERROR, "issuance failed: " + e.getMessage(), false);
+        }
     }
 
     // --- 7. Audit (JWT auth) ---
@@ -356,14 +423,14 @@ public class AnipController {
 
     // --- SSE streaming ---
 
-    private SseEmitter handleStreamInvoke(String capability, DelegationToken token,
+    private Object handleStreamInvoke(String capability, DelegationToken token,
                                            Map<String, Object> params, String clientRefId,
                                            String taskId, String parentInvocationId,
                                            String upstreamService, dev.anip.core.Budget budget,
                                            String approvalGrant, java.util.List<String> requestedEffects) {
+        StreamResult sr;
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
-        StreamResult sr;
         try {
             InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
             if (budget != null) opts.setBudget(budget);
@@ -371,15 +438,15 @@ public class AnipController {
             opts.setRequestedEffects(requestedEffects);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
+            // SPEC.md §6.3: stream: true on a capability that only supports
+            // unary is answered with a JSON failure, not with a stream.
+            if (Constants.FAILURE_STREAMING_NOT_SUPPORTED.equals(e.getErrorType())) {
+                return failureResponse(
+                        HttpStatus.valueOf(Constants.failureStatusCode(e.getErrorType())), e);
+            }
             try {
-                Map<String, Object> errorData = new LinkedHashMap<>();
-                errorData.put("success", false);
-                errorData.put("failure", Map.of(
-                        "type", e.getErrorType(),
-                        "detail", e.getDetail(),
-                        "retry", e.isRetry()
-                ));
-                emitter.send(SseEmitter.event().name("failed").data(errorData));
+                // The same failure object a unary refusal carries.
+                emitter.send(SseEmitter.event().name("failed").data(failureBody(e)));
                 emitter.complete();
             } catch (Exception ignored) {
                 emitter.completeWithError(e);
@@ -523,13 +590,19 @@ public class AnipController {
     }
 
     private ResponseEntity<Object> failureResponse(HttpStatus status, ANIPError e) {
+        return ResponseEntity.status(status).body(failureBody(e));
+    }
+
+    private Map<String, Object> failureBody(ANIPError e) {
         Map<String, Object> failure = new LinkedHashMap<>();
         failure.put("type", e.getErrorType());
         failure.put("detail", e.getDetail());
         if (e.getResolution() != null) {
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("action", e.getResolution().getAction());
-            res.put("recovery_class", e.getResolution().getRecoveryClass());
+            res.put("recovery_class", e.getResolution().getRecoveryClass() != null
+                    ? e.getResolution().getRecoveryClass()
+                    : Constants.recoveryClassForAction(e.getResolution().getAction()));
             if (e.getResolution().getRequires() != null) {
                 res.put("requires", e.getResolution().getRequires());
             }
@@ -545,7 +618,7 @@ public class AnipController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", false);
         body.put("failure", failure);
-        return ResponseEntity.status(status).body(body);
+        return body;
     }
 
     private Map<String, Object> defaultResolution(String failureType) {
@@ -566,6 +639,11 @@ public class AnipController {
             case Constants.FAILURE_BUDGET_EXCEEDED -> Map.of(
                     "action", "request_budget_increase",
                     "recovery_class", Constants.recoveryClassForAction("request_budget_increase")
+            );
+            // The caller corrects the request; nothing outside it has to change.
+            case Constants.FAILURE_INVALID_PARAMETERS -> Map.of(
+                    "action", "retry_now",
+                    "recovery_class", Constants.recoveryClassForAction("retry_now")
             );
             default -> Map.of(
                     "action", "contact_service_owner",

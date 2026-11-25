@@ -23,6 +23,11 @@ def pytest_addoption(parser):
         help="Bearer credential for bootstrap token issuance (API key, OIDC token, etc.). Tests that need a token skip when this is absent.",
     )
     parser.addoption(
+        "--other-bootstrap-bearer",
+        default=None,
+        help="Bootstrap credential of a second principal, different from the one --bootstrap-bearer authenticates. Tests that need two principals skip when this is absent.",
+    )
+    parser.addoption(
         "--sample-inputs",
         default=None,
         help="Path to JSON file mapping capability names to sample parameters",
@@ -46,11 +51,26 @@ def bootstrap_bearer(request):
 
 
 @pytest.fixture(scope="session")
+def other_bootstrap_bearer(request, bootstrap_bearer):
+    val = request.config.getoption("--other-bootstrap-bearer")
+    if val is None:
+        pytest.skip("--other-bootstrap-bearer not provided (needs a second principal)")
+    if val == bootstrap_bearer:
+        pytest.fail("--other-bootstrap-bearer must authenticate another principal "
+                    "than --bootstrap-bearer")
+    return val
+
+
+@pytest.fixture(scope="session")
 def sample_inputs(request):
     """Load sample capability inputs from JSON file, or return empty dict.
 
-    Any ``issued_at`` fields inside parameter objects are refreshed to the
-    current epoch time so that binding freshness checks (max_age) pass.
+    Keys are capability names. The optional ``$approval`` key describes how to
+    reach the approval flow (see test_approvals.py).
+
+    Any ``issued_at`` fields inside parameter objects, at any depth, are
+    refreshed to the current epoch time so that binding freshness checks
+    (max_age) pass.
     """
     path = request.config.getoption("--sample-inputs")
     if path is None:
@@ -63,11 +83,15 @@ def sample_inputs(request):
 
     # Refresh issued_at timestamps so bindings are not stale
     now = int(time.time())
-    for params in data.values():
-        if isinstance(params, dict):
-            for val in params.values():
-                if isinstance(val, dict) and "issued_at" in val:
-                    val["issued_at"] = now
+
+    def refresh(value):
+        if isinstance(value, dict):
+            if "issued_at" in value:
+                value["issued_at"] = now
+            for nested in value.values():
+                refresh(nested)
+
+    refresh(data)
 
     return data
 
@@ -116,6 +140,45 @@ def all_scopes(discovery):
         for s in meta.get("minimum_scope", []):
             scopes.add(s)
     return list(scopes)
+
+
+# §4.5 "Mandatory action → recovery_class mapping".
+RECOVERY_CLASS_FOR_ACTION = {
+    "retry_now": "retry_now",
+    "provide_credentials": "retry_now",
+    "wait_and_retry": "wait_then_retry",
+    "request_approval": "wait_then_retry",
+    "obtain_binding": "refresh_then_retry",
+    "refresh_binding": "refresh_then_retry",
+    "obtain_quote_first": "refresh_then_retry",
+    "revalidate_state": "revalidate_then_retry",
+    "check_manifest": "revalidate_then_retry",
+    "request_broader_scope": "redelegation_then_retry",
+    "request_budget_increase": "redelegation_then_retry",
+    "request_budget_bound_delegation": "redelegation_then_retry",
+    "request_matching_currency_delegation": "redelegation_then_retry",
+    "request_new_delegation": "redelegation_then_retry",
+    "request_capability_binding": "redelegation_then_retry",
+    "request_deeper_delegation": "redelegation_then_retry",
+    "escalate_to_root_principal": "terminal",
+    "contact_service_owner": "terminal",
+}
+
+def assert_complete_failure(failure) -> None:
+    """§4.5: "A service MUST NOT return failures that lack a type and
+    resolution field. A service MUST include recovery_class in every
+    resolution object", with the mandatory action → recovery_class mapping."""
+    assert isinstance(failure, dict) and failure.get("type"), f"Not a failure object: {failure}"
+    assert isinstance(failure.get("detail"), str) and failure["detail"], f"No detail: {failure}"
+    resolution = failure.get("resolution")
+    assert isinstance(resolution, dict), f"'{failure['type']}' has no resolution: {failure}"
+    action = resolution.get("action")
+    assert action in RECOVERY_CLASS_FOR_ACTION, (
+        f"'{failure['type']}': '{action}' is not a canonical resolution.action"
+    )
+    assert resolution.get("recovery_class") == RECOVERY_CLASS_FOR_ACTION[action], (
+        f"'{failure['type']}': wrong recovery_class for '{action}': {resolution}"
+    )
 
 
 def issue_token(

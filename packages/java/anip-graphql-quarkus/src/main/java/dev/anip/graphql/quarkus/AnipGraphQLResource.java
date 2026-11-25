@@ -71,12 +71,15 @@ public class AnipGraphQLResource {
         // header. session_id for session_bound grants is read from the
         // signed token, never the header.
         String finalApprovalGrant = approvalGrant != null ? approvalGrant : "";
+        // A header that is present, even empty, is a supplied grant.
+        boolean approvalGrantSupplied = approvalGrant != null;
 
         ExecutionInput.Builder execBuilder = ExecutionInput.newExecutionInput()
                 .query(query)
                 .graphQLContext(builder -> builder
                         .of("authHeader", finalAuthHeader)
-                        .of("approvalGrant", finalApprovalGrant));
+                        .of("approvalGrant", finalApprovalGrant)
+                        .of("approvalGrantSupplied", approvalGrantSupplied));
 
         if (variables != null) {
             execBuilder.variables(variables);

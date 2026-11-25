@@ -117,11 +117,11 @@ func TestInvokeStreamRejectsTokenBoundToAnotherCapability(t *testing.T) {
 // capability over them. The children record the token each was invoked with.
 func newComposedTestService(seen map[string]*core.DelegationToken) *Service {
 	selectDecl := atomicDecl("select_cap", []string{"items"})
-	selectDecl.Inputs = []core.CapabilityInput{{Name: "q", Type: "string"}}
+	selectDecl.Inputs = []core.CapabilityInput{{Name: "q", Type: "string", Required: true}}
 	enrichDecl := atomicDecl("enrich_cap", []string{"count", "items"})
-	enrichDecl.Inputs = []core.CapabilityInput{{Name: "items", Type: "array"}}
+	enrichDecl.Inputs = []core.CapabilityInput{{Name: "items", Type: "array", Required: true}}
 	parentDecl := composedDecl("summary", basicComposition())
-	parentDecl.Inputs = []core.CapabilityInput{{Name: "q", Type: "string"}}
+	parentDecl.Inputs = []core.CapabilityInput{{Name: "q", Type: "string", Required: true}}
 
 	return New(Config{
 		ServiceID: "test-service",

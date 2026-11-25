@@ -98,4 +98,36 @@ class InputResolutionTest {
         assertSame(ResolutionMode.BACKEND_RESOLVED, ResolutionMode.fromWire("backend_resolved"));
         assertSame(ResolutionBehavior.USE_DEFAULT, ResolutionBehavior.fromWire("use_default"));
     }
+
+    // SPEC.md §4.1: an input whose declaration does not state `required` is required.
+    @Test
+    void inputDeclaredWithoutRequiredIsRequired() {
+        CapabilityInput inp = new CapabilityInput("origin", "airport_code");
+        assertTrue(inp.isRequired());
+        assertEquals("origin", inp.getName());
+        assertEquals("airport_code", inp.getType());
+        assertFalse(new CapabilityInput("q", "string", false, "optional").isRequired());
+    }
+
+    // SPEC.md §6.3: a required input whose resolution sets on_missing is not
+    // demanded of the caller; the service answers through the on_missing path.
+    @Test
+    void mustBeSuppliedFollowsRequiredAndOnMissing() {
+        assertTrue(new CapabilityInput("a", "string").mustBeSupplied());
+        assertFalse(new CapabilityInput("a", "string", false, "optional").mustBeSupplied());
+
+        InputResolution modeOnly = new InputResolution(
+                ResolutionMode.EXPLICIT_ONLY, null, null, ResolutionBehavior.CLARIFY, ResolutionBehavior.DENY);
+        assertTrue(new CapabilityInput("a", "string", true, null, "", null, false,
+                null, null, null, modeOnly).mustBeSupplied());
+
+        for (ResolutionBehavior behavior : ResolutionBehavior.values()) {
+            InputResolution onMissing = new InputResolution(
+                    ResolutionMode.CLARIFY, null, behavior, null, null);
+            assertFalse(new CapabilityInput("a", "string", true, null, "", null, false,
+                    null, null, null, onMissing).mustBeSupplied(), behavior.wire());
+            assertFalse(new CapabilityInput("a", "string", false, null, "", null, false,
+                    null, null, null, onMissing).mustBeSupplied(), behavior.wire());
+        }
+    }
 }

@@ -9,6 +9,9 @@ namespace Anip.Example.Flights;
 /// </summary>
 public static class BookFlightCapability
 {
+    /// <summary>Bookings for this many passengers or more need an approval grant (SPEC.md §4.7).</summary>
+    public const int GroupBookingApprovalThreshold = 5;
+
     public static CapabilityDef Create()
     {
         var declaration = new CapabilityDeclaration
@@ -20,8 +23,9 @@ public static class BookFlightCapability
             {
                 new() { Name = "flight_number", Type = "string", Required = true, Description = "Flight to book" },
                 new() { Name = "date", Type = "date", Required = true, Description = "Travel date (YYYY-MM-DD)" },
-                new() { Name = "passengers", Type = "integer", Required = false, Default = 1, Description = "Number of passengers" },
-                new() { Name = "quote_id", Type = "object", Required = true, Description = "Priced quote from search_flights" },
+                new() { Name = "passengers", Type = "integer", Required = false, Default = 1, Description = $"Number of passengers. Bookings for {GroupBookingApprovalThreshold} or more require approval" },
+                // Optional as an input: the binding requirement below is what demands it.
+                new() { Name = "quote_id", Type = "object", Required = false, Description = "Priced quote from search_flights" },
             },
             Output = new CapabilityOutput
             {
@@ -75,6 +79,14 @@ public static class BookFlightCapability
                     new() { Service = "travel-search", Capability = "search_flights" },
                 },
             },
+            // What an approver may issue for a group booking (SPEC.md §4.7).
+            GrantPolicy = new GrantPolicy
+            {
+                AllowedGrantTypes = new List<string> { "one_time", "session_bound" },
+                DefaultGrantType = "one_time",
+                ExpiresInSeconds = 900,
+                MaxUses = 2,
+            },
         };
 
         return new CapabilityDef(declaration, Handle);
@@ -90,7 +102,16 @@ public static class BookFlightCapability
         if (string.IsNullOrEmpty(flightNumber) || string.IsNullOrEmpty(date))
         {
             throw new AnipError(Constants.FailureInvalidParameters,
-                "flight_number and date are required");
+                "flight_number and date must not be empty");
+        }
+
+        // Group bookings need an approver's grant. On the continuation invocation
+        // the runtime has already validated and reserved the grant.
+        if (passengers >= GroupBookingApprovalThreshold && string.IsNullOrWhiteSpace(ctx.ApprovalGrant))
+        {
+            throw new AnipError(Constants.FailureApprovalRequired,
+                $"bookings for {GroupBookingApprovalThreshold} or more passengers require approval")
+                .WithResolution("request_approval");
         }
 
         var flight = FlightData.FindFlight(flightNumber, date);
@@ -143,20 +164,29 @@ public static class BookFlightCapability
         return value as string;
     }
 
+    /// <summary>
+    /// Reads an integer input. An integral number is an integer however it is
+    /// written (<c>5</c>, <c>5.0</c>, <c>5e0</c>): SPEC.md §6.3.
+    /// </summary>
     private static int GetInt(Dictionary<string, object?> parameters, string key, int defaultValue)
     {
         if (!parameters.TryGetValue(key, out var value))
             return defaultValue;
 
-        if (value is System.Text.Json.JsonElement el)
+        double? number = value switch
         {
-            if (el.ValueKind == System.Text.Json.JsonValueKind.Number && el.TryGetInt32(out var intVal))
-                return intVal;
-        }
+            System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Number } el
+                when el.TryGetDouble(out var parsed) => parsed,
+            int i => i,
+            long l => l,
+            double d => d,
+            float f => f,
+            decimal m => (double)m,
+            _ => null,
+        };
 
-        if (value is int i) return i;
-        if (value is long l) return (int)l;
-        if (value is double d) return (int)d;
+        if (number is { } n && Math.Floor(n) == n && n >= int.MinValue && n <= int.MaxValue)
+            return (int)n;
 
         return defaultValue;
     }

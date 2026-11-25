@@ -32,3 +32,5 @@ Files:
   binding to a new major version of a library it wraps.
 - [local-verification.md](local-verification.md) — how to run each language's
   checks locally the way CI runs them.
+- [approvals-conformance.md](approvals-conformance.md) — what the first
+  approval conformance tests found, and how to run them.

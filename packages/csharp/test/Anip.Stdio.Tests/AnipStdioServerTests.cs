@@ -289,6 +289,12 @@ public class AnipStdioServerTests : IDisposable
         var error = GetError(response);
 
         Assert.Equal(-32001, error["code"]);
+        // SPEC.md §6.3 Token Issuance: an unrecognised credential is
+        // authentication_required, like no credential at all.
+        var data = (Dictionary<string, object?>)error["data"]!;
+        Assert.Equal("authentication_required", data["type"]);
+        var resolution = (Dictionary<string, object?>)data["resolution"]!;
+        Assert.Equal("provide_credentials", resolution["action"]);
     }
 
     // --- anip.permissions ---

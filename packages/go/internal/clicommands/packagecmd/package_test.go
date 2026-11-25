@@ -218,6 +218,135 @@ func TestBuildLocalEmitsVerifiablePackageBundleShape(t *testing.T) {
 	}
 }
 
+func buildLocalForTest(t *testing.T, definitionPath string, outputDir string, version string, extra ...string) (int, string) {
+	t.Helper()
+	args := append([]string{
+		"build-local",
+		"--definition", definitionPath,
+		"--package-id", "fronting-demo",
+		"--package-version", version,
+		"--output-dir", outputDir,
+		"--generated-at", "2026-05-15T00:00:00Z",
+	}, extra...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(args, &stdout, &stderr)
+	return code, stderr.String()
+}
+
+func readJSONForTest(t *testing.T, path string) map[string]any {
+	t.Helper()
+	value, err := readJSONMap(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return value
+}
+
+// A package built from a new revision of a definition keeps the agent
+// metadata a reviewer approved for the source package: build-local cannot
+// derive simulation results or reviewed findings from the definition.
+func TestBuildLocalCarriesReviewedAgentMetadataFromSourcePackage(t *testing.T) {
+	tempDir := t.TempDir()
+	definitionPath := filepath.Join(tempDir, "anip-service-definition.json")
+	if err := os.WriteFile(definitionPath, []byte(validBuildLocalDefinitionJSON), 0o600); err != nil {
+		t.Fatalf("write definition: %v", err)
+	}
+	sourceDir := filepath.Join(tempDir, "source")
+	if code, stderr := buildLocalForTest(t, definitionPath, sourceDir, "0.1.0"); code != 0 {
+		t.Fatalf("build source package: exit %d stderr=%s", code, stderr)
+	}
+	sourcePath := filepath.Join(sourceDir, "fronting-demo-0.1.0.anip-package.json")
+	source := readJSONForTest(t, sourcePath)
+	reviewed := map[string]any{
+		"agent_consumability": map[string]any{
+			"schema_version": "anip-agent-consumability/v0",
+			"artifact_type":  "agent_consumability_metadata",
+			"capabilities": map[string]any{
+				"fronting.search": map[string]any{"reviewed_note": "kept from review"},
+			},
+		},
+		"agent_consumption_readiness": map[string]any{
+			"artifact_type":   "agent_consumption_readiness",
+			"status":          "ready",
+			"score":           float64(100),
+			"summary":         map[string]any{"blockers": float64(0), "warnings": float64(0), "probes": float64(7)},
+			"finding_reviews": []any{map[string]any{"finding_id": "fronting.search:query", "decision": "accepted"}},
+		},
+		"agent_consumption_simulation":       map[string]any{"status": "pass", "summary": map[string]any{"passed": float64(3), "total": float64(3)}},
+		"agent_consumption_publication_gate": map[string]any{"status": "pass", "label": "Simulation passed"},
+	}
+	// The lock carries summaries, as a Studio export does; a key the source
+	// lock lacks (the publication gate here) falls back to the manifest value.
+	lockSummaries := map[string]any{
+		"agent_consumability":          map[string]any{"schema_version": "anip-agent-consumability/v0", "capability_count": float64(1)},
+		"agent_consumption_readiness":  map[string]any{"status": "ready", "score": float64(100)},
+		"agent_consumption_simulation": map[string]any{"status": "pass"},
+	}
+	for _, holder := range []map[string]any{source["manifest"].(map[string]any), source["package"].(map[string]any)["manifest"].(map[string]any)} {
+		for key, value := range reviewed {
+			holder[key] = value
+		}
+	}
+	for _, holder := range []map[string]any{source["lock"].(map[string]any), source["package"].(map[string]any)["recommended_lock"].(map[string]any)} {
+		for key, value := range lockSummaries {
+			holder[key] = value
+		}
+	}
+	writeJSONFile(sourcePath, source)
+
+	outputDir := filepath.Join(tempDir, "next")
+	if code, stderr := buildLocalForTest(t, definitionPath, outputDir, "0.1.1", "--source-package", sourcePath); code != 0 {
+		t.Fatalf("build with source package: exit %d stderr=%s", code, stderr)
+	}
+	bundle := readJSONForTest(t, filepath.Join(outputDir, "fronting-demo-0.1.1.anip-package.json"))
+	manifest := bundle["manifest"].(map[string]any)
+	lock := bundle["lock"].(map[string]any)
+	for key, want := range reviewed {
+		wantJSON, _ := json.Marshal(want)
+		gotJSON, _ := json.Marshal(manifest[key])
+		if string(gotJSON) != string(wantJSON) {
+			t.Fatalf("manifest %s = %s, want %s", key, gotJSON, wantJSON)
+		}
+		wantLock := want
+		if summary, ok := lockSummaries[key]; ok {
+			wantLock = summary
+		}
+		wantLockJSON, _ := json.Marshal(wantLock)
+		gotLockJSON, _ := json.Marshal(lock[key])
+		if string(gotLockJSON) != string(wantLockJSON) {
+			t.Fatalf("lock %s = %s, want %s", key, gotLockJSON, wantLockJSON)
+		}
+	}
+	if !strings.HasPrefix(stringValue(bundle["package"].(map[string]any)["package_execution_signature"]), "sha256:") {
+		t.Fatalf("expected a package execution signature, got %+v", bundle["package"])
+	}
+}
+
+func TestBuildLocalRefusesSourcePackageForOtherCapabilities(t *testing.T) {
+	tempDir := t.TempDir()
+	definitionPath := filepath.Join(tempDir, "anip-service-definition.json")
+	if err := os.WriteFile(definitionPath, []byte(validBuildLocalDefinitionJSON), 0o600); err != nil {
+		t.Fatalf("write definition: %v", err)
+	}
+	sourceDir := filepath.Join(tempDir, "source")
+	if code, stderr := buildLocalForTest(t, definitionPath, sourceDir, "0.1.0"); code != 0 {
+		t.Fatalf("build source package: exit %d stderr=%s", code, stderr)
+	}
+	sourcePath := filepath.Join(sourceDir, "fronting-demo-0.1.0.anip-package.json")
+	source := readJSONForTest(t, sourcePath)
+	source["manifest"].(map[string]any)["agent_consumability"] = map[string]any{
+		"schema_version": "anip-agent-consumability/v0",
+		"capabilities":   map[string]any{"fronting.other": map[string]any{}},
+	}
+	writeJSONFile(sourcePath, source)
+
+	code, stderr := buildLocalForTest(t, definitionPath, filepath.Join(tempDir, "next"), "0.1.1", "--source-package", sourcePath)
+	if code != 1 || !strings.Contains(stderr, "fronting.other") || !strings.Contains(stderr, "fronting.search") {
+		t.Fatalf("expected refusal naming both capability sets, got exit %d stderr=%s", code, stderr)
+	}
+}
+
 func TestAuditEffectsRejectsNonCanonicalEffectIDs(t *testing.T) {
 	tempDir := t.TempDir()
 	artifactPath := filepath.Join(tempDir, "package.json")

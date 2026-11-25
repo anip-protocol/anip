@@ -69,6 +69,7 @@ public class AnipStdioServer
         ["not_found"] = NotFoundError,
         ["internal_error"] = InternalError,
         ["unavailable"] = InternalError,
+        ["service_unavailable"] = InternalError,
         ["concurrent_lock"] = InternalError,
     };
 
@@ -185,12 +186,26 @@ public class AnipStdioServer
         catch (AnipError ex)
         {
             var code = FailureTypeToCode.GetValueOrDefault(ex.ErrorType, InternalError);
-            return MakeError(requestId, code, ex.Detail, new Dictionary<string, object?>
+            var data = new Dictionary<string, object?>
             {
                 ["type"] = ex.ErrorType,
                 ["detail"] = ex.Detail,
                 ["retry"] = ex.Retry,
-            });
+            };
+            if (ex.Resolution != null)
+            {
+                var resolution = new Dictionary<string, object?>
+                {
+                    ["action"] = ex.Resolution.Action,
+                    ["recovery_class"] = !string.IsNullOrEmpty(ex.Resolution.RecoveryClass)
+                        ? ex.Resolution.RecoveryClass
+                        : Constants.RecoveryClassForAction(ex.Resolution.Action),
+                };
+                if (ex.Resolution.Requires != null) resolution["requires"] = ex.Resolution.Requires;
+                if (ex.Resolution.GrantableBy != null) resolution["grantable_by"] = ex.Resolution.GrantableBy;
+                data["resolution"] = resolution;
+            }
+            return MakeError(requestId, code, ex.Detail, data);
         }
         catch (Exception ex)
         {
@@ -251,7 +266,11 @@ public class AnipStdioServer
         var issuer = _service.AuthenticateIssuer(bearer);
         if (issuer == null)
         {
-            throw new AnipError("invalid_token", "Bearer token not recognized");
+            // SPEC.md §6.3 Token Issuance: an unrecognised credential is
+            // authentication_required, like no credential at all.
+            throw new AnipError(Constants.FailureAuthRequired,
+                "A bootstrap credential, or a delegation token issued by this service, is required to issue delegation tokens")
+                .WithResolution("provide_credentials");
         }
 
         var request = new TokenRequest

@@ -329,6 +329,7 @@ func main() {
 							"input_name": "query",
 							"input_type": "string",
 							"required": true,
+							"semantic_type": "search_query",
 							"summary": "Search query.",
 						},
 					},

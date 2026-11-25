@@ -138,6 +138,9 @@ class TestTokensIssue:
         }))
         assert "error" in resp
         assert resp["error"]["code"] == -32001
+        # SPEC.md §6.3 Token Issuance: an unrecognised credential is
+        # authentication_required, like no credential at all.
+        assert resp["error"]["data"]["type"] == "authentication_required"
 
     # A delegation token is a valid credential for delegating from a token
     # the caller holds (SPEC.md §6.3), and for nothing else.
@@ -294,3 +297,63 @@ class TestErrorHandling:
         resp = await server.handle_request({"jsonrpc": "2.0", "id": 1})
         assert "error" in resp
         assert resp["error"]["code"] == -32600
+
+
+class TestParameterValidation:
+    """SPEC.md §6.3: the failure is in the JSON-RPC result, like any other."""
+
+    RESOLUTION = {
+        "action": "retry_now",
+        "recovery_class": "retry_now",
+        "requires": "parameters that match the capability's declared inputs",
+    }
+
+    async def test_missing_required_input(self, server):
+        token_jwt = await _issue_token(server)
+        resp = await server.handle_request(_req("anip.invoke", {
+            "auth": {"bearer": token_jwt},
+            "capability": "echo",
+            "parameters": {},
+            "client_reference_id": "ref-7",
+        }))
+
+        assert "error" not in resp
+        result = resp["result"]
+        assert result["success"] is False
+        assert result["failure"] == {
+            "type": "invalid_parameters",
+            "detail": "echo is missing required input(s): message",
+            "resolution": self.RESOLUTION,
+            "retry": False,
+        }
+        assert result["invocation_id"].startswith("inv-")
+        assert result["client_reference_id"] == "ref-7"
+
+    @pytest.mark.parametrize("params", [{"parameters": None}, {}])
+    async def test_absent_or_null_parameters(self, server, params):
+        token_jwt = await _issue_token(server)
+        resp = await server.handle_request(_req("anip.invoke", {
+            "auth": {"bearer": token_jwt}, "capability": "echo", **params,
+        }))
+
+        assert resp["result"]["failure"]["type"] == "invalid_parameters"
+        assert resp["result"]["failure"]["detail"] == "echo is missing required input(s): message"
+
+    async def test_wrong_type_on_a_streaming_invocation(self, server):
+        token_jwt = await _issue_token(server)
+        resp = await server.handle_request(_req("anip.invoke", {
+            "auth": {"bearer": token_jwt},
+            "capability": "echo",
+            "parameters": {"message": 5},
+            "stream": True,
+        }))
+
+        assert isinstance(resp, list) and len(resp) == 1
+        result = resp[0]["result"]
+        assert result["success"] is False
+        assert result["failure"] == {
+            "type": "invalid_parameters",
+            "detail": "echo has invalid input(s): 'message' must be string, got number",
+            "resolution": self.RESOLUTION,
+            "retry": False,
+        }

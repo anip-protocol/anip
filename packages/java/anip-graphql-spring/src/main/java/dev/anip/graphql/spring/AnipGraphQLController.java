@@ -65,12 +65,15 @@ public class AnipGraphQLController {
         // token, never the header.
         String approvalGrant = request.getHeader("X-Anip-Approval-Grant");
         String finalApprovalGrant = approvalGrant != null ? approvalGrant : "";
+        // A header that is present, even empty, is a supplied grant.
+        boolean approvalGrantSupplied = approvalGrant != null;
 
         ExecutionInput.Builder execBuilder = ExecutionInput.newExecutionInput()
                 .query(query)
                 .graphQLContext(builder -> builder
                         .of("authHeader", finalAuthHeader)
-                        .of("approvalGrant", finalApprovalGrant));
+                        .of("approvalGrant", finalApprovalGrant)
+                        .of("approvalGrantSupplied", approvalGrantSupplied));
 
         if (variables != null) {
             execBuilder.variables(variables);

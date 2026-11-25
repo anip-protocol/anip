@@ -170,7 +170,11 @@ internal sealed class AnipMcpTool : McpServerTool
         string? approvalGrant = null;
         if (args.TryGetValue("__approval_grant", out var agObj))
         {
-            approvalGrant = agObj as string;
+            // A string, even a blank one, is a supplied grant and is validated.
+            // Any other value is not a grant: the call proceeds without one.
+            var isString = agObj is string ||
+                agObj is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String };
+            approvalGrant = isString ? InvokeOpts.ApprovalGrantFromRequest(agObj) : null;
             args.Remove("__approval_grant");
         }
 

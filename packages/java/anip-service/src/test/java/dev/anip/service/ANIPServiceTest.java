@@ -511,7 +511,8 @@ class ANIPServiceTest {
         svc.start();
         try {
             DelegationToken token = issueToken(svc, List.of("travel"));
-            svc.invoke("search_flights", token, Map.of(), new InvokeOpts());
+            svc.invoke("search_flights", token,
+                    Map.of("origin", "SFO", "destination", "LAX"), new InvokeOpts());
 
             assertTrue(invokeStartFired.get());
             assertTrue(invokeCompleteFired.get());
@@ -627,7 +628,8 @@ class ANIPServiceTest {
         try {
             DelegationToken token = issueToken(svc, List.of("travel"));
             // Should not throw even though hooks throw.
-            Map<String, Object> result = svc.invoke("search_flights", token, Map.of(), new InvokeOpts());
+            Map<String, Object> result = svc.invoke("search_flights", token,
+                    Map.of("origin", "SFO", "destination", "LAX"), new InvokeOpts());
             assertTrue((Boolean) result.get("success"));
         } finally {
             svc.shutdown();
@@ -676,7 +678,8 @@ class ANIPServiceTest {
     @Test
     void testAuditQueryAfterInvoke() throws Exception {
         DelegationToken token = issueTestToken(List.of("travel"));
-        service.invoke("search_flights", token, Map.of(), new InvokeOpts());
+        service.invoke("search_flights", token,
+                Map.of("origin", "SFO", "destination", "LAX"), new InvokeOpts());
 
         AuditResponse auditResp = service.queryAudit(token,
                 new AuditFilters(null, null, null, null, 50));
@@ -696,7 +699,8 @@ class ANIPServiceTest {
     void testCreateAndListCheckpoint() throws Exception {
         // Create some audit entries first.
         DelegationToken token = issueTestToken(List.of("travel"));
-        service.invoke("search_flights", token, Map.of(), new InvokeOpts());
+        service.invoke("search_flights", token,
+                Map.of("origin", "SFO", "destination", "LAX"), new InvokeOpts());
 
         Checkpoint cp = service.createCheckpoint();
         assertNotNull(cp);

@@ -63,7 +63,7 @@ capability:
       required: true
     - name: passengers
       type: integer
-      required: true
+      required: false
       default: 1
   output:
     type: booking_confirmation
@@ -83,6 +83,16 @@ capability:
 ```
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
+
+#### Inputs
+
+Each entry of `inputs` has a `name` and a `type`.
+
+**`required` defaults to `true`.** An input whose declaration does not state `required` is required; an optional input says `required: false`. Runtimes MUST apply this default wherever a declaration is read: in code (property initialisers and constructors), and when decoding a manifest, a service definition or a registry package. Go is the one runtime where code cannot rely on the default — a struct literal leaves an unset `bool` `false` — so Go code states `Required` explicitly, and decoding applies the default.
+
+**`type`** is either one of the six primitive type names — `string`, `integer`, `number`, `boolean`, `array`, `object` — or any other name (`airport_code`, `date`, a domain type). The service checks a supplied value against a primitive type at invocation (§6.3, Parameter Validation). Any other type name describes the value to the agent and is not checked by the runtime.
+
+**`default`** describes the value an optional input takes when the caller leaves it out. It does not make a `required: true` input optional.
 
 #### Capability Kind (v0.23)
 
@@ -733,6 +743,16 @@ failure:
   retry: false
 ```
 
+```yaml
+# v0.24: approval grant redeemed by a token of another root principal (§4.8 step 5)
+failure:
+  type: grant_requester_mismatch
+  detail: "approval_grant validation failed: grant_requester_mismatch"
+  resolution:
+    action: "contact_service_owner"
+    recovery_class: "terminal"
+```
+
 #### Structured Recovery Target (v0.21)
 
 The Resolution object MAY include a `recovery_target` — a structured description of where and how recovery should proceed. This replaces prose-only recovery guidance with machine-readable targets.
@@ -932,10 +952,10 @@ When a capability handler returns the `approval_required` failure, the service r
 | `approval_request_id` | string | Yes | Service-generated collision-resistant identifier. |
 | `capability` | string | Yes | The invoked capability that raised `approval_required`. |
 | `scope` | array of string | Yes | The scopes the approved action would consume. |
-| `requester` | object | Yes | The principal of the original invocation (who needs approval). |
+| `requester` | object | Yes | The principal of the original invocation (who needs approval): `subject` and `root_principal` of the invoking delegation token. `root_principal` is the principal at the root of that token's delegation chain, the same value that scopes the audit log (§6.3). |
 | `parent_invocation_id` | string | No | The original invocation's ID (audit linkage). |
 | `preview` | object | Yes | The preview content shown to approvers (handler-supplied). |
-| `preview_digest` | string | Yes | SHA-256 of canonical JSON of `preview`. |
+| `preview_digest` | string | Yes | SHA-256 of canonical JSON of `preview` (see Canonical JSON and Digests below). |
 | `requested_parameters` | object | Yes | The parameters the requester submitted. |
 | `requested_parameters_digest` | string | Yes | SHA-256 of canonical JSON of `requested_parameters`. |
 | `grant_policy` | object | Yes | What grants MAY be issued for this request — see below. |
@@ -944,6 +964,25 @@ When a capability handler returns the `approval_required` failure, the service r
 | `decided_at` | timestamp | No | When the status transitioned away from `pending`. Required for `approved`, `denied`, and `expired`; MUST be null for `pending`. |
 | `created_at` | timestamp | Yes | Creation time. |
 | `expires_at` | timestamp | Yes | Approval request expiry. Distinct from grant expiry. |
+
+#### Canonical JSON and Digests
+
+"Canonical JSON" in §4.7–§4.9 is the JSON Canonicalization Scheme, [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS):
+
+- object members are sorted by the UTF-16 code units of their names (not by code point and not by UTF-8 bytes; the three orders differ for names outside the Basic Multilingual Plane);
+- there is no insignificant whitespace;
+- strings are escaped as RFC 8785 §3.2.2.2 requires: `\"`, `\\`, `\b`, `\t`, `\n`, `\f`, `\r`, `\u00xx` (lowercase hex) for the other characters below U+0020, and every other character written literally (`/`, `<`, `>`, `&`, U+007F, U+2028 and non-ASCII characters are not escaped);
+- numbers are serialised as ECMAScript's `Number.prototype.toString` does (RFC 8785 §3.2.2.3): the shortest digits that round-trip the IEEE 754 double, no fraction or exponent for an integral value below 10^21, exponent notation from 10^21 and below 10^-6, and `-0` written `0`;
+- the result is encoded as UTF-8.
+
+A digest (`preview_digest`, `requested_parameters_digest`, `approved_parameters_digest`, and the parameters digest computed at §4.8 step 7) is the string `sha256:` followed by the lowercase hexadecimal SHA-256 of those bytes.
+
+Two consequences follow from RFC 8785 and are intended:
+
+- `5`, `5.0` and `5e0` are the same JSON number and produce the same digest. A continuation that writes an approved `5` as `5.0` is not parameter drift.
+- Numbers are IEEE 754 doubles. An integer outside ±2^53 is not preserved exactly (`9007199254740993` canonicalises as `9007199254740992`), so identifiers and amounts that need more precision MUST be carried as strings.
+
+The canonical form is computed from the parsed JSON value, so the order and spelling a client used on the wire never matter. Every runtime runs the shared test vectors in `packages/canonical-json-fixtures/rfc8785-vectors.json` (JSON text in, canonical bytes out), which include the RFC's own examples.
 
 #### Grant Policy
 
@@ -1050,18 +1089,21 @@ When `invoke()` receives a request with `approval_grant`, validation proceeds in
 2. Verify signature/integrity. Invalid → `grant_not_found` (don't leak existence).
 3. Check `expires_at > now`. Expired → `grant_expired`.
 4. Compare grant `capability` to invoked capability. Mismatch → `grant_capability_mismatch`.
-5. Validate scope per the **scope subset rule** below. Mismatch → `grant_scope_mismatch`.
-6. Compute current request `parameters_digest`; compare to `approved_parameters_digest`. Mismatch → `grant_param_drift`.
-7. If `grant_type: session_bound`: verify session_id from invocation token matches grant `session_id`. Mismatch → `grant_session_invalid`.
+5. Compare the root principal of the invoking token with `requester.root_principal` recorded in the grant. Mismatch, or a grant whose `requester` records no `root_principal` → `grant_requester_mismatch`. Tokens of the same root principal (the requester's own token, a fresh token of the same principal, or a token delegated from it) may redeem the grant.
+6. Validate scope per the **scope subset rule** below. Mismatch → `grant_scope_mismatch`.
+7. Compute current request `parameters_digest` — SHA-256 of the canonical JSON (RFC 8785, §4.7) of the request's `parameters` — and compare to `approved_parameters_digest`. Mismatch → `grant_param_drift`.
+8. If `grant_type: session_bound`: verify session_id from invocation token matches grant `session_id`. Mismatch → `grant_session_invalid`.
 
 **Phase B — Atomic reservation (state change BEFORE side effects):**
-8. Atomically reserve the grant via storage. Implementation MUST be a single compare-and-swap or row-locked operation that simultaneously checks `use_count < max_uses` and `expires_at > now` and increments `use_count`.
+9. Atomically reserve the grant via storage. Implementation MUST be a single compare-and-swap or row-locked operation that simultaneously checks `use_count < max_uses` and `expires_at > now` and increments `use_count`.
    - PostgreSQL canonical form: `UPDATE grants SET use_count = use_count + 1 WHERE grant_id = $1 AND use_count < max_uses AND expires_at > now() RETURNING ...`. 0 rows → re-fetch to disambiguate `grant_consumed` vs `grant_expired` vs `grant_not_found`.
-9. If reservation fails → return the corresponding failure type. Side effects MUST NOT execute.
+10. If reservation fails → return the corresponding failure type. Side effects MUST NOT execute.
 
 **Phase C — Side-effect execution:**
-10. Execute the capability handler.
-11. Write audit linkage entry regardless of handler success/failure.
+11. Execute the capability handler.
+12. Write audit linkage entry regardless of handler success/failure.
+
+Every Phase A and Phase B refusal carries `resolution.action: contact_service_owner` (`recovery_class: terminal`): the caller cannot repair the grant itself. A Phase A refusal changes no state, so the grant stays usable by a continuation that passes every step.
 
 **Failure handling:** if the handler raises after reservation, the grant stays consumed. The audit entry records the failure. The caller MUST request a fresh approval to retry. This is intentional: a successful reservation means "this grant has been spent on an attempt." The alternative — releasing on failure — opens replay attacks against side effects that completed partially.
 
@@ -1109,7 +1151,7 @@ Rationale: agents never issue grants. The role is approver-side and predominantl
 
 **Validation order (security-relevant):**
 
-1. Authenticate transport-level bearer; extract approver principal. Missing/invalid → `unauthorized`. Do NOT yet enforce approver scope.
+1. Authenticate transport-level bearer; extract approver principal. Missing → `authentication_required`; invalid → `invalid_token` (HTTP 401, as on every other protected endpoint). Do NOT yet enforce approver scope.
 2. Parse body. Malformed → `invalid_parameters`.
 3. Load `ApprovalRequest` by `approval_request_id`. Missing → `approval_request_not_found`.
 4. Validate request is still pending and not expired. If decided → `approval_request_already_decided`. If expired → `approval_request_expired`.
@@ -1190,6 +1232,8 @@ Each of `on_missing`, `on_ambiguous`, and `on_unresolved` MUST be one of exactly
 | `omit` | Treat the input as absent and proceed. |
 
 These values are machine-readable; they MUST NOT be replaced with free-form prose.
+
+**`on_missing` and parameter validation.** The runtime's required-input check (§6.3, Parameter Validation) does not apply to an input that sets `on_missing`: when such an input is absent or `null`, the invocation is not refused with `invalid_parameters` and reaches the service's `on_missing` path, even when the input is `required: true`. An input that declares no `on_missing` and is `required: true` is refused by the runtime when absent. A supplied value is type-checked in both cases.
 
 #### Resolver Reference Semantics
 
@@ -1728,6 +1772,8 @@ budget:
 | `budget` | object | No | Budget constraint with `currency` (ISO 4217) and `max_amount` (v0.14). Must narrow relative to parent. |
 | `concurrent_branches` | string | No | Concurrency posture for the token tree. Values: `"allowed"` (default, multiple branches permitted), `"exclusive"` (single active branch). Same vocabulary as delegation constraints (§4.3). |
 
+**Authentication failures.** A request without a credential, and a request whose credential the service does not recognise (it is neither a bootstrap credential the service accepts nor a delegation token issued by this service), are both refused with `authentication_required`, HTTP 401: at this endpoint the caller has yet to establish who it is, and the answer does not reveal which kind of credential was expected. (`invalid_token` is for a delegation token that fails validation on the endpoints that require one.)
+
 > **Root vs delegated issuance:** The same endpoint serves both. Root issuance authenticates via bootstrap credential and omits `parent_token`. Delegated issuance authenticates via existing JWT and includes `parent_token` (a token ID string). The runtime convenience helpers (`issueCapabilityToken` for root, `issueDelegatedCapabilityToken` for delegated) correctly assemble these requests.
 
 > **A token is a credential for delegating only.** A request that authenticates with a delegation token MUST include a `parent_token` held by that token's subject. A request that authenticates with a delegation token and omits `parent_token` asks for a root token and MUST fail with `insufficient_authority`: otherwise the holder of a narrowed token could issue itself a root token with any scope. A service MUST NOT treat the presenter of a delegation token as the root principal of the token's chain.
@@ -1897,6 +1943,80 @@ When `stream: true` is requested and the capability declares `streaming` in its 
 Lineage begins at the service `invoke()` boundary. Bearer auth failures (HTTP 401) occur in framework bindings before `invoke()` is called — they are transport-level rejections and do not receive lineage fields.
 
 The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
+
+#### Parameter Validation (v0.24)
+
+Before the handler runs, the service MUST check the invocation's `parameters` against the capability's declared `inputs` (§4.1). The check is the same in every runtime, for unary and streaming invocations, and on every transport binding.
+
+**When.** The check runs:
+
+- after the delegation token has been validated (authentication, delegation chain, purpose binding and scope), and after budget, binding and control-requirement enforcement — a caller without the authority to invoke the capability learns that, not which parameters are wrong, and a missing binding field is reported as `binding_missing` with its recovery path;
+- before an `approval_grant` is validated or reserved (§4.8, Phases A and B) — a continuation with invalid parameters does not spend its grant;
+- before the handler and, for a composed capability (§4.6), before any child step. Each child step is itself an invocation and is checked against the child capability's declared inputs.
+
+**What.** The check is applied to the parameters as the caller sent them. A request without `parameters`, or with `parameters: null`, has the empty object as its parameters. A `parameters` value of any other JSON type does not match the request schema and is refused with `invalid_parameters` (detail: `"<capability> parameters must be an object, got <JSON type>"`), like a body that is not JSON (HTTP Status Codes below).
+
+1. **Required inputs.** A declared input with `required: true` (the default, §4.1) that is absent from `parameters`, or whose value is JSON `null`, is missing. A declared `default` does not satisfy `required`. **Exception:** an input whose declaration carries a `resolution` block with `on_missing` set (§4.10) is not subject to this rule. That declaration already says what happens when the value is absent (`clarify`, `use_default`, `deny`, ...), and the service answers through that path; the runtime MUST NOT pre-empt it with `invalid_parameters`. An input with no `resolution`, or with a `resolution` that does not set `on_missing`, is subject to the rule. A value that is supplied for such an input is still type-checked (item 2).
+2. **Primitive types.** If the declared `type` is exactly one of the six primitive type names, a supplied value (present and not `null`) MUST be of the matching JSON type:
+
+   | Declared `type` | Accepted |
+   |---|---|
+   | `string` | a JSON string |
+   | `integer` | a JSON number with an integral value. `5` and `5.0` are both accepted — they are the same number (§4.7, Canonical JSON). `true` and `false` are not numbers. |
+   | `number` | any JSON number. `true` and `false` are not numbers. |
+   | `boolean` | `true` or `false` |
+   | `array` | a JSON array |
+   | `object` | a JSON object |
+
+   Any other declared type name (`airport_code`, `date`, a domain type) is not checked by the runtime; the handler validates it.
+3. **Optional inputs.** An input with `required: false` that is absent or `null` is not checked.
+4. **Undeclared parameters** are not checked and are passed to the handler.
+5. The check does not apply `default` values and does not enforce `allowed_values` or the `resolution` block (§4.10).
+
+**Failure.** A call that fails the check is refused with `invalid_parameters` (HTTP 400, see HTTP Status Codes below):
+
+```yaml
+success: false
+invocation_id: "inv-a1b2c3d4e5f6"
+failure:
+  type: invalid_parameters
+  detail: "book_flight is missing required input(s): flight_number, date"
+  resolution:
+    action: retry_now
+    recovery_class: retry_now
+    requires: "parameters that match the capability's declared inputs"
+  retry: false
+```
+
+The `detail` names every missing input, in declaration order. When no input is missing, the `detail` names every input whose value has the wrong type, with the declared type and the JSON type received (one of `string`, `number`, `boolean`, `array`, `object`):
+
+```yaml
+  detail: "book_flight has invalid input(s): 'passengers' must be integer, got string; 'quote_id' must be object, got array"
+```
+
+`retry` is `false`: the same request cannot succeed. The caller corrects the parameters against the manifest and sends a new request; nothing outside the request has to change, which is why the action is `retry_now`.
+
+A refused invocation has no side effect: no handler or child step runs, no approval request is created and no grant is reserved. It is recorded in the audit log as a failure with `failure_type: invalid_parameters`, like other refusals made before the handler.
+
+#### HTTP Status Codes (v0.24)
+
+A failure is an ANIP failure object first; the HTTP status is a convenience for HTTP tooling and never replaces the failure `type`. So that a client sees the same status from every service, the HTTP binding maps each failure type to exactly one status. Every runtime and every HTTP binding of a runtime (the protocol endpoints of §6.2 and the REST adapter) MUST use this table, at every endpoint that returns the failure:
+
+| Status | Failure types |
+|---|---|
+| 400 | `invalid_parameters`, `streaming_not_supported`, `approval_required`, `grant_not_found`, `grant_capability_mismatch`, `grant_scope_mismatch`, `grant_param_drift`, `grant_session_invalid`, `grant_type_not_allowed_by_policy`, **and every failure type this table does not list**, including types a capability handler defines |
+| 401 | `authentication_required`, `invalid_token`, `token_expired`, `token_not_registered` |
+| 403 | `scope_insufficient`, `insufficient_authority`, `purpose_mismatch`, `scope_escalation`, `constraint_escalation`, `broken_delegation_chain`, `delegation_depth_exceeded`, `parent_token_expired`, `budget_exceeded`, `budget_currency_mismatch`, `budget_not_enforceable`, `binding_missing`, `binding_stale`, `control_requirement_unsatisfied`, `approver_not_authorized`, `grant_requester_mismatch` |
+| 404 | `unknown_capability`, `not_found`, `approval_request_not_found` |
+| 409 | `grant_consumed`, `grant_expired`, `approval_request_already_decided`, `approval_request_expired`, `concurrent_lock`, `concurrent_request_rejected`, `unavailable` |
+| 500 | `internal_error` |
+| 503 | `service_unavailable` |
+
+The classes are: 401 — the caller has not presented a usable credential; 403 — the credential is valid and its delegated authority (scope, purpose, chain, budget, binding, control requirement, approver role, the principal a grant was issued to) does not cover the request; 404 — the named capability, resource or approval request does not exist; 409 — the request conflicts with the current state of a grant, an approval request or a lock (a spent `one_time` grant is `grant_consumed`, 409); 500 and 503 — the service failed; 400 — everything else, where the caller has to change the request.
+
+A request body that is not JSON is `invalid_parameters` (400) at `POST {invoke}/{capability}` and `POST {tokens}`, as it is at `POST {approval_grants}` (§4.9 step 2). The credential is checked first: without one the answer is 401.
+
+A successful invocation is 200. A failure delivered inside an SSE stream that has already started (§6.6, the `failed` event) does not change the stream's status, which is 200. `stream: true` on a capability that only supports `unary` is answered with a JSON failure (`streaming_not_supported`, 400), not with a stream. The GraphQL adapter follows GraphQL convention (200 with the failure in the response body) and the MCP adapter reports a failure as a tool error; neither uses this table.
 
 #### Budget Enforcement (v0.14)
 
@@ -2863,7 +2983,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Signed delegation tokens** | MUST — v0.2 core | Implemented: server-issued JWT/ES256, JWKS discovery, trust boundary verification | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery |
 | **Signed manifests** | MUST — v0.2 core | Implemented: detached JWS (ES256) in `X-ANIP-Signature` header, manifest metadata with SHA-256 hash | Third-party manifest attestation |
 | **Audit log integrity** | MUST — v0.2 core | Implemented: hash chain with per-entry signatures, separate audit signing key | Append-only infrastructure, third-party attestation, external timestamp anchoring |
-| **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite in `conformance/`, run against any service with `--base-url`. It covers discovery, tokens and delegation, permissions, invocation, failures, audit, checkpoints, budgets and bindings. It does not yet cover approvals, streaming, audit aggregation or redaction | Side-effect contract testing (§7), sandbox infrastructure |
+| **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite in `conformance/`, run against any service with `--base-url`. It covers discovery, tokens and delegation, permissions, invocation, parameter validation, failures and their HTTP status, audit, checkpoints, budgets, bindings, approvals (requests, grants, continuation and the requester check; the requester check needs `--other-bootstrap-bearer`), and the checks that run before the handler on a streaming invocation. It does not yet cover streaming event delivery, audit aggregation or redaction | Side-effect contract testing (§7), sandbox infrastructure |
 | **Trust levels (§7.1)** | MUST — v0.3 core | Partly implemented: `signed` and `anchored`, with `trust_level` in discovery. `attested` is not implemented in any runtime; Python and TypeScript refuse to start with it | Attestation by a third party |
 | **Merkle checkpoints (§7.3)** | MUST for anchored — v0.3 | Implemented: checkpoint production, Merkle tree construction, detached JWS | Cross-service checkpoint federation |
 | **Merkle proofs (§7.4)** | MUST for anchored — v0.3 | Partly implemented: inclusion proofs and the RFC 6962 hash scheme; consistency proofs in Python, TypeScript and Go only | Consistency proofs in Java and C# |
@@ -2890,8 +3010,10 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Canonical parent_token semantics (§6.3)** | MUST — v0.22 | Implemented: parent_token is a token ID string, not JWT; consistent across all runtimes | — |
 | **Delegated capability-targeted issuance (§6.3)** | SHOULD — v0.22 | Implemented: `issueDelegatedCapabilityToken()` helper in all runtimes | — |
 | **Capability composition (§4.6)** | MAY — v0.23 | Implemented: schema and core model support, structural validation, same-service execution, ordered step evaluation, empty-result branching, failure policy handling, and audit lineage in the runtime cores. | Multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
-| **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Implemented: request/grant models, grant policy, approval-required metadata, persistence, signing, atomic approve/store and reserve primitives, `POST /anip/approval_grants`, discovery advertisement, audit linkage, and runtime continuation validation. | Denial flow; multi-approver workflows; cross-service approval propagation |
+| **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Implemented: request/grant models, grant policy, approval-required metadata, persistence, signing, atomic approve/store and reserve primitives, `POST /anip/approval_grants`, discovery advertisement, audit linkage, and runtime continuation validation, including the requester check (§4.8 step 5, `grant_requester_mismatch`) and digests over RFC 8785 canonical JSON checked against shared test vectors, in all five runtimes. | Denial flow; multi-approver workflows; cross-service approval propagation |
 | **Input resolution metadata (§4.10)** | MAY — v0.24 | Schema and core model support landed: `InputResolution`, `InputMeaning`, `ResolutionMode`, `ResolutionBehavior` types plus adjacent hint fields (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) on `CapabilityInput` in all five runtime cores, with decode-layer enum rejection and model-level cross-field validators (`closed_values` requires `allowed_values`; `on_missing=use_default` requires non-null `default`). Auto-invoke wiring for the static-typed runtimes' validators on manifest/service-definition load (Go, Java, C#), generator pass-through into service-definition and agent-consumption artifacts, Studio UI editing, registry display, and runtime consumption of `resolution.mode` are pending. | Auto-invoke wiring for Go/Java/C# validators; generator pass-through; Studio UI; registry display; runtime consumption |
+| **Parameter validation (§6.3)** | MUST — v0.24 | Implemented in all five runtimes: required inputs (with `required` defaulting to `true`), the six primitive types and `parameters` that are not an object are checked before the handler, for unary and streaming invocations, and refused with `invalid_parameters`. An input that sets `resolution.on_missing` is left to the service when absent (§4.10) | — |
+| **HTTP status codes (§6.3)** | MUST — v0.24 | Implemented in all five runtimes and their HTTP bindings (protocol endpoints and REST adapter): one status per failure type, 400 for types the table does not list | How a refusal made before the handler is delivered on a streaming invocation (JSON failure or SSE `failed` event) |
 | **Profile handshake (§6.2)** | MAY | Not implemented in any runtime. The discovery document's `profile` block is what agents read today | Decide whether to keep the endpoint |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 

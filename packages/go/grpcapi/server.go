@@ -126,7 +126,15 @@ func mapToAnipFailure(m map[string]any) *pb.AnipFailure {
 }
 
 func simpleFailure(failureType, detail string) *pb.AnipFailure {
-	return &pb.AnipFailure{Type: failureType, Detail: detail}
+	failure := &pb.AnipFailure{Type: failureType, Detail: detail}
+	if failureType == core.FailureInvalidParameters {
+		// SPEC.md §6.3: the caller corrects the request and sends it again.
+		resolution := core.InvalidParametersResolution("a request that matches the method's contract")
+		if resJSON, err := json.Marshal(resolution); err == nil {
+			failure.ResolutionJson = string(resJSON)
+		}
+	}
+	return failure
 }
 
 // mapToBudgetContext converts a map[string]any budget_context to protobuf BudgetContext.
@@ -626,6 +634,9 @@ func validateIssueApprovalGrantRequest(req *pb.IssueApprovalGrantRequest) *pb.An
 	}
 	if req.MaxUses != nil && req.GetMaxUses() < 1 {
 		return simpleFailure(core.FailureInvalidParameters, "max_uses: must be a positive integer")
+	}
+	if req.GrantType == core.GrantTypeOneTime && req.MaxUses != nil && req.GetMaxUses() != 1 {
+		return simpleFailure(core.FailureInvalidParameters, "max_uses: must be 1 or omitted when grant_type=one_time")
 	}
 	return nil
 }

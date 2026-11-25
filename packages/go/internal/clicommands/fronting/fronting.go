@@ -52,6 +52,8 @@ type StarterOperation struct {
 	Inputs           []StarterInput `json:"inputs"`
 }
 
+// StarterInput is one declared input of a fronting starter operation.
+// Required defaults to true when the starter does not state it (SPEC.md §4.1).
 type StarterInput struct {
 	Name              string                             `json:"name"`
 	Type              string                             `json:"type"`
@@ -65,6 +67,21 @@ type StarterInput struct {
 	EntityReference   bool                               `json:"entity_reference"`
 	CatalogRef        string                             `json:"catalog_ref"`
 	Resolution        *generator.InputResolutionMetadata `json:"resolution"`
+}
+
+// UnmarshalJSON decodes a starter input and applies the SPEC.md §4.1
+// default: required is true when the member is absent or null.
+func (i *StarterInput) UnmarshalJSON(data []byte) error {
+	type plain StarterInput
+	raw := struct {
+		*plain
+		Required *bool `json:"required"`
+	}{plain: (*plain)(i)}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	i.Required = raw.Required == nil || *raw.Required
+	return nil
 }
 
 func Run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {

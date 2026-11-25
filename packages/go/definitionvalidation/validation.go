@@ -96,6 +96,35 @@ func ValidateServiceDefinition(definition map[string]any) error {
 			return err
 		}
 	}
+	if err := validatePolicyBindingTargets(definition, "runtime_policy_bindings", "capability_ids", capabilityByID); err != nil {
+		return err
+	}
+	if err := validatePolicyBindingTargets(definition, "permission_intent_bindings", "target_capability_ids", capabilityByID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validatePolicyBindingTargets refuses a binding that names a composed
+// capability. The runtime executes a composition's steps itself, each through
+// the normal pipeline with the caller's root principal, and never calls the
+// composed capability's handler, so a binding on it would never be evaluated.
+func validatePolicyBindingTargets(definition map[string]any, field string, targetsField string, capabilityByID map[string]map[string]any) error {
+	for index, item := range sliceField(definition, field) {
+		binding, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		targets, _ := binding[targetsField].([]any)
+		for _, target := range targets {
+			capabilityID, _ := target.(string)
+			capability, ok := capabilityByID[strings.TrimSpace(capabilityID)]
+			if !ok || stringField(capability, "kind") != "composed" {
+				continue
+			}
+			return fmt.Errorf("%s[%d] %q names composed capability %q; the runtime runs a composition's steps itself and never evaluates a binding on the composed capability, so put the rule on its child capabilities", field, index, stringField(binding, "id"), stringField(capability, "capability_id"))
+		}
+	}
 	return nil
 }
 
@@ -259,9 +288,12 @@ func validateInputResolutionMetadata(capabilityIndex int, inputIndex int, input 
 	if err := json.Unmarshal(resolutionBytes, &resolution); err != nil {
 		return fmt.Errorf("%s.%v", prefix, err)
 	}
+	// SPEC.md §4.1: required defaults to true.
+	required, requiredStated := input["required"].(bool)
 	capabilityInput := &core.CapabilityInput{
 		Name:          firstNonEmpty(stringField(input, "input_name"), stringField(input, "name")),
 		Type:          firstNonEmpty(stringField(input, "input_type"), stringField(input, "type")),
+		Required:      !requiredStated || required,
 		AllowedValues: stringSliceField(input, "allowed_values"),
 		Resolution:    &resolution,
 	}
@@ -400,8 +432,8 @@ func validateComposition(index int, parent map[string]any, composition map[strin
 			if inputName != "" {
 				declaredNames[inputName] = true
 			}
-			required, _ := input["required"].(bool)
-			if required {
+			// SPEC.md §4.1: required defaults to true.
+			if required, stated := input["required"].(bool); !stated || required {
 				stepMapping, ok := inputMapping[stepID].(map[string]any)
 				if !ok || strings.TrimSpace(stringField(stepMapping, inputName)) == "" {
 					return fmt.Errorf("capability_formalizations[%d].composition.input_mapping[%q].%s is required for child capability %q", index, stepID, inputName, stepCapability)

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
-import { IssueApprovalGrantRequest } from "@anip-dev/core";
+import { IssueApprovalGrantRequest, failureStatusCode } from "@anip-dev/core";
 
 export async function mountAnip(
   app: Hono,
@@ -36,7 +36,8 @@ export async function mountAnip(
   app.post(`${p}/anip/tokens`, async (c) => {
     const issuer = await extractIssuer(c, service);
     if (!issuer) return authFailureTokenEndpoint(c);
-    const body = await c.req.json();
+    const body = await readJsonObject(c);
+    if (typeof body === "string") return failureResponse(c, invalidParametersFailure(body));
     try {
       const result = await service.issueTokenAs(issuer, body);
       return c.json(result);
@@ -62,13 +63,14 @@ export async function mountAnip(
     if (result instanceof ANIPError) return errorResponse(c, result);
     const token = result;
     const capability = c.req.param("capability");
-    const body = await c.req.json();
-    const params = body.parameters ?? body;
-    const clientReferenceId = body.client_reference_id ?? null;
-    const taskId = body.task_id ?? null;
-    const parentInvocationId = body.parent_invocation_id ?? null;
-    const upstreamService = body.upstream_service ?? null;
-    const budget = body.budget ?? null;
+    const body = await readJsonObject(c);
+    if (typeof body === "string") return failureResponse(c, invalidParametersFailure(body));
+    const params = (body.parameters ?? body) as Record<string, unknown>;
+    const clientReferenceId = (body.client_reference_id as string | undefined) ?? null;
+    const taskId = (body.task_id as string | undefined) ?? null;
+    const parentInvocationId = (body.parent_invocation_id as string | undefined) ?? null;
+    const upstreamService = (body.upstream_service as string | undefined) ?? null;
+    const budget = (body.budget as Record<string, unknown> | undefined) ?? null;
     const requestedEffects = Array.isArray(body.requested_effects)
       ? body.requested_effects
           .map((item: unknown) => String(item))
@@ -76,22 +78,26 @@ export async function mountAnip(
       : [];
     // v0.23: continuation invocations supply approval_grant. session_id for
     // session_bound grants is read from the signed token, never the body.
-    const approvalGrant = body.approval_grant ?? null;
+    const approvalGrant = (body.approval_grant as string | undefined) ?? null;
+    // One set of invocation options for the unary and the streaming call:
+    // a streaming invocation goes through the same checks with the same
+    // inputs (SPEC.md §6.3), plus `stream` and a progress sink.
+    const invokeOpts = {
+      clientReferenceId,
+      taskId,
+      parentInvocationId,
+      upstreamService,
+      budget,
+      approvalGrant,
+      requestedEffects,
+    };
 
     if (!body.stream) {
-      // Unary mode — existing behavior
-      const result = await service.invoke(capability, token, params, {
-        clientReferenceId,
-        taskId,
-        parentInvocationId,
-        upstreamService,
-        budget,
-        approvalGrant,
-        requestedEffects,
-      });
+      // Unary mode
+      const result = await service.invoke(capability, token, params, invokeOpts);
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
-        return c.json(result, failureStatus(failure?.type as string));
+        return c.json(result, statusOf(failure?.type as string));
       }
       return c.json(result);
     }
@@ -101,17 +107,11 @@ export async function mountAnip(
     const modes = (decl?.response_modes as string[]) ?? ["unary"];
     if (!modes.includes("streaming")) {
       const result = await service.invoke(capability, token, params, {
-        clientReferenceId,
-        taskId,
-        parentInvocationId,
-        upstreamService,
+        ...invokeOpts,
         stream: true,
-        budget,
-        approvalGrant,
-        requestedEffects,
       });
       const failure = result.failure as Record<string, unknown>;
-      return c.json(result, failureStatus(failure?.type as string));
+      return c.json(result, statusOf(failure?.type as string));
     }
 
     // True streaming: TransformStream bridges sink → Response body
@@ -122,14 +122,8 @@ export async function mountAnip(
     (async () => {
       try {
         const result = await service.invoke(capability, token, params, {
-          clientReferenceId,
-          taskId,
-          parentInvocationId,
-          upstreamService,
+          ...invokeOpts,
           stream: true,
-          budget,
-          approvalGrant,
-          requestedEffects,
           progressSink: async (event) => {
             const eventData = { ...event, timestamp: new Date().toISOString() };
             await writer.write(
@@ -181,7 +175,7 @@ export async function mountAnip(
     const capability = c.req.param("capability");
     const graph = service.getCapabilityGraph(capability);
     if (!graph) {
-      return c.json({
+      return failureResponse(c, {
         success: false,
         failure: {
           type: "not_found",
@@ -195,7 +189,7 @@ export async function mountAnip(
           },
           retry: false,
         },
-      }, 404);
+      });
     }
     return c.json(graph);
   });
@@ -218,17 +212,17 @@ export async function mountAnip(
     try {
       rawBody = await c.req.json();
     } catch {
-      return c.json(invalidParametersFailure("request body must be JSON"), 400);
+      return failureResponse(c, invalidParametersFailure(BODY_NOT_JSON));
     }
     const parsed = IssueApprovalGrantRequest.safeParse(rawBody);
     if (!parsed.success) {
-      return c.json(
+      return failureResponse(
+        c,
         invalidParametersFailure(
           parsed.error.issues
             .map((i) => `${i.path.join(".")}: ${i.message}`)
             .join("; "),
         ),
-        400,
       );
     }
     const { approval_request_id: approvalRequestId, grant_type: grantType } =
@@ -236,10 +230,7 @@ export async function mountAnip(
 
     const approvalRequest = await service.getApprovalRequest(approvalRequestId);
     if (approvalRequest === null) {
-      return c.json(
-        approvalRequestNotFoundFailure(approvalRequestId),
-        404,
-      );
+      return failureResponse(c, approvalRequestNotFoundFailure(approvalRequestId));
     }
 
     // SPEC.md §4.9 step 4: state check BEFORE approver authority. An
@@ -248,10 +239,10 @@ export async function mountAnip(
     const status = approvalRequest.status as string;
     const expiresAt = approvalRequest.expires_at as string | undefined;
     if (status !== "pending") {
-      return c.json(approvalRequestAlreadyDecidedFailure(approvalRequestId, status), 409);
+      return failureResponse(c, approvalRequestAlreadyDecidedFailure(approvalRequestId, status));
     }
     if (expiresAt && expiresAt <= new Date().toISOString()) {
-      return c.json(approvalRequestExpiredFailure(approvalRequestId), 409);
+      return failureResponse(c, approvalRequestExpiredFailure(approvalRequestId));
     }
 
     // Approver authority check: token scope must contain approver:* OR
@@ -260,7 +251,7 @@ export async function mountAnip(
     const tokenScopes = token.scope ?? [];
     const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
     if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
-      return c.json(approverNotAuthorizedFailure(targetCapability), 403);
+      return failureResponse(c, approverNotAuthorizedFailure(targetCapability));
     }
 
     const approverPrincipal = {
@@ -322,7 +313,7 @@ export async function mountAnip(
       consistency_from: url.searchParams.get("consistency_from") ?? undefined,
     };
     const result = await service.getCheckpoint(id, options);
-    if (!result) return c.json({
+    if (!result) return failureResponse(c, {
       success: false,
       failure: {
         type: "not_found",
@@ -336,7 +327,7 @@ export async function mountAnip(
         },
         retry: false,
       },
-    }, 404);
+    });
     return c.json(result);
   });
 
@@ -375,30 +366,41 @@ async function resolveToken(c: any, service: ANIPService) {
   }
 }
 
-function failureStatus(type?: string): ContentfulStatusCode {
-  const mapping: Record<string, ContentfulStatusCode> = {
-    invalid_token: 401,
-    token_expired: 401,
-    scope_insufficient: 403,
-    insufficient_authority: 403,
-    budget_exceeded: 403,
-    budget_currency_mismatch: 400,
-    budget_not_enforceable: 400,
-    binding_missing: 400,
-    binding_stale: 400,
-    control_requirement_unsatisfied: 403,
-    purpose_mismatch: 403,
-    unknown_capability: 404,
-    not_found: 404,
-    unavailable: 409,
-    concurrent_lock: 409,
-    internal_error: 500,
-  };
-  return mapping[type ?? ""] ?? 400;
+/** The HTTP status of a failure type (SPEC.md §6.3 "HTTP Status Codes"). */
+function statusOf(type?: string): ContentfulStatusCode {
+  return failureStatusCode(type) as ContentfulStatusCode;
+}
+
+/** Answer with a failure body and the HTTP status of its type. */
+function failureResponse(
+  c: any,
+  body: { success: boolean; failure: Record<string, unknown> & { type: string } },
+) {
+  return c.json(body, statusOf(body.failure.type));
+}
+
+const BODY_NOT_JSON = "request body must be JSON";
+const BODY_NOT_AN_OBJECT = "request body must be a JSON object";
+
+/**
+ * Read the request body as a JSON object. Returns the detail of the
+ * invalid_parameters failure when the body is not JSON or not an object.
+ */
+async function readJsonObject(c: any): Promise<Record<string, unknown> | string> {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return BODY_NOT_JSON;
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return BODY_NOT_AN_OBJECT;
+  }
+  return body as Record<string, unknown>;
 }
 
 function authFailureTokenEndpoint(c: any) {
-  return c.json({
+  return failureResponse(c, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -412,11 +414,11 @@ function authFailureTokenEndpoint(c: any) {
       },
       retry: true,
     },
-  }, 401);
+  });
 }
 
 function authFailureJwtEndpoint(c: any) {
-  return c.json({
+  return failureResponse(c, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -430,7 +432,7 @@ function authFailureJwtEndpoint(c: any) {
       },
       retry: true,
     },
-  }, 401);
+  });
 }
 
 const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
@@ -455,10 +457,17 @@ const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
     grantable_by: null,
     estimated_availability: null,
   },
+  invalid_parameters: {
+    action: "retry_now",
+    recovery_class: "retry_now",
+    requires: null,
+    grantable_by: null,
+    estimated_availability: null,
+  },
 };
 
 function errorResponse(c: any, error: ANIPError) {
-  const status = failureStatus(error.errorType);
+  const status = statusOf(error.errorType);
   const resolution = error.resolution ?? DEFAULT_RESOLUTIONS[error.errorType] ?? {
     action: "contact_service_owner",
     recovery_class: "terminal",

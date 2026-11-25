@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\src\Anip.Core\Anip.Core.csproj" />
     <ProjectReference Include="..\..\src\Anip.Service\Anip.Service.csproj" />
     <ProjectReference Include="..\..\src\Anip.AspNetCore\Anip.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Anip.Rest.AspNetCore\Anip.Rest.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Anip.GraphQL.AspNetCore\Anip.GraphQL.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

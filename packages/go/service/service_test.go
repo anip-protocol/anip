@@ -1270,13 +1270,9 @@ done:
 	}
 }
 
-// --- Gap 1: Input Validation Tests ---
+// --- Input validation (SPEC.md §6.3 Parameter Validation; more in input_validation_test.go) ---
 
 func TestInvokeMissingRequiredParam(t *testing.T) {
-	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
-}
-
-func unused_TestInvokeMissingRequiredParam(t *testing.T) {
 	svc := newTestService()
 	if err := svc.Start(); err != nil {
 		t.Fatalf("Start() error: %v", err)
@@ -1317,10 +1313,6 @@ func unused_TestInvokeMissingRequiredParam(t *testing.T) {
 }
 
 func TestInvokeWrongParamType(t *testing.T) {
-	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
-}
-
-func unused_TestInvokeWrongParamType(t *testing.T) {
 	svc := newTestService()
 	if err := svc.Start(); err != nil {
 		t.Fatalf("Start() error: %v", err)
@@ -1361,11 +1353,7 @@ func unused_TestInvokeWrongParamType(t *testing.T) {
 	}
 }
 
-func TestInvokeStreamMissingRequiredParam(t *testing.T) {
-	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
-}
-
-func unused_TestInvokeStreamMissingRequiredParam(t *testing.T) {
+func TestInvokeStreamWithoutDeclaredInputs(t *testing.T) {
 	svc := newStreamTestService()
 	if err := svc.Start(); err != nil {
 		t.Fatalf("Start() error: %v", err)
@@ -1375,7 +1363,7 @@ func unused_TestInvokeStreamMissingRequiredParam(t *testing.T) {
 	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
 		Subject:    "human:test@example.com",
 		Scope:      []string{"travel.search"},
-		Capability: "search_flights",
+		Capability: "stream_search",
 	})
 	if err != nil {
 		t.Fatalf("IssueToken() error: %v", err)
@@ -1385,8 +1373,7 @@ func unused_TestInvokeStreamMissingRequiredParam(t *testing.T) {
 		t.Fatalf("ResolveBearerToken() error: %v", err)
 	}
 
-	// stream_search has no required inputs (no Inputs declared), so this should succeed.
-	// But search_flights does -- and it's unary only. Test the stream_search which has no inputs.
+	// stream_search declares no inputs, so an empty parameter object is valid.
 	sr, err := svc.InvokeStream("stream_search", token, map[string]any{}, InvokeOpts{})
 	if err != nil {
 		t.Fatalf("InvokeStream() error: %v", err)

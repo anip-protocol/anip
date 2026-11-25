@@ -18,6 +18,10 @@ public class OpenApiGenerator {
             "integer", "integer",
             "number", "number",
             "boolean", "boolean",
+            // The service checks these two against the JSON type (SPEC.md §6.3),
+            // so the schema must not ask for a string.
+            "array", "array",
+            "object", "object",
             "date", "string",
             "airport_code", "string"
     );
@@ -135,7 +139,9 @@ public class OpenApiGenerator {
             Map<String, Object> param = new LinkedHashMap<>();
             param.put("name", inp.getName());
             param.put("in", "query");
-            param.put("required", inp.isRequired());
+            // An input that declares resolution.on_missing is not demanded of
+            // the caller (SPEC.md §6.3).
+            param.put("required", inp.mustBeSupplied());
             param.put("schema", schema);
             param.put("description", inp.getDescription());
             params.add(param);
@@ -156,7 +162,7 @@ public class OpenApiGenerator {
                     prop.put("format", "date");
                 }
                 properties.put(inp.getName(), prop);
-                if (inp.isRequired()) {
+                if (inp.mustBeSupplied()) {
                     required.add(inp.getName());
                 }
             }

@@ -69,6 +69,10 @@ const (
 	FailureStreamingNotSupported         = "streaming_not_supported"
 	FailureInvalidParameters             = "invalid_parameters"
 	FailureNonDelegableAction            = "non_delegable_action"
+	FailureTokenNotRegistered            = "token_not_registered"
+	FailureConstraintEscalation          = "constraint_escalation"
+	FailureConcurrentRequestRejected     = "concurrent_request_rejected"
+	FailureServiceUnavailable            = "service_unavailable"
 )
 
 // Supported algorithms for signing.

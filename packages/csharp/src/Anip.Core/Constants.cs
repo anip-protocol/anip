@@ -9,6 +9,7 @@ public static class Constants
     public const string FailureAuthRequired = "authentication_required";
     public const string FailureInvalidToken = "invalid_token";
     public const string FailureTokenExpired = "token_expired";
+    public const string FailureTokenNotRegistered = "token_not_registered";
     public const string FailureScopeInsufficient = "scope_insufficient";
     public const string FailureUnknownCapability = "unknown_capability";
     public const string FailureBudgetExceeded = "budget_exceeded";
@@ -25,7 +26,11 @@ public static class Constants
     public const string FailureParentTokenExpired = "parent_token_expired";
     public const string FailureNotFound = "not_found";
     public const string FailureUnavailable = "unavailable";
+    /// <summary>The service could not do its part (SPEC.md §4.7: an ApprovalRequest that cannot be persisted).</summary>
+    public const string FailureServiceUnavailable = "service_unavailable";
     public const string FailureConcurrentLock = "concurrent_lock";
+    public const string FailureConcurrentRequestRejected = "concurrent_request_rejected";
+    public const string FailureConstraintEscalation = "constraint_escalation";
     public const string FailureInternalError = "internal_error";
     public const string FailureStreamingNotSupported = "streaming_not_supported";
     public const string FailureInvalidParameters = "invalid_parameters";
@@ -40,6 +45,7 @@ public static class Constants
     public const string FailureGrantScopeMismatch = "grant_scope_mismatch";
     public const string FailureGrantParamDrift = "grant_param_drift";
     public const string FailureGrantSessionInvalid = "grant_session_invalid";
+    public const string FailureGrantRequesterMismatch = "grant_requester_mismatch";
     public const string FailureApprovalRequestNotFound = "approval_request_not_found";
     public const string FailureApprovalRequestAlreadyDecided = "approval_request_already_decided";
     public const string FailureApprovalRequestExpired = "approval_request_expired";
@@ -91,24 +97,39 @@ public static class Constants
         ["observability"] = "1.0"
     };
 
+    /// <summary>
+    /// The HTTP status of a failure type: SPEC.md §6.3 "HTTP Status Codes".
+    /// Every HTTP binding (the protocol endpoints and the REST adapter) uses
+    /// this one mapping at every endpoint. A type the table does not list,
+    /// including one a capability handler defines, is 400.
+    /// </summary>
     public static int FailureStatusCode(string? failureType) => failureType switch
     {
-        FailureAuthRequired or FailureInvalidToken or FailureTokenExpired => 401,
-        FailureScopeInsufficient or FailureBudgetExceeded or FailureBudgetCurrencyMismatch
-            or FailureBudgetNotEnforceable or FailureBindingMissing or FailureBindingStale
-            or FailureControlRequirementUnsatisfied or FailurePurposeMismatch
-            or FailureScopeEscalation or FailureInsufficientAuthority
+        // The caller has not presented a usable credential.
+        FailureAuthRequired or FailureInvalidToken or FailureTokenExpired
+            or FailureTokenNotRegistered => 401,
+        // The credential is valid; its delegated authority does not cover the request.
+        FailureScopeInsufficient or FailureInsufficientAuthority or FailurePurposeMismatch
+            or FailureScopeEscalation or FailureConstraintEscalation
             or FailureBrokenDelegationChain or FailureDelegationDepthExceeded
             or FailureParentTokenExpired
-            or FailureApproverNotAuthorized => 403,
+            or FailureBudgetExceeded or FailureBudgetCurrencyMismatch or FailureBudgetNotEnforceable
+            or FailureBindingMissing or FailureBindingStale
+            or FailureControlRequirementUnsatisfied
+            or FailureApproverNotAuthorized or FailureGrantRequesterMismatch => 403,
+        // The named capability, resource or approval request does not exist.
         FailureUnknownCapability or FailureNotFound
             or FailureApprovalRequestNotFound => 404,
-        FailureUnavailable or FailureConcurrentLock
+        // The request conflicts with the state of a grant, an approval request or a lock.
+        FailureGrantConsumed or FailureGrantExpired
             or FailureApprovalRequestAlreadyDecided or FailureApprovalRequestExpired
-            or FailureGrantConsumed or FailureGrantExpired => 409,
+            or FailureConcurrentLock or FailureConcurrentRequestRejected
+            or FailureUnavailable => 409,
+        // The service failed.
         FailureInternalError => 500,
-        FailureInvalidParameters => 400,
-        _ => 400
+        FailureServiceUnavailable => 503,
+        // Everything else: the caller has to change the request.
+        _ => 400,
     };
 
     public static string GenerateInvocationId()

@@ -220,7 +220,7 @@ func TestTokensIssueBadKey(t *testing.T) {
 	defer svc.Shutdown()
 	srv := NewServer(svc)
 
-	expectError(t, dispatch(t, srv, "anip.tokens.issue", map[string]any{
+	rpcErr := expectError(t, dispatch(t, srv, "anip.tokens.issue", map[string]any{
 		"auth": map[string]any{
 			"bearer": "invalid-key",
 		},
@@ -228,6 +228,12 @@ func TestTokensIssueBadKey(t *testing.T) {
 		"scope":      []string{"echo"},
 		"capability": "echo",
 	}), codeAuthError)
+	// SPEC.md §6.3 Token Issuance: an unrecognised credential is
+	// authentication_required, like no credential at all.
+	data, _ := rpcErr.Data.(map[string]any)
+	if data["type"] != core.FailureAuthRequired {
+		t.Fatalf("error data type = %v, want %s", data["type"], core.FailureAuthRequired)
+	}
 }
 
 func TestPermissions(t *testing.T) {

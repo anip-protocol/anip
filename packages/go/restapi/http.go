@@ -3,6 +3,7 @@ package restapi
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/anip-protocol/anip/packages/go/core"
@@ -53,7 +54,7 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 	authHeader := r.Header.Get("Authorization")
 	bearer := httputil.ExtractBearer(authHeader)
 	if bearer == "" {
-		writeJSON(w, 401, map[string]any{
+		writeJSON(w, core.FailureStatusCode(core.FailureAuthRequired), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureAuthRequired,
@@ -76,7 +77,7 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 			writeJSON(w, status, body)
 			return
 		}
-		writeJSON(w, 500, map[string]any{
+		writeJSON(w, core.FailureStatusCode(core.FailureInternalError), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureInternalError,
@@ -94,14 +95,8 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 	} else {
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJSON(w, 400, map[string]any{
-				"success": false,
-				"failure": map[string]any{
-					"type":   "invalid_parameters",
-					"detail": "Invalid JSON body",
-					"retry":  false,
-				},
-			})
+			status, failureBody := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "Invalid JSON body", nil)
+			writeJSON(w, status, failureBody)
 			return
 		}
 		// Accept both {parameters: {...}} and flat body
@@ -118,7 +113,7 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 		ClientReferenceID: clientReferenceID,
 	})
 	if err != nil {
-		writeJSON(w, 500, map[string]any{
+		writeJSON(w, core.FailureStatusCode(core.FailureInternalError), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureInternalError,
@@ -141,6 +136,43 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 	writeJSON(w, http.StatusOK, result)
 }
 
+// jsonNumberPattern is the JSON number grammar (RFC 8259 §6).
+var jsonNumberPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$`)
+
+// convertQueryValue reads a query string value as the JSON value its declared
+// type calls for: a JSON number for integer and number, true or false for
+// boolean, JSON text for array and object (the only way a query string can
+// carry one). A value that cannot be read that way stays a string, and the
+// service's parameter validation (SPEC.md §6.3) refuses it by name.
+func convertQueryValue(value, declaredType string) any {
+	switch declaredType {
+	case "integer", "number":
+		if jsonNumberPattern.MatchString(value) {
+			if number, err := strconv.ParseFloat(value, 64); err == nil {
+				return number
+			}
+		}
+	case "boolean":
+		switch value {
+		case "true":
+			return true
+		case "false":
+			return false
+		}
+	case "array":
+		var items []any
+		if err := json.Unmarshal([]byte(value), &items); err == nil && items != nil {
+			return items
+		}
+	case "object":
+		var object map[string]any
+		if err := json.Unmarshal([]byte(value), &object); err == nil && object != nil {
+			return object
+		}
+	}
+	return value
+}
+
 // convertQueryParams converts URL query parameters to typed values based on capability inputs.
 func convertQueryParams(query map[string][]string, decl core.CapabilityDeclaration) map[string]any {
 	// Build type map from inputs
@@ -154,26 +186,7 @@ func convertQueryParams(query map[string][]string, decl core.CapabilityDeclarati
 		if len(values) == 0 {
 			continue
 		}
-		value := values[0]
-		inputType := typeMap[key]
-		switch inputType {
-		case "integer":
-			if v, err := strconv.Atoi(value); err == nil {
-				result[key] = v
-			} else {
-				result[key] = value
-			}
-		case "number":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				result[key] = v
-			} else {
-				result[key] = value
-			}
-		case "boolean":
-			result[key] = value == "true"
-		default:
-			result[key] = value
-		}
+		result[key] = convertQueryValue(values[0], typeMap[key])
 	}
 	return result
 }

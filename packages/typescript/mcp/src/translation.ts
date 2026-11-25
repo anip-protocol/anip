@@ -6,12 +6,17 @@
  * natively represent.
  */
 import type { CapabilityDeclaration } from "@anip-dev/core";
+import { mustBeSupplied } from "@anip-dev/service";
 
 const TYPE_MAP: Record<string, string> = {
   string: "string",
   integer: "integer",
   number: "number",
   boolean: "boolean",
+  // The service checks these two against the JSON type (SPEC.md §6.3), so
+  // the tool schema must not ask for a string.
+  array: "array",
+  object: "object",
   date: "string",
   airport_code: "string",
 };
@@ -42,7 +47,9 @@ export function capabilityToInputSchema(
       prop.default = input.default;
     }
     properties[input.name] = prop;
-    if (input.required !== false) {
+    // An input that sets resolution.on_missing is answered by the service
+    // (SPEC.md §4.10): the tool schema must not demand it.
+    if (mustBeSupplied(input)) {
       required.push(input.name);
     }
   }

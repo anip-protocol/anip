@@ -189,7 +189,7 @@ func effectiveAgentRequiredContext(raw any, formalization map[string]any) []any 
 		if input := inputs[inputName]; len(input) > 0 {
 			if strings.TrimSpace(stringValue(input["default_value"])) != "" {
 				missingBehavior = "use_default"
-			} else if input["required"] != true && missingBehavior != "clarify" {
+			} else if !InputRequired(input) && missingBehavior != "clarify" {
 				missingBehavior = "optional"
 			}
 		}

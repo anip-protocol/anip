@@ -10,6 +10,11 @@ import (
 	"generated/gtm-pipeline-q2-review/generated"
 )
 
+// The smoke test invokes as the principal the generated policy lets reach the
+// backend, if any; smokeExpect is the outcome the policy gives that principal.
+const smokeAPIKeysJSON = "{\"smoke-test-key\":\"human:smoke-test|actor_id=sales_leader\"}"
+const smokeExpect = "success"
+
 func issueToken(t *testing.T, ts *httptest.Server, capabilityID string, scope []string) string {
 	t.Helper()
 	body := map[string]any{
@@ -18,7 +23,7 @@ func issueToken(t *testing.T, ts *httptest.Server, capabilityID string, scope []
 	}
 	bodyBytes, _ := json.Marshal(body)
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/anip/tokens", bytes.NewReader(bodyBytes))
-	req.Header.Set("Authorization", "Bearer dev-admin-key")
+	req.Header.Set("Authorization", "Bearer smoke-test-key")
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -38,6 +43,7 @@ func issueToken(t *testing.T, ts *httptest.Server, capabilityID string, scope []
 }
 
 func TestGeneratedServiceDiscoveryAndInvoke(t *testing.T) {
+	t.Setenv("ANIP_API_KEYS_JSON", smokeAPIKeysJSON)
 	svc, err := NewService()
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -69,14 +75,21 @@ func TestGeneratedServiceDiscoveryAndInvoke(t *testing.T) {
 		t.Fatalf("invoke request failed: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 from invoke, got %d", resp.StatusCode)
-	}
 	var payload struct {
 		Success bool `json:"success"`
 		Result map[string]any `json:"result"`
+		Failure map[string]any `json:"failure"`
 	}
 	_ = json.NewDecoder(resp.Body).Decode(&payload)
+	if smokeExpect != "success" {
+		if payload.Success || payload.Failure["type"] != smokeExpect {
+			t.Fatalf("expected %s failure, got %#v", smokeExpect, payload)
+		}
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 from invoke, got %d", resp.StatusCode)
+	}
 	if !payload.Success {
 		t.Fatal("expected successful invoke response")
 	}

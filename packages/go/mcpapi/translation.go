@@ -10,10 +10,14 @@ import (
 
 // typeMap maps ANIP types to JSON Schema types.
 var typeMap = map[string]string{
-	"string":       "string",
-	"integer":      "integer",
-	"number":       "number",
-	"boolean":      "boolean",
+	"string":  "string",
+	"integer": "integer",
+	"number":  "number",
+	"boolean": "boolean",
+	// The service checks these two against the JSON type (SPEC.md §6.3), so
+	// the tool schema must not ask for a string.
+	"array":        "array",
+	"object":       "object",
 	"date":         "string",
 	"airport_code": "string",
 }
@@ -45,7 +49,9 @@ func CapabilityToInputSchema(decl *core.CapabilityDeclaration) map[string]any {
 
 		properties[input.Name] = prop
 
-		if input.Required {
+		// An input that declares resolution.on_missing is left to the
+		// service when absent (SPEC.md §6.3), so the schema does not demand it.
+		if input.MustBeSupplied() {
 			required = append(required, input.Name)
 		}
 	}

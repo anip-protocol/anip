@@ -821,323 +821,19 @@ public class AnipService : IDisposable
                 };
             }
 
-            // 3. Validate the token for this capability: scope covers
-            // minimum_scope, the token is bound to this capability, and its
-            // delegation chain is complete, within depth, and unexpired.
-            try
+            // 3. The checks that run before the handler, shared with InvokeStream
+            // (SPEC.md §6.3): delegation, budget, binding, control requirements,
+            // parameter validation and the approval grant (§4.8 Phase A and B).
+            var preHandler = new PreHandlerState();
+            var refusal = RunPreHandlerChecks(capName, capDef, token, parameters, opts,
+                invocationId, effectiveTaskId, preHandler);
+            if (refusal != null)
             {
-                DelegationEngine.ValidateDelegation(_storage!, token, capDef.Declaration.MinimumScope, capName);
+                return refusal;
             }
-            catch (AnipError anipErr)
-            {
-                // Fire scope validation hook (denied).
-                if (anipErr.ErrorType == Constants.FailureScopeInsufficient && _hooks?.OnScopeValidation != null)
-                {
-                    ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, false));
-                }
-
-                var failure = new Dictionary<string, object?>
-                {
-                    ["type"] = anipErr.ErrorType,
-                    ["detail"] = anipErr.Detail,
-                };
-                if (anipErr.Resolution != null)
-                {
-                    failure["resolution"] = new Dictionary<string, object?>
-                    {
-                        ["action"] = anipErr.Resolution.Action,
-                        ["recovery_class"] = !string.IsNullOrEmpty(anipErr.Resolution.RecoveryClass)
-                            ? anipErr.Resolution.RecoveryClass
-                            : Constants.RecoveryClassForAction(anipErr.Resolution.Action),
-                    };
-                }
-
-                // Log audit for scope failure.
-                AppendAuditEntry(capName, token, false, anipErr.ErrorType, null, null,
-                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
-                    opts.UpstreamService,
-                    capDef.Declaration.SideEffect?.Type);
-
-                // Apply failure redaction.
-                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                failure = FailureRedaction.Redact(failure, effectiveLevel);
-
-                return new Dictionary<string, object?>
-                {
-                    ["success"] = false,
-                    ["failure"] = failure,
-                    ["invocation_id"] = invocationId,
-                    ["client_reference_id"] = opts.ClientReferenceId,
-                    ["task_id"] = effectiveTaskId,
-                    ["parent_invocation_id"] = opts.ParentInvocationId,
-                    ["upstream_service"] = opts.UpstreamService,
-                };
-            }
-
-            // Fire scope validation hook (granted).
-            if (_hooks?.OnScopeValidation != null)
-            {
-                ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, true));
-            }
-
-            // --- Budget, binding, and control requirement enforcement (v0.14) ---
-
-            // Parse invocation-level budget hint.
-            Budget? requestBudget = opts.Budget;
-
-            // Determine effective budget (token is ceiling, invocation hint can only narrow).
-            Budget? effectiveBudget = null;
-            if (token.Constraints.Budget != null)
-            {
-                effectiveBudget = token.Constraints.Budget;
-                if (requestBudget != null)
-                {
-                    if (requestBudget.Currency != effectiveBudget.Currency)
-                    {
-                        var failure = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureBudgetCurrencyMismatch,
-                            ["detail"] = $"Invocation budget is in {requestBudget.Currency} but token budget is in {effectiveBudget.Currency}",
-                        };
-                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                        failure = FailureRedaction.Redact(failure, effectiveLevel);
-                        return new Dictionary<string, object?>
-                        {
-                            ["success"] = false,
-                            ["failure"] = failure,
-                            ["invocation_id"] = invocationId,
-                            ["client_reference_id"] = opts.ClientReferenceId,
-                            ["task_id"] = effectiveTaskId,
-                            ["parent_invocation_id"] = opts.ParentInvocationId,
-                            ["upstream_service"] = opts.UpstreamService,
-                        };
-                    }
-                    var narrowedAmount = effectiveBudget.MaxAmount;
-                    if (requestBudget.MaxAmount < narrowedAmount)
-                    {
-                        narrowedAmount = requestBudget.MaxAmount;
-                    }
-                    effectiveBudget = new Budget
-                    {
-                        Currency = effectiveBudget.Currency,
-                        MaxAmount = narrowedAmount,
-                    };
-                }
-            }
-            else if (requestBudget != null)
-            {
-                effectiveBudget = requestBudget;
-            }
-
-            // Budget enforcement against declared cost.
-            double? checkAmount = null;
-            if (effectiveBudget != null)
-            {
-                var decl = capDef.Declaration;
-                if (decl.Cost != null && decl.Cost.Financial != null)
-                {
-                    if (decl.Cost.Financial.Currency != effectiveBudget.Currency)
-                    {
-                        var failure = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureBudgetCurrencyMismatch,
-                            ["detail"] = $"Token budget is in {effectiveBudget.Currency} but capability cost is in {decl.Cost.Financial.Currency}",
-                        };
-                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                        failure = FailureRedaction.Redact(failure, effectiveLevel);
-                        return new Dictionary<string, object?>
-                        {
-                            ["success"] = false,
-                            ["failure"] = failure,
-                            ["invocation_id"] = invocationId,
-                            ["client_reference_id"] = opts.ClientReferenceId,
-                            ["task_id"] = effectiveTaskId,
-                            ["parent_invocation_id"] = opts.ParentInvocationId,
-                            ["upstream_service"] = opts.UpstreamService,
-                        };
-                    }
-
-                    switch (decl.Cost.Certainty)
-                    {
-                        case "fixed":
-                            checkAmount = decl.Cost.Financial.Amount;
-                            break;
-                        case "estimated":
-                            if (decl.RequiresBinding != null && decl.RequiresBinding.Count > 0)
-                            {
-                                checkAmount = ResolveBoundPrice(decl.RequiresBinding, parameters);
-                            }
-                            else
-                            {
-                                var failure = new Dictionary<string, object?>
-                                {
-                                    ["type"] = Constants.FailureBudgetNotEnforceable,
-                                    ["detail"] = $"Capability {capName} has estimated cost but no requires_binding — budget cannot be enforced",
-                                };
-                                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                                failure = FailureRedaction.Redact(failure, effectiveLevel);
-                                return new Dictionary<string, object?>
-                                {
-                                    ["success"] = false,
-                                    ["failure"] = failure,
-                                    ["invocation_id"] = invocationId,
-                                    ["client_reference_id"] = opts.ClientReferenceId,
-                                    ["task_id"] = effectiveTaskId,
-                                    ["parent_invocation_id"] = opts.ParentInvocationId,
-                                    ["upstream_service"] = opts.UpstreamService,
-                                };
-                            }
-                            break;
-                        case "dynamic":
-                            checkAmount = decl.Cost.Financial.UpperBound;
-                            break;
-                    }
-
-                    if (checkAmount != null && checkAmount.Value > effectiveBudget.MaxAmount)
-                    {
-                        var failure = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureBudgetExceeded,
-                            ["detail"] = $"Cost ${checkAmount.Value} exceeds budget ${effectiveBudget.MaxAmount}",
-                        };
-                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                        failure = FailureRedaction.Redact(failure, effectiveLevel);
-                        return new Dictionary<string, object?>
-                        {
-                            ["success"] = false,
-                            ["failure"] = failure,
-                            ["invocation_id"] = invocationId,
-                            ["client_reference_id"] = opts.ClientReferenceId,
-                            ["task_id"] = effectiveTaskId,
-                            ["parent_invocation_id"] = opts.ParentInvocationId,
-                            ["upstream_service"] = opts.UpstreamService,
-                            ["budget_context"] = new Dictionary<string, object?>
-                            {
-                                ["budget_max"] = effectiveBudget.MaxAmount,
-                                ["budget_currency"] = effectiveBudget.Currency,
-                                ["cost_check_amount"] = checkAmount.Value,
-                                ["cost_certainty"] = decl.Cost.Certainty,
-                            },
-                        };
-                    }
-                }
-            }
-
-            // Binding enforcement.
-            if (capDef.Declaration.RequiresBinding != null)
-            {
-                foreach (var binding in capDef.Declaration.RequiresBinding)
-                {
-                    var hasVal = parameters.TryGetValue(binding.Field, out var val) && val != null;
-                    if (!hasVal)
-                    {
-                        var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
-                            ? binding.SourceCapability
-                            : "source capability";
-                        var failure = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureBindingMissing,
-                            ["detail"] = $"Capability {capName} requires '{binding.Field}' (type: {binding.Type})",
-                            ["resolution"] = new Dictionary<string, object?>
-                            {
-                                ["action"] = "obtain_binding",
-                                ["recovery_class"] = Constants.RecoveryClassForAction("obtain_binding"),
-                                ["requires"] = $"invoke {sourceDesc} to obtain a {binding.Field}",
-                            },
-                        };
-                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                        failure = FailureRedaction.Redact(failure, effectiveLevel);
-                        return new Dictionary<string, object?>
-                        {
-                            ["success"] = false,
-                            ["failure"] = failure,
-                            ["invocation_id"] = invocationId,
-                            ["client_reference_id"] = opts.ClientReferenceId,
-                            ["task_id"] = effectiveTaskId,
-                            ["parent_invocation_id"] = opts.ParentInvocationId,
-                            ["upstream_service"] = opts.UpstreamService,
-                        };
-                    }
-
-                    if (!string.IsNullOrEmpty(binding.MaxAge))
-                    {
-                        var age = ResolveBindingAge(val!);
-                        if (age >= TimeSpan.Zero)
-                        {
-                            var maxAge = ParseISO8601Duration(binding.MaxAge);
-                            if (maxAge > TimeSpan.Zero && age > maxAge)
-                            {
-                                var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
-                                    ? binding.SourceCapability
-                                    : "source capability";
-                                var failure = new Dictionary<string, object?>
-                                {
-                                    ["type"] = Constants.FailureBindingStale,
-                                    ["detail"] = $"Binding '{binding.Field}' has exceeded max_age of {binding.MaxAge}",
-                                    ["resolution"] = new Dictionary<string, object?>
-                                    {
-                                        ["action"] = "refresh_binding",
-                                        ["recovery_class"] = Constants.RecoveryClassForAction("refresh_binding"),
-                                        ["requires"] = $"invoke {sourceDesc} again for a fresh {binding.Field}",
-                                    },
-                                };
-                                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                                failure = FailureRedaction.Redact(failure, effectiveLevel);
-                                return new Dictionary<string, object?>
-                                {
-                                    ["success"] = false,
-                                    ["failure"] = failure,
-                                    ["invocation_id"] = invocationId,
-                                    ["client_reference_id"] = opts.ClientReferenceId,
-                                    ["task_id"] = effectiveTaskId,
-                                    ["parent_invocation_id"] = opts.ParentInvocationId,
-                                    ["upstream_service"] = opts.UpstreamService,
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Control requirement enforcement (reject only — no warn in v0.14).
-            if (capDef.Declaration.ControlRequirements != null)
-            {
-                foreach (var req in capDef.Declaration.ControlRequirements)
-                {
-                    var satisfied = true;
-                    switch (req.Type)
-                    {
-                        case "cost_ceiling":
-                            satisfied = effectiveBudget != null;
-                            break;
-                        case "stronger_delegation_required":
-                            satisfied = token.Purpose?.Capability == capName;
-                            break;
-                    }
-
-                    if (!satisfied)
-                    {
-                        var failure = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureControlRequirementUnsatisfied,
-                            ["detail"] = $"Capability {capName} requires {req.Type}",
-                            ["unsatisfied_requirements"] = new List<string> { req.Type },
-                        };
-                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                        failure = FailureRedaction.Redact(failure, effectiveLevel);
-                        return new Dictionary<string, object?>
-                        {
-                            ["success"] = false,
-                            ["failure"] = failure,
-                            ["invocation_id"] = invocationId,
-                            ["client_reference_id"] = opts.ClientReferenceId,
-                            ["task_id"] = effectiveTaskId,
-                            ["parent_invocation_id"] = opts.ParentInvocationId,
-                            ["upstream_service"] = opts.UpstreamService,
-                        };
-                    }
-                }
-            }
+            var effectiveBudget = preHandler.EffectiveBudget;
+            var checkAmount = preHandler.CheckAmount;
+            var approvalGrantId = opts.ApprovalGrant;
 
             // 4. Build invocation context.
             var rootPrincipal = token.RootPrincipal ?? token.Issuer;
@@ -1157,82 +853,6 @@ public class AnipService : IDisposable
                 approvalGrant: opts.ApprovalGrant,
                 requestedEffects: SanitizeRequestedEffects(opts.RequestedEffects)
             );
-
-            // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
-            // continuation approval_grant before the handler runs. session_id
-            // is taken from the signed delegation token only (never from input).
-            var approvalGrantId = opts.ApprovalGrant;
-            if (!string.IsNullOrEmpty(approvalGrantId))
-            {
-                try
-                {
-                    var cv = V023.ValidateContinuationGrant(
-                        _storage!, _keys!, approvalGrantId, capName, parameters,
-                        token.Scope, token.SessionId, V023.UtcNowIso());
-                    if (cv.FailureType != null)
-                    {
-                        throw new AnipError(cv.FailureType,
-                            "approval_grant validation failed: " + cv.FailureType);
-                    }
-                    var res = _storage!.TryReserveGrant(approvalGrantId, V023.UtcNowIso());
-                    if (!res.Ok)
-                    {
-                        var type = res.Reason switch
-                        {
-                            "grant_consumed" => Constants.FailureGrantConsumed,
-                            "grant_expired" => Constants.FailureGrantExpired,
-                            _ => Constants.FailureGrantNotFound,
-                        };
-                        throw new AnipError(type, "approval_grant reservation failed: " + res.Reason);
-                    }
-                }
-                catch (AnipError ae)
-                {
-                    AppendAuditEntry(capName, token, false, ae.ErrorType,
-                        new Dictionary<string, object?> { ["detail"] = ae.Detail }, null,
-                        invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
-                        opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
-                        approvalGrantId: approvalGrantId);
-                    var failureA = new Dictionary<string, object?>
-                    {
-                        ["type"] = ae.ErrorType,
-                        ["detail"] = ae.Detail,
-                    };
-                    var levelA = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                    failureA = FailureRedaction.Redact(failureA, levelA);
-                    return new Dictionary<string, object?>
-                    {
-                        ["success"] = false,
-                        ["failure"] = failureA,
-                        ["invocation_id"] = invocationId,
-                        ["client_reference_id"] = opts.ClientReferenceId,
-                        ["task_id"] = effectiveTaskId,
-                        ["parent_invocation_id"] = opts.ParentInvocationId,
-                        ["upstream_service"] = opts.UpstreamService,
-                    };
-                }
-                catch (Exception)
-                {
-                    AppendAuditEntry(capName, token, false, Constants.FailureUnavailable, null, null,
-                        invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
-                        opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
-                        approvalGrantId: approvalGrantId);
-                    return new Dictionary<string, object?>
-                    {
-                        ["success"] = false,
-                        ["failure"] = new Dictionary<string, object?>
-                        {
-                            ["type"] = Constants.FailureUnavailable,
-                            ["detail"] = "approval grant validation unavailable",
-                        },
-                        ["invocation_id"] = invocationId,
-                        ["client_reference_id"] = opts.ClientReferenceId,
-                        ["task_id"] = effectiveTaskId,
-                        ["parent_invocation_id"] = opts.ParentInvocationId,
-                        ["upstream_service"] = opts.UpstreamService,
-                    };
-                }
-            }
 
             // 5. Call handler. Composed capabilities run V023.ExecuteComposition
             // instead of the registered handler — each child step re-enters
@@ -1341,9 +961,11 @@ public class AnipService : IDisposable
                                 ["subject"] = token.Subject,
                                 ["root_principal"] = token.RootPrincipal ?? token.Issuer,
                             };
+                            // The parameters as the caller sent them: a null stays a
+                            // null, so the digest is the one a continuation computes.
                             var paramsMap = parameters.ToDictionary(
                                 kv => kv.Key,
-                                kv => (object)(kv.Value ?? string.Empty));
+                                kv => kv.Value!);
                             var mat = V023.MaterializeApprovalRequest(
                                 _storage!, capDef.Declaration, invocationId,
                                 requesterMap, paramsMap, new Dictionary<string, object>(),
@@ -1355,7 +977,7 @@ public class AnipService : IDisposable
                     {
                         approvalPersistFailed = true;
                         approvalPersistErr = ape.Message;
-                        effectiveErrorType = Constants.FailureUnavailable;
+                        effectiveErrorType = Constants.FailureServiceUnavailable;
                     }
                 }
 
@@ -1398,13 +1020,30 @@ public class AnipService : IDisposable
                 };
                 if (anipErr.Resolution != null && !approvalPersistFailed)
                 {
-                    failure["resolution"] = new Dictionary<string, object?>
+                    var resolution = new Dictionary<string, object?>
                     {
                         ["action"] = anipErr.Resolution.Action,
                         ["recovery_class"] = !string.IsNullOrEmpty(anipErr.Resolution.RecoveryClass)
                             ? anipErr.Resolution.RecoveryClass
                             : Constants.RecoveryClassForAction(anipErr.Resolution.Action),
                     };
+                    if (anipErr.Resolution.Requires != null)
+                        resolution["requires"] = anipErr.Resolution.Requires;
+                    if (anipErr.Resolution.GrantableBy != null)
+                        resolution["grantable_by"] = anipErr.Resolution.GrantableBy;
+                    if (anipErr.Resolution.EstimatedAvailability != null)
+                        resolution["estimated_availability"] = anipErr.Resolution.EstimatedAvailability;
+                    failure["resolution"] = resolution;
+                }
+                if (effectiveErrorType == Constants.FailureInvalidParameters)
+                {
+                    // SPEC.md §6.3: the caller corrects the parameters and sends a
+                    // new request; the same request cannot succeed.
+                    if (!failure.ContainsKey("resolution"))
+                    {
+                        failure["resolution"] = ParameterValidation.Failure(anipErr.Detail)["resolution"];
+                    }
+                    failure["retry"] = false;
                 }
                 if (approvalPersistFailed)
                 {
@@ -1433,6 +1072,8 @@ public class AnipService : IDisposable
                         };
                     }
                     failure["approval_required"] = apReq;
+                    // SPEC.md §4.7: the same request cannot succeed without a grant.
+                    failure["retry"] = false;
                 }
 
                 var effectiveLevelErr = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
@@ -1592,50 +1233,17 @@ public class AnipService : IDisposable
                 $"Capability '{capName}' does not support streaming");
         }
 
-        // 3. Validate the token for this capability (scope, purpose binding,
-        // delegation chain).
-        DelegationEngine.ValidateDelegation(_storage!, token, capDef.Declaration.MinimumScope, capName);
-
-        // 3b. v0.23 §4.8 Phase A+B: validate and atomically reserve the
-        // approval_grant BEFORE any handler / event emission. Reservation is
-        // the security boundary — once reserved, the grant is spent on this
-        // attempt. Failures throw AnipError synchronously so the transport
-        // adapter maps to a JSON 4xx and no SSE stream opens.
-        var streamApprovalGrantId = opts.ApprovalGrant;
-        if (!string.IsNullOrEmpty(streamApprovalGrantId))
+        // 3. The same checks as Invoke, in the same order (SPEC.md §6.3). A
+        // refusal is thrown before any stream opens and carries the unary
+        // response; the grant is reserved here, before the handler runs.
+        var preHandler = new PreHandlerState();
+        var refusal = RunPreHandlerChecks(capName, capDef, token, parameters, opts,
+            invocationId, effectiveTaskId, preHandler);
+        if (refusal != null)
         {
-            try
-            {
-                var cv = V023.ValidateContinuationGrant(
-                    _storage!, _keys!, streamApprovalGrantId, capName, parameters,
-                    token.Scope, token.SessionId, V023.UtcNowIso());
-                if (cv.FailureType != null)
-                {
-                    throw new AnipError(cv.FailureType,
-                        "approval_grant validation failed: " + cv.FailureType);
-                }
-                var res = _storage!.TryReserveGrant(streamApprovalGrantId, V023.UtcNowIso());
-                if (!res.Ok)
-                {
-                    var type = res.Reason switch
-                    {
-                        "grant_consumed" => Constants.FailureGrantConsumed,
-                        "grant_expired" => Constants.FailureGrantExpired,
-                        _ => Constants.FailureGrantNotFound,
-                    };
-                    throw new AnipError(type, "approval_grant reservation failed: " + res.Reason);
-                }
-            }
-            catch (AnipError)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new AnipError(Constants.FailureInternalError,
-                    "grant reservation failed: " + ex.Message);
-            }
+            throw RefusalError(refusal);
         }
+        var streamApprovalGrantId = opts.ApprovalGrant;
         var reservedGrantId = streamApprovalGrantId;
 
         // 4. Build invocation context with streaming EmitProgress.
@@ -1716,6 +1324,12 @@ public class AnipService : IDisposable
                             ? (object)anipErr.Resolution
                             : null,
                     };
+                    if (anipErr.ErrorType == Constants.FailureInvalidParameters)
+                    {
+                        // SPEC.md §6.3, as on the unary path.
+                        failureObj["resolution"] ??= ParameterValidation.Failure(anipErr.Detail)["resolution"];
+                        failureObj["retry"] = false;
+                    }
 
                     var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                     failureObj = FailureRedaction.Redact(failureObj, effectiveLevel);
@@ -2073,6 +1687,539 @@ public class AnipService : IDisposable
 
     // --- Internal helpers ---
 
+    /// <summary>
+    /// Records and builds the <c>invalid_parameters</c> refusal (SPEC.md §6.3).
+    /// Audited like a delegation-validation failure; nothing else happens: no
+    /// approval request, no grant reservation, no handler.
+    /// </summary>
+    /// <summary>What the pre-handler checks found out that the invocation needs afterwards.</summary>
+    private sealed class PreHandlerState
+    {
+        public Budget? EffectiveBudget { get; set; }
+        public double? CheckAmount { get; set; }
+    }
+
+    /// <summary>
+    /// The checks that run before the handler, in order, for unary and
+    /// streaming invocations alike (SPEC.md §6.3): delegation (scope, purpose
+    /// binding, chain), budget, binding and control-requirement enforcement,
+    /// parameter validation, and the validation and atomic reservation of a
+    /// supplied approval grant (§4.8 Phase A and B). Returns the response of
+    /// the refusal, or null when the handler may run.
+    /// </summary>
+    private Dictionary<string, object?>? RunPreHandlerChecks(
+        string capName,
+        CapabilityDef capDef,
+        DelegationToken token,
+        Dictionary<string, object?> parameters,
+        InvokeOpts opts,
+        string invocationId,
+        string? effectiveTaskId,
+        PreHandlerState state)
+    {
+        // 3. Validate the token for this capability: scope covers
+        // minimum_scope, the token is bound to this capability, and its
+        // delegation chain is complete, within depth, and unexpired.
+        try
+        {
+            DelegationEngine.ValidateDelegation(_storage!, token, capDef.Declaration.MinimumScope, capName);
+        }
+        catch (AnipError anipErr)
+        {
+            // Fire scope validation hook (denied).
+            if (anipErr.ErrorType == Constants.FailureScopeInsufficient && _hooks?.OnScopeValidation != null)
+            {
+                ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, false));
+            }
+
+            var failure = new Dictionary<string, object?>
+            {
+                ["type"] = anipErr.ErrorType,
+                ["detail"] = anipErr.Detail,
+            };
+            if (anipErr.Resolution != null)
+            {
+                failure["resolution"] = new Dictionary<string, object?>
+                {
+                    ["action"] = anipErr.Resolution.Action,
+                    ["recovery_class"] = !string.IsNullOrEmpty(anipErr.Resolution.RecoveryClass)
+                        ? anipErr.Resolution.RecoveryClass
+                        : Constants.RecoveryClassForAction(anipErr.Resolution.Action),
+                };
+            }
+
+            // Log audit for scope failure.
+            AppendAuditEntry(capName, token, false, anipErr.ErrorType, null, null,
+                invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                opts.UpstreamService,
+                capDef.Declaration.SideEffect?.Type);
+
+            // Apply failure redaction.
+            var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+            failure = FailureRedaction.Redact(failure, effectiveLevel);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = false,
+                ["failure"] = failure,
+                ["invocation_id"] = invocationId,
+                ["client_reference_id"] = opts.ClientReferenceId,
+                ["task_id"] = effectiveTaskId,
+                ["parent_invocation_id"] = opts.ParentInvocationId,
+                ["upstream_service"] = opts.UpstreamService,
+            };
+        }
+
+        // Fire scope validation hook (granted).
+        if (_hooks?.OnScopeValidation != null)
+        {
+            ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, true));
+        }
+
+        // --- Budget, binding, and control requirement enforcement (v0.14) ---
+
+        // Parse invocation-level budget hint.
+        Budget? requestBudget = opts.Budget;
+
+        // Determine effective budget (token is ceiling, invocation hint can only narrow).
+        Budget? effectiveBudget = null;
+        if (token.Constraints.Budget != null)
+        {
+            effectiveBudget = token.Constraints.Budget;
+            if (requestBudget != null)
+            {
+                if (requestBudget.Currency != effectiveBudget.Currency)
+                {
+                    var failure = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureBudgetCurrencyMismatch,
+                        ["detail"] = $"Invocation budget is in {requestBudget.Currency} but token budget is in {effectiveBudget.Currency}",
+                    };
+                    var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failure = FailureRedaction.Redact(failure, effectiveLevel);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failure,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+                var narrowedAmount = effectiveBudget.MaxAmount;
+                if (requestBudget.MaxAmount < narrowedAmount)
+                {
+                    narrowedAmount = requestBudget.MaxAmount;
+                }
+                effectiveBudget = new Budget
+                {
+                    Currency = effectiveBudget.Currency,
+                    MaxAmount = narrowedAmount,
+                };
+            }
+        }
+        else if (requestBudget != null)
+        {
+            effectiveBudget = requestBudget;
+        }
+
+        // Budget enforcement against declared cost.
+        double? checkAmount = null;
+        if (effectiveBudget != null)
+        {
+            var decl = capDef.Declaration;
+            if (decl.Cost != null && decl.Cost.Financial != null)
+            {
+                if (decl.Cost.Financial.Currency != effectiveBudget.Currency)
+                {
+                    var failure = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureBudgetCurrencyMismatch,
+                        ["detail"] = $"Token budget is in {effectiveBudget.Currency} but capability cost is in {decl.Cost.Financial.Currency}",
+                    };
+                    var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failure = FailureRedaction.Redact(failure, effectiveLevel);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failure,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+
+                switch (decl.Cost.Certainty)
+                {
+                    case "fixed":
+                        checkAmount = decl.Cost.Financial.Amount;
+                        break;
+                    case "estimated":
+                        if (decl.RequiresBinding != null && decl.RequiresBinding.Count > 0)
+                        {
+                            checkAmount = ResolveBoundPrice(decl.RequiresBinding, parameters);
+                            if (checkAmount == null)
+                            {
+                                // The binding is what prices the call. Without a numeric
+                                // price there is nothing to hold against the budget, and
+                                // budget enforcement is not optional (SPEC.md §6.3).
+                                var failure = new Dictionary<string, object?>
+                                {
+                                    ["type"] = Constants.FailureBudgetNotEnforceable,
+                                    ["detail"] = $"Capability {capName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price",
+                                    ["resolution"] = new Dictionary<string, object?>
+                                    {
+                                        ["action"] = "obtain_binding",
+                                        ["recovery_class"] = Constants.RecoveryClassForAction("obtain_binding"),
+                                        ["requires"] = "binding value must include a 'price' field or the service must resolve binding to a concrete price",
+                                    },
+                                    ["retry"] = false,
+                                };
+                                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                                failure = FailureRedaction.Redact(failure, effectiveLevel);
+                                return new Dictionary<string, object?>
+                                {
+                                    ["success"] = false,
+                                    ["failure"] = failure,
+                                    ["invocation_id"] = invocationId,
+                                    ["client_reference_id"] = opts.ClientReferenceId,
+                                    ["task_id"] = effectiveTaskId,
+                                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                                    ["upstream_service"] = opts.UpstreamService,
+                                };
+                            }
+                        }
+                        else
+                        {
+                            var failure = new Dictionary<string, object?>
+                            {
+                                ["type"] = Constants.FailureBudgetNotEnforceable,
+                                ["detail"] = $"Capability {capName} has estimated cost but no requires_binding — budget cannot be enforced",
+                            };
+                            var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                            failure = FailureRedaction.Redact(failure, effectiveLevel);
+                            return new Dictionary<string, object?>
+                            {
+                                ["success"] = false,
+                                ["failure"] = failure,
+                                ["invocation_id"] = invocationId,
+                                ["client_reference_id"] = opts.ClientReferenceId,
+                                ["task_id"] = effectiveTaskId,
+                                ["parent_invocation_id"] = opts.ParentInvocationId,
+                                ["upstream_service"] = opts.UpstreamService,
+                            };
+                        }
+                        break;
+                    case "dynamic":
+                        checkAmount = decl.Cost.Financial.UpperBound;
+                        break;
+                }
+
+                if (checkAmount != null && checkAmount.Value > effectiveBudget.MaxAmount)
+                {
+                    var failure = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureBudgetExceeded,
+                        ["detail"] = $"Cost ${checkAmount.Value} exceeds budget ${effectiveBudget.MaxAmount}",
+                    };
+                    var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failure = FailureRedaction.Redact(failure, effectiveLevel);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failure,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                        ["budget_context"] = new Dictionary<string, object?>
+                        {
+                            ["budget_max"] = effectiveBudget.MaxAmount,
+                            ["budget_currency"] = effectiveBudget.Currency,
+                            ["cost_check_amount"] = checkAmount.Value,
+                            ["cost_certainty"] = decl.Cost.Certainty,
+                        },
+                    };
+                }
+            }
+        }
+
+        // Binding enforcement.
+        if (capDef.Declaration.RequiresBinding != null)
+        {
+            foreach (var binding in capDef.Declaration.RequiresBinding)
+            {
+                var hasVal = parameters.TryGetValue(binding.Field, out var val) && val != null;
+                if (!hasVal)
+                {
+                    var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
+                        ? binding.SourceCapability
+                        : "source capability";
+                    var failure = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureBindingMissing,
+                        ["detail"] = $"Capability {capName} requires '{binding.Field}' (type: {binding.Type})",
+                        ["resolution"] = new Dictionary<string, object?>
+                        {
+                            ["action"] = "obtain_binding",
+                            ["recovery_class"] = Constants.RecoveryClassForAction("obtain_binding"),
+                            ["requires"] = $"invoke {sourceDesc} to obtain a {binding.Field}",
+                        },
+                    };
+                    var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failure = FailureRedaction.Redact(failure, effectiveLevel);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failure,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+
+                if (!string.IsNullOrEmpty(binding.MaxAge))
+                {
+                    var age = ResolveBindingAge(val!);
+                    if (age >= TimeSpan.Zero)
+                    {
+                        var maxAge = ParseISO8601Duration(binding.MaxAge);
+                        if (maxAge > TimeSpan.Zero && age > maxAge)
+                        {
+                            var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
+                                ? binding.SourceCapability
+                                : "source capability";
+                            var failure = new Dictionary<string, object?>
+                            {
+                                ["type"] = Constants.FailureBindingStale,
+                                ["detail"] = $"Binding '{binding.Field}' has exceeded max_age of {binding.MaxAge}",
+                                ["resolution"] = new Dictionary<string, object?>
+                                {
+                                    ["action"] = "refresh_binding",
+                                    ["recovery_class"] = Constants.RecoveryClassForAction("refresh_binding"),
+                                    ["requires"] = $"invoke {sourceDesc} again for a fresh {binding.Field}",
+                                },
+                            };
+                            var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                            failure = FailureRedaction.Redact(failure, effectiveLevel);
+                            return new Dictionary<string, object?>
+                            {
+                                ["success"] = false,
+                                ["failure"] = failure,
+                                ["invocation_id"] = invocationId,
+                                ["client_reference_id"] = opts.ClientReferenceId,
+                                ["task_id"] = effectiveTaskId,
+                                ["parent_invocation_id"] = opts.ParentInvocationId,
+                                ["upstream_service"] = opts.UpstreamService,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Control requirement enforcement (reject only — no warn in v0.14).
+        if (capDef.Declaration.ControlRequirements != null)
+        {
+            foreach (var req in capDef.Declaration.ControlRequirements)
+            {
+                var satisfied = true;
+                switch (req.Type)
+                {
+                    case "cost_ceiling":
+                        satisfied = effectiveBudget != null;
+                        break;
+                    case "stronger_delegation_required":
+                        satisfied = token.Purpose?.Capability == capName;
+                        break;
+                }
+
+                if (!satisfied)
+                {
+                    var failure = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureControlRequirementUnsatisfied,
+                        ["detail"] = $"Capability {capName} requires {req.Type}",
+                        ["unsatisfied_requirements"] = new List<string> { req.Type },
+                    };
+                    var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failure = FailureRedaction.Redact(failure, effectiveLevel);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failure,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+            }
+        }
+
+        // 3b. Parameter validation (SPEC.md §6.3): after delegation, budget,
+        // binding and control-requirement enforcement; before an
+        // approval_grant is validated or reserved, before the handler and
+        // before any composition child step.
+        var invalidParameters = ParameterValidation.Check(capName, capDef.Declaration, parameters);
+        if (invalidParameters != null)
+        {
+            return RefuseInvalidParameters(capName, capDef, token, invalidParameters,
+                invocationId, opts, effectiveTaskId);
+        }
+
+        // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
+        // continuation approval_grant before the handler runs. session_id
+        // is taken from the signed delegation token only (never from input).
+        // A supplied grant is always validated; a blank one names no grant.
+        var approvalGrantId = opts.ApprovalGrant;
+        if (approvalGrantId != null)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(approvalGrantId))
+                {
+                    throw new AnipError(Constants.FailureGrantNotFound,
+                        "approval_grant validation failed: " + Constants.FailureGrantNotFound);
+                }
+                var cv = V023.ValidateContinuationGrant(
+                    _storage!, _keys!, approvalGrantId, capName, parameters,
+                    token.Scope, token.SessionId, token.RootPrincipal ?? token.Issuer, V023.UtcNowIso());
+                if (cv.FailureType != null)
+                {
+                    throw new AnipError(cv.FailureType,
+                        "approval_grant validation failed: " + cv.FailureType);
+                }
+                var res = _storage!.TryReserveGrant(approvalGrantId, V023.UtcNowIso());
+                if (!res.Ok)
+                {
+                    var type = res.Reason switch
+                    {
+                        "grant_consumed" => Constants.FailureGrantConsumed,
+                        "grant_expired" => Constants.FailureGrantExpired,
+                        _ => Constants.FailureGrantNotFound,
+                    };
+                    throw new AnipError(type, "approval_grant reservation failed: " + res.Reason);
+                }
+            }
+            catch (AnipError ae)
+            {
+                AppendAuditEntry(capName, token, false, ae.ErrorType,
+                    new Dictionary<string, object?> { ["detail"] = ae.Detail }, null,
+                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
+                    approvalGrantId: approvalGrantId);
+                // SPEC.md §4.5: every failure carries a resolution.
+                var failureA = new Dictionary<string, object?>
+                {
+                    ["type"] = ae.ErrorType,
+                    ["detail"] = ae.Detail,
+                    ["resolution"] = new Dictionary<string, object?>
+                    {
+                        ["action"] = "contact_service_owner",
+                        ["recovery_class"] = Constants.RecoveryClassForAction("contact_service_owner"),
+                    },
+                };
+                var levelA = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                failureA = FailureRedaction.Redact(failureA, levelA);
+                return new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["failure"] = failureA,
+                    ["invocation_id"] = invocationId,
+                    ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
+                };
+            }
+            catch (Exception)
+            {
+                AppendAuditEntry(capName, token, false, Constants.FailureUnavailable, null, null,
+                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
+                    approvalGrantId: approvalGrantId);
+                return new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["failure"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureUnavailable,
+                        ["detail"] = "approval grant validation unavailable",
+                        ["resolution"] = new Dictionary<string, object?>
+                        {
+                            ["action"] = "wait_and_retry",
+                            ["recovery_class"] = Constants.RecoveryClassForAction("wait_and_retry"),
+                        },
+                    },
+                    ["invocation_id"] = invocationId,
+                    ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
+                };
+            }
+        }
+
+        state.EffectiveBudget = effectiveBudget;
+        state.CheckAmount = checkAmount;
+        return null;
+    }
+
+    /// <summary>
+    /// The exception a streaming invocation throws for a refusal made before
+    /// the handler: it carries the response the unary path returns, so the
+    /// transport answers with the same failure, invocation_id and lineage.
+    /// </summary>
+    private static InvocationRefusedError RefusalError(Dictionary<string, object?> response)
+    {
+        var failure = (Dictionary<string, object?>)response["failure"]!;
+        return new InvocationRefusedError(
+            failure["type"] as string ?? Constants.FailureInternalError,
+            failure["detail"] as string ?? "",
+            V023.ResolutionFromMap(failure.GetValueOrDefault("resolution")),
+            retry: failure.GetValueOrDefault("retry") is true,
+            response);
+    }
+
+    private Dictionary<string, object?> RefuseInvalidParameters(
+        string capName,
+        CapabilityDef capDef,
+        DelegationToken token,
+        string detail,
+        string invocationId,
+        InvokeOpts opts,
+        string? effectiveTaskId)
+    {
+        AppendAuditEntry(capName, token, false, Constants.FailureInvalidParameters,
+            new Dictionary<string, object?> { ["detail"] = detail }, null,
+            invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+            opts.UpstreamService,
+            capDef.Declaration.SideEffect?.Type);
+
+        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+        var failure = FailureRedaction.Redact(ParameterValidation.Failure(detail), effectiveLevel);
+
+        return new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["failure"] = failure,
+            ["invocation_id"] = invocationId,
+            ["client_reference_id"] = opts.ClientReferenceId,
+            ["task_id"] = effectiveTaskId,
+            ["parent_invocation_id"] = opts.ParentInvocationId,
+            ["upstream_service"] = opts.UpstreamService,
+        };
+    }
+
     private void AppendAuditEntry(
         string capability,
         DelegationToken token,
@@ -2206,31 +2353,47 @@ public class AnipService : IDisposable
     }
 
     /// <summary>
-    /// Extracts a bound price from params using the capability's binding declarations.
+    /// Extracts a bound price from params using the capability's binding
+    /// declarations: the numeric <c>price</c> member of the first supplied
+    /// binding that has one. Null when no binding carries a numeric price.
     /// </summary>
     private static double? ResolveBoundPrice(List<BindingRequirement> bindings, Dictionary<string, object?> parameters)
     {
         foreach (var binding in bindings)
         {
-            if (parameters.TryGetValue(binding.Field, out var val) && val != null)
+            if (!parameters.TryGetValue(binding.Field, out var val) || val == null) continue;
+
+            object? price = null;
+            if (val is System.Text.Json.JsonElement je)
             {
-                // The binding value may be a dictionary with a "price" key.
-                if (val is Dictionary<string, object?> dict)
+                if (je.ValueKind == System.Text.Json.JsonValueKind.Object && je.TryGetProperty("price", out var priceProp))
                 {
-                    if (dict.TryGetValue("price", out var price))
-                    {
-                        if (price is double d) return d;
-                        if (price is int i) return i;
-                        if (price is long l) return l;
-                    }
+                    price = priceProp;
                 }
-                else if (val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Object)
-                {
-                    if (je.TryGetProperty("price", out var priceProp) && priceProp.ValueKind == System.Text.Json.JsonValueKind.Number)
-                    {
-                        return priceProp.GetDouble();
-                    }
-                }
+            }
+            else if (val is IDictionary<string, object?> dict)
+            {
+                dict.TryGetValue("price", out price);
+            }
+            else if (val is System.Collections.IDictionary map && map.Contains("price"))
+            {
+                price = map["price"];
+            }
+
+            double? amount = price switch
+            {
+                System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Number } number
+                    when number.TryGetDouble(out var parsed) => parsed,
+                double d => d,
+                float f => f,
+                decimal m => (double)m,
+                int i => i,
+                long l => l,
+                _ => null,
+            };
+            if (amount is { } resolved && double.IsFinite(resolved))
+            {
+                return resolved;
             }
         }
         return null;

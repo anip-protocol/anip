@@ -184,3 +184,173 @@ class TestMountIntegration:
         resp = client.get("/schema.graphql")
         assert resp.status_code == 200
         assert "type Query" in resp.text
+
+
+class TestParameterValidation:
+    """SPEC.md §6.3 parameter validation as seen through the GraphQL binding."""
+
+    API_KEY = "test-key"
+
+    @pytest.fixture
+    def harness(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from anip_service import ANIPService, Capability
+        from anip_fastapi import mount_anip
+        from anip_graphql import mount_anip_graphql
+
+        calls: list = []
+
+        def handler(ctx, params):
+            calls.append(dict(params))
+            return {"ok": True}
+
+        declaration = CapabilityDeclaration(
+            name="price_order",
+            description="Price an order",
+            inputs=[
+                CapabilityInput(name="item_name", type="string", description="What"),
+                CapabilityInput(name="quote", type="object", required=False, description="Quote"),
+                CapabilityInput(name="when", type="date", required=False, description="Day"),
+            ],
+            output=CapabilityOutput(type="object", fields=["ok"]),
+            side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+            minimum_scope=["price"],
+        )
+        service = ANIPService(
+            service_id="test-graphql-validation",
+            capabilities=[
+                Capability(declaration=declaration, handler=handler),
+                # The binding needs at least one mutation to build its schema.
+                Capability(declaration=BOOK_DECL, handler=lambda ctx, params: {"booking_id": "BK-001"}),
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        app = FastAPI()
+        mount_anip(app, service)
+        mount_anip_graphql(app, service)
+        return TestClient(app), calls
+
+    FIELDS = "success result failure { type detail retry resolution { action recoveryClass requires } }"
+
+    def _query(self, client, arguments: str):
+        return client.post(
+            "/graphql",
+            json={"query": "{ priceOrder%s { %s } }" % (arguments, self.FIELDS)},
+            headers={"Authorization": f"Bearer {self.API_KEY}"},
+        )
+
+    def test_valid_call_reaches_the_capability(self, harness):
+        client, calls = harness
+
+        data = self._query(client, '(itemName: "x", quote: {id: "q1"})').json()
+
+        assert data["data"]["priceOrder"]["success"] is True, data
+        assert calls == [{"item_name": "x", "quote": {"id": "q1"}}]
+
+    def test_wrong_type_is_an_invalid_parameters_failure(self, harness):
+        """``object`` is the JSON scalar in the schema, so GraphQL lets any
+        value through and the service refuses it."""
+        client, calls = harness
+
+        resp = self._query(client, '(itemName: "x", quote: "q1")')
+
+        assert resp.status_code == 200
+        result = resp.json()["data"]["priceOrder"]
+        assert result["success"] is False
+        assert result["result"] is None
+        assert result["failure"] == {
+            "type": "invalid_parameters",
+            "detail": "price_order has invalid input(s): 'quote' must be object, got string",
+            "retry": False,
+            "resolution": {
+                "action": "retry_now",
+                "recoveryClass": "retry_now",
+                "requires": "parameters that match the capability's declared inputs",
+            },
+        }
+        assert calls == []
+
+    @pytest.mark.parametrize("arguments", ['(quote: {id: "q1"})', "(itemName: null)", ""])
+    def test_missing_required_input_is_refused_by_the_schema(self, harness, arguments):
+        """A required input is a non-null argument (``String!``): GraphQL
+        refuses the document before the resolver, as a GraphQL error."""
+        client, calls = harness
+
+        resp = self._query(client, arguments)
+
+        body = resp.json()
+        assert resp.status_code == 400
+        assert body.get("data") is None
+        message = body["errors"][0]["message"]
+        assert "itemName" in message or "String!" in message
+        assert calls == []
+
+
+class TestOnMissingInputs:
+    """SPEC.md §4.10: an input that declares ``resolution.on_missing`` is left
+    to the service when absent, so the schema does not make it non-null."""
+
+    API_KEY = "test-key"
+
+    DECL = CapabilityDeclaration(
+        name="region_report",
+        description="Report for a region",
+        inputs=[
+            CapabilityInput(
+                name="region", type="string", required=True, description="Region",
+                resolution={"mode": "clarify", "on_missing": "clarify"}),
+            CapabilityInput(
+                name="quarter", type="string", required=True, description="Quarter",
+                resolution={"mode": "clarify"}),
+        ],
+        output=CapabilityOutput(type="object", fields=["ok"]),
+        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+        minimum_scope=["report"],
+    )
+
+    def test_schema_argument_is_nullable_only_with_on_missing(self):
+        sdl = generate_schema({"region_report": self.DECL})
+        assert "regionReport(region: String, quarter: String!)" in sdl
+
+    def test_missing_on_missing_input_reaches_the_capability(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from anip_service import ANIPService, Capability
+        from anip_fastapi import mount_anip
+        from anip_graphql import mount_anip_graphql
+
+        calls: list = []
+
+        def handler(ctx, params):
+            calls.append(dict(params))
+            return {"ok": True}
+
+        service = ANIPService(
+            service_id="test-graphql-on-missing",
+            capabilities=[
+                Capability(declaration=self.DECL, handler=handler),
+                Capability(declaration=BOOK_DECL, handler=lambda ctx, params: {"booking_id": "BK-001"}),
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        app = FastAPI()
+        mount_anip(app, service)
+        mount_anip_graphql(app, service)
+        client = TestClient(app)
+        headers = {"Authorization": f"Bearer {self.API_KEY}"}
+
+        resp = client.post(
+            "/graphql",
+            json={"query": '{ regionReport(quarter: "Q1") { success failure { type detail } } }'},
+            headers=headers)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"]["regionReport"]["success"] is True, resp.text
+        assert calls == [{"quarter": "Q1"}]
+
+        refused = client.post(
+            "/graphql",
+            json={"query": '{ regionReport(region: "eu") { success } }'},
+            headers=headers)
+        assert refused.status_code == 400
+        assert "quarter" in refused.json()["errors"][0]["message"]

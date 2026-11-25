@@ -131,7 +131,7 @@ sequenceDiagram
   Agent->>ANIP: Request or present delegation token
   Agent->>ANIP: Check permissions for intended capability
   Agent->>ANIP: Invoke capability with context
-  ANIP->>Policy: Resolve inputs, scope, side effects, approvals
+  ANIP->>Policy: Check delegation, budget and bindings, validate parameters against declared inputs, resolve inputs and approvals
   alt available
     ANIP->>Backend: Execute bounded downstream operation
     Backend-->>ANIP: Result

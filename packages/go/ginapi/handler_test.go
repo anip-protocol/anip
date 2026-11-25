@@ -319,6 +319,30 @@ func TestTokenIssuanceWithValidKey(t *testing.T) {
 	}
 }
 
+// SPEC.md §6.3 Token Issuance: an unrecognised credential is answered like
+// no credential at all.
+func TestTokenIssuanceWithAnUnrecognisedCredential(t *testing.T) {
+	ts, _ := newTestServer(t)
+
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/tokens", strings.NewReader(`{"scope": ["travel.search"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer not-a-known-credential")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	resolution, _ := failure["resolution"].(map[string]any)
+	if resp.StatusCode != 401 || failure["type"] != "authentication_required" ||
+		resolution["action"] != "provide_credentials" {
+		t.Fatalf("status %d, failure %v", resp.StatusCode, failure)
+	}
+}
+
 func TestTokenIssuanceWithoutAuth(t *testing.T) {
 	ts, _ := newTestServer(t)
 

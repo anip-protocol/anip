@@ -265,7 +265,9 @@ public class AnipStdioServer {
         // Bootstrap credential, or a delegation token issued by this service.
         Optional<dev.anip.service.Issuer> issuer = service.authenticateIssuer(bearer);
         if (issuer.isEmpty()) {
-            throw new ANIPError("invalid_token", "Bearer token not recognized");
+            // SPEC.md §6.3 Token Issuance: a credential the service does not
+            // recognise is authentication_required, like no credential at all.
+            throw new ANIPError("authentication_required", "Bearer token not recognized");
         }
 
         // Build the token request from params.
@@ -318,7 +320,7 @@ public class AnipStdioServer {
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
         // v0.23: continuation invocations supply approval_grant. session_id
         // for session_bound grants is read from the signed token, never the body.
-        String approvalGrant = (String) params.get("approval_grant");
+        String approvalGrant = InvokeOpts.approvalGrantFromRequest(params.get("approval_grant"));
         List<String> requestedEffects = extractRequestedEffects(params);
 
         // Extract budget from params.

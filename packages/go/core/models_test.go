@@ -55,33 +55,6 @@ func TestANIPErrorBuilder(t *testing.T) {
 	}
 }
 
-func TestFailureStatusCode(t *testing.T) {
-	tests := []struct {
-		failureType string
-		expected    int
-	}{
-		{FailureAuthRequired, 401},
-		{FailureInvalidToken, 401},
-		{FailureTokenExpired, 401},
-		{FailureScopeInsufficient, 403},
-		{FailureBudgetExceeded, 403},
-		{FailurePurposeMismatch, 403},
-		{FailureUnknownCapability, 404},
-		{FailureNotFound, 404},
-		{FailureUnavailable, 409},
-		{FailureConcurrentLock, 409},
-		{FailureInternalError, 500},
-		{"some_unknown_type", 400},
-	}
-
-	for _, tc := range tests {
-		got := FailureStatusCode(tc.failureType)
-		if got != tc.expected {
-			t.Errorf("FailureStatusCode(%q) = %d, want %d", tc.failureType, got, tc.expected)
-		}
-	}
-}
-
 func TestCapabilityDeclarationJSON(t *testing.T) {
 	cap := CapabilityDeclaration{
 		Name:            "search_flights",

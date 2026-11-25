@@ -31,11 +31,11 @@ changes, ignored-cache leakage, or the wrong bundle fail fast:
 ```bash
 cd packages/go
 go run ./cmd/anip generate \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json \
   --target python \
   --dependency-source local \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native \
-  --verify-custom-code-bundle-digest sha256:89eef6e855812e5cdf6c2848f8471eb01c8ea9e1fb8b112e30abd818c04431aa \
+  --verify-custom-code-bundle-digest sha256:4c7d8ffa416aa1db7988b71ffa6f0f68b9c5e6d7b85ce2265256ee1e8eae2b59 \
   --output /tmp/anip-gtm-python-native \
   --force
 ```
@@ -55,11 +55,11 @@ digest:
 ```bash
 cd packages/go
 go run ./cmd/anip package attach-implementation \
-  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.5.anip-package.json \
-  --package-version 0.4.1 \
+  --package-bundle ../../examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json \
+  --package-version 0.4.7 \
   --custom-code-bundle-ref 'git+https://github.com/anip-protocol/gtm-bundles.git@<commit-sha>#sha256:<artifact-sha256>' \
   --custom-code-bundle ../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_python_native \
-  --output /tmp/gtm-pipeline-q2-review-0.4.1-publish-request.json
+  --output /tmp/gtm-pipeline-q2-review-0.4.7-publish-request.json
 ```
 
 The CLI does not upload or fetch custom code automatically. Remote fetching is

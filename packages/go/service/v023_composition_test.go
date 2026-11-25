@@ -21,7 +21,7 @@ func atomicDecl(name string, fields []string) *core.CapabilityDeclaration {
 	return &core.CapabilityDeclaration{
 		Name:         name,
 		Description:  "atomic " + name,
-		Inputs:       []core.CapabilityInput{{Name: "x", Type: "string"}},
+		Inputs:       []core.CapabilityInput{{Name: "x", Type: "string", Required: true}},
 		Output:       core.CapabilityOutput{Type: "x", Fields: fields},
 		SideEffect:   core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
 		MinimumScope: []string{"s"},

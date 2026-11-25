@@ -89,6 +89,61 @@ class McpToolTranslatorTest {
         assertFalse(schema.required().contains("max_results"));
     }
 
+    /** SPEC.md §6.3: the tool schema does not demand an input that declares on_missing. */
+    @Test
+    void testInputSchemaDoesNotRequireAnOnMissingInput() {
+        CapabilityDeclaration decl = new CapabilityDeclaration(
+                "search_flights", "Search for flights", "1.0",
+                List.of(
+                        new CapabilityInput("origin", "string", true, "Origin airport"),
+                        new CapabilityInput("cabin", "string", true, null, "Cabin", null, false,
+                                null, null, null,
+                                new dev.anip.core.InputResolution(dev.anip.core.ResolutionMode.CLARIFY, null,
+                                        dev.anip.core.ResolutionBehavior.CLARIFY, null, null)),
+                        new CapabilityInput("fare", "string", true, null, "Fare", null, false,
+                                null, null, null,
+                                new dev.anip.core.InputResolution(dev.anip.core.ResolutionMode.EXPLICIT_ONLY,
+                                        null, null, null, null))
+                ),
+                new CapabilityOutput("object", List.of("flights")),
+                new SideEffect("read", "not_applicable"),
+                List.of("travel"), null, null, List.of("sync"));
+
+        McpSchema.JsonSchema schema = McpToolTranslator.buildInputSchema(decl);
+
+        assertEquals(3, schema.properties().size());
+        assertEquals(List.of("origin", "fare"), schema.required());
+    }
+
+    /** The tool schema names the JSON type the service checks (SPEC.md §6.3). */
+    @SuppressWarnings("unchecked")
+    @Test
+    void testInputSchemaNamesTheJsonTypeTheServiceChecks() {
+        CapabilityDeclaration decl = new CapabilityDeclaration(
+                "typed", "Typed", "1.0",
+                List.of(
+                        new CapabilityInput("s", "string", false, "s"),
+                        new CapabilityInput("i", "integer", false, "i"),
+                        new CapabilityInput("n", "number", false, "n"),
+                        new CapabilityInput("b", "boolean", false, "b"),
+                        new CapabilityInput("a", "array", false, "a"),
+                        new CapabilityInput("o", "object", false, "o"),
+                        new CapabilityInput("d", "date", false, "d"),
+                        new CapabilityInput("code", "airport_code", false, "code")
+                ),
+                new CapabilityOutput("object", List.of()),
+                new SideEffect("read", "not_applicable"),
+                List.of("travel"), null, null, List.of("sync"));
+
+        Map<String, Object> properties = McpToolTranslator.buildInputSchema(decl).properties();
+
+        Map<String, Object> typeByName = new java.util.LinkedHashMap<>();
+        properties.forEach((name, property) ->
+                typeByName.put(name, ((Map<String, Object>) property).get("type")));
+        assertEquals(Map.of("s", "string", "i", "integer", "n", "number", "b", "boolean",
+                "a", "array", "o", "object", "d", "string", "code", "string"), typeByName);
+    }
+
     // --- Enriched descriptions ---
 
     @Test

@@ -103,7 +103,10 @@ public class AnipGraphQLController : ControllerBase
         var response = new Dictionary<string, object?>();
         if (execResult.Data != null)
         {
-            response["data"] = execResult.Data;
+            // The executed tree, as plain values the JSON serialiser can write.
+            response["data"] = execResult.Data is global::GraphQL.Execution.ExecutionNode node
+                ? node.ToValue()
+                : execResult.Data;
         }
         if (execResult.Errors != null && execResult.Errors.Count > 0)
         {

@@ -1,11 +1,17 @@
 """book_flight capability -- irreversible, financial side effect."""
-from anip_service import Capability, InvocationContext, ANIPError
+from anip_service import (
+    ANIPError, Capability, INVALID_PARAMETERS_RESOLUTION, InvocationContext,
+)
 from anip_core import (
     BindingRequirement, CapabilityDeclaration, CapabilityInput, CapabilityOutput,
     CapabilityRequirement, Cost, CostCertainty, CrossServiceHints, FinancialCost,
-    ObservabilityContract, ServiceCapabilityRef, SessionInfo, SideEffect, SideEffectType,
+    GrantPolicy, ObservabilityContract, ServiceCapabilityRef, SessionInfo, SideEffect,
+    SideEffectType,
 )
 from anip_flight_demo.domain.flights import create_booking, get_flight
+
+# Bookings for this many passengers or more need an approval grant (SPEC.md §4.7).
+GROUP_BOOKING_APPROVAL_THRESHOLD = 5
 
 DECLARATION = CapabilityDeclaration(
     name="book_flight",
@@ -16,7 +22,10 @@ DECLARATION = CapabilityDeclaration(
         CapabilityInput(name="date", type="date", description="Travel date (YYYY-MM-DD)"),
         CapabilityInput(
             name="passengers", type="integer", required=False, default=1,
-            description="Number of passengers",
+            description=(
+                "Number of passengers. Bookings for "
+                f"{GROUP_BOOKING_APPROVAL_THRESHOLD} or more require approval"
+            ),
         ),
         CapabilityInput(
             name="quote_id", type="object", required=False,
@@ -62,16 +71,48 @@ DECLARATION = CapabilityDeclaration(
     cross_service=CrossServiceHints(
         refresh_via=[ServiceCapabilityRef(service="travel-search", capability="search_flights")],
     ),
+    # What an approver may issue for a group booking (SPEC.md §4.7).
+    grant_policy=GrantPolicy(
+        allowed_grant_types=["one_time", "session_bound"],
+        default_grant_type="one_time",
+        expires_in_seconds=900,
+        max_uses=2,
+    ),
 )
+
+
+def _invalid(detail: str) -> ANIPError:
+    return ANIPError(
+        "invalid_parameters", detail,
+        resolution=dict(INVALID_PARAMETERS_RESOLUTION), retry=False,
+    )
 
 
 def _handle_book(ctx: InvocationContext, params: dict) -> dict:
     flight_number = params.get("flight_number")
     date = params.get("date")
-    passengers = params.get("passengers", 1)
+    # The runtime has checked that passengers is a whole number; JSON may
+    # still have written it with a fraction part (5.0).
+    passengers = int(params.get("passengers", 1))
 
-    if not flight_number or not date:
-        raise ANIPError("invalid_parameters", "flight_number and date are required")
+    # The runtime refuses missing inputs and wrong primitive types before the
+    # handler runs (SPEC.md §6.3). What is left is what it cannot know: an
+    # empty flight number, and `date`, whose declared type is not a primitive.
+    if not flight_number.strip():
+        raise _invalid("flight_number must not be empty")
+    if not isinstance(date, str) or not date.strip():
+        raise _invalid("date must be a YYYY-MM-DD string")
+    if passengers < 1:
+        raise _invalid("passengers must be at least 1")
+
+    # Group bookings need an approver's grant. On the continuation invocation
+    # the runtime has already validated and reserved the grant.
+    if passengers >= GROUP_BOOKING_APPROVAL_THRESHOLD and not ctx.approval_grant:
+        raise ANIPError(
+            "approval_required",
+            f"bookings for {GROUP_BOOKING_APPROVAL_THRESHOLD} or more passengers require approval",
+            resolution={"action": "request_approval", "recovery_class": "wait_then_retry"},
+        )
 
     flight = get_flight(flight_number, date)
     if flight is None:

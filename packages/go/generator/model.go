@@ -8,6 +8,11 @@ import (
 	"github.com/anip-protocol/anip/packages/go/definitionvalidation"
 )
 
+// generatedPolicyNoMatchDetail is the refusal detail every generated target
+// returns, on every transport, when a capability has runtime policy bindings
+// and none of them matches the actor.
+const generatedPolicyNoMatchDetail = "No runtime policy binding matches the current actor for this capability."
+
 type GeneratedServiceMetadata struct {
 	ServiceID               string   `json:"service_id"`
 	ServiceName             string   `json:"service_name"`

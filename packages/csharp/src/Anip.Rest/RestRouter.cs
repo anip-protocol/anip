@@ -76,24 +76,61 @@ public static class RestRouter
 
             var inputType = typeMap.TryGetValue(key, out var t) ? t : "string";
 
-            switch (inputType)
-            {
-                case "integer":
-                    result[key] = int.TryParse(value, out var intVal) ? intVal : value;
-                    break;
-                case "number":
-                    result[key] = double.TryParse(value, out var dblVal) ? dblVal : value;
-                    break;
-                case "boolean":
-                    result[key] = value == "true";
-                    break;
-                default:
-                    result[key] = value;
-                    break;
-            }
+            result[key] = ConvertQueryValue(value, inputType);
         }
 
         return result;
+    }
+
+    // The JSON number grammar (RFC 8259 §6).
+    private static readonly System.Text.RegularExpressions.Regex s_jsonNumber =
+        new(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$");
+
+    /// <summary>
+    /// Reads a query string value as the JSON value its declared type calls
+    /// for: a JSON number for integer and number, true or false for boolean,
+    /// JSON text for array and object (the only way a query string can carry
+    /// one). A value that cannot be read that way stays a string, and the
+    /// service's parameter validation (SPEC.md §6.3) refuses it by name.
+    /// </summary>
+    private static object? ConvertQueryValue(string value, string declaredType)
+    {
+        switch (declaredType)
+        {
+            case "integer":
+            case "number":
+                if (declaredType == "integer" &&
+                    int.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign,
+                        System.Globalization.CultureInfo.InvariantCulture, out var intValue))
+                {
+                    return intValue;
+                }
+                if (s_jsonNumber.IsMatch(value) &&
+                    double.TryParse(value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var number))
+                {
+                    return number;
+                }
+                return value;
+            case "boolean":
+                return value switch { "true" => true, "false" => false, _ => value };
+            case "array":
+            case "object":
+                try
+                {
+                    var element = System.Text.Json.JsonDocument.Parse(value).RootElement.Clone();
+                    var kind = declaredType == "array"
+                        ? System.Text.Json.JsonValueKind.Array
+                        : System.Text.Json.JsonValueKind.Object;
+                    return element.ValueKind == kind ? element : value;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return value;
+                }
+            default:
+                return value;
+        }
     }
 
     public static Dictionary<string, object?> ExtractBodyParams(Dictionary<string, object?>? body)

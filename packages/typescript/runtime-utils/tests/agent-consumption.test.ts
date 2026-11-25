@@ -77,3 +77,23 @@ describe("shared planner fallback validation fixtures", () => {
     });
   }
 });
+
+// SPEC.md §4.1: an input whose declaration does not state `required` is required.
+describe("`required` defaults to true in input specs", () => {
+  const metadata = (spec: Record<string, unknown>) => ({
+    input_specs: [{ name: "cabin", allowed_values: ["economy", "business"], ...spec }],
+  });
+
+  test("an input spec without `required` is a required input", () => {
+    expect(missingRequiredInputNames("book me a flight", metadata({}))).toEqual(["cabin"]);
+    expect(missingRequiredInputNames("book me a flight", metadata({ required: true }))).toEqual(["cabin"]);
+  });
+
+  test("only `required: false` makes an input optional", () => {
+    expect(missingRequiredInputNames("book me a flight", metadata({ required: false }))).toEqual([]);
+  });
+
+  test("a required input the conversation supplies is not missing", () => {
+    expect(missingRequiredInputNames("book me a flight in business", metadata({}))).toEqual([]);
+  });
+});

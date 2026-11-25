@@ -41,6 +41,11 @@ public final class Constants {
     public static final String FAILURE_STREAMING_NOT_SUPPORTED = "streaming_not_supported";
     public static final String FAILURE_INVALID_PARAMETERS = "invalid_parameters";
     public static final String FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
+    public static final String FAILURE_TOKEN_NOT_REGISTERED = "token_not_registered";
+    public static final String FAILURE_CONSTRAINT_ESCALATION = "constraint_escalation";
+    public static final String FAILURE_CONCURRENT_REQUEST_REJECTED = "concurrent_request_rejected";
+    /** The service could not complete the request for a reason of its own (SPEC.md §4.7). */
+    public static final String FAILURE_SERVICE_UNAVAILABLE = "service_unavailable";
 
     // v0.23 failure types — composition + approval grants. SPEC.md §4.6, §4.7, §4.8, §4.9.
     public static final String FAILURE_APPROVAL_REQUIRED = "approval_required";
@@ -51,6 +56,7 @@ public final class Constants {
     public static final String FAILURE_GRANT_SCOPE_MISMATCH = "grant_scope_mismatch";
     public static final String FAILURE_GRANT_PARAM_DRIFT = "grant_param_drift";
     public static final String FAILURE_GRANT_SESSION_INVALID = "grant_session_invalid";
+    public static final String FAILURE_GRANT_REQUESTER_MISMATCH = "grant_requester_mismatch";
     public static final String FAILURE_APPROVAL_REQUEST_NOT_FOUND = "approval_request_not_found";
     public static final String FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED = "approval_request_already_decided";
     public static final String FAILURE_APPROVAL_REQUEST_EXPIRED = "approval_request_expired";
@@ -124,29 +130,40 @@ public final class Constants {
     }
 
     /**
-     * Maps failure types to HTTP status codes.
+     * The HTTP status of a failure type: SPEC.md §6.3 "HTTP Status Codes".
+     * Every HTTP binding (the protocol endpoints and the REST adapter) uses
+     * this mapping. A type the table does not list, including one a
+     * capability handler defines, is 400.
      */
     public static int failureStatusCode(String failureType) {
         if (failureType == null) {
             return 400;
         }
         return switch (failureType) {
-            case FAILURE_AUTH_REQUIRED, FAILURE_INVALID_TOKEN, FAILURE_TOKEN_EXPIRED -> 401;
-            case FAILURE_SCOPE_INSUFFICIENT, FAILURE_BUDGET_EXCEEDED,
-                 FAILURE_BUDGET_CURRENCY_MISMATCH, FAILURE_BUDGET_NOT_ENFORCEABLE,
-                 FAILURE_BINDING_MISSING, FAILURE_BINDING_STALE,
-                 FAILURE_CONTROL_REQUIREMENT_UNSATISFIED,
+            // The caller has not presented a usable credential.
+            case FAILURE_AUTH_REQUIRED, FAILURE_INVALID_TOKEN, FAILURE_TOKEN_EXPIRED,
+                 FAILURE_TOKEN_NOT_REGISTERED -> 401;
+            // The credential is valid; its delegated authority does not cover the request.
+            case FAILURE_SCOPE_INSUFFICIENT, FAILURE_INSUFFICIENT_AUTHORITY,
                  FAILURE_PURPOSE_MISMATCH, FAILURE_SCOPE_ESCALATION,
-                 FAILURE_INSUFFICIENT_AUTHORITY, FAILURE_BROKEN_DELEGATION_CHAIN,
+                 FAILURE_CONSTRAINT_ESCALATION, FAILURE_BROKEN_DELEGATION_CHAIN,
                  FAILURE_DELEGATION_DEPTH_EXCEEDED, FAILURE_PARENT_TOKEN_EXPIRED,
-                 FAILURE_APPROVER_NOT_AUTHORIZED -> 403;
+                 FAILURE_BUDGET_EXCEEDED, FAILURE_BUDGET_CURRENCY_MISMATCH,
+                 FAILURE_BUDGET_NOT_ENFORCEABLE, FAILURE_BINDING_MISSING,
+                 FAILURE_BINDING_STALE, FAILURE_CONTROL_REQUIREMENT_UNSATISFIED,
+                 FAILURE_APPROVER_NOT_AUTHORIZED, FAILURE_GRANT_REQUESTER_MISMATCH -> 403;
+            // The named capability, resource or approval request does not exist.
             case FAILURE_UNKNOWN_CAPABILITY, FAILURE_NOT_FOUND,
                  FAILURE_APPROVAL_REQUEST_NOT_FOUND -> 404;
-            case FAILURE_UNAVAILABLE, FAILURE_CONCURRENT_LOCK,
+            // The request conflicts with the state of a grant, an approval request or a lock.
+            case FAILURE_GRANT_CONSUMED, FAILURE_GRANT_EXPIRED,
                  FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED, FAILURE_APPROVAL_REQUEST_EXPIRED,
-                 FAILURE_GRANT_CONSUMED, FAILURE_GRANT_EXPIRED -> 409;
+                 FAILURE_CONCURRENT_LOCK, FAILURE_CONCURRENT_REQUEST_REJECTED,
+                 FAILURE_UNAVAILABLE -> 409;
+            // The service failed.
             case FAILURE_INTERNAL_ERROR -> 500;
-            case FAILURE_INVALID_PARAMETERS -> 400;
+            case FAILURE_SERVICE_UNAVAILABLE -> 503;
+            // Everything else: the caller has to change the request.
             default -> 400;
         };
     }

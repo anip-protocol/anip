@@ -73,6 +73,33 @@ func TestGeneratorConformancePreservesUnmappedBackendOnlyInput(t *testing.T) {
 	buildGeneratorConformanceProjects(t, definition)
 }
 
+// withoutPolicyOrApprovalGate removes the fixture's policy bindings and the
+// approval gate on conformance.prepare_change, for suites that exercise backend
+// inputs and compositions rather than policy. Without bindings every actor is
+// allowed (a capability without bindings is allowed), and without the gate the
+// child reaches its backend adapter without an approval grant.
+func withoutPolicyOrApprovalGate(definition *AnipServiceDefinition) {
+	definition.RuntimePolicyBindings = nil
+	definition.PermissionIntentBindings = nil
+	for i := range definition.CapabilityFormalizations {
+		capability := &definition.CapabilityFormalizations[i]
+		if capability.CapabilityID == "conformance.prepare_change" {
+			capability.OperationType = "write"
+			capability.SideEffectLevel = "write"
+		}
+	}
+	if definition.IntegrationFronting == nil {
+		return
+	}
+	for i := range definition.IntegrationFronting.CapabilityMappings {
+		mapping := &definition.IntegrationFronting.CapabilityMappings[i]
+		if mapping.CapabilityID == "conformance.prepare_change" {
+			mapping.ExecutionPosture = "write"
+			mapping.SideEffectLevel = "write"
+		}
+	}
+}
+
 func backendOnlyConformanceDefinition(t *testing.T) *AnipServiceDefinition {
 	t.Helper()
 	suite := mustReadGeneratorConformanceSuite(t)
@@ -93,6 +120,7 @@ func backendOnlyConformanceDefinition(t *testing.T) *AnipServiceDefinition {
 			delete(capability.Composition.InputMapping["prepare_change"], "change_reason")
 		}
 	}
+	withoutPolicyOrApprovalGate(definition)
 	model, err := BuildGenerationModel(definition)
 	if err != nil {
 		t.Fatal(err)

@@ -180,3 +180,170 @@ async def test_mounted_invalid_arguments_are_refused_before_the_capability_runs(
     assert result.is_error is True
     assert "Input validation error" in result.content[0].text
     assert calls == [], "the capability handler must not run"
+
+
+# --- The service's own check (SPEC.md §6.3) ---------------------------------------
+
+
+async def test_service_refusal_is_a_tool_error_carrying_the_failure():
+    """The schema check above refuses first. A refusal by the service's own
+    parameter validation is also a tool error, never a success, and carries
+    the failure type, detail and resolution."""
+    from anip_mcp.invocation import invoke_with_token, resolve_auth
+
+    calls: list[dict] = []
+    service = _service(calls)
+    await service.start()
+    try:
+        token = await resolve_auth(API_KEY, service, "charge")
+
+        result = await invoke_with_token(service, "charge", {"note": "no amount"}, token)
+    finally:
+        await service.shutdown()
+
+    assert result.is_error is True
+    assert result.text.splitlines() == [
+        "FAILED: invalid_parameters",
+        "Detail: charge is missing required input(s): amount",
+        "Resolution: retry_now",
+        "Requires: parameters that match the capability's declared inputs",
+        "Retryable: no",
+    ]
+    assert calls == [], "the capability handler must not run"
+
+
+# --- array and object inputs ------------------------------------------------------
+
+
+def _structured_service(calls: list[dict]) -> ANIPService:
+    def handler(ctx, params):
+        calls.append(dict(params))
+        return {"ok": True}
+
+    return ANIPService(
+        service_id="test-mcp-structured",
+        capabilities=[
+            Capability(
+                declaration=CapabilityDeclaration(
+                    name="book",
+                    description="Book with a quote",
+                    inputs=[
+                        CapabilityInput(name="quote", type="object", description="Quote"),
+                        CapabilityInput(name="tags", type="array", required=False, description="Tags"),
+                    ],
+                    output=CapabilityOutput(type="object", fields=["ok"]),
+                    side_effect=SideEffect(type=SideEffectType.WRITE, rollback_window="none"),
+                    minimum_scope=["book"],
+                ),
+                handler=handler,
+            ),
+        ],
+        storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+    )
+
+
+def test_array_and_object_inputs_are_advertised_as_such():
+    from anip_mcp.translation import capability_to_input_schema
+
+    schema = capability_to_input_schema({"inputs": [
+        {"name": "quote", "type": "object"},
+        {"name": "tags", "type": "array", "required": False},
+        {"name": "implicit", "type": "string"},
+    ]})
+
+    assert schema["properties"]["quote"]["type"] == "object"
+    assert schema["properties"]["tags"]["type"] == "array"
+    assert schema["required"] == ["quote", "implicit"]
+
+
+async def test_object_and_array_arguments_reach_the_capability():
+    from mcp import Client
+    from mcp.server.lowlevel import Server
+    from anip_mcp import mount_anip_mcp, McpCredentials
+
+    calls: list[dict] = []
+    server = Server("test-mcp-structured")
+    lifecycle = await mount_anip_mcp(
+        server, _structured_service(calls),
+        credentials=McpCredentials(api_key=API_KEY, scope=["book"], subject="test-agent"),
+    )
+    try:
+        async with Client(server) as client:
+            accepted = await client.call_tool("book", {"quote": {"id": "q1"}, "tags": ["a"]})
+            refused = await client.call_tool("book", {"quote": "q1"})
+    finally:
+        await lifecycle.shutdown()
+
+    assert accepted.is_error is False, accepted.content
+    assert calls == [{"quote": {"id": "q1"}, "tags": ["a"]}]
+    assert refused.is_error is True
+    assert "Input validation error" in refused.content[0].text
+
+
+# --- inputs that declare resolution.on_missing (SPEC.md §4.10) ---------------------
+
+
+def test_input_with_on_missing_is_not_required_by_the_tool_schema():
+    from anip_mcp.translation import capability_to_input_schema
+
+    schema = capability_to_input_schema({"inputs": [
+        {"name": "region", "type": "string", "required": True,
+         "resolution": {"mode": "clarify", "on_missing": "clarify"}},
+        {"name": "mode_only", "type": "string", "required": True,
+         "resolution": {"mode": "clarify", "on_missing": None}},
+        {"name": "plain", "type": "string", "required": True, "resolution": None},
+    ]})
+
+    assert schema["required"] == ["mode_only", "plain"]
+    assert schema["properties"]["region"]["type"] == "string"
+
+
+async def test_missing_on_missing_input_reaches_the_capability():
+    from mcp import Client
+    from mcp.server.lowlevel import Server
+    from anip_mcp import mount_anip_mcp, McpCredentials
+
+    calls: list[dict] = []
+
+    def handler(ctx, params):
+        calls.append(dict(params))
+        return {"ok": True}
+
+    service = ANIPService(
+        service_id="test-mcp-on-missing",
+        capabilities=[
+            Capability(
+                declaration=CapabilityDeclaration(
+                    name="report",
+                    description="Report for a region",
+                    inputs=[
+                        CapabilityInput(
+                            name="region", type="string", required=True, description="Region",
+                            resolution={"mode": "clarify", "on_missing": "clarify"}),
+                    ],
+                    output=CapabilityOutput(type="object", fields=["ok"]),
+                    side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                    minimum_scope=["report"],
+                ),
+                handler=handler,
+            ),
+        ],
+        storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+    )
+    server = Server("test-mcp-on-missing")
+    lifecycle = await mount_anip_mcp(
+        server, service,
+        credentials=McpCredentials(api_key=API_KEY, scope=["report"], subject="test-agent"),
+    )
+    try:
+        async with Client(server) as client:
+            absent = await client.call_tool("report", {})
+            wrong = await client.call_tool("report", {"region": 5})
+    finally:
+        await lifecycle.shutdown()
+
+    assert absent.is_error is False, absent.content
+    assert calls == [{}]
+    assert wrong.is_error is True

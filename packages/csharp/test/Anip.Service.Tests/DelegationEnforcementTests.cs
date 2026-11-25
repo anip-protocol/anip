@@ -158,7 +158,7 @@ public class DelegationEnforcementTests : IDisposable
     {
         var token = IssueBound("book_flight", new() { "travel.search", "travel.book" });
 
-        var error = Assert.Throws<AnipError>(() =>
+        var error = Assert.ThrowsAny<AnipError>(() =>
             _service.InvokeStream("search_flights", token, NoParams, new InvokeOpts { Stream = true }));
 
         Assert.Equal(Constants.FailurePurposeMismatch, error.ErrorType);

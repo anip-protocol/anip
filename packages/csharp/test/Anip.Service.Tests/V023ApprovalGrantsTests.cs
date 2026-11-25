@@ -40,6 +40,25 @@ public class V023ApprovalGrantsTests : IDisposable
                         ["sent"] = true,
                         ["approval_grant"] = ctx.ApprovalGrant,
                     }),
+                new(
+                    new CapabilityDeclaration
+                    {
+                        Name = "needs_approval",
+                        Description = "always asks for approval",
+                        ContractVersion = "1.0",
+                        SideEffect = new SideEffect { Type = "write" },
+                        MinimumScope = new List<string> { "data.write" },
+                        ResponseModes = new List<string> { "unary", "streaming" },
+                        GrantPolicy = new GrantPolicy
+                        {
+                            AllowedGrantTypes = new() { "one_time" },
+                            DefaultGrantType = "one_time",
+                            ExpiresInSeconds = 600,
+                            MaxUses = 1,
+                        },
+                    },
+                    (ctx, p) => throw new AnipError(Constants.FailureApprovalRequired, "approval needed")
+                        .WithResolution("request_approval")),
             },
             Authenticate = bearer => bearer == "valid-key" ? _principal : null,
         };
@@ -64,7 +83,7 @@ public class V023ApprovalGrantsTests : IDisposable
             ApprovalRequestId = id,
             Capability = capability,
             Scope = new List<string> { "data.write" },
-            Requester = new Dictionary<string, object> { ["subject"] = _principal },
+            Requester = new Dictionary<string, object> { ["subject"] = _principal, ["root_principal"] = _principal },
             Preview = new Dictionary<string, object>(),
             PreviewDigest = V023.Sha256Digest(new Dictionary<string, object>()),
             RequestedParameters = new Dictionary<string, object> { ["msg"] = "hi" },
@@ -255,5 +274,162 @@ public class V023ApprovalGrantsTests : IDisposable
         var reserved = _service.GetStorage().TryReserveGrant(grant.GrantId, V023.UtcNowIso());
         Assert.True(reserved.Ok);
         Assert.Equal(1, reserved.Grant!.UseCount);
+    }
+
+    // --- The grant binds its requester's root principal (SPEC.md §4.8 step 5) ---
+
+    [Fact]
+    public void Invoke_AnotherPrincipalCannotRedeemAndTheGrantIsNotSpent()
+    {
+        SeedPendingRequest("apr_rq1");
+        var grant = _service.IssueApprovalGrant(
+            "apr_rq1", ApprovalGrant.TypeOneTime, new Dictionary<string, object?> { ["subject"] = "boss" },
+            null, null, null);
+        var bob = _service.ResolveBearerToken(_service.IssueToken("bob", new TokenRequest
+        {
+            Scope = new List<string> { "data.write" },
+            Capability = "send_notice",
+        }).Token);
+
+        var refused = _service.Invoke("send_notice", bob,
+            new Dictionary<string, object?> { ["msg"] = "hi" },
+            new InvokeOpts { ApprovalGrant = grant.GrantId });
+
+        var failure = FailureOf(refused);
+        Assert.Equal(Constants.FailureGrantRequesterMismatch, failure["type"]);
+        var resolution = (Dictionary<string, object?>)failure["resolution"]!;
+        Assert.Equal("contact_service_owner", resolution["action"]);
+        Assert.Equal("terminal", resolution["recovery_class"]);
+        Assert.Equal(0, _service.GetStorage().GetGrant(grant.GrantId)!.UseCount);
+        Assert.Equal(403, Constants.FailureStatusCode(Constants.FailureGrantRequesterMismatch));
+
+        var ok = _service.Invoke("send_notice", TokenFor("send_notice"),
+            new Dictionary<string, object?> { ["msg"] = "hi" },
+            new InvokeOpts { ApprovalGrant = grant.GrantId });
+        Assert.Equal(true, ok["success"]);
+    }
+
+    [Fact]
+    public void Invoke_ApprovalRequestRecordsTheRootPrincipal()
+    {
+        var response = _service.Invoke("needs_approval", TokenFor("needs_approval"),
+            new Dictionary<string, object?>(), new InvokeOpts());
+        var meta = FailureOf(response)["approval_required"];
+        var id = meta switch
+        {
+            ApprovalRequiredMetadata m => m.ApprovalRequestId,
+            Dictionary<string, object?> d => (string)d["approval_request_id"]!,
+            _ => throw new Xunit.Sdk.XunitException($"unexpected metadata {meta}"),
+        };
+        var request = _service.GetApprovalRequest(id!)!;
+        Assert.Equal(_principal, request.Requester["root_principal"].ToString());
+    }
+
+    [Fact]
+    public void ValidateContinuationGrant_RequesterAfterCapabilityBeforeScope()
+    {
+        SeedPendingRequest("apr_rq2");
+        var grant = _service.IssueApprovalGrant(
+            "apr_rq2", ApprovalGrant.TypeOneTime, new Dictionary<string, object?> { ["subject"] = "boss" },
+            null, null, null);
+        var keys = (Anip.Crypto.KeyManager)typeof(AnipService)
+            .GetField("_keys", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(_service)!;
+        var parameters = new Dictionary<string, object?> { ["msg"] = "hi" };
+
+        Assert.Equal(Constants.FailureGrantCapabilityMismatch, V023.ValidateContinuationGrant(
+            _service.GetStorage(), keys, grant.GrantId, "other_capability", parameters,
+            new List<string> { "data.write" }, null, "bob", V023.UtcNowIso()).FailureType);
+        Assert.Equal(Constants.FailureGrantRequesterMismatch, V023.ValidateContinuationGrant(
+            _service.GetStorage(), keys, grant.GrantId, "send_notice", parameters,
+            new List<string> { "other.scope" }, null, "bob", V023.UtcNowIso()).FailureType);
+    }
+
+    // --- Blank grants, resolution and retry ---
+
+    private DelegationToken TokenFor(string capability)
+    {
+        var tokenResponse = _service.IssueToken(_principal, new TokenRequest
+        {
+            Scope = new List<string> { "data.write" },
+            Capability = capability,
+        });
+        return _service.ResolveBearerToken(tokenResponse.Token);
+    }
+
+    private static Dictionary<string, object?> FailureOf(Dictionary<string, object?> response)
+    {
+        Assert.Equal(false, response["success"]);
+        return (Dictionary<string, object?>)response["failure"]!;
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t\n")]
+    public void Invoke_BlankSuppliedGrantIsNotFoundBeforeTheHandler(string grant)
+    {
+        // A supplied approval_grant is always validated. A blank one names no
+        // grant: the handler (which would succeed here) does not run.
+        var failure = FailureOf(_service.Invoke("send_notice", TokenFor("send_notice"),
+            new Dictionary<string, object?> { ["msg"] = "hi" },
+            new InvokeOpts { ApprovalGrant = grant }));
+
+        Assert.Equal(Constants.FailureGrantNotFound, failure["type"]);
+        var resolution = (Dictionary<string, object?>)failure["resolution"]!;
+        Assert.Equal("contact_service_owner", resolution["action"]);
+        Assert.Equal("terminal", resolution["recovery_class"]);
+    }
+
+    [Fact]
+    public void InvokeStream_BlankSuppliedGrantIsNotFound()
+    {
+        var ex = Assert.ThrowsAny<AnipError>(() => _service.InvokeStream(
+            "needs_approval", TokenFor("needs_approval"),
+            new Dictionary<string, object?>(),
+            new InvokeOpts { ApprovalGrant = " ", Stream = true }));
+
+        Assert.Equal(Constants.FailureGrantNotFound, ex.ErrorType);
+        Assert.NotNull(ex.Resolution);
+        Assert.Equal("terminal", ex.Resolution!.RecoveryClass);
+    }
+
+    [Fact]
+    public void Invoke_UnknownGrantFailureCarriesResolution()
+    {
+        // SPEC.md §4.5: every failure carries a resolution with a recovery_class.
+        var failure = FailureOf(_service.Invoke("send_notice", TokenFor("send_notice"),
+            new Dictionary<string, object?> { ["msg"] = "hi" },
+            new InvokeOpts { ApprovalGrant = "grant_missing" }));
+
+        Assert.Equal(Constants.FailureGrantNotFound, failure["type"]);
+        var resolution = (Dictionary<string, object?>)failure["resolution"]!;
+        Assert.Equal("terminal", resolution["recovery_class"]);
+    }
+
+    [Fact]
+    public void Invoke_ApprovalRequiredCarriesRetryFalse()
+    {
+        // SPEC.md §4.7: the approval_required failure carries retry: false.
+        var failure = FailureOf(_service.Invoke("needs_approval", TokenFor("needs_approval"),
+            new Dictionary<string, object?>(), new InvokeOpts()));
+
+        Assert.Equal(Constants.FailureApprovalRequired, failure["type"]);
+        Assert.True(failure.ContainsKey("retry"));
+        Assert.Equal(false, failure["retry"]);
+    }
+
+    [Fact]
+    public void ApprovalGrantFromRequest_KeepsAbsentAndSuppliedApart()
+    {
+        Assert.Null(InvokeOpts.ApprovalGrantFromRequest(null));
+        Assert.Equal("", InvokeOpts.ApprovalGrantFromRequest(""));
+        Assert.Equal("grant_1", InvokeOpts.ApprovalGrantFromRequest("grant_1"));
+        Assert.Equal("", InvokeOpts.ApprovalGrantFromRequest(7));
+        using var doc = System.Text.Json.JsonDocument.Parse("{\"a\":\"\",\"b\":null,\"c\":7,\"d\":\"g\"}");
+        Assert.Equal("", InvokeOpts.ApprovalGrantFromRequest(doc.RootElement.GetProperty("a")));
+        Assert.Null(InvokeOpts.ApprovalGrantFromRequest(doc.RootElement.GetProperty("b")));
+        Assert.Equal("", InvokeOpts.ApprovalGrantFromRequest(doc.RootElement.GetProperty("c")));
+        Assert.Equal("g", InvokeOpts.ApprovalGrantFromRequest(doc.RootElement.GetProperty("d")));
     }
 }

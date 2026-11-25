@@ -55,7 +55,8 @@ public final class AgentConsumption {
         List<String> missing = new ArrayList<>();
         for (Object rawSpec : listValue(safeMetadata.get("input_specs"))) {
             Map<String, Object> spec = mapValue(rawSpec);
-            if (!Boolean.TRUE.equals(spec.get("required"))) {
+            // SPEC.md §4.1: `required` defaults to true; only a stated false is optional.
+            if (Boolean.FALSE.equals(spec.get("required"))) {
                 continue;
             }
             String name = stringValue(spec.get("name"));

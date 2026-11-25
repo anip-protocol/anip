@@ -2,6 +2,7 @@ package dev.anip.server;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.anip.core.CapabilityInput;
 import dev.anip.core.InputMeaning;
 import dev.anip.core.InputResolution;
 import dev.anip.core.ResolutionBehavior;
@@ -68,6 +69,60 @@ class AnipJacksonModuleTest {
 
         InputResolution rt = M.readValue(json, InputResolution.class);
         assertEquals(res, rt);
+    }
+
+    // SPEC.md §4.1: `required` defaults to true wherever a declaration is read.
+
+    @Test
+    void capabilityInputWithoutRequiredIsRequired() throws Exception {
+        CapabilityInput input = M.readValue(
+                "{\"name\":\"origin\",\"type\":\"airport_code\"}", CapabilityInput.class);
+        assertEquals("origin", input.getName());
+        assertEquals("airport_code", input.getType());
+        assertTrue(input.isRequired());
+    }
+
+    @Test
+    void capabilityInputKeepsAStatedRequired() throws Exception {
+        assertFalse(M.readValue(
+                "{\"name\":\"n\",\"type\":\"integer\",\"required\":false,\"default\":1}",
+                CapabilityInput.class).isRequired());
+        assertTrue(M.readValue(
+                "{\"name\":\"n\",\"type\":\"integer\",\"required\":true}",
+                CapabilityInput.class).isRequired());
+    }
+
+    @Test
+    void capabilityInputDecodesEveryDeclaredField() throws Exception {
+        CapabilityInput input = M.readValue("""
+                {"name":"cohort","type":"string","required":false,"default":"renewal_risk",
+                 "description":"Cohort","semantic_type":"cohort_reference","entity_reference":true,
+                 "allowed_values":["renewal_risk","expansion_ready"],"catalog_ref":"gtm.cohorts",
+                 "input_meanings":[{"label":"Risk","value":"renewal_risk","description":"at risk"}],
+                 "resolution":{"mode":"closed_values","on_missing":"use_default"},
+                 "unknown_member":1}
+                """, CapabilityInput.class);
+        assertFalse(input.isRequired());
+        assertEquals("renewal_risk", input.getDefaultValue());
+        assertEquals("Cohort", input.getDescription());
+        assertEquals("cohort_reference", input.getSemanticType());
+        assertTrue(input.isEntityReference());
+        assertEquals(java.util.List.of("renewal_risk", "expansion_ready"), input.getAllowedValues());
+        assertEquals("gtm.cohorts", input.getCatalogRef());
+        assertEquals(new InputMeaning("Risk", "renewal_risk", "at risk"), input.getInputMeanings().get(0));
+        assertEquals(ResolutionMode.CLOSED_VALUES, input.getResolution().mode());
+        assertEquals(ResolutionBehavior.USE_DEFAULT, input.getResolution().onMissing());
+    }
+
+    @Test
+    void capabilityInputSerialisationAlwaysWritesRequired() throws Exception {
+        JsonNode required = M.readTree(M.writeValueAsString(new CapabilityInput("a", "string")));
+        assertTrue(required.get("required").isBoolean());
+        assertTrue(required.get("required").asBoolean());
+        JsonNode optional = M.readTree(M.writeValueAsString(
+                new CapabilityInput("a", "string", false, "optional")));
+        assertTrue(optional.get("required").isBoolean());
+        assertFalse(optional.get("required").asBoolean());
     }
 
     @Test

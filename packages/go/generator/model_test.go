@@ -41,6 +41,7 @@ func TestSampleValueForInputHonorsDeclaredValidationPattern(t *testing.T) {
 			input: CapabilityInputFormalization{
 				InputName:         "issue_key",
 				InputType:         "string",
+				Required:          true,
 				ValidationPattern: `^[A-Za-z][A-Za-z0-9_.-]*-[0-9]+$`,
 			},
 			want: "PROJECT-123",
@@ -50,6 +51,7 @@ func TestSampleValueForInputHonorsDeclaredValidationPattern(t *testing.T) {
 			input: CapabilityInputFormalization{
 				InputName:         "project_key",
 				InputType:         "string",
+				Required:          true,
 				ValidationPattern: `^[A-Za-z][A-Za-z0-9_.-]*$`,
 			},
 			want: "PROJECT",
@@ -59,6 +61,7 @@ func TestSampleValueForInputHonorsDeclaredValidationPattern(t *testing.T) {
 			input: CapabilityInputFormalization{
 				InputName:         "limit",
 				InputType:         "integer",
+				Required:          true,
 				ValidationPattern: `^[1-9][0-9]*$`,
 			},
 			want: 25,
@@ -68,6 +71,7 @@ func TestSampleValueForInputHonorsDeclaredValidationPattern(t *testing.T) {
 			input: CapabilityInputFormalization{
 				InputName:   "quarter",
 				InputType:   "string",
+				Required:    true,
 				InputFormat: "business_quarter",
 			},
 			want: "2026-Q2",

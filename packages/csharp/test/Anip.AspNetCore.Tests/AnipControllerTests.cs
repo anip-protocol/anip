@@ -199,10 +199,15 @@ public class AnipControllerTests : IAsyncLifetime
         var response = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 
+        // SPEC.md §6.3 Token Issuance: an unrecognised credential is
+        // authentication_required, like no credential at all.
         var json = await ParseJson(response);
         Assert.False(json.GetProperty("success").GetBoolean());
-        Assert.Equal("invalid_token",
+        Assert.Equal("authentication_required",
             json.GetProperty("failure").GetProperty("type").GetString());
+        var resolution = json.GetProperty("failure").GetProperty("resolution");
+        Assert.Equal("provide_credentials", resolution.GetProperty("action").GetString());
+        Assert.Equal("retry_now", resolution.GetProperty("recovery_class").GetString());
     }
 
     // --- Invoke ---

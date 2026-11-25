@@ -78,6 +78,13 @@ public static class SchemaBuilder
         });
         anipFailureType.Field<NonNullGraphType<BooleanGraphType>>("retry");
 
+        // The resolvers return dictionaries (GraphQLResponseMapper), so every
+        // field of the shared output types reads its value by name.
+        foreach (var outputType in new[] { financialCostType, costActualType, resolutionType, anipFailureType })
+        {
+            ReadFieldsFromDictionary(outputType);
+        }
+
         var queryType = new ObjectGraphType { Name = "Query" };
         var mutationType = new ObjectGraphType { Name = "Mutation" };
 
@@ -108,6 +115,8 @@ public static class SchemaBuilder
                 ResolvedType = anipFailureType,
             });
 
+            ReadFieldsFromDictionary(resultType);
+
             // Build the field.
             var field = new FieldType
             {
@@ -124,7 +133,7 @@ public static class SchemaBuilder
                 {
                     var argName = GraphQLResponseMapper.ToCamelCase(inp.Name);
                     var baseType = AnipTypeToGraphQL(inp.Type);
-                    IGraphType argType = inp.Required
+                    IGraphType argType = inp.MustBeSupplied()
                         ? new NonNullGraphType(baseType)
                         : baseType;
 
@@ -167,6 +176,14 @@ public static class SchemaBuilder
         var sdl = GenerateSDL(service, capNames);
 
         return new SchemaResult(schema, sdl);
+    }
+
+    private static void ReadFieldsFromDictionary(ObjectGraphType type)
+    {
+        foreach (var field in type.Fields)
+        {
+            field.Resolver ??= DictionaryFieldResolver.Instance;
+        }
     }
 
     /// <summary>
@@ -251,7 +268,7 @@ public static class SchemaBuilder
         {
             var argName = GraphQLResponseMapper.ToCamelCase(inp.Name);
             var gqlType = AnipTypeToGraphQLName(inp.Type);
-            if (inp.Required)
+            if (inp.MustBeSupplied())
             {
                 gqlType += "!";
             }
@@ -337,6 +354,28 @@ internal class JsonGraphType : ScalarGraphType
     public override object? ParseLiteral(GraphQLParser.AST.GraphQLValue value) => value;
     public override object? ParseValue(object? value) => value;
     public override object? Serialize(object? value) => value;
+}
+
+/// <summary>
+/// Resolves a field of an output type from the dictionary its parent resolved
+/// to: graphql-dotnet's default resolver reads CLR properties, and a
+/// dictionary has no property named after the field.
+/// </summary>
+internal sealed class DictionaryFieldResolver : global::GraphQL.Resolvers.IFieldResolver
+{
+    public static readonly DictionaryFieldResolver Instance = new();
+
+    public ValueTask<object?> ResolveAsync(IResolveFieldContext context)
+    {
+        var name = context.FieldDefinition.Name;
+        object? value = context.Source switch
+        {
+            IDictionary<string, object?> map => map.TryGetValue(name, out var found) ? found : null,
+            System.Collections.IDictionary map => map.Contains(name) ? map[name] : null,
+            _ => null,
+        };
+        return new ValueTask<object?>(value);
+    }
 }
 
 /// <summary>
@@ -445,7 +484,7 @@ internal class AnipFieldResolver : global::GraphQL.Resolvers.IFieldResolver
         }
 
         var result = _service.Invoke(_capName, token, snakeArgs,
-            new InvokeOpts { ApprovalGrant = string.IsNullOrEmpty(approvalGrant) ? null : approvalGrant });
+            new InvokeOpts { ApprovalGrant = approvalGrant });
 
         var response = GraphQLResponseMapper.BuildGraphQLResponse(result);
         return new ValueTask<object?>(response);

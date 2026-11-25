@@ -2,8 +2,8 @@
   "schema_version": "anip-custom-code-bundle-catalog/v1",
   "package": {
     "package_id": "gtm-pipeline-q2-review",
-    "package_version": "0.4.4",
-    "bundle_path": "../registry-packages/gtm-pipeline-q2-review-0.4.4.anip-package.json",
+    "package_version": "0.4.6",
+    "bundle_path": "../registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json",
     "anip_spec_version": "anip/0.24"
   },
   "bundles": [

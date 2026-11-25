@@ -54,13 +54,13 @@ func TestBuildPythonProject(t *testing.T) {
 	}
 
 	policy := fileContent(project.Files, "src/work_item_governance_service/policy.py")
-	if !strings.Contains(policy, `"No matching runtime policy binding; continuing."`) {
-		t.Fatalf("policy module should treat unmatched actor bindings as sparse override misses")
+	if !strings.Contains(policy, `return {"decision": "deny", "detail": "`+generatedPolicyNoMatchDetail+`"}`) {
+		t.Fatalf("policy module must refuse an actor that matches none of a capability's bindings")
+	}
+	if strings.Contains(policy, `"decision": "allow", "detail": "No matching`) || strings.Contains(policy, "No actor claims were available") {
+		t.Fatalf("policy module must not allow an actor that matches no binding")
 	}
 	capabilities := fileContent(project.Files, "src/work_item_governance_service/capabilities.py")
-	if strings.Contains(capabilities, `policy.get("decision") == "no_match"`) {
-		t.Fatalf("capability module should not deny sparse policy override misses")
-	}
 	if !strings.Contains(capabilities, `ANIPError("denied"`) {
 		t.Fatalf("capability module should use ANIP denied failures for policy denials")
 	}

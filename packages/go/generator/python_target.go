@@ -76,7 +76,7 @@ func BuildPythonProject(definition *AnipServiceDefinition, options BuildPythonPr
 			{Path: filepath.ToSlash(filepath.Join(base, "capabilities.py")), Content: buildGeneratedPythonCapabilitiesModule(defaultServiceID)},
 			{Path: filepath.ToSlash(filepath.Join(base, "app.py")), Content: buildGeneratedPythonAppModule(defaultServiceID, options.Port)},
 			{Path: filepath.ToSlash(filepath.Join(base, "services", "__init__.py")), Content: buildGeneratedPythonServicesInit()},
-			{Path: "tests/test_service_smoke.py", Content: buildGeneratedPythonSmokeTestModule(packageName, model.Capabilities, services)},
+			{Path: "tests/test_service_smoke.py", Content: buildGeneratedPythonSmokeTestModule(packageName, model.Capabilities, services, model.RuntimeTarget.PolicyBindings)},
 		},
 	}
 	project.Files = append(project.Files, buildIntegrationFrontingArtifacts(model)...)
@@ -249,17 +249,6 @@ func buildGeneratedPythonBackendAdapterModule() string {
 		`                "unresolved_required_backend_inputs": plan["unresolved_required_backend_inputs"],`,
 		`                "note": "Generated host is runnable, but backend-only inputs still require extension completion.",`,
 		"            }",
-		`        if capability.get("execution_posture") == "approval_gated":`,
-		"            return {",
-		`                "execution_status": "approval_required",`,
-		`                "capability_id": capability["capability_id"],`,
-		`                "title": capability["title"],`,
-		`                "summary": capability["summary"],`,
-		`                "semantic_input": plan["semantic_input"],`,
-		`                "backend_input_contract": plan["backend_input_contract"],`,
-		`                "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", []),`,
-		`                "note": "Generated host requires approval before backend execution.",`,
-		"            }",
 		`        if capability.get("execution_posture") == "prepare_only":`,
 		"            return {",
 		`                "execution_status": "prepared",`,
@@ -316,15 +305,20 @@ func buildGeneratedPythonPolicyModule() string {
 		"        return False",
 		"    return claims.get(claim) == expected",
 		"",
-		"def _requires_governed_stop(capability: dict[str, Any]) -> bool:",
-		"    return bool(capability.get('grant_policy')) or capability.get('side_effect_level') == 'approval_required' or capability.get('execution_posture') == 'approval_required' or capability.get('operation_type') == 'approval_gated'",
+		"_KNOWN_DECISIONS = {'allow', 'allow_with_limits', 'deny', 'clarify', 'approval_required'}",
+		"_REFUSING_PRECEDENCE = ('deny', 'approval_required', 'clarify')",
+		"",
+		"def _effective_decision(binding: dict[str, Any]) -> str:",
+		"    decision = str(binding.get('decision') or '')",
+		"    # A decision the host does not recognise refuses rather than allows.",
+		"    return decision if decision in _KNOWN_DECISIONS else 'deny'",
 		"",
 		"def _decision_for(binding: dict[str, Any]) -> dict[str, Any]:",
-		"    decision = str(binding.get('decision') or 'allow')",
+		"    decision = _effective_decision(binding)",
 		"    detail = binding.get('business_rule') or binding.get('enforcement_notes')",
 		"    if decision == 'allow_with_limits':",
 		"        return {'decision': 'allow', 'limits': binding, 'detail': detail}",
-		"    if decision in {'deny', 'clarify', 'approval_required'}:",
+		"    if decision in _REFUSING_PRECEDENCE:",
 		"        return {'decision': decision, 'detail': detail, 'policy_binding_id': binding.get('id')}",
 		"    return {'decision': 'allow', 'policy_binding_id': binding.get('id'), 'detail': detail}",
 		"",
@@ -333,25 +327,19 @@ func buildGeneratedPythonPolicyModule() string {
 		"    capability_id = capability.get('capability_id')",
 		"    bindings = [binding for binding in POLICY_BINDINGS if capability_id in (binding.get('capability_ids') or [])]",
 		"    if not bindings:",
+		"        # A capability without bindings is allowed: bindings are capability-level overrides.",
 		`        return {"decision": "allow"}`,
 		"    claims = _principal_claims(context.get('root_principal'))",
-		"    if not claims:",
-		`        return {"decision": "allow", "note": "No actor claims were available for generated policy evaluation."}`,
-		"    matching = [binding for binding in bindings if _matches_principal(binding, claims)]",
-		"    if _requires_governed_stop(capability):",
-		"        denied = next((binding for binding in matching if binding.get('decision') == 'deny'), None)",
-		"        if denied:",
-		"            return _decision_for(denied)",
-		"        approval = next((binding for binding in matching if binding.get('decision') == 'approval_required'), None)",
-		"        if approval:",
-		"            return _decision_for(approval)",
-		"        clarify = next((binding for binding in matching if binding.get('decision') == 'clarify'), None)",
-		"        if clarify:",
-		"            return _decision_for(clarify)",
-		"    allowed = next((binding for binding in matching if binding.get('decision') not in {'deny', 'clarify', 'approval_required'}), None)",
-		"    if allowed:",
-		"        return _decision_for(allowed)",
-		`    return {"decision": "allow", "detail": "No matching runtime policy binding; continuing."}`,
+		"    # Once a capability has bindings they are its allowlist: an actor matching none, or a",
+		"    # principal without claims, is refused.",
+		"    matching = [binding for binding in bindings if claims and _matches_principal(binding, claims)]",
+		"    if not matching:",
+		`        return {"decision": "deny", "detail": "` + generatedPolicyNoMatchDetail + `"}`,
+		"    for decision in _REFUSING_PRECEDENCE:",
+		"        stop = next((binding for binding in matching if _effective_decision(binding) == decision), None)",
+		"        if stop:",
+		"            return _decision_for(stop)",
+		"    return _decision_for(matching[0])",
 		"",
 	}, "\n")
 }
@@ -521,6 +509,14 @@ func buildGeneratedPythonCapabilitiesModule(defaultServiceID string) string {
 		"                retry=False,",
 		"            )",
 		"",
+		"def _requires_approval(capability: dict[str, Any]) -> bool:",
+		"    return capability.get('side_effect_level') == 'approval_required' or capability.get('execution_posture') in {'approval_required', 'approval_gated'} or capability.get('operation_type') == 'approval_gated'",
+		"",
+		"def _approval_granted(ctx: InvocationContext) -> bool:",
+		"    # The runtime sets approval_grant only after it validated and reserved the",
+		"    # grant supplied with this invocation (SPEC.md §4.8).",
+		`    return getattr(ctx, "approval_grant", None) is not None`,
+		"",
 		"def _side_effect_type(side_effect_level: str) -> str:",
 		"    value = side_effect_level.lower()",
 		`    if "irreversible" in value:`,
@@ -547,8 +543,11 @@ func buildGeneratedPythonCapabilitiesModule(defaultServiceID string) string {
 		"        # token and audit entry, and never calls this handler for them.",
 		`        raise ANIPError("internal_error", f"Composed capability {capability['capability_id']} must be executed by the ANIP runtime; upgrade anip-service.")`,
 		"    plan = _build_backend_invocation_plan(capability, params)",
-		`    if policy.get("decision") == "approval_required":`,
-		`        raise ANIPError("approval_required", policy.get("detail") or f"Approval required for {capability['capability_id']}.", {"action": "request_approval", "capability_id": capability["capability_id"], "semantic_input": plan["semantic_input"], "backend_input_contract": plan["backend_input_contract"], "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", [])})`,
+		"    # An approval-gated capability, or an actor whose binding requires approval,",
+		"    # stops here, before the backend adapter, until the runtime has validated an",
+		"    # approval grant for this invocation.",
+		`    if (policy.get("decision") == "approval_required" or _requires_approval(capability)) and not _approval_granted(ctx):`,
+		`        raise ANIPError("approval_required", (policy.get("detail") if policy.get("decision") == "approval_required" else None) or f"Approval required for {capability['capability_id']}.", {"action": "request_approval", "capability_id": capability["capability_id"], "semantic_input": plan["semantic_input"], "backend_input_contract": plan["backend_input_contract"], "approval_rule_refs": capability.get("governance", {}).get("approval_rule_refs", [])})`,
 		`    return await backend_adapter.execute(capability, plan, plan["adapter_input"], ctx)`,
 		"",
 		"def _build_declaration(capability: dict[str, Any]) -> CapabilityDeclaration:",
@@ -739,7 +738,7 @@ func buildGeneratedPythonStdioAppModule() string {
 	}, "\n")
 }
 
-func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []GeneratedCapabilityRuntimeMetadata, services []GeneratedServiceMetadata) string {
+func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []GeneratedCapabilityRuntimeMetadata, services []GeneratedServiceMetadata, bindings []RuntimePolicyBinding) string {
 	serviceModules := make([]string, 0, len(services))
 	for index, service := range services {
 		module := packageName + ".app"
@@ -747,8 +746,12 @@ func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []Gene
 			module = packageName + ".services." + pythonModuleName(service.ServiceID) + ".app"
 		}
 		serviceCapabilities := make([]string, 0)
+		var smoke generatedSmokeInvocation
 		for _, capability := range capabilities {
 			if capability.ServiceID == service.ServiceID {
+				if len(serviceCapabilities) == 0 {
+					smoke = smokeInvocationFor(bindings, capability)
+				}
 				serviceCapabilities = append(serviceCapabilities, capability.CapabilityID)
 			}
 		}
@@ -756,14 +759,17 @@ func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []Gene
 			continue
 		}
 		serviceModules = append(serviceModules, fmt.Sprintf(
-			`    {"service_id": %q, "module": %q, "capabilities": %s},`,
+			`    {"service_id": %q, "module": %q, "capabilities": %s, "principal": %q, "expect": %q},`,
 			service.ServiceID,
 			module,
 			pythonStringListLiteral(serviceCapabilities),
+			smoke.Principal,
+			smoke.Expect,
 		))
 	}
 	return strings.Join([]string{
 		"import importlib",
+		"import json",
 		"",
 		"import pytest",
 		"from fastapi.testclient import TestClient",
@@ -787,7 +793,7 @@ func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []Gene
 		"def _issue_token(client: TestClient, capability_id: str, scope: list[str]) -> str:",
 		"    response = client.post(",
 		`        "/anip/tokens",`,
-		`        headers={"Authorization": "Bearer dev-admin-key"},`,
+		`        headers={"Authorization": "Bearer smoke-test-key"},`,
 		`        json={`,
 		`            "capability": capability_id,`,
 		`            "scope": scope,`,
@@ -806,7 +812,10 @@ func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []Gene
 		"    return capability.get('minimum_scope') or fallback",
 		"",
 		"@pytest.mark.parametrize('service', SERVICE_MODULES)",
-		"def test_generated_service_discovery_and_invoke(service: dict[str, object]) -> None:",
+		"def test_generated_service_discovery_and_invoke(service: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:",
+		"    # Invoke as the principal the generated policy lets reach the backend, if any;",
+		"    # the generator recorded the outcome its policy gives that principal.",
+		"    monkeypatch.setenv('ANIP_API_KEYS_JSON', json.dumps({'smoke-test-key': service['principal']}))",
 		"    module = importlib.import_module(str(service['module']))",
 		"    client = TestClient(module.create_app())",
 		"    discovery = client.get('/.well-known/anip')",
@@ -821,10 +830,14 @@ func buildGeneratedPythonSmokeTestModule(packageName string, capabilities []Gene
 		`        headers={"Authorization": f"Bearer {token}"},`,
 		`        json={"parameters": capability["sample_parameters"]},`,
 		"    )",
-		"    assert invoke.status_code == 200",
 		"    payload = invoke.json()",
-		`    assert payload["success"] is True`,
-		`    assert payload["result"]["execution_status"]`,
+		"    if service['expect'] == 'success':",
+		"        assert invoke.status_code == 200",
+		`        assert payload["success"] is True`,
+		`        assert payload["result"]["execution_status"]`,
+		"    else:",
+		`        assert payload["success"] is False`,
+		`        assert payload["failure"]["type"] == service['expect']`,
 		"",
 	}, "\n")
 }

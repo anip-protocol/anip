@@ -1,13 +1,16 @@
 """ANIP Core — protocol types, models, and constants."""
 
 from .constants import (
+    DEFAULT_FAILURE_STATUS_CODE,
     DEFAULT_PROFILE,
+    FAILURE_STATUS_CODES,
     LEAF_HASH_PREFIX,
     MANIFEST_VERSION,
     NODE_HASH_PREFIX,
     PROTOCOL_VERSION,
     RECOVERY_CLASS_MAP,
     SUPPORTED_ALGORITHMS,
+    failure_status_code,
     recovery_class_for_action,
 )
 from .models import (
@@ -92,13 +95,16 @@ from .models import (
 
 __all__ = [
     # Constants
+    "DEFAULT_FAILURE_STATUS_CODE",
     "DEFAULT_PROFILE",
+    "FAILURE_STATUS_CODES",
     "LEAF_HASH_PREFIX",
     "MANIFEST_VERSION",
     "NODE_HASH_PREFIX",
     "PROTOCOL_VERSION",
     "RECOVERY_CLASS_MAP",
     "SUPPORTED_ALGORITHMS",
+    "failure_status_code",
     "recovery_class_for_action",
     # Enums / Literal aliases
     "ApprovalRequestStatus",

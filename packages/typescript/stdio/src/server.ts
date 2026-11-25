@@ -241,7 +241,12 @@ export class AnipStdioServer {
     // Bootstrap credential, or a delegation token issued by this service.
     const issuer = await this.service.authenticateIssuer(bearer);
     if (issuer === null) {
-      throw new ANIPError("invalid_token", "Bearer token not recognized");
+      // SPEC.md §6.3 Token Issuance: an unrecognised credential is
+      // authentication_required, like no credential at all.
+      throw new ANIPError(
+        "authentication_required",
+        "A bootstrap credential, or a delegation token issued by this service, is required to issue delegation tokens",
+      );
     }
 
     // Build the token request body from params
@@ -293,6 +298,17 @@ export class AnipStdioServer {
     const stream = params.stream === true;
     const budget = (params.budget as Record<string, unknown> | undefined) ?? null;
 
+    // One set of invocation options for the unary and the streaming call:
+    // a streaming invocation goes through the same checks with the same
+    // inputs (SPEC.md §6.3), plus `stream` and a progress sink.
+    const invokeOpts = {
+      clientReferenceId,
+      taskId,
+      parentInvocationId,
+      upstreamService,
+      budget,
+    };
+
     if (stream) {
       const notifications: JsonRpcNotification[] = [];
 
@@ -305,24 +321,14 @@ export class AnipStdioServer {
       };
 
       const result = await this.service.invoke(capability, token, parameters, {
-        clientReferenceId,
-        taskId,
-        parentInvocationId,
-        upstreamService,
+        ...invokeOpts,
         stream: true,
-        budget,
         progressSink,
       });
       return [notifications, result];
     }
 
-    return await this.service.invoke(capability, token, parameters, {
-      clientReferenceId,
-      taskId,
-      parentInvocationId,
-      upstreamService,
-      budget,
-    });
+    return await this.service.invoke(capability, token, parameters, invokeOpts);
   }
 
   private async handleAuditQuery(

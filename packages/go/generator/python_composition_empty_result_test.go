@@ -25,6 +25,7 @@ func runGeneratedPythonCompositionEmptyResultPolicies(t *testing.T, repoRoot str
 		for _, empty := range []bool{true, false} {
 			t.Run(policy+"/empty="+strconv.FormatBool(empty), func(t *testing.T) {
 				definition := mustReadGeneratorConformanceDefinition(t, "generator-conformance-definition.json")
+				withoutPolicyOrApprovalGate(definition)
 				found := false
 				for i := range definition.CapabilityFormalizations {
 					capability := &definition.CapabilityFormalizations[i]
@@ -110,6 +111,7 @@ func runGeneratedPythonCompositionEmptyResultOutput(t *testing.T, repoRoot strin
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			definition := mustReadGeneratorConformanceDefinition(t, "generator-conformance-definition.json")
+			withoutPolicyOrApprovalGate(definition)
 			found := false
 			for i := range definition.CapabilityFormalizations {
 				capability := &definition.CapabilityFormalizations[i]

@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, Awaitable, Callable
 
 from anip_core import (
@@ -34,9 +37,107 @@ from anip_core import (
 # ---------------------------------------------------------------------------
 
 
+_STRING_ESCAPES = {
+    '"': '\\"', "\\": "\\\\",
+    "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r",
+}
+_MUST_ESCAPE = re.compile(r'["\\\x00-\x1f]')
+
+
+def _canonical_string(value: str) -> str:
+    """RFC 8785 §3.2.2.2: only ``"``, ``\\`` and U+0000..U+001F are escaped."""
+    return '"' + _MUST_ESCAPE.sub(
+        lambda m: _STRING_ESCAPES.get(m.group()) or f"\\u{ord(m.group()):04x}", value,
+    ) + '"'
+
+
+def _canonical_number(value: Any) -> str:
+    """RFC 8785 §3.2.2.3: the number as an IEEE 754 double, written the way
+    ECMAScript's ``Number.prototype.toString`` writes it."""
+    try:
+        number = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"number is outside the IEEE 754 double range: {value!r}") from exc
+    if not math.isfinite(number):
+        raise ValueError(f"canonical JSON cannot represent {value!r}")
+    if number == 0:
+        return "0"
+    sign = "-" if number < 0 else ""
+    # repr() gives the shortest digits that round-trip the double, and the
+    # closest to the true value when several are equally short.
+    mantissa, _, exponent = repr(abs(number)).partition("e")
+    integer_part, _, fraction_part = mantissa.partition(".")
+    digits = integer_part + fraction_part
+    # The value is 0.<digits> * 10**point.
+    point = len(integer_part) + (int(exponent) if exponent else 0)
+    stripped = digits.lstrip("0")
+    point -= len(digits) - len(stripped)
+    digits = stripped.rstrip("0")
+    count = len(digits)
+    if count <= point <= 21:
+        return sign + digits + "0" * (point - count)
+    if 0 < point <= 21:
+        return sign + digits[:point] + "." + digits[point:]
+    if -6 < point <= 0:
+        return sign + "0." + "0" * -point + digits
+    power = point - 1
+    mantissa = digits if count == 1 else digits[0] + "." + digits[1:]
+    return f"{sign}{mantissa}e{'+' if power >= 0 else '-'}{abs(power)}"
+
+
+def _canonical_parts(value: Any, out: list[str]) -> None:
+    if value is None:
+        out.append("null")
+    elif value is True:
+        out.append("true")
+    elif value is False:
+        out.append("false")
+    elif isinstance(value, str):
+        out.append(_canonical_string(value))
+    elif isinstance(value, (int, float, Decimal)):
+        out.append(_canonical_number(value))
+    elif isinstance(value, Mapping):
+        for key in value:
+            if not isinstance(key, str):
+                raise TypeError(f"canonical JSON object keys must be strings, got {key!r}")
+        out.append("{")
+        # RFC 8785 §3.2.3: members sorted by the UTF-16 code units of their names.
+        ordered = sorted(value, key=lambda k: k.encode("utf-16-be", "surrogatepass"))
+        for index, key in enumerate(ordered):
+            if index:
+                out.append(",")
+            out.append(_canonical_string(key))
+            out.append(":")
+            _canonical_parts(value[key], out)
+        out.append("}")
+    elif isinstance(value, (list, tuple)):
+        out.append("[")
+        for index, item in enumerate(value):
+            if index:
+                out.append(",")
+            _canonical_parts(item, out)
+        out.append("]")
+    else:
+        raise TypeError(f"canonical JSON cannot represent {type(value).__name__}")
+
+
 def canonical_json(value: Any) -> str:
-    """Canonical JSON: sorted keys, no whitespace, UTF-8."""
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    """Canonical JSON as RFC 8785 (JCS) defines it. See SPEC.md §4.7.
+
+    Members are sorted by UTF-16 code units, there is no whitespace, strings
+    carry only the required escapes, and every number is written as
+    ECMAScript writes the IEEE 754 double (``5``, ``5.0`` and ``5e0`` are all
+    ``5``). The UTF-8 encoding of the result is what a digest is taken over.
+
+    Raises ``ValueError`` for NaN, an infinity, a number outside the double
+    range or a string that is not valid Unicode, and ``TypeError`` for a
+    value JSON cannot carry.
+    """
+    parts: list[str] = []
+    _canonical_parts(value, parts)
+    text = "".join(parts)
+    text.encode("utf-8")  # a lone surrogate is not valid Unicode: UnicodeEncodeError
+    return text
 
 
 def sha256_digest(value: Any) -> str:
@@ -452,6 +553,19 @@ def _build_output(
 # ---------------------------------------------------------------------------
 
 
+def _grant_signing_bytes(grant: dict[str, Any]) -> bytes:
+    """The bytes a grant signature covers: every stored field except
+    ``signature`` and ``use_count``, keys sorted, no whitespace.
+
+    This is the signing serialisation, not the RFC 8785 form that approval
+    digests use (:func:`canonical_json`).
+    """
+    payload = {k: v for k, v in grant.items() if k not in ("signature", "use_count")}
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+
+
 def sign_grant(grant: dict[str, Any], *, key_manager: Any) -> str:
     """Compute the grant signature.
 
@@ -460,8 +574,7 @@ def sign_grant(grant: dict[str, Any], *, key_manager: Any) -> str:
     """
     from anip_crypto.jws import sign_jws_detached
 
-    payload = {k: v for k, v in grant.items() if k not in ("signature", "use_count")}
-    canon = canonical_json(payload).encode("utf-8")
+    canon = _grant_signing_bytes(grant)
     return sign_jws_detached(key_manager, canon)
 
 
@@ -469,8 +582,7 @@ def verify_grant_signature(grant: dict[str, Any], *, key_manager: Any) -> bool:
     """Verify a grant's signature. Returns True if valid."""
     from anip_crypto.jws import verify_jws_detached
 
-    payload = {k: v for k, v in grant.items() if k not in ("signature", "use_count")}
-    canon = canonical_json(payload).encode("utf-8")
+    canon = _grant_signing_bytes(grant)
     try:
         verify_jws_detached(key_manager, grant["signature"], canon)
         return True
@@ -495,6 +607,7 @@ FAILURE_GRANT_CAPABILITY_MISMATCH = "grant_capability_mismatch"
 FAILURE_GRANT_SCOPE_MISMATCH = "grant_scope_mismatch"
 FAILURE_GRANT_PARAM_DRIFT = "grant_param_drift"
 FAILURE_GRANT_SESSION_INVALID = "grant_session_invalid"
+FAILURE_GRANT_REQUESTER_MISMATCH = "grant_requester_mismatch"
 
 FAILURE_APPROVAL_REQUEST_NOT_FOUND = "approval_request_not_found"
 FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED = "approval_request_already_decided"
@@ -587,6 +700,7 @@ async def validate_continuation_grant(
     parameters: dict[str, Any],
     token_scope: list[str],
     token_session_id: str | None,
+    token_root_principal: str,
     key_manager: Any,
     now_iso: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
@@ -603,6 +717,11 @@ async def validate_continuation_grant(
         return None, FAILURE_GRANT_EXPIRED
     if grant["capability"] != capability:
         return None, FAILURE_GRANT_CAPABILITY_MISMATCH
+    # §4.8 Phase A: only tokens of the requester's root principal may redeem.
+    requester = grant.get("requester")
+    requester_root = requester.get("root_principal") if isinstance(requester, dict) else None
+    if not isinstance(requester_root, str) or requester_root != token_root_principal:
+        return None, FAILURE_GRANT_REQUESTER_MISMATCH
     if not grant_scope_subset_of_token(grant["scope"], token_scope):
         return None, FAILURE_GRANT_SCOPE_MISMATCH
     submitted_digest = sha256_digest(parameters)

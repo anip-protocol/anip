@@ -22,7 +22,13 @@ public class TestServiceProducer {
                                 new CapabilityDeclaration(
                                         "search_flights", "Search for flights", "1.0",
                                         List.of(
-                                                new CapabilityInput("q", "string", true, "Search query")
+                                                new CapabilityInput("q", "string", true, "Search query"),
+                                                // Required, and the declaration says what happens when it is absent.
+                                                new CapabilityInput("cabin", "string", true, null,
+                                                        "Cabin; asked for when absent", null, false, null, null, null,
+                                                        new dev.anip.core.InputResolution(
+                                                                dev.anip.core.ResolutionMode.CLARIFY, null,
+                                                                dev.anip.core.ResolutionBehavior.CLARIFY, null, null))
                                         ),
                                         new CapabilityOutput("object", List.of("flights")),
                                         new SideEffect("read", "not_applicable"),

@@ -148,3 +148,40 @@ def test_committed_gtm_showcase_snapshot_imports(client):
         assert publications[0]["publication"]["contract_signature"] == (
             "sha256:67d0799e380801a20922f047e394d603c81822244bba6cf6ad7377ca6f83fd1d"
         )
+
+
+def test_current_gtm_showcase_snapshot_is_0_4_6(client):
+    snapshot_path = project_snapshots._DEFAULT_SNAPSHOT_DIR / "gtm-pipeline-q2-review-0.4.6.studio-project-snapshot.json"
+    snapshot = project_snapshots.load_snapshot_file(snapshot_path)
+    package_path = (
+        project_snapshots._DEFAULT_SNAPSHOT_DIR.parents[2]
+        / "examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json"
+    )
+    bundle = json.loads(package_path.read_text(encoding="utf-8"))
+
+    with get_pool().connection() as conn:
+        result = project_snapshots.import_project_snapshot(conn, snapshot, replace_existing=True)
+        project_id = result["project_id"]
+        assert result["status"] == "imported"
+
+        assert snapshot["published_packages"] == [{"package_id": "gtm-pipeline-q2-review", "package_version": "0.4.6"}]
+        # 0.4.6 is a build-local Registry package, not a Studio local publication.
+        assert repository.list_local_publications(conn, project_id) == []
+
+        artifacts = {row["id"]: row for row in repository.list_pm_artifacts(conn, project_id)}
+        current = artifacts[f"{project_id}-developer-definition"]["data"]
+        revision = artifacts[f"{project_id}-developer-definition-revision-2"]["data"]
+        assert current["saved_revision"]["revision_artifact_id"] == bundle["package"]["developer_revision_ref"]
+        assert revision["compiled_contract_identity"] == bundle["service_definition"]["compiled_contract_identity"]
+        assert current["permission_intent_bindings"] == bundle["service_definition"]["permission_intent_bindings"]
+
+        # The runtime never evaluates a binding on a composed capability, so the
+        # current revision puts every rule on the children.
+        composed = {
+            item["capability_id"]
+            for item in current["capability_formalizations"]
+            if item.get("kind") == "composed"
+        }
+        assert composed
+        for binding in current["permission_intent_bindings"]:
+            assert not composed & set(binding.get("target_capability_ids") or []), binding["id"]

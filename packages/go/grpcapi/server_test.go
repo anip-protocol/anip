@@ -590,6 +590,47 @@ func TestInvokeUnknownCapability(t *testing.T) {
 	}
 }
 
+// A one_time grant allows max_uses 1 only; asking for more is refused rather
+// than lowered, and the request stays pending.
+func TestIssueApprovalGrantRejectsOneTimeMaxUsesAboveOne(t *testing.T) {
+	env := newApprovalTestEnv(t)
+	defer env.stop()
+
+	requester := issueCapabilityToken(t, env.svc, []string{"finance.write"}, "transfer_funds")
+	first, err := env.client.Invoke(withBearer(context.Background(), requester), &pb.InvokeRequest{
+		Capability:     "transfer_funds",
+		ParametersJson: `{"amount":50000,"to_account":"x"}`,
+	})
+	if err != nil || first.Failure == nil {
+		t.Fatalf("Invoke() = %#v, %v", first, err)
+	}
+	var contextJSON map[string]any
+	if err := json.Unmarshal([]byte(first.Failure.ContextJson), &contextJSON); err != nil {
+		t.Fatalf("context_json: %v", err)
+	}
+	approvalRequired, _ := contextJSON["approval_required"].(map[string]any)
+	requestID, _ := approvalRequired["approval_request_id"].(string)
+
+	approver := withBearer(context.Background(),
+		issueCapabilityToken(t, env.svc, []string{"finance.write", "approver:*"}, "transfer_funds"))
+	two, one := int32(2), int32(1)
+	refused, err := env.client.IssueApprovalGrant(approver, &pb.IssueApprovalGrantRequest{
+		ApprovalRequestId: requestID, GrantType: core.GrantTypeOneTime, MaxUses: &two,
+	})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant() error: %v", err)
+	}
+	if refused.Success || refused.Failure == nil || refused.Failure.Type != core.FailureInvalidParameters {
+		t.Fatalf("max_uses=2 on one_time: got %#v, want invalid_parameters", refused)
+	}
+	accepted, err := env.client.IssueApprovalGrant(approver, &pb.IssueApprovalGrantRequest{
+		ApprovalRequestId: requestID, GrantType: core.GrantTypeOneTime, MaxUses: &one,
+	})
+	if err != nil || !accepted.Success {
+		t.Fatalf("max_uses=1 on one_time: got %#v, %v", accepted, err)
+	}
+}
+
 func TestApprovalGrantFlowPreservesFailureContextAndContinuation(t *testing.T) {
 	env := newApprovalTestEnv(t)
 	defer env.stop()

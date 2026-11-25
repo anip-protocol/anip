@@ -2,6 +2,7 @@
  * ANIP REST bindings — mount RESTful API endpoints on a Hono app.
  */
 import type { Hono } from "hono";
+import { failureStatusCode } from "@anip-dev/core";
 import type { ANIPService } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
 import {
@@ -19,17 +20,18 @@ export interface RestMountOptions {
   prefix?: string;
 }
 
-const FAILURE_STATUS: Record<string, number> = {
-  authentication_required: 401,
-  invalid_token: 401,
-  scope_insufficient: 403,
-  budget_exceeded: 403,
-  purpose_mismatch: 403,
-  unknown_capability: 404,
-  invalid_parameters: 400,
-  unavailable: 409,
-  internal_error: 500,
-};
+/** A request body that is not a JSON object (SPEC.md §6.3 "HTTP Status Codes"). */
+function invalidBodyFailure(detail: string) {
+  return {
+    success: false,
+    failure: {
+      type: "invalid_parameters",
+      detail,
+      resolution: { action: "retry_now", recovery_class: "retry_now" },
+      retry: false,
+    },
+  };
+}
 
 /**
  * Resolve auth from Authorization header.
@@ -81,6 +83,33 @@ async function resolveAuth(
   return null;
 }
 
+const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+
+/**
+ * Read a query string value as the JSON value its declared type calls for.
+ * A value that cannot be read that way stays a string, and the service's
+ * parameter validation (SPEC.md §6.3) refuses it by name.
+ */
+function convertQueryValue(value: string, type: string | undefined): unknown {
+  switch (type) {
+    case "integer":
+    case "number":
+      return JSON_NUMBER.test(value) ? Number(value) : value;
+    case "boolean":
+      return value === "true" ? true : value === "false" ? false : value;
+    case "array":
+    case "object":
+      // The only way a query string can carry one: as JSON text.
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    default:
+      return value;
+  }
+}
+
 /**
  * Convert query string values to appropriate types based on capability inputs.
  */
@@ -92,11 +121,7 @@ function convertQueryParams(
   const typeMap = new Map(inputs.map((i) => [i.name as string, i.type as string]));
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(query)) {
-    const type = typeMap.get(key);
-    if (type === "integer") result[key] = parseInt(value, 10);
-    else if (type === "number") result[key] = parseFloat(value);
-    else if (type === "boolean") result[key] = value === "true";
-    else result[key] = value;
+    result[key] = convertQueryValue(value, typeMap.get(key));
   }
   return result;
 }
@@ -150,11 +175,10 @@ export async function mountAnipRest(
         token = await resolveAuth(authHeader, service, route.capabilityName, "adapter:anip-rest");
       } catch (e) {
         if (e instanceof ANIPError) {
-          const status = FAILURE_STATUS[e.errorType] ?? 400;
           return c.json({
             success: false,
             failure: { type: e.errorType, detail: e.detail, resolution: e.resolution, retry: e.retry },
-          }, status);
+          }, failureStatusCode(e.errorType));
         }
         throw e;
       }
@@ -165,10 +189,10 @@ export async function mountAnipRest(
           failure: {
             type: "authentication_required",
             detail: "Authorization header with Bearer token or API key required",
-            resolution: { action: "provide_credentials", requires: "Bearer token or API key" },
+            resolution: { action: "provide_credentials", recovery_class: "retry_now", requires: "Bearer token or API key" },
             retry: true,
           },
-        }, 401);
+        }, failureStatusCode("authentication_required"));
       }
 
       // Extract parameters
@@ -177,8 +201,20 @@ export async function mountAnipRest(
         const query = Object.fromEntries(new URL(c.req.url).searchParams);
         params = convertQueryParams(query, route.declaration);
       } else {
-        const body = await c.req.json();
-        params = body.parameters ?? body;
+        let body: unknown;
+        try {
+          body = await c.req.json();
+        } catch {
+          return c.json(invalidBodyFailure("request body must be JSON"), failureStatusCode("invalid_parameters"));
+        }
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          return c.json(
+            invalidBodyFailure("request body must be a JSON object"),
+            failureStatusCode("invalid_parameters"),
+          );
+        }
+        const fields = body as Record<string, unknown>;
+        params = (fields.parameters ?? fields) as Record<string, unknown>;
       }
 
       const clientReferenceId = c.req.header("x-client-reference-id") ?? undefined;
@@ -191,14 +227,18 @@ export async function mountAnipRest(
           taskId,
           parentInvocationId,
         });
+        if (!result.success) {
+          // The status of the failure type, as on the protocol endpoints.
+          const failure = result.failure as Record<string, unknown> | undefined;
+          return c.json(result, failureStatusCode(failure?.type as string | undefined));
+        }
         return c.json(result);
       } catch (e) {
         if (e instanceof ANIPError) {
-          const status = FAILURE_STATUS[e.errorType] ?? 400;
           return c.json({
             success: false,
             failure: { type: e.errorType, detail: e.detail, resolution: e.resolution, retry: e.retry },
-          }, status);
+          }, failureStatusCode(e.errorType));
         }
         throw e;
       }

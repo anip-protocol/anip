@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 RUNTIME_TARGET = json.loads(r'''{
-  "system_name": "GTM Pipeline Q2 Review 0.4.5 Final RC 2",
+  "system_name": "GTM Pipeline Q2 Review",
   "domain_name": "gtm",
   "delivery_model": "multiple_coordinated_services",
   "architecture_shape": "multi_service_estate",
@@ -122,9 +122,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -135,9 +133,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Return bounded pipeline, forecast, bottleneck, team, product, stalled-opportunity, and account-risk summaries for declared scope without exposing raw row-level CRM data.",
@@ -165,9 +161,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -178,9 +172,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope.",
@@ -208,9 +200,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -221,9 +211,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Allow bounded results only within the actor's allowed regional scope and return a restricted result when the request asks for another region or broader scope.",
@@ -251,9 +239,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -264,9 +250,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Return bounded summaries with masked financial values where the actor may see business shape but not exact revenue or forecast numbers.",
@@ -294,9 +278,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -307,9 +289,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Return bounded rationale and explainable evidence for risk, prioritization, enrichment, and target selection without exposing raw scoring features, model weights, hidden records, or feature dumps.",
@@ -329,18 +309,16 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
-        "gtm.at_risk_followup_preparation",
         "gtm.prepare_followup_tasks",
-        "gtm.at_risk_reassignment_preparation",
         "gtm.prepare_reassignment_plan"
       ],
       "decision": "approval_required",
       "business_rule": "When the contract owns provider-selected target selection for a bounded cohort, the system may prepare the next governed step but must stop at approval when the composed flow becomes write-adjacent or preview-bound.",
-      "enforcement_notes": "sales_leader approval_required access to Input Resolution and Target Selection should return approval_stop. When the contract owns provider-selected target selection for a bounded cohort, the system may prepare the next governed step but must stop at approval when the composed flow becomes write-adjacent or preview-bound. Do not guess vague references; only contract-owned target selection may resolve the target."
+      "enforcement_notes": "sales_leader approval_required access to Input Resolution and Target Selection should return approval_stop. When the contract owns provider-selected target selection for a bounded cohort, the system may prepare the next governed step but must stop at approval when the composed flow becomes write-adjacent or preview-bound. Do not guess vague references; only contract-owned target selection may resolve the target. Since 0.4.6 this rule names the child preparation capabilities the composed flows run, because the runtime never evaluates a binding on a composed capability; permission_rule_8 still denies them to sales_leader."
     },
     {
       "id": "policy_permission_rule_6",
@@ -410,15 +388,11 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation",
         "gtm.prepare_followup_tasks",
         "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
-        "gtm.at_risk_followup_preparation",
         "gtm.prepare_followup_tasks",
-        "gtm.at_risk_reassignment_preparation",
         "gtm.prepare_reassignment_plan"
       ],
       "decision": "deny",
@@ -439,15 +413,14 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm-pipeline-service"
       ],
       "capability_ids": [
-        "gtm.at_risk_followup_preparation"
+        "gtm.prepare_followup_tasks"
       ],
       "required_scopes": [
-        "gtm.at_risk_followup_preparation",
         "gtm.prepare_followup_tasks"
       ],
       "decision": "approval_required",
       "business_rule": "Allow bounded preparation of reassignment, routing, or follow-up previews and return approval_required before any downstream mutation is executed.",
-      "enforcement_notes": "rev_ops_manager approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of reassignment, routing, or follow-up previews and return approval_required before any downstream mutation is executed. Preparation and execution are distinct governed steps."
+      "enforcement_notes": "rev_ops_manager approval_required access to Operational Previews should return approval_stop. Allow bounded preparation of reassignment, routing, or follow-up previews and return approval_required before any downstream mutation is executed. Preparation and execution are distinct governed steps. Since 0.4.6 this rule names gtm.prepare_followup_tasks, the child step of gtm.at_risk_followup_preparation, because the runtime never evaluates a binding on a composed capability; it applies when rev_ops_manager invokes the child directly too."
     },
     {
       "id": "policy_permission_rule_10",
@@ -525,9 +498,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "required_scopes": [
         "gtm.pipeline_summary",
@@ -538,9 +509,7 @@ RUNTIME_TARGET = json.loads(r'''{
         "gtm.stalled_opportunity_review",
         "gtm.account_risk_summary",
         "gtm.prepare_followup_tasks",
-        "gtm.prepare_reassignment_plan",
-        "gtm.at_risk_followup_preparation",
-        "gtm.at_risk_reassignment_preparation"
+        "gtm.prepare_reassignment_plan"
       ],
       "decision": "allow_with_limits",
       "business_rule": "Governed calls must remain reviewable with actor identity, capability used, normalized parameters, and the resulting governed outcome visible for later audit.",

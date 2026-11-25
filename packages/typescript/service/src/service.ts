@@ -47,6 +47,13 @@ import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
 import { storageRedactEntry } from "./storage-redaction.js";
 import {
+  checkDeclaredInputs,
+  checkParametersShape,
+  INVALID_PARAMETERS_RESOLUTION,
+  invalidParametersFailure,
+  withExplicitRequired,
+} from "./input-validation.js";
+import {
   FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
   FAILURE_APPROVAL_REQUEST_EXPIRED,
   FAILURE_APPROVAL_REQUEST_NOT_FOUND,
@@ -412,10 +419,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   for (const def of capDefs) {
     // Validate and fill defaults here too, so a capability built without
     // defineCapability behaves the same as one built with it.
-    const cap: CapabilityDef = { ...def, declaration: parseDeclaration(def.declaration) };
-    const name = cap.declaration.name;
+    // SPEC.md §4.1: `required` defaults to true, and the manifest states it.
+    const declaration = withExplicitRequired(parseDeclaration(def.declaration));
+    const cap: CapabilityDef = { ...def, declaration };
+    const name = declaration.name;
     capabilities.set(name, cap);
-    capDeclarations[name] = cap.declaration;
+    capDeclarations[name] = declaration;
   }
 
   // v0.23: validate composed capability declarations now that the full
@@ -1428,7 +1437,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     async invoke(
       capabilityName: string,
       token: DelegationToken,
-      params: Record<string, unknown>,
+      suppliedParams: Record<string, unknown>,
       opts?: {
         clientReferenceId?: string | null;
         taskId?: string | null;
@@ -1442,6 +1451,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       },
     ): Promise<Record<string, unknown>> {
       const invokeStartTime = performance.now();
+      // Absent or null parameters count as {}. Anything else that is not a
+      // JSON object is refused by parameter validation below; until then the
+      // budget and binding checks see no parameters.
+      const params: Record<string, unknown> =
+        typeof suppliedParams === "object" && suppliedParams !== null && !Array.isArray(suppliedParams)
+          ? suppliedParams
+          : {};
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
       const requestTaskId = opts?.taskId ?? null;
@@ -1605,6 +1621,56 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // Use the resolved/stored token from validation
       const resolvedToken = validationResult as DelegationToken;
+
+      // Refuse the invocation as invalid_parameters: audit, hooks, response.
+      const refuseInvalidParameters = async (invalidParametersDetail: string): Promise<Record<string, unknown>> => {
+        const sideEffectTypeV = (decl as any).side_effect?.type ?? null;
+        const eventClassV = classifyEvent(sideEffectTypeV, false, "invalid_parameters");
+        const retTierV = retentionPolicy.resolveTier(eventClassV);
+        const expiresAtV = retentionPolicy.computeExpiresAt(retTierV);
+        await logAudit(capabilityName, resolvedToken, {
+          success: false,
+          failureType: "invalid_parameters",
+          invocationId,
+          clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
+          upstreamService,
+          eventClass: eventClassV,
+          retentionTier: retTierV,
+          expiresAt: expiresAtV,
+          parentSpan: rootSpan,
+        });
+        const invalidDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd, {
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "invalid_parameters",
+          durationMs: invalidDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration, { capability: capabilityName, durationMs: invalidDurationMs, success: false });
+        return {
+          success: false,
+          failure: redactFailure(invalidParametersFailure(invalidParametersDetail), effectiveLevel),
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
+          upstream_service: upstreamService,
+        };
+      
+      };
+
+      // SPEC.md §6.3: a `parameters` value that is neither an object nor
+      // null does not match the request schema. It is refused here, like a
+      // body that is not JSON, before budget and binding enforcement.
+      const parametersShapeDetail = checkParametersShape(capabilityName, suppliedParams);
+      if (parametersShapeDetail !== null) {
+        return refuseInvalidParameters(parametersShapeDetail);
+      }
+
 
       // --- Budget, binding, and control requirement enforcement (v0.14) ---
 
@@ -1818,6 +1884,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
       }
 
+      // --- Parameter validation (SPEC.md §6.3) ---
+      // After delegation, budget, binding and control-requirement enforcement;
+      // before the lock, the approval grant (§4.8 Phase A and B), the handler
+      // and any composition child step. The parameters are checked as the
+      // caller sent them: no default is applied.
+      const invalidParametersDetail = checkDeclaredInputs(capabilityName, decl.inputs, suppliedParams);
+      if (invalidParametersDetail !== null) {
+        return refuseInvalidParameters(invalidParametersDetail);
+      }
+
       // 3. Build invocation context
       const chain = await engine.getChain(resolvedToken);
       let costActual: Record<string, unknown> | null = null;
@@ -1925,6 +2001,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         // fails. session_id used for session_bound validation MUST come from
         // the signed token, never from caller-supplied input.
         if (approvalGrant !== null) {
+          // A supplied approval_grant is always validated. One that is not
+          // a non-blank string names no grant.
+          if (typeof approvalGrant !== "string" || approvalGrant.trim() === "") {
+            throw new ANIPError(
+              FAILURE_GRANT_NOT_FOUND,
+              `approval_grant validation failed: ${FAILURE_GRANT_NOT_FOUND}`,
+            );
+          }
           await ensureKeys();
           const [, failType] = await validateContinuationGrant({
             storage,
@@ -1933,6 +2017,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             parameters: params,
             tokenScope: resolvedToken.scope ?? [],
             tokenSessionId: resolvedToken.session_id ?? null,
+            tokenRootPrincipal: ctxRootPrincipal,
             keyManager: keys,
             nowIso: utcNowIso(),
           });
@@ -2255,10 +2340,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             resolution: approvalPersistFailed
               ? { action: "wait_and_retry", recovery_class: "wait_then_retry" }
               : err.resolution ??
-                { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") },
+                (effectiveErrorType === "invalid_parameters"
+                  // The caller corrects the parameters; nothing else has to change.
+                  ? { ...INVALID_PARAMETERS_RESOLUTION }
+                  : { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") }),
           };
+          if (!approvalPersistFailed && effectiveErrorType === "invalid_parameters" && !err.resolution) {
+            // With the default resolution the failure is the runtime's own
+            // invalid_parameters: the same request cannot succeed.
+            failureBody.retry = false;
+          }
           if (!approvalPersistFailed && materializedApproval !== null) {
             failureBody.approval_required = materializedApproval;
+            // SPEC.md §4.7: the same request cannot succeed without a grant.
+            failureBody.retry = false;
           }
           const response: Record<string, unknown> = {
             success: false,

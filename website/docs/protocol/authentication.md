@@ -274,7 +274,7 @@ For protected calls, the service validates:
 7. Purpose, task, budget, delegation-depth, and concurrency constraints are satisfied.
 8. Any required approval grant is valid before execution continues.
 
-Failures are intentionally structured. Missing or invalid transport credentials may return HTTP 401. Valid authentication with insufficient authority should return an ANIP failure object such as `scope_insufficient`, `invalid_token`, `token_expired`, `approval_required`, or `approval_grant_invalid`, with recovery guidance.
+Failures are intentionally structured. Missing or invalid transport credentials return HTTP 401. At the token endpoint, a request without a credential and a request with a credential the service does not recognise are both `authentication_required`. Valid authentication with insufficient authority should return an ANIP failure object such as `scope_insufficient`, `invalid_token`, `token_expired`, `approval_required`, or `approval_grant_invalid`, with recovery guidance.
 
 ## Approval Grants
 

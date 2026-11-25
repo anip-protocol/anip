@@ -10,8 +10,8 @@ namespace Anip.Mcp.AspNetCore.Tests;
 /// - A <c>tools/call</c> request whose own shape is wrong (no tool name,
 ///   arguments that are not an object) must be refused before a handler runs.
 /// - Arguments that are well-formed JSON but break the capability's declared
-///   input schema are a different matter: see
-///   <see cref="ArgumentsThatBreakTheDeclaredSchema_ReachTheHandlerUnchanged"/>.
+///   input schema are refused by the service, as on every other transport: see
+///   <see cref="ArgumentsThatBreakTheDeclaredInputs_AreRefused_AndNoHandlerRuns"/>.
 ///
 /// Every test runs once per way of speaking the protocol: see the classes at
 /// the end of this file.
@@ -55,20 +55,48 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// The C# binding has never checked arguments against the tool's input
-    /// schema: neither the 1.x nor the 2.x MCP SDK does it for a custom
-    /// <c>McpServerTool</c>, and the binding does not do it itself. Capability
-    /// handlers validate their own parameters. This test records that, so a
-    /// change in either direction is noticed rather than silent.
+    /// Neither the MCP SDK nor the binding checks arguments against the tool's
+    /// input schema for a custom <c>McpServerTool</c>. The service does
+    /// (SPEC.md §6.3, Parameter Validation): arguments that do not match the
+    /// capability's declared inputs are refused as a tool error carrying the
+    /// <c>invalid_parameters</c> failure, and no handler runs.
     /// </summary>
     [Theory]
-    [InlineData("missing required", """{}""")]
-    [InlineData("wrong type", """{"message":42}""")]
-    [InlineData("null for a required string", """{"message":null}""")]
-    [InlineData("boolean where an integer is declared", """{"message":"hi","count":true}""")]
-    [InlineData("fraction where an integer is declared", """{"message":"hi","count":1.5}""")]
+    [InlineData("missing required", """{}""", "echo is missing required input(s): message")]
+    [InlineData("wrong type", """{"message":42}""", "echo has invalid input(s): 'message' must be string, got number")]
+    [InlineData("null for a required string", """{"message":null}""", "echo is missing required input(s): message")]
+    [InlineData("boolean where an integer is declared", """{"message":"hi","count":true}""", "echo has invalid input(s): 'count' must be integer, got boolean")]
+    [InlineData("fraction where an integer is declared", """{"message":"hi","count":1.5}""", "echo has invalid input(s): 'count' must be integer, got number")]
+    public async Task ArgumentsThatBreakTheDeclaredInputs_AreRefused_AndNoHandlerRuns(
+        string what, string argumentsJson, string detail)
+    {
+        var client = await ConnectAsync(_app.Http);
+        var arguments = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(argumentsJson)!;
+
+        var reply = await client.CallToolAsync("echo", arguments, Authorization);
+
+        Assert.True(reply.HasResult, $"{what}: {reply}");
+        Assert.True(reply.IsToolError, $"{what}: {reply}");
+        Assert.Equal(
+            "FAILED: invalid_parameters\n" +
+            $"Detail: {detail}\n" +
+            "Resolution: retry_now\n" +
+            "Requires: parameters that match the capability's declared inputs\n" +
+            "Retryable: no",
+            reply.ToolText);
+        Assert.Empty(_app.Calls);
+    }
+
+    /// <summary>
+    /// Arguments that match the declared inputs reach the handler as they were
+    /// sent: undeclared arguments are not checked, and an integral number is
+    /// an integer however it is written.
+    /// </summary>
+    [Theory]
     [InlineData("undeclared argument", """{"message":"hi","surprise":"x"}""")]
-    public async Task ArgumentsThatBreakTheDeclaredSchema_ReachTheHandlerUnchanged(string what, string argumentsJson)
+    [InlineData("integral float where an integer is declared", """{"message":"hi","count":3.0}""")]
+    [InlineData("null for an optional input", """{"message":"hi","count":null}""")]
+    public async Task ArgumentsThatMatchTheDeclaredInputs_ReachTheHandlerUnchanged(string what, string argumentsJson)
     {
         var client = await ConnectAsync(_app.Http);
         var arguments = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(argumentsJson)!;
@@ -81,7 +109,14 @@ public abstract class McpHttpMalformedRequestTests : IAsyncLifetime
         Assert.Equal(arguments.Keys.OrderBy(k => k), call.Parameters.Keys.OrderBy(k => k));
         foreach (var (key, value) in arguments)
         {
-            Assert.Equal(value.GetRawText(), JsonSerializer.Serialize(call.Parameters[key]));
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                Assert.Equal(value.GetDouble(), Convert.ToDouble(call.Parameters[key]));
+            }
+            else
+            {
+                Assert.Equal(value.GetRawText(), JsonSerializer.Serialize(call.Parameters[key]));
+            }
         }
     }
 

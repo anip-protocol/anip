@@ -2002,3 +2002,53 @@ def test_shared_agent_consumption_fixtures() -> None:
         assert sorted(requested_unsupported_effects(conversation, metadata[selected])) == sorted(
             case["expected_unsupported_effects"]
         ), case["id"]
+
+
+def test_input_without_required_is_required_when_a_manifest_is_read() -> None:
+    """SPEC.md §4.1: ``required`` defaults to ``true`` wherever a declaration
+    is read."""
+    catalog = build_agent_capability_catalog(
+        [
+            {
+                "name": "pipeline",
+                "url": "http://pipeline.test",
+                "discovery": {"capabilities": {"gtm.pipeline_summary": {"description": "Summarize."}}},
+                "manifest": {
+                    "capabilities": {
+                        "gtm.pipeline_summary": {
+                            "description": "Summarize.",
+                            "inputs": [
+                                {"name": "quarter", "type": "string"},
+                                {"name": "slice_by", "type": "string", "required": False},
+                                {"name": "region", "type": "string", "required": True},
+                            ],
+                        }
+                    }
+                },
+            }
+        ],
+        {},
+    )
+
+    metadata = catalog["metadata"]["gtm.pipeline_summary"]
+    assert [(spec["name"], spec["required"]) for spec in metadata["input_specs"]] == [
+        ("quarter", True), ("slice_by", False), ("region", True),
+    ]
+    assert missing_required_input_names("no details given", metadata) == {"quarter", "region"}
+
+
+def test_input_spec_without_required_counts_as_required() -> None:
+    from anip_runtime_utils.agent_consumption import render_compact_agent_input_summary
+
+    metadata = {
+        "capability_id": "crm.lookup",
+        "description": "Look up an account.",
+        "inputs": ["account", "note"],
+        "input_specs": [
+            {"name": "account", "type": "string"},
+            {"name": "note", "type": "string", "required": False},
+        ],
+    }
+
+    assert missing_required_input_names("no details given", metadata) == {"account"}
+    assert render_compact_agent_input_summary(metadata["input_specs"]) == "account(req), note(opt)"

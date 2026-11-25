@@ -97,6 +97,45 @@ public class McpToolTranslatorTests
     }
 
     [Fact]
+    public void BuildInputSchema_DoesNotRequireAnInputThatDeclaresOnMissing()
+    {
+        // SPEC.md §6.3 / §4.10: the service answers its absence through on_missing.
+        var decl = new CapabilityDeclaration
+        {
+            Name = "draft_notice",
+            Inputs = new List<CapabilityInput>
+            {
+                new() { Name = "cohort", Type = "string", Required = true,
+                    Resolution = new InputResolution { Mode = ResolutionMode.Clarify, OnMissing = ResolutionBehavior.Clarify } },
+                new() { Name = "text", Type = "string", Required = true },
+            },
+        };
+
+        var required = (List<string>)McpToolTranslator.BuildInputSchema(decl)["required"]!;
+
+        Assert.Equal(new List<string> { "text" }, required);
+    }
+
+    [Fact]
+    public void BuildInputSchema_NamesArrayAndObjectTypes()
+    {
+        // A client that follows the schema must send what parameter validation accepts.
+        var decl = new CapabilityDeclaration
+        {
+            Name = "tag_items",
+            Inputs = new List<CapabilityInput>
+            {
+                new() { Name = "tags", Type = "array" },
+                new() { Name = "filter", Type = "object", Required = false },
+            },
+        };
+        var properties = (Dictionary<string, object?>)McpToolTranslator.BuildInputSchema(decl)["properties"]!;
+
+        Assert.Equal("array", ((Dictionary<string, object?>)properties["tags"]!)["type"]);
+        Assert.Equal("object", ((Dictionary<string, object?>)properties["filter"]!)["type"]);
+    }
+
+    [Fact]
     public void BuildInputSchema_IntegerType()
     {
         var schema = McpToolTranslator.BuildInputSchema(ReadDecl());

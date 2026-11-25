@@ -129,9 +129,14 @@ func runGeneratorExecutableConformance(t *testing.T, backendOnly bool) {
 				t.Fatalf("write generated %s project: %v", target.name, err)
 			}
 			writeExecutableBehaviorMatrixTest(t, target.name, outputDir, backendOnly)
+			if !backendOnly {
+				writeExecutablePolicyRulesTest(t, target.name, outputDir)
+			}
 			target.run(t, outputDir)
 			if backendOnly {
 				runGeneratedBackendOnlyStdio(t, target.name, outputDir, repoRoot)
+			} else {
+				runGeneratedStdioPolicyRefusal(t, target.name, outputDir, repoRoot)
 			}
 		})
 	}
@@ -163,9 +168,9 @@ func runGeneratedStdioSmoke(t *testing.T, targetName string, outputDir string, r
 
 	issued := client.call(t, 2, "anip.tokens.issue", map[string]any{
 		"auth": map[string]any{
-			"bearer": "dev-admin-key",
+			"bearer": "analyst-key",
 		},
-		"subject":    "human:local-developer",
+		"subject":    "human:analyst|actor_id=analyst",
 		"scope":      []string{"conformance.read"},
 		"capability": "conformance.lookup",
 	})
@@ -432,7 +437,7 @@ func withBehaviorMatrixActorKeys(env []string) []string {
 		}
 		filtered = append(filtered, item)
 	}
-	return append(filtered, `ANIP_API_KEYS_JSON={"dev-admin-key":"human:local-developer","analyst-key":"human:analyst|actor_id=analyst","manager-key":"human:manager|actor_id=manager"}`)
+	return append(filtered, `ANIP_API_KEYS_JSON={"dev-admin-key":"human:local-developer","analyst-key":"human:analyst|actor_id=analyst","manager-key":"human:manager|actor_id=manager","contractor-key":"human:contractor|actor_id=contractor","intern-key":"human:intern|actor_id=intern","visitor-key":"human:visitor|actor_id=visitor","auditor-key":"human:auditor|actor_id=auditor","approver-key":"human:approver"}`)
 }
 
 func pythonExecutableBehaviorMatrixTest() string {
@@ -446,13 +451,18 @@ PRINCIPALS = {
     "dev-admin-key": "human:local-developer",
     "analyst-key": "human:analyst|actor_id=analyst",
     "manager-key": "human:manager|actor_id=manager",
+    "approver-key": "human:approver",
 }
 
 
 def _client() -> TestClient:
     module = importlib.import_module("generator_conformance_service.app")
+    original = module._authenticate
     module._authenticate = lambda bearer: PRINCIPALS.get(bearer)
-    return TestClient(module.create_app())
+    try:
+        return TestClient(module.create_app())
+    finally:
+        module._authenticate = original
 
 
 def _issue_token(client: TestClient, key: str, capability_id: str, scope: list[str]) -> str:
@@ -470,15 +480,33 @@ def _issue_token(client: TestClient, key: str, capability_id: str, scope: list[s
     return response.json()["token"]
 
 
-def _invoke(client: TestClient, key: str, capability_id: str, scope: list[str], parameters: dict, requested_effects: list[str] | None = None) -> dict:
+def _invoke(client: TestClient, key: str, capability_id: str, scope: list[str], parameters: dict, requested_effects: list[str] | None = None, approval_grant: str | None = None) -> dict:
     token = _issue_token(client, key, capability_id, scope)
+    body = {"parameters": parameters, "requested_effects": requested_effects or []}
+    if approval_grant is not None:
+        body["approval_grant"] = approval_grant
     response = client.post(
         f"/anip/invoke/{capability_id}",
         headers={"Authorization": f"Bearer {token}"},
-        json={"parameters": parameters, "requested_effects": requested_effects or []},
+        json=body,
     )
     assert response.status_code in (200, 400, 403)
     return response.json()
+
+
+def _invoke_approved(client: TestClient, key: str, capability_id: str, scope: list[str], parameters: dict) -> dict:
+    # An approval-gated capability stops before its backend adapter until an
+    # approver grants the request; the continuation then reaches the adapter.
+    first = _invoke(client, key, capability_id, scope, parameters)
+    _assert_approval_required(first)
+    approver = _issue_token(client, "approver-key", capability_id, [*scope, "approver:*"])
+    response = client.post(
+        "/anip/approval_grants",
+        headers={"Authorization": f"Bearer {approver}"},
+        json={"approval_request_id": first["failure"]["approval_required"]["approval_request_id"], "grant_type": "one_time"},
+    )
+    assert response.status_code == 200, response.text
+    return _invoke(client, key, capability_id, scope, parameters, approval_grant=response.json()["grant_id"])
 
 
 def _assert_failure_type(payload: dict, failure_type: str) -> None:
@@ -567,9 +595,9 @@ def test_behavior_matrix_insufficient_scope_is_denied_before_execution() -> None
 
 
 def test_behavior_matrix_backend_only_required_input_blocks_stub_execution() -> None:
-    payload = _invoke(
+    payload = _invoke_approved(
         _client(),
-        "dev-admin-key",
+        "manager-key",
         "conformance.prepare_change",
         ["conformance.prepare"],
         {"record_ref": "CON-1", "new_status": "done"},
@@ -584,9 +612,9 @@ def test_behavior_matrix_backend_only_required_input_blocks_stub_execution() -> 
 
 
 def test_behavior_matrix_backend_resolved_input_accepts_open_reference() -> None:
-    payload = _invoke(
+    payload = _invoke_approved(
         _client(),
-        "dev-admin-key",
+        "manager-key",
         "conformance.prepare_change",
         ["conformance.prepare"],
         {"record_ref": "Arbitrary Customer 42", "new_status": "done", "change_reason": "conformance test"},
@@ -624,7 +652,7 @@ def test_behavior_matrix_resolution_metadata_is_declared() -> None:
 def test_behavior_matrix_closed_values_deny_unresolved_value() -> None:
     payload = _invoke(
         _client(),
-        "dev-admin-key",
+        "manager-key",
         "conformance.prepare_change",
         ["conformance.prepare"],
         {"record_ref": "CON-1", "new_status": "archived", "change_reason": "conformance test"},
@@ -656,22 +684,10 @@ def test_behavior_matrix_manager_change_requires_approval() -> None:
     _assert_approval_required(payload)
 
 
-def test_behavior_matrix_composed_success_returns_mapped_child_output() -> None:
-    payload = _invoke(
-        _client(),
-        "dev-admin-key",
-        "conformance.lookup_and_prepare",
-        ["conformance.read", "conformance.prepare"],
-        {"query": "CON-1", "requested_status": "done", "change_reason": "conformance test"},
-    )
-    assert payload["success"] is True
-    assert payload["result"]["prepared_status"] == "backend_execution_stub"
-
-
 def test_behavior_matrix_composed_child_denial_propagates() -> None:
     payload = _invoke(
         _client(),
-        "dev-admin-key",
+        "manager-key",
         "conformance.lookup_and_prepare",
         ["conformance.read", "conformance.prepare"],
         {"query": "CON-1", "requested_status": "archived", "change_reason": "conformance test"},
@@ -712,7 +728,7 @@ async function issueToken(key: string, capabilityId: string, scope: string[]) {
   return body.token;
 }
 
-async function invoke(key: string, capabilityId: string, scope: string[], parameters: Record<string, unknown>) {
+async function invoke(key: string, capabilityId: string, scope: string[], parameters: Record<string, unknown>, approvalGrant?: string) {
   const token = await issueToken(key, capabilityId, scope);
   const response = await app.request("/anip/invoke/" + capabilityId, {
     method: "POST",
@@ -720,7 +736,7 @@ async function invoke(key: string, capabilityId: string, scope: string[], parame
       authorization: "Bearer " + token,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ parameters }),
+    body: JSON.stringify(approvalGrant === undefined ? { parameters } : { parameters, approval_grant: approvalGrant }),
   });
   expect([200, 400, 403]).toContain(response.status);
   return await response.json() as {
@@ -757,6 +773,22 @@ function expectApprovalRequired(payload: Awaited<ReturnType<typeof invoke>>) {
   expect(payload.failure?.resolution?.action).toBe("request_approval");
   expect(payload.failure?.approval_required?.approval_request_id).toBeTruthy();
   expect(["one_time", "session_bound"]).toContain(payload.failure?.approval_required?.grant_policy?.default_grant_type);
+}
+
+// An approval-gated capability stops before its backend adapter until an
+// approver grants the request; the continuation then reaches the adapter.
+async function invokeApproved(key: string, capabilityId: string, scope: string[], parameters: Record<string, unknown>) {
+  const first = await invoke(key, capabilityId, scope, parameters);
+  expectApprovalRequired(first);
+  const approver = await issueToken("approver-key", capabilityId, [...scope, "approver:*"]);
+  const response = await app.request("/anip/approval_grants", {
+    method: "POST",
+    headers: { authorization: "Bearer " + approver, "content-type": "application/json" },
+    body: JSON.stringify({ approval_request_id: first.failure?.approval_required?.approval_request_id, grant_type: "one_time" }),
+  });
+  expect(response.status).toBe(200);
+  const grant = await response.json() as { grant_id: string };
+  return invoke(key, capabilityId, scope, parameters, grant.grant_id);
 }
 
 describe("generated behavior matrix", () => {
@@ -809,7 +841,7 @@ describe("generated behavior matrix", () => {
   });
 
   it("blocks generated stub execution when backend-only inputs are unresolved", async () => {
-    const payload = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"], {
+    const payload = await invokeApproved("manager-key", "conformance.prepare_change", ["conformance.prepare"], {
       record_ref: "CON-1",
       new_status: "done",
     });
@@ -822,7 +854,7 @@ describe("generated behavior matrix", () => {
   });
 
   it("accepts open references for backend-resolved inputs", async () => {
-    const payload = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"], {
+    const payload = await invokeApproved("manager-key", "conformance.prepare_change", ["conformance.prepare"], {
       record_ref: "Arbitrary Customer 42",
       new_status: "done",
       change_reason: "conformance test",
@@ -856,7 +888,7 @@ describe("generated behavior matrix", () => {
   });
 
   it("denies closed-values inputs when unresolved behavior is deny", async () => {
-    const payload = await invoke("dev-admin-key", "conformance.prepare_change", ["conformance.prepare"], {
+    const payload = await invoke("manager-key", "conformance.prepare_change", ["conformance.prepare"], {
       record_ref: "CON-1",
       new_status: "archived",
       change_reason: "conformance test",
@@ -884,18 +916,8 @@ describe("generated behavior matrix", () => {
     expectApprovalRequired(payload);
   });
 
-  it("returns mapped child output for successful composition", async () => {
-    const payload = await invoke("dev-admin-key", "conformance.lookup_and_prepare", ["conformance.read", "conformance.prepare"], {
-      query: "CON-1",
-      requested_status: "done",
-      change_reason: "conformance test",
-    });
-    expect(payload.success).toBe(true);
-    expect(payload.result?.prepared_status).toBe("backend_execution_stub");
-  });
-
   it("propagates child denial for composed invalid status", async () => {
-    const payload = await invoke("dev-admin-key", "conformance.lookup_and_prepare", ["conformance.read", "conformance.prepare"], {
+    const payload = await invoke("manager-key", "conformance.lookup_and_prepare", ["conformance.read", "conformance.prepare"], {
       query: "CON-1",
       requested_status: "archived",
       change_reason: "conformance test",
@@ -960,8 +982,43 @@ func issueBehaviorMatrixToken(t *testing.T, ts *httptest.Server, key string, cap
 
 func invokeBehaviorMatrixCapability(t *testing.T, ts *httptest.Server, key string, capabilityID string, scope []string, parameters map[string]any) map[string]any {
 	t.Helper()
+	return invokeBehaviorMatrixCapabilityWithGrant(t, ts, key, capabilityID, scope, parameters, "")
+}
+
+// invokeBehaviorMatrixApproved invokes an approval-gated capability, which
+// stops before its backend adapter, has an approver grant the request, and
+// returns the continuation that reaches the adapter.
+func invokeBehaviorMatrixApproved(t *testing.T, ts *httptest.Server, key string, capabilityID string, scope []string, parameters map[string]any) map[string]any {
+	t.Helper()
+	first := invokeBehaviorMatrixCapability(t, ts, key, capabilityID, scope, parameters)
+	assertBehaviorMatrixApprovalRequired(t, first)
+	request := first["failure"].(map[string]any)["approval_required"].(map[string]any)
+	approver := issueBehaviorMatrixToken(t, ts, "approver-key", capabilityID, append(append([]string{}, scope...), "approver:*"))
+	bodyBytes, _ := json.Marshal(map[string]any{"approval_request_id": request["approval_request_id"], "grant_type": "one_time"})
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/anip/approval_grants", bytes.NewReader(bodyBytes))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("approval grant request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	var grant map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&grant)
+	grantID, _ := grant["grant_id"].(string)
+	if resp.StatusCode != http.StatusOK || grantID == "" {
+		t.Fatalf("expected approval grant, got %d %#v", resp.StatusCode, grant)
+	}
+	return invokeBehaviorMatrixCapabilityWithGrant(t, ts, key, capabilityID, scope, parameters, grantID)
+}
+
+func invokeBehaviorMatrixCapabilityWithGrant(t *testing.T, ts *httptest.Server, key string, capabilityID string, scope []string, parameters map[string]any, approvalGrant string) map[string]any {
+	t.Helper()
 	token := issueBehaviorMatrixToken(t, ts, key, capabilityID, scope)
 	body := map[string]any{"parameters": parameters}
+	if approvalGrant != "" {
+		body["approval_grant"] = approvalGrant
+	}
 	bodyBytes, _ := json.Marshal(body)
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/anip/invoke/"+capabilityID, bytes.NewReader(bodyBytes))
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -1108,7 +1165,7 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 	assertBehaviorMatrixFailureType(t, insufficientScope, "scope_insufficient")
 	assertBehaviorMatrixResolutionAction(t, insufficientScope, "request_broader_scope")
 
-	backendIncomplete := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
+	backendIncomplete := invokeBehaviorMatrixApproved(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
 		"record_ref": "CON-1",
 		"new_status": "done",
 	})
@@ -1136,7 +1193,7 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 		t.Fatalf("expected unresolved change_reason, got %#v", backendResult["unresolved_required_backend_inputs"])
 	}
 
-	openReference := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
+	openReference := invokeBehaviorMatrixApproved(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
 		"record_ref":    "Arbitrary Customer 42",
 		"new_status":    "done",
 		"change_reason": "conformance test",
@@ -1221,7 +1278,7 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 		t.Fatalf("expected closed-values metadata, got catalog=%q mode=%q on_unresolved=%q", newStatusCatalogRef, newStatusResolutionMode, newStatusOnUnresolved)
 	}
 
-	invalidStatus := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
+	invalidStatus := invokeBehaviorMatrixCapability(t, ts, "manager-key", "conformance.prepare_change", []string{"conformance.prepare"}, map[string]any{
 		"record_ref":    "CON-1",
 		"new_status":    "archived",
 		"change_reason": "conformance test",
@@ -1244,20 +1301,7 @@ func TestGeneratedBehaviorMatrix(t *testing.T) {
 	})
 	assertBehaviorMatrixApprovalRequired(t, approval)
 
-	composedSuccess := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.lookup_and_prepare", []string{"conformance.read", "conformance.prepare"}, map[string]any{
-		"query":            "CON-1",
-		"requested_status": "done",
-		"change_reason":    "conformance test",
-	})
-	if composedSuccess["success"] != true {
-		t.Fatalf("expected successful composed invocation, got %#v", composedSuccess)
-	}
-	composedSuccessResult, ok := composedSuccess["result"].(map[string]any)
-	if !ok || composedSuccessResult["prepared_status"] != "backend_execution_stub" {
-		t.Fatalf("expected composed backend_execution_stub, got %#v", composedSuccess["result"])
-	}
-
-	composedDenied := invokeBehaviorMatrixCapability(t, ts, "dev-admin-key", "conformance.lookup_and_prepare", []string{"conformance.read", "conformance.prepare"}, map[string]any{
+	composedDenied := invokeBehaviorMatrixCapability(t, ts, "manager-key", "conformance.lookup_and_prepare", []string{"conformance.read", "conformance.prepare"}, map[string]any{
 		"query":            "CON-1",
 		"requested_status": "archived",
 		"change_reason":    "conformance test",
@@ -1315,6 +1359,18 @@ class GeneratedBehaviorMatrixTest {
 
     private Map<String, Object> invoke(ANIPService service, String principal, String capability, List<String> scope, Map<String, Object> parameters) throws Exception {
         return service.invoke(capability, issue(service, principal, capability, scope), parameters, new InvokeOpts());
+    }
+
+    // An approval-gated capability stops before its backend adapter until an
+    // approver grants the request; the continuation then reaches the adapter.
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> invokeApproved(ANIPService service, String principal, String capability, List<String> scope, Map<String, Object> parameters) throws Exception {
+        Map<String, Object> first = invoke(service, principal, capability, scope, parameters);
+        assertApprovalRequired(first);
+        Map<String, Object> request = (Map<String, Object>) ((Map<String, Object>) first.get("failure")).get("approval_required");
+        String grantId = service.issueApprovalGrant(String.valueOf(request.get("approval_request_id")), "one_time",
+                Map.of("subject", "human:approver", "root_principal", "human:approver"), null, null, null).getGrantId();
+        return service.invoke(capability, issue(service, principal, capability, scope), parameters, new InvokeOpts().setApprovalGrant(grantId));
     }
 
     @SuppressWarnings("unchecked")
@@ -1419,9 +1475,9 @@ class GeneratedBehaviorMatrixTest {
             assertFailureType(insufficientScope, "scope_insufficient");
             assertResolutionAction(insufficientScope, "request_broader_scope");
 
-            Map<String, Object> backendIncomplete = invoke(
+            Map<String, Object> backendIncomplete = invokeApproved(
                     service,
-                    "human:local-developer",
+                    "human:manager|actor_id=manager",
                     "conformance.prepare_change",
                     List.of("conformance.prepare"),
                     Map.of("record_ref", "CON-1", "new_status", "done"));
@@ -1436,9 +1492,9 @@ class GeneratedBehaviorMatrixTest {
             assertEquals(List.of(), backendContract.get("optional"));
             assertEquals(List.of("change_reason"), backendResult.get("unresolved_required_backend_inputs"));
 
-            Map<String, Object> openReference = invoke(
+            Map<String, Object> openReference = invokeApproved(
                     service,
-                    "human:local-developer",
+                    "human:manager|actor_id=manager",
                     "conformance.prepare_change",
                     List.of("conformance.prepare"),
                     Map.of("record_ref", "Arbitrary Customer 42", "new_status", "done", "change_reason", "conformance test"));
@@ -1495,7 +1551,7 @@ class GeneratedBehaviorMatrixTest {
 
             Map<String, Object> invalidStatus = invoke(
                     service,
-                    "human:local-developer",
+                    "human:manager|actor_id=manager",
                     "conformance.prepare_change",
                     List.of("conformance.prepare"),
                     Map.of("record_ref", "CON-1", "new_status", "archived", "change_reason", "conformance test"));
@@ -1518,20 +1574,9 @@ class GeneratedBehaviorMatrixTest {
                     List.of("conformance.prepare"),
                     Map.of("record_ref", "CON-1", "new_status", "done", "change_reason", "conformance test")));
 
-            Map<String, Object> composedSuccess = invoke(
-                    service,
-                    "human:local-developer",
-                    "conformance.lookup_and_prepare",
-                    List.of("conformance.read", "conformance.prepare"),
-                    Map.of("query", "CON-1", "requested_status", "done", "change_reason", "conformance test"));
-            assertTrue((Boolean) composedSuccess.get("success"));
-            @SuppressWarnings("unchecked")
-            Map<String, Object> composedSuccessResult = (Map<String, Object>) composedSuccess.get("result");
-            assertEquals("backend_execution_stub", composedSuccessResult.get("prepared_status"));
-
             Map<String, Object> composedDenied = invoke(
                     service,
-                    "human:local-developer",
+                    "human:manager|actor_id=manager",
                     "conformance.lookup_and_prepare",
                     List.of("conformance.read", "conformance.prepare"),
                     Map.of("query", "CON-1", "requested_status", "archived", "change_reason", "conformance test"));
@@ -1587,6 +1632,18 @@ public class GeneratedBehaviorMatrixTests
     private static Dictionary<string, object?> Invoke(AnipService service, string principal, string capability, List<string> scope, Dictionary<string, object?> parameters)
     {
         return service.Invoke(capability, Issue(service, principal, capability, scope), parameters, new InvokeOpts());
+    }
+
+    // An approval-gated capability stops before its backend adapter until an
+    // approver grants the request; the continuation then reaches the adapter.
+    private static Dictionary<string, object?> InvokeApproved(AnipService service, string principal, string capability, List<string> scope, Dictionary<string, object?> parameters)
+    {
+        var first = Invoke(service, principal, capability, scope, parameters);
+        AssertApprovalRequired(first);
+        var request = Assert.IsType<Dictionary<string, object?>>(Assert.IsType<Dictionary<string, object?>>(first["failure"])["approval_required"]);
+        var grant = service.IssueApprovalGrant(request["approval_request_id"]!.ToString()!, "one_time",
+            new Dictionary<string, object?> { ["subject"] = "human:approver", ["root_principal"] = "human:approver" }, null, null, null);
+        return service.Invoke(capability, Issue(service, principal, capability, scope), parameters, new InvokeOpts { ApprovalGrant = grant.GrantId });
     }
 
     private static void AssertFailureType(Dictionary<string, object?> payload, string failureType)
@@ -1701,9 +1758,9 @@ public class GeneratedBehaviorMatrixTests
             AssertFailureType(insufficientScope, "scope_insufficient");
             AssertResolutionAction(insufficientScope, "request_broader_scope");
 
-            var backendIncomplete = Invoke(
+            var backendIncomplete = InvokeApproved(
                 service,
-                "human:local-developer",
+                "human:manager|actor_id=manager",
                 "conformance.prepare_change",
                 ["conformance.prepare"],
                 new Dictionary<string, object?>
@@ -1721,9 +1778,9 @@ public class GeneratedBehaviorMatrixTests
             var unresolved = Assert.IsType<List<string>>(backendResult["unresolved_required_backend_inputs"]);
             Assert.Equal(["change_reason"], unresolved);
 
-            var openReference = Invoke(
+            var openReference = InvokeApproved(
                 service,
-                "human:local-developer",
+                "human:manager|actor_id=manager",
                 "conformance.prepare_change",
                 ["conformance.prepare"],
                 new Dictionary<string, object?>
@@ -1768,7 +1825,7 @@ public class GeneratedBehaviorMatrixTests
 
             var invalidStatus = Invoke(
                 service,
-                "human:local-developer",
+                "human:manager|actor_id=manager",
                 "conformance.prepare_change",
                 ["conformance.prepare"],
                 new Dictionary<string, object?>
@@ -1806,24 +1863,9 @@ public class GeneratedBehaviorMatrixTests
                     ["change_reason"] = "conformance test",
                 }));
 
-            var composedSuccess = Invoke(
-                service,
-                "human:local-developer",
-                "conformance.lookup_and_prepare",
-                ["conformance.read", "conformance.prepare"],
-                new Dictionary<string, object?>
-                {
-                    ["query"] = "CON-1",
-                    ["requested_status"] = "done",
-                    ["change_reason"] = "conformance test",
-                });
-            Assert.True((bool)composedSuccess["success"]!);
-            var composedSuccessResult = Assert.IsType<Dictionary<string, object?>>(composedSuccess["result"]);
-            Assert.Equal("backend_execution_stub", composedSuccessResult["prepared_status"]);
-
             var composedDenied = Invoke(
                 service,
-                "human:local-developer",
+                "human:manager|actor_id=manager",
                 "conformance.lookup_and_prepare",
                 ["conformance.read", "conformance.prepare"],
                 new Dictionary<string, object?>

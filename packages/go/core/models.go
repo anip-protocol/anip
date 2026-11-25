@@ -208,6 +208,12 @@ func (r *InputResolution) UnmarshalJSON(data []byte) error {
 }
 
 // CapabilityInput describes a single input parameter for a capability.
+//
+// Required defaults to true (SPEC.md §4.1): an input whose declaration does
+// not state required is required. Decoding applies that default
+// (UnmarshalJSON below) and encoding always writes the member. Go code cannot
+// rely on it: a struct literal leaves an unset bool false, so every literal
+// states Required explicitly, true or false.
 type CapabilityInput struct {
 	Name            string           `json:"name"`
 	Type            string           `json:"type"`
@@ -220,6 +226,32 @@ type CapabilityInput struct {
 	CatalogRef      *string          `json:"catalog_ref,omitempty"`
 	InputMeanings   []InputMeaning   `json:"input_meanings,omitempty"`
 	Resolution      *InputResolution `json:"resolution,omitempty"`
+}
+
+// MustBeSupplied reports whether a caller has to supply the input: it is
+// required and its declaration does not say what happens when the value is
+// absent. SPEC.md §6.3: an input whose resolution block sets on_missing
+// (§4.10) is left to the service when absent; a resolution block without
+// on_missing does not change anything. The service's parameter validation and
+// the schemas generated from a declaration (MCP tool input schema, GraphQL
+// arguments, OpenAPI) share this rule.
+func (c CapabilityInput) MustBeSupplied() bool {
+	return c.Required && !(c.Resolution != nil && c.Resolution.OnMissing != nil)
+}
+
+// UnmarshalJSON decodes a declared input and applies the SPEC.md §4.1
+// default: required is true when the member is absent or null.
+func (c *CapabilityInput) UnmarshalJSON(data []byte) error {
+	type plain CapabilityInput
+	raw := struct {
+		*plain
+		Required *bool `json:"required"`
+	}{plain: (*plain)(c)}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	c.Required = raw.Required == nil || *raw.Required
+	return nil
 }
 
 // CapabilityOutput describes the output of a capability.

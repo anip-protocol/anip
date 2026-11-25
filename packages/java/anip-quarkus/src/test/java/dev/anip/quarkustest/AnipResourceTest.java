@@ -66,6 +66,31 @@ class AnipResourceTest {
             .then().statusCode(401);
     }
 
+    @Test @Order(5) void tokenIssuanceWithAnUnrecognisedCredential() {
+        // SPEC.md §6.3 Token Issuance: a credential the service does not
+        // recognise is authentication_required, like no credential at all.
+        given().contentType("application/json")
+            .header("Authorization", "Bearer bad-key")
+            .body("{\"subject\":\"agent:test\",\"scope\":[\"travel\"]}")
+            .when().post("/anip/tokens")
+            .then().statusCode(401)
+            .body("success", equalTo(false))
+            .body("failure.type", equalTo("authentication_required"))
+            .body("failure.resolution.action", equalTo("provide_credentials"))
+            .body("failure.resolution.recovery_class", equalTo("retry_now"))
+            .body("failure.retry", equalTo(true))
+            .body("token", nullValue());
+    }
+
+    @Test @Order(5) void tokenIssuanceWithoutCredentialIsTheSameFailure() {
+        given().contentType("application/json")
+            .body("{\"subject\":\"agent:test\",\"scope\":[\"travel\"]}")
+            .when().post("/anip/tokens")
+            .then().statusCode(401)
+            .body("failure.type", equalTo("authentication_required"))
+            .body("failure.resolution.action", equalTo("provide_credentials"));
+    }
+
     @Test @Order(6) void invokeSuccess() {
         given().contentType("application/json")
             .header("Authorization", "Bearer " + validJwt)

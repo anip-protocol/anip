@@ -82,16 +82,23 @@
     },
     {
       "id": "generated-policy-precedence-is-consistent",
-      "description": "Every target must implement the same sparse policy override semantics and governed-stop precedence.",
+      "description": "Every target must fail closed the same way: a matching or unrecognised deny refuses whatever the posture, a capability whose bindings match no actor (or a principal without claims) refuses, a capability without bindings is allowed, matching bindings resolve deny, then approval_required, then clarify, then allow, and an approval-gated capability stops before its backend adapter unless the runtime validated an approval grant.",
       "target_markers": {
         "python": [
           {
             "path": "src/generator_conformance_service/policy.py",
             "contains": [
-              "def _requires_governed_stop(capability: dict[str, Any]) -> bool:",
-              "approval = next((binding for binding in matching if binding.get('decision') == 'approval_required'), None)",
-              "allowed = next((binding for binding in matching if binding.get('decision') not in {'deny', 'clarify', 'approval_required'}), None)",
-              "No matching runtime policy binding; continuing."
+              "_REFUSING_PRECEDENCE = ('deny', 'approval_required', 'clarify')",
+              "return decision if decision in _KNOWN_DECISIONS else 'deny'",
+              "matching = [binding for binding in bindings if claims and _matches_principal(binding, claims)]",
+              "return {\"decision\": \"deny\", \"detail\": \"No runtime policy binding matches the current actor for this capability.\"}"
+            ]
+          },
+          {
+            "path": "src/generator_conformance_service/capabilities.py",
+            "contains": [
+              "def _requires_approval(capability: dict[str, Any]) -> bool:",
+              "if (policy.get(\"decision\") == \"approval_required\" or _requires_approval(capability)) and not _approval_granted(ctx):"
             ]
           }
         ],
@@ -99,10 +106,17 @@
           {
             "path": "src/runtime/policy.ts",
             "contains": [
-              "function requiresGovernedStop(capability: GeneratedCapabilityRuntimeMetadata): boolean",
-              "const approval = matching.find((binding) => binding.decision === \"approval_required\");",
-              "const allowed = matching.find((binding) => binding.decision !== \"deny\" && binding.decision !== \"clarify\" && binding.decision !== \"approval_required\");",
-              "No matching runtime policy binding; continuing."
+              "return knownDecisions.has(decision) ? decision as BindingDecision : \"deny\";",
+              "const matching = bindings.filter((binding) => hasClaims && matchesPrincipal(binding, claims));",
+              "for (const decision of [\"deny\", \"approval_required\", \"clarify\"]) {",
+              "if (matching.length === 0) return { decision: \"deny\", detail: \"No runtime policy binding matches the current actor for this capability.\" };"
+            ]
+          },
+          {
+            "path": "src/generated/capabilities.ts",
+            "contains": [
+              "function requiresApproval(capability: GeneratedCapabilityRuntimeMetadata): boolean {",
+              "if ((policy.decision === \"approval_required\" || requiresApproval(capability)) && !ctx.approvalGrant) {"
             ]
           }
         ],
@@ -110,10 +124,17 @@
           {
             "path": "extensions/policy.go",
             "contains": [
-              "func requiresGovernedStop(capability generated.GeneratedCapabilityRuntimeMetadata) bool",
-              "if binding.Decision == \"approval_required\"",
-              "if binding.Decision != \"deny\" && binding.Decision != \"clarify\" && binding.Decision != \"approval_required\"",
-              "No matching runtime policy binding; continuing."
+              "func effectiveDecision(binding generated.RuntimePolicyBinding) string {",
+              "if len(claims) == 0 || !matchesPrincipal(binding, claims) {",
+              "for _, decision := range []string{\"deny\", \"approval_required\", \"clarify\"} {",
+              "return PolicyDecision{Decision: \"deny\", Detail: \"No runtime policy binding matches the current actor for this capability.\"}"
+            ]
+          },
+          {
+            "path": "host/capabilities.go",
+            "contains": [
+              "func requiresApproval(capability generated.GeneratedCapabilityRuntimeMetadata) bool {",
+              "if (policy.Decision == \"approval_required\" || requiresApproval(capability)) && approvalGrant == \"\" {"
             ]
           }
         ],
@@ -121,10 +142,17 @@
           {
             "path": "src/main/java/dev/anip/generated/generator_conformance_service/Policy.java",
             "contains": [
-              "private static boolean requiresGovernedStop(Map<String, Object> capability)",
-              "if (\"approval_required\".equals(stringValue(binding, \"decision\"))) return decisionFor(binding);",
-              "if (!\"deny\".equals(decision) && !\"clarify\".equals(decision) && !\"approval_required\".equals(decision)) return decisionFor(binding);",
-              "No matching runtime policy binding; continuing."
+              "return KNOWN_DECISIONS.contains(decision) ? decision : \"deny\";",
+              "if (claims.isEmpty() || !matchesPrincipal(binding, claims)) continue;",
+              "for (String decision : List.of(\"deny\", \"approval_required\", \"clarify\")) {",
+              "if (matching.isEmpty()) return new PolicyDecision(\"deny\", \"No runtime policy binding matches the current actor for this capability.\");"
+            ]
+          },
+          {
+            "path": "src/main/java/dev/anip/generated/generator_conformance_service/GeneratedCapabilities.java",
+            "contains": [
+              "private static boolean requiresApproval(Map<String, Object> capability) {",
+              "if ((bindingRequiresApproval || requiresApproval(capability)) && (ctx.getApprovalGrant() == null || ctx.getApprovalGrant().isBlank())) {"
             ]
           }
         ],
@@ -132,10 +160,17 @@
           {
             "path": "Policy.cs",
             "contains": [
-              "private static bool RequiresGovernedStop(Dictionary<string, object?> capability)",
-              "var approval = matching.FirstOrDefault(binding => binding.Decision == \"approval_required\");",
-              "var allowed = matching.FirstOrDefault(binding => binding.Decision != \"deny\" && binding.Decision != \"clarify\" && binding.Decision != \"approval_required\");",
-              "No matching runtime policy binding; continuing."
+              "return binding.Decision is not null && KnownDecisions.Contains(binding.Decision) ? binding.Decision : \"deny\";",
+              "var matching = bindings.Where(binding => claims.Count > 0 && MatchesPrincipal(binding, claims)).ToList();",
+              "foreach (var decision in new[] { \"deny\", \"approval_required\", \"clarify\" })",
+              "if (matching.Count == 0) return new PolicyDecision(\"deny\", \"No runtime policy binding matches the current actor for this capability.\");"
+            ]
+          },
+          {
+            "path": "GeneratedCapabilities.cs",
+            "contains": [
+              "private static bool RequiresApproval(Dictionary<string, object?> capability)",
+              "if ((bindingRequiresApproval || RequiresApproval(capability)) && string.IsNullOrWhiteSpace(ctx.ApprovalGrant))"
             ]
           }
         ]

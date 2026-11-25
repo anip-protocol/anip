@@ -102,6 +102,19 @@ public class InvokeOpts {
         return this;
     }
 
+    /**
+     * Reads {@code approval_grant} from a decoded request member. Returns
+     * null when the member is absent or null (no grant supplied), the string
+     * when it is one, and {@code ""} for any other value. A supplied grant is
+     * always validated by the service, and a blank one names no grant.
+     */
+    public static String approvalGrantFromRequest(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return value instanceof String text ? text : "";
+    }
+
     /** Canonical business effect IDs the caller is requesting this invocation to produce. */
     public java.util.List<String> getRequestedEffects() {
         return requestedEffects;

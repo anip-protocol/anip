@@ -57,7 +57,7 @@ public static class SearchFlightsCapability
         if (string.IsNullOrEmpty(origin) || string.IsNullOrEmpty(destination) || string.IsNullOrEmpty(date))
         {
             throw new AnipError(Constants.FailureInvalidParameters,
-                "origin, destination, and date are all required");
+                "origin, destination, and date must be non-empty strings");
         }
 
         var flights = FlightData.SearchFlights(origin, destination, date);

@@ -258,9 +258,9 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Parameter name |
-| `type` | string | Yes | Semantic type hint (e.g., `"string"`, `"airport_code"`, `"integer"`) |
-| `required` | boolean | No | Default: `true` |
-| `default` | any | No | Default value if not provided |
+| `type` | string | Yes | One of the primitive types `string`, `integer`, `number`, `boolean`, `array`, `object`, which the runtime checks at invocation, or a domain type name (e.g., `"airport_code"`), which it does not |
+| `required` | boolean | No | Default: `true`. A required input that is absent or `null` refuses the invocation with `invalid_parameters`, unless its `resolution` sets `on_missing`, in which case the service's `on_missing` behavior answers |
+| `default` | any | No | Value an optional input takes when not provided. Does not make a required input optional |
 | `description` | string | No | Human-readable description |
 | `semantic_type` | string | No | v0.24 typed hint for planner/runtime behavior, such as `entity_reference`, `scope`, `time_window`, or domain-specific semantic names. |
 | `entity_reference` | boolean | No | Whether the input names a concrete entity that may need resolution. |
@@ -655,6 +655,8 @@ All control requirements are token-evaluable and surfaced in permission discover
   }
 }
 ```
+
+The HTTP status follows from `failure.type`; see [HTTP status per failure type](/docs/protocol/failures-cost-audit#structured-failures). Before the handler runs, the service checks `parameters` against the capability's declared inputs: a missing required input or a value of the wrong primitive type is refused with `invalid_parameters` (HTTP 400), after delegation, budget, binding and control-requirement enforcement and before an approval grant is reserved. See [What the runtime enforces](/docs/protocol/capabilities#what-the-runtime-enforces).
 
 ### Response fields
 

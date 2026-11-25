@@ -153,8 +153,11 @@ func TestAllTargetsUseSharedFixtureModel(t *testing.T) {
 				t.Fatalf("capabilities module forwards raw parameters instead of filtered adapter input")
 			}
 			policyContent := fileContent(project.Files, tc.policyFile)
-			if !strings.Contains(policyContent, "No matching runtime policy binding; continuing.") {
-				t.Fatalf("policy module does not treat generated policy bindings as sparse overrides")
+			if !strings.Contains(policyContent, generatedPolicyNoMatchDetail) {
+				t.Fatalf("policy module does not refuse an actor that matches none of a capability's bindings")
+			}
+			if strings.Contains(policyContent, "No matching runtime policy binding; continuing.") {
+				t.Fatalf("policy module still allows an actor that matches no binding")
 			}
 		})
 	}

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -280,6 +281,7 @@ func runBuildLocal(args []string, stdout io.Writer, stderr io.Writer) int {
 	var generatedAt string
 	var writeDefinition bool
 	var port int
+	var sourcePackagePath string
 
 	fs := flag.NewFlagSet("anip package build-local", flag.ContinueOnError)
 	if hasHelpFlag(args) {
@@ -312,6 +314,7 @@ Flags:`)
 	fs.StringVar(&generatedAt, "generated-at", "2026-05-15T00:00:00Z", "Deterministic generated/published timestamp")
 	fs.BoolVar(&writeDefinition, "write-definition", false, "Also write <package-id>-<version>-service-definition.json")
 	fs.IntVar(&port, "port", 9100, "Example generated service port used in README commands")
+	fs.StringVar(&sourcePackagePath, "source-package", "", "Package bundle (.anip-package.json) whose reviewed agent metadata (consumability, readiness, simulation, publication gate) the new package carries instead of metadata derived from the definition")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return 0
@@ -365,6 +368,20 @@ Flags:`)
 	readme := buildLocalPackageReadme(systemName, packageID, packageVersion, port, capabilityIDs, serviceIDs)
 	readiness := buildLocalAgentReadiness(definition, capabilityIDs)
 	consumability := buildLocalAgentConsumability(definition)
+	manifestAgentMetadata := map[string]any{
+		"agent_consumption_readiness": readiness,
+		"agent_consumability":         consumability,
+	}
+	lockAgentMetadata := map[string]any{
+		"agent_consumption_readiness": readiness,
+		"agent_consumability":         consumability,
+	}
+	if strings.TrimSpace(sourcePackagePath) != "" {
+		manifestAgentMetadata, lockAgentMetadata, err = sourcePackageAgentMetadata(sourcePackagePath, capabilityIDs)
+		if err != nil {
+			fail(err.Error(), 1)
+		}
+	}
 	lineage := map[string]any{
 		"project_ref": projectRef,
 		"product_revision": map[string]any{
@@ -389,53 +406,55 @@ Flags:`)
 	}
 
 	manifest := map[string]any{
-		"package_kind":                "anip_service_blueprint",
-		"artifact_type":               "anip_package_manifest",
-		"blueprint_id":                packageID,
-		"package_id":                  packageID,
-		"name":                        systemName + " Service Blueprint",
-		"version":                     packageVersion,
-		"package_version":             packageVersion,
-		"schema_version":              schemaVersion,
-		"anip_spec_version":           core.ProtocolVersion,
-		"publisher":                   map[string]any{"id": "local-dev-registry", "display_name": "Local development registry"},
-		"service_definition":          "anip-service-definition.json",
-		"service_definition_digest":   definitionDigest,
-		"build_packs":                 map[string]any{"recommended": []any{"anip-build-pack@local"}},
-		"verifier_packs":              map[string]any{"recommended": []any{"anip-verifier@local"}},
-		"readme":                      readme,
-		"usage":                       buildLocalUsageCommands(packageID, packageVersion, port),
-		"source_links":                sourceLinksAsMaps(sourceLinks),
-		"capability_count":            float64(len(capabilityIDs)),
-		"service_count":               float64(len(serviceIDs)),
-		"service_ids":                 stringsToAny(serviceIDs),
-		"lineage":                     lineage,
-		"agent_consumption_readiness": readiness,
-		"agent_consumability":         consumability,
-		"generated_at":                generatedAt,
+		"package_kind":              "anip_service_blueprint",
+		"artifact_type":             "anip_package_manifest",
+		"blueprint_id":              packageID,
+		"package_id":                packageID,
+		"name":                      systemName + " Service Blueprint",
+		"version":                   packageVersion,
+		"package_version":           packageVersion,
+		"schema_version":            schemaVersion,
+		"anip_spec_version":         core.ProtocolVersion,
+		"publisher":                 map[string]any{"id": "local-dev-registry", "display_name": "Local development registry"},
+		"service_definition":        "anip-service-definition.json",
+		"service_definition_digest": definitionDigest,
+		"build_packs":               map[string]any{"recommended": []any{"anip-build-pack@local"}},
+		"verifier_packs":            map[string]any{"recommended": []any{"anip-verifier@local"}},
+		"readme":                    readme,
+		"usage":                     buildLocalUsageCommands(packageID, packageVersion, port),
+		"source_links":              sourceLinksAsMaps(sourceLinks),
+		"capability_count":          float64(len(capabilityIDs)),
+		"service_count":             float64(len(serviceIDs)),
+		"service_ids":               stringsToAny(serviceIDs),
+		"lineage":                   lineage,
+		"generated_at":              generatedAt,
+	}
+	for key, value := range manifestAgentMetadata {
+		manifest[key] = value
 	}
 	lock := map[string]any{
-		"lock_kind":                   "publisher_recommended_lock",
-		"artifact_type":               "anip_package_lock",
-		"blueprint_id":                packageID,
-		"blueprint_version":           packageVersion,
-		"package_id":                  packageID,
-		"package_version":             packageVersion,
-		"schema_version":              schemaVersion,
-		"anip_spec_version":           core.ProtocolVersion,
-		"service_definition_digest":   definitionDigest,
-		"build_packs":                 []any{"anip-build-pack@local"},
-		"verifier_packs":              []any{"anip-verifier@local"},
-		"runtime_packages":            []any{},
-		"extension_packs":             []any{},
-		"regression_packs":            []any{},
-		"selected_service_ids":        stringsToAny(serviceIDs),
-		"capability_ids":              stringsToAny(capabilityIDs),
-		"contract_signature":          definitionDigest,
-		"lineage":                     lineage,
-		"agent_consumption_readiness": readiness,
-		"agent_consumability":         consumability,
-		"generated_at":                generatedAt,
+		"lock_kind":                 "publisher_recommended_lock",
+		"artifact_type":             "anip_package_lock",
+		"blueprint_id":              packageID,
+		"blueprint_version":         packageVersion,
+		"package_id":                packageID,
+		"package_version":           packageVersion,
+		"schema_version":            schemaVersion,
+		"anip_spec_version":         core.ProtocolVersion,
+		"service_definition_digest": definitionDigest,
+		"build_packs":               []any{"anip-build-pack@local"},
+		"verifier_packs":            []any{"anip-verifier@local"},
+		"runtime_packages":          []any{},
+		"extension_packs":           []any{},
+		"regression_packs":          []any{},
+		"selected_service_ids":      stringsToAny(serviceIDs),
+		"capability_ids":            stringsToAny(capabilityIDs),
+		"contract_signature":        definitionDigest,
+		"lineage":                   lineage,
+		"generated_at":              generatedAt,
+	}
+	for key, value := range lockAgentMetadata {
+		lock[key] = value
 	}
 	request := registryapi.PublishPackageRequest{
 		PackageID:            packageID,
@@ -500,6 +519,72 @@ Flags:`)
 	writeTextFile(filepath.Join(outputDir, "README.md"), readme)
 	fmt.Fprintf(stdout, "wrote local package bundle: %s\n", prefix+".anip-package.json")
 	return 0
+}
+
+// sourcePackageAgentKeys are the agent metadata a reviewed package carries in
+// its manifest and lock. Studio writes them after review and simulation; none
+// of them can be derived from the service definition alone.
+var sourcePackageAgentKeys = []string{
+	"agent_consumability",
+	"agent_consumption_readiness",
+	"agent_consumption_simulation",
+	"agent_consumption_publication_gate",
+}
+
+// sourcePackageAgentMetadata reads the agent metadata of a package bundle, for
+// a package built from a new revision of the same service definition. The
+// manifest values are taken as they are; the lock values come from the source
+// lock, and fall back to the manifest values where the lock has none. The
+// source consumability must describe exactly the capabilities of the new
+// definition.
+func sourcePackageAgentMetadata(path string, capabilityIDs []string) (map[string]any, map[string]any, error) {
+	source, err := readJSONMap(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read source package: %w", err)
+	}
+	if stringValue(source["bundle_schema_version"]) == "" {
+		return nil, nil, fmt.Errorf("source package %s is not a package bundle (no bundle_schema_version)", path)
+	}
+	sourceManifest := mapValue(source["manifest"])
+	sourceLock := mapValue(source["lock"])
+	if pkg := mapValue(source["package"]); len(pkg) > 0 {
+		sourceManifest = firstMap(sourceManifest, mapValue(pkg["manifest"]))
+		sourceLock = firstMap(sourceLock, mapValue(pkg["recommended_lock"]))
+	}
+	manifestMetadata := map[string]any{}
+	lockMetadata := map[string]any{}
+	for _, key := range sourcePackageAgentKeys {
+		value, ok := sourceManifest[key]
+		if !ok || value == nil {
+			continue
+		}
+		manifestMetadata[key] = value
+		lockMetadata[key] = firstNonNil(sourceLock[key], value)
+	}
+	consumability := mapValue(manifestMetadata["agent_consumability"])
+	if len(consumability) == 0 {
+		return nil, nil, fmt.Errorf("source package %s has no agent_consumability in its manifest", path)
+	}
+	consumabilityIDs := []string{}
+	switch capabilities := consumability["capabilities"].(type) {
+	case map[string]any:
+		for id := range capabilities {
+			consumabilityIDs = append(consumabilityIDs, id)
+		}
+	case []any:
+		for _, item := range capabilities {
+			if id := stringValue(mapValue(item)["capability_id"]); id != "" {
+				consumabilityIDs = append(consumabilityIDs, id)
+			}
+		}
+	}
+	sort.Strings(consumabilityIDs)
+	definitionIDs := append([]string(nil), capabilityIDs...)
+	sort.Strings(definitionIDs)
+	if strings.Join(consumabilityIDs, ",") != strings.Join(definitionIDs, ",") {
+		return nil, nil, fmt.Errorf("source package agent_consumability describes capabilities %v, the definition declares %v", consumabilityIDs, definitionIDs)
+	}
+	return manifestMetadata, lockMetadata, nil
 }
 
 func runPublishBundle(args []string, stdout io.Writer, stderr io.Writer) int {
@@ -1059,6 +1144,13 @@ func buildLocalAgentReadiness(definition map[string]any, capabilityIDs []string)
 	}
 }
 
+// inputRequired reports whether a declared input is required. SPEC.md §4.1:
+// required defaults to true, so only an explicit false makes it optional.
+func inputRequired(input map[string]any) bool {
+	required, stated := input["required"].(bool)
+	return !stated || required
+}
+
 func buildLocalAgentReadinessFindings(definition map[string]any) []any {
 	findings := []any{}
 	for _, item := range sliceFromAny(definition["capability_formalizations"]) {
@@ -1069,8 +1161,7 @@ func buildLocalAgentReadinessFindings(definition map[string]any) []any {
 		}
 		for _, inputItem := range sliceFromAny(capability["inputs"]) {
 			input := mapValue(inputItem)
-			required, _ := input["required"].(bool)
-			if !required || hasLocalAgentInputClassification(input) {
+			if !inputRequired(input) || hasLocalAgentInputClassification(input) {
 				continue
 			}
 			inputName := stringValue(input["input_name"])
@@ -1130,7 +1221,7 @@ func buildLocalAgentConsumability(definition map[string]any) map[string]any {
 				continue
 			}
 			posture := "optional"
-			if required, ok := input["required"].(bool); ok && required {
+			if inputRequired(input) {
 				posture = "required"
 			}
 			if hint := stringValue(input["clarification_hint"]); hint != "" {

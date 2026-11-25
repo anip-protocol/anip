@@ -12,6 +12,8 @@ _TYPE_MAP = {
     "integer": "integer",
     "number": "number",
     "boolean": "boolean",
+    "array": "array",
+    "object": "object",
     "date": "string",
     "airport_code": "string",
 }
@@ -30,7 +32,10 @@ def capability_to_input_schema(declaration: dict[str, Any]) -> dict:
         if "default" in inp and inp["default"] is not None:
             prop["default"] = inp["default"]
         properties[inp["name"]] = prop
-        if inp.get("required", True):
+        # SPEC.md §4.10: an input that declares resolution.on_missing is left
+        # to the service when absent, so the schema does not demand it.
+        on_missing = (inp.get("resolution") or {}).get("on_missing")
+        if inp.get("required", True) and on_missing is None:
             required.append(inp["name"])
 
     schema: dict = {"type": "object", "properties": properties}

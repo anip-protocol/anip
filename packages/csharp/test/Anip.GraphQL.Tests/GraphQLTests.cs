@@ -61,6 +61,43 @@ public class GraphQLTests
     // --- Schema building ---
 
     [Fact]
+    public void BuildSchema_DoesNotRequireAnArgumentThatDeclaresOnMissing()
+    {
+        // SPEC.md §6.3 / §4.10: the service answers its absence through on_missing.
+        var decl = new CapabilityDeclaration
+        {
+            Name = "find_cohort",
+            Description = "find a cohort",
+            ContractVersion = "1.0",
+            SideEffect = new SideEffect { Type = "read" },
+            MinimumScope = new List<string> { "records.read" },
+            Inputs = new List<CapabilityInput>
+            {
+                new() { Name = "cohort", Type = "string", Required = true,
+                    Resolution = new InputResolution { Mode = ResolutionMode.Clarify, OnMissing = ResolutionBehavior.Clarify } },
+                new() { Name = "region", Type = "string", Required = true },
+            },
+        };
+        var service = new AnipService(new ServiceConfig
+        {
+            ServiceId = "test-graphql-on-missing",
+            Capabilities = new List<CapabilityDef>
+            {
+                new(decl, (ctx, p) => new Dictionary<string, object?> { ["found"] = true }),
+            },
+            Storage = ":memory:",
+            RetentionIntervalSeconds = -1,
+        });
+        service.Start();
+
+        var sdl = SchemaBuilder.BuildSchema(service).Sdl;
+
+        Assert.Contains("cohort: String", sdl);
+        Assert.DoesNotContain("cohort: String!", sdl);
+        Assert.Contains("region: String!", sdl);
+    }
+
+    [Fact]
     public void BuildSchema_ReturnsSchemaAndSdl()
     {
         using var service = CreateTestService();

@@ -68,7 +68,7 @@ public static partial class AgentConsumption
         foreach (var rawSpec in ListValue(GetValue(safeMetadata, "input_specs")))
         {
             var spec = MapValue(rawSpec);
-            if (!BoolValue(GetValue(spec, "required")))
+            if (!InputRequired(spec))
             {
                 continue;
             }
@@ -518,6 +518,21 @@ public static partial class AgentConsumption
         }
 
         return bool.TryParse(StringValue(value), out var parsed) && parsed;
+    }
+
+    /// <summary>
+    /// SPEC.md §4.1: <c>required</c> defaults to <c>true</c>. An input spec
+    /// that does not state it (absent or null) is required.
+    /// </summary>
+    private static bool InputRequired(IReadOnlyDictionary<string, object?> spec)
+    {
+        var declared = GetValue(spec, "required");
+        if (declared is null or JsonElement { ValueKind: JsonValueKind.Null or JsonValueKind.Undefined })
+        {
+            return true;
+        }
+
+        return BoolValue(declared);
     }
 
     private static object? GetValue(IReadOnlyDictionary<string, object?> map, string key)

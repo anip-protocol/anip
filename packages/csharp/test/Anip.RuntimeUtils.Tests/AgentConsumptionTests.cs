@@ -81,6 +81,24 @@ public class AgentConsumptionTests
         }
     }
 
+    /// <summary>SPEC.md §4.1: an input spec that does not state <c>required</c> is required.</summary>
+    [Fact]
+    public void InputSpecWithoutRequired_IsRequired()
+    {
+        using var metadata = JsonDocument.Parse("""
+            {"input_specs": [
+              {"name": "ticket_ref", "type": "string"},
+              {"name": "priority_ref", "type": "string", "required": true},
+              {"name": "note_ref", "type": "string", "required": false},
+              {"name": "queue_ref", "type": "string", "required": null}
+            ]}
+            """);
+
+        var missing = AgentConsumption.MissingRequiredInputNames("hello", metadata.RootElement);
+
+        Assert.Equal(new[] { "priority_ref", "queue_ref", "ticket_ref" }, missing.Order().ToArray());
+    }
+
     private static string[] SortedStrings(JsonElement value)
     {
         return value.EnumerateArray().Select(item => item.GetString()!).Order().ToArray();

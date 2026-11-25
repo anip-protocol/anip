@@ -2,7 +2,6 @@ package restapi
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,7 +51,7 @@ func handleGinRESTRoute(c *gin.Context, svc *service.Service, route RESTRoute) {
 	authHeader := c.GetHeader("Authorization")
 	bearer := httputil.ExtractBearer(authHeader)
 	if bearer == "" {
-		c.JSON(401, map[string]any{
+		c.JSON(core.FailureStatusCode(core.FailureAuthRequired), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureAuthRequired,
@@ -75,7 +74,7 @@ func handleGinRESTRoute(c *gin.Context, svc *service.Service, route RESTRoute) {
 			c.JSON(status, body)
 			return
 		}
-		c.JSON(500, map[string]any{
+		c.JSON(core.FailureStatusCode(core.FailureInternalError), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureInternalError,
@@ -98,14 +97,8 @@ func handleGinRESTRoute(c *gin.Context, svc *service.Service, route RESTRoute) {
 	} else {
 		var body map[string]any
 		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(400, map[string]any{
-				"success": false,
-				"failure": map[string]any{
-					"type":   "invalid_parameters",
-					"detail": "Invalid JSON body",
-					"retry":  false,
-				},
-			})
+			status, failureBody := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "Invalid JSON body", nil)
+			c.JSON(status, failureBody)
 			return
 		}
 		// Accept both {parameters: {...}} and flat body
@@ -122,7 +115,7 @@ func handleGinRESTRoute(c *gin.Context, svc *service.Service, route RESTRoute) {
 		ClientReferenceID: clientReferenceID,
 	})
 	if err != nil {
-		c.JSON(500, map[string]any{
+		c.JSON(core.FailureStatusCode(core.FailureInternalError), map[string]any{
 			"success": false,
 			"failure": map[string]any{
 				"type":   core.FailureInternalError,
@@ -154,24 +147,7 @@ func convertGinQueryParams(c *gin.Context, decl core.CapabilityDeclaration) map[
 		if value == "" {
 			continue
 		}
-		switch inp.Type {
-		case "integer":
-			if v, err := strconv.Atoi(value); err == nil {
-				result[inp.Name] = v
-			} else {
-				result[inp.Name] = value
-			}
-		case "number":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				result[inp.Name] = v
-			} else {
-				result[inp.Name] = value
-			}
-		case "boolean":
-			result[inp.Name] = value == "true"
-		default:
-			result[inp.Name] = value
-		}
+		result[inp.Name] = convertQueryValue(value, inp.Type)
 	}
 	return result
 }

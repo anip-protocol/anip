@@ -11,6 +11,7 @@ import dev.anip.rest.RestRouter;
 import dev.anip.rest.RouteOverride;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
+import dev.anip.service.JsonRequestBody;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -104,20 +105,20 @@ public class AnipRestResource {
 
     @POST
     @Path("/api/{capability}")
-    @Consumes(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
     public Response handlePost(@PathParam("capability") String capability,
                                 @HeaderParam("Authorization") String authHeader,
                                 @HeaderParam("X-Client-Reference-Id") String clientRefId,
                                 @HeaderParam("X-Anip-Approval-Grant") String approvalGrant,
-                                Map<String, Object> body) {
-        return handleRoute(capability, "POST", body, null, authHeader, clientRefId, approvalGrant);
+                                byte[] rawBody) {
+        return handleRoute(capability, "POST", rawBody, null, authHeader, clientRefId, approvalGrant);
     }
 
     // --- Internal ---
 
     private Response handleRoute(String capability, String method,
-                                  Map<String, Object> body,
+                                  byte[] rawBody,
                                   Map<String, String[]> queryParams,
                                   String authHeader, String clientRefId,
                                   String approvalGrant) {
@@ -158,11 +159,19 @@ public class AnipRestResource {
                     "Authentication failed", false);
         }
 
-        // Extract parameters.
+        // Extract parameters. The body is read after the credential check; a
+        // body that is not a JSON object is invalid_parameters (SPEC.md §6.3).
+        Map<String, Object> body = null;
         Map<String, Object> params;
         if ("GET".equals(method)) {
             params = RestRouter.convertQueryParams(queryParams, route.getDeclaration());
         } else {
+            try {
+                body = JsonRequestBody.readObject(rawBody);
+                JsonRequestBody.parametersOf(capability, body);
+            } catch (ANIPError e) {
+                return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
+            }
             params = RestRouter.extractBodyParams(body);
         }
 
@@ -177,7 +186,7 @@ public class AnipRestResource {
         // v0.23: REST adapter wraps the entire body as capability parameters,
         // so approval_grant rides on X-Anip-Approval-Grant. session_id for
         // session_bound grants is read from the signed token, never the header.
-        if (approvalGrant != null && !approvalGrant.isEmpty()) {
+        if (approvalGrant != null) {
             opts.setApprovalGrant(approvalGrant);
         }
 
@@ -214,6 +223,26 @@ public class AnipRestResource {
             return authHeader.substring(7).trim();
         }
         return null;
+    }
+
+    private Response failureResponse(int status, ANIPError e) {
+        Map<String, Object> failure = new LinkedHashMap<>();
+        failure.put("type", e.getErrorType());
+        failure.put("detail", e.getDetail());
+        if (e.getResolution() != null) {
+            Map<String, Object> resolution = new LinkedHashMap<>();
+            resolution.put("action", e.getResolution().getAction());
+            resolution.put("recovery_class", e.getResolution().getRecoveryClass() != null
+                    ? e.getResolution().getRecoveryClass()
+                    : Constants.recoveryClassForAction(e.getResolution().getAction()));
+            failure.put("resolution", resolution);
+        }
+        failure.put("retry", e.isRetry());
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", false);
+        resp.put("failure", failure);
+        return Response.status(status).entity(resp).type(MediaType.APPLICATION_JSON_TYPE).build();
     }
 
     private Response failureResponse(int status, String type,

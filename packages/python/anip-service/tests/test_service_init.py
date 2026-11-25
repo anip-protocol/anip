@@ -234,7 +234,8 @@ class TestANIPServiceInvoke:
                     CapabilityInput(
                         name="objective",
                         type="string",
-                        required=True,
+                        # A default belongs to an optional input (SPEC.md §4.1).
+                        required=False,
                         default="first_touch",
                         allowed_values=["first_touch", "follow_up"],
                         description="Objective",

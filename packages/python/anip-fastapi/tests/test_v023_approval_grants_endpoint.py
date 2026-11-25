@@ -119,6 +119,7 @@ def _trigger_approval(client: TestClient, token: str) -> str:
     )
     body = r.json()
     assert "approval_required" in body.get("failure", {}), f"unexpected response: {body}"
+    assert r.status_code == 400
     return body["failure"]["approval_required"]["approval_request_id"]
 
 
@@ -221,6 +222,24 @@ class TestApprovalGrantsEndpoint:
         )
         body = r.json()
         assert body["failure"]["type"] == "approval_request_already_decided"
+        # A decided request is a state conflict (SPEC.md §6.3 HTTP Status Codes).
+        assert r.status_code == 409
+
+    def test_approval_request_expired_is_a_conflict(self, client):
+        c, svc = client
+        token = _issue_token(c, scope=["finance.write"])
+        request_id = _trigger_approval(c, token)
+        svc._storage._approval_requests[request_id]["expires_at"] = "2000-01-01T00:00:00+00:00"
+        approver_token = _issue_token(c, scope=["finance.write", "approver:*"])
+
+        r = c.post(
+            "/anip/approval_grants",
+            json={"approval_request_id": request_id, "grant_type": "one_time"},
+            headers={"Authorization": f"Bearer {approver_token}"},
+        )
+
+        assert r.json()["failure"]["type"] == "approval_request_expired"
+        assert r.status_code == 409
 
     def test_invalid_body_returns_400(self, client):
         c, _ = client
@@ -228,6 +247,74 @@ class TestApprovalGrantsEndpoint:
         r = c.post(
             "/anip/approval_grants",
             json={"approval_request_id": "apr_x"},  # missing grant_type
+            headers={"Authorization": f"Bearer {approver_token}"},
+        )
+        assert r.status_code == 400
+        assert r.json()["failure"]["type"] == "invalid_parameters"
+
+    def test_decided_state_is_checked_before_approver_authority(self, client):
+        """SPEC.md §4.9 step 4 precedes step 5: a caller without approver
+        scope asking about a decided request is told it is decided."""
+        c, _ = client
+        token = _issue_token(c, scope=["finance.write"])
+        request_id = _trigger_approval(c, token)
+        approver_token = _issue_token(c, scope=["finance.write", "approver:*"])
+        first = c.post(
+            "/anip/approval_grants",
+            json={"approval_request_id": request_id, "grant_type": "one_time"},
+            headers={"Authorization": f"Bearer {approver_token}"},
+        )
+        assert first.status_code == 200, first.text
+
+        r = c.post(
+            "/anip/approval_grants",
+            json={"approval_request_id": request_id, "grant_type": "one_time"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 409
+        assert r.json()["failure"]["type"] == "approval_request_already_decided"
+
+    @pytest.mark.parametrize("extra", [
+        {"grant_type": "session_bound"},
+        {"grant_type": "one_time", "session_id": "sess-1"},
+        {"grant_type": "one_time", "max_uses": 2},
+        {"grant_type": "one_time", "expires_in_seconds": 0},
+        {"grant_type": "one_time", "max_uses": 0},
+        {"grant_type": "one_time", "expires_in_seconds": "60"},
+        {"grant_type": "forever"},
+    ])
+    def test_body_outside_the_schema_is_invalid_parameters(self, client, extra):
+        """SPEC.md §4.9 step 2: a body that does not match the
+        IssueApprovalGrantRequest schema is refused before the request is
+        loaded, and the request stays pending."""
+        c, _ = client
+        token = _issue_token(c, scope=["finance.write"])
+        request_id = _trigger_approval(c, token)
+        approver_token = _issue_token(c, scope=["finance.write", "approver:*"])
+        headers = {"Authorization": f"Bearer {approver_token}"}
+
+        r = c.post(
+            "/anip/approval_grants",
+            json={"approval_request_id": request_id, **extra},
+            headers=headers,
+        )
+        assert r.status_code == 400
+        assert r.json()["failure"]["type"] == "invalid_parameters"
+        assert "grant_id" not in r.json()
+
+        ok = c.post(
+            "/anip/approval_grants",
+            json={"approval_request_id": request_id, "grant_type": "one_time"},
+            headers=headers,
+        )
+        assert ok.status_code == 200, ok.text
+
+    def test_non_object_body_is_invalid_parameters(self, client):
+        c, _ = client
+        approver_token = _issue_token(c, scope=["finance.write", "approver:*"])
+        r = c.post(
+            "/anip/approval_grants",
+            json=["apr_x", "one_time"],
             headers={"Authorization": f"Bearer {approver_token}"},
         )
         assert r.status_code == 400

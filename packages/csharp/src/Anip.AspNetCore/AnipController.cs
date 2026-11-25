@@ -19,6 +19,14 @@ public class AnipController : ControllerBase
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    // A typed request body is decoded the way the framework's [FromBody]
+    // binding decodes it: member names are matched case-insensitively.
+    private static readonly JsonSerializerOptions s_requestOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly AnipService _service;
     private readonly bool _healthEnabled;
 
@@ -60,7 +68,7 @@ public class AnipController : ControllerBase
     // --- 4. Token issuance (bootstrap credential, or a delegation token for delegating) ---
 
     [HttpPost("/anip/tokens")]
-    public IActionResult IssueToken([FromBody] TokenRequest request)
+    public async Task<IActionResult> IssueToken()
     {
         var bearer = ExtractBearer();
         if (string.IsNullOrEmpty(bearer))
@@ -72,8 +80,29 @@ public class AnipController : ControllerBase
         var issuer = _service.AuthenticateIssuer(bearer);
         if (issuer == null)
         {
-            return FailureResponse(401, Constants.FailureInvalidToken,
-                "Bearer value is neither the bootstrap credential nor a delegation token issued by this service", true);
+            // SPEC.md §6.3 Token Issuance: an unrecognised credential is
+            // authentication_required, like no credential at all.
+            return AuthRequiredResponse(
+                "A bootstrap credential, or a delegation token issued by this service, is required to issue delegation tokens");
+        }
+
+        // The body is read here, after the credential check, so that a body
+        // that is not a token request is an ANIP failure (SPEC.md §6.3) and
+        // a missing credential is still 401.
+        TokenRequest? request;
+        try
+        {
+            request = await JsonSerializer.DeserializeAsync<TokenRequest>(Request.Body, s_requestOptions);
+        }
+        catch
+        {
+            return FailureResponse(Constants.FailureInvalidParameters,
+                "request body must be a JSON token request", false);
+        }
+        if (request == null)
+        {
+            return FailureResponse(Constants.FailureInvalidParameters,
+                "request body must be a JSON token request", false);
         }
 
         try
@@ -88,7 +117,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "Token issuance failed", false);
         }
     }
@@ -121,11 +150,30 @@ public class AnipController : ControllerBase
         }
         catch
         {
-            return FailureResponse(400, Constants.FailureInternalError,
-                "Invalid request body", false);
+            // SPEC.md §6.3: a request body that is not JSON is invalid_parameters.
+            return FailureResponse(Constants.FailureInvalidParameters,
+                "request body must be a JSON object", false);
         }
 
         body ??= new Dictionary<string, object?>();
+
+        // SPEC.md §6.3: a "parameters" value that is neither an object nor
+        // null does not match the request schema.
+        if (body.TryGetValue("parameters", out var rawParameters) &&
+            rawParameters is JsonElement rawParametersElement &&
+            rawParametersElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined))
+        {
+            var shapeFailure = ParameterValidation.Failure(
+                $"{capability} parameters must be an object, got {ParameterValidation.JsonTypeOf(rawParametersElement)}");
+            return new ObjectResult(new Dictionary<string, object?>
+            {
+                ["success"] = false,
+                ["failure"] = shapeFailure,
+            })
+            {
+                StatusCode = Constants.FailureStatusCode(Constants.FailureInvalidParameters),
+            };
+        }
 
         // Extract parameters: prefer "parameters" wrapper, fall back to body itself.
         Dictionary<string, object?> parameters;
@@ -225,14 +273,7 @@ public class AnipController : ControllerBase
         string? approvalGrant = null;
         if (body.TryGetValue("approval_grant", out var agObj))
         {
-            if (agObj is JsonElement agEl && agEl.ValueKind == JsonValueKind.String)
-            {
-                approvalGrant = agEl.GetString();
-            }
-            else if (agObj is string agStr)
-            {
-                approvalGrant = agStr;
-            }
+            approvalGrant = InvokeOpts.ApprovalGrantFromRequest(agObj);
         }
 
         var requestedEffects = ExtractStringList(body, "requested_effects");
@@ -268,7 +309,7 @@ public class AnipController : ControllerBase
                 return StatusCode(statusCode, result);
             }
 
-            return StatusCode(400, result);
+            return StatusCode(Constants.FailureStatusCode(null), result);
         }
 
         return Ok(result);
@@ -301,46 +342,54 @@ public class AnipController : ControllerBase
         }
         catch
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "request body must be JSON", false);
         }
         if (body == null)
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "request body must be JSON", false);
         }
 
         // Schema validation.
         if (string.IsNullOrEmpty(body.ApprovalRequestId))
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "approval_request_id: required", false);
         }
         if (body.GrantType != ApprovalGrant.TypeOneTime && body.GrantType != ApprovalGrant.TypeSessionBound)
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "grant_type: must be one_time or session_bound", false);
         }
         if (body.GrantType == ApprovalGrant.TypeSessionBound &&
             string.IsNullOrEmpty(body.SessionId))
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "session_id: required when grant_type=session_bound", false);
         }
         if (body.GrantType == ApprovalGrant.TypeOneTime && !string.IsNullOrEmpty(body.SessionId))
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "session_id: must not be set when grant_type=one_time", false);
         }
         if (body.ExpiresInSeconds.HasValue && body.ExpiresInSeconds.Value < 1)
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "expires_in_seconds: must be a positive integer", false);
         }
         if (body.MaxUses.HasValue && body.MaxUses.Value < 1)
         {
-            return FailureResponse(400, Constants.FailureInvalidParameters,
+            return FailureResponse(Constants.FailureInvalidParameters,
                 "max_uses: must be a positive integer", false);
+        }
+        // Schema: a one_time grant allows max_uses 1 only. Asking for more
+        // is refused, not silently lowered.
+        if (body.GrantType == ApprovalGrant.TypeOneTime &&
+            body.MaxUses.HasValue && body.MaxUses.Value != 1)
+        {
+            return FailureResponse(Constants.FailureInvalidParameters,
+                "max_uses: must be 1 or omitted when grant_type=one_time", false);
         }
 
         ApprovalRequest? req;
@@ -350,12 +399,12 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "lookup failed", false);
         }
         if (req == null)
         {
-            return FailureResponse(404, Constants.FailureApprovalRequestNotFound,
+            return FailureResponse(Constants.FailureApprovalRequestNotFound,
                 $"approval_request_id '{body.ApprovalRequestId}' not found", false);
         }
 
@@ -363,13 +412,13 @@ public class AnipController : ControllerBase
         var nowIso = DateTime.UtcNow.ToString("o");
         if (req.Status != ApprovalRequest.StatusPending)
         {
-            return FailureResponse(409, Constants.FailureApprovalRequestAlreadyDecided,
+            return FailureResponse(Constants.FailureApprovalRequestAlreadyDecided,
                 $"approval_request '{body.ApprovalRequestId}' status={req.Status}", false);
         }
         if (!string.IsNullOrEmpty(req.ExpiresAt) &&
             string.CompareOrdinal(req.ExpiresAt, nowIso) <= 0)
         {
-            return FailureResponse(409, Constants.FailureApprovalRequestExpired,
+            return FailureResponse(Constants.FailureApprovalRequestExpired,
                 $"approval_request '{body.ApprovalRequestId}' expired", false);
         }
 
@@ -382,7 +431,7 @@ public class AnipController : ControllerBase
         }
         if (!authorized)
         {
-            return FailureResponse(403, Constants.FailureApproverNotAuthorized,
+            return FailureResponse(Constants.FailureApproverNotAuthorized,
                 $"token lacks approver:{req.Capability} scope", false);
         }
 
@@ -407,7 +456,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception e)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "issuance failed: " + e.Message, false);
         }
     }
@@ -500,7 +549,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "Audit query failed", false);
         }
     }
@@ -513,7 +562,7 @@ public class AnipController : ControllerBase
         var graph = _service.GetCapabilityGraph(capability);
         if (graph == null)
         {
-            return FailureResponse(404, Constants.FailureNotFound,
+            return FailureResponse(Constants.FailureNotFound,
                 $"Capability '{capability}' not found", false);
         }
         return Ok(graph);
@@ -531,7 +580,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "Failed to list checkpoints", false);
         }
     }
@@ -556,7 +605,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
+            return FailureResponse(Constants.FailureInternalError,
                 "Failed to get checkpoint", false);
         }
     }
@@ -602,6 +651,12 @@ public class AnipController : ControllerBase
                 RequestedEffects = requestedEffects ?? new(),
             };
             sr = _service.InvokeStream(capability, token, parameters, opts);
+        }
+        catch (InvocationRefusedError refused)
+        {
+            // Refused before the handler: the response a unary invocation
+            // returns (failure, invocation_id, lineage), with the mapped status.
+            return StatusCode(Constants.FailureStatusCode(refused.ErrorType), refused.Response);
         }
         catch (AnipError e)
         {
@@ -668,7 +723,7 @@ public class AnipController : ControllerBase
         }
         catch (Exception)
         {
-            return (null, FailureResponse(401, Constants.FailureInvalidToken,
+            return (null, FailureResponse(Constants.FailureInvalidToken,
                 "Invalid bearer token", false));
         }
     }
@@ -688,12 +743,12 @@ public class AnipController : ControllerBase
         return $"{scheme}://{Request.Host}";
     }
 
-    private ObjectResult AuthRequiredResponse()
+    private ObjectResult AuthRequiredResponse(string detail = "Authorization header with Bearer token required")
     {
         var failure = new Dictionary<string, object?>
         {
             ["type"] = Constants.FailureAuthRequired,
-            ["detail"] = "Authorization header with Bearer token required",
+            ["detail"] = detail,
             ["resolution"] = new Dictionary<string, object?>
             {
                 ["action"] = "provide_credentials",
@@ -709,11 +764,13 @@ public class AnipController : ControllerBase
             ["failure"] = failure,
         };
 
-        return StatusCode(401, body);
+        return StatusCode(Constants.FailureStatusCode(Constants.FailureAuthRequired), body);
     }
 
-    private ObjectResult FailureResponse(int statusCode, string type, string detail, bool retry)
+    /// <summary>A failure the binding raises itself, with the status the table gives its type.</summary>
+    private ObjectResult FailureResponse(string type, string detail, bool retry)
     {
+        var statusCode = Constants.FailureStatusCode(type);
         var failure = new Dictionary<string, object?>
         {
             ["type"] = type,
@@ -790,6 +847,18 @@ public class AnipController : ControllerBase
         {
             ["action"] = "request_budget_increase",
             ["recovery_class"] = Constants.RecoveryClassForAction("request_budget_increase"),
+        },
+        // The caller corrects the request and sends a new one (SPEC.md §6.3).
+        Constants.FailureInvalidParameters => new Dictionary<string, object?>
+        {
+            ["action"] = "retry_now",
+            ["recovery_class"] = Constants.RecoveryClassForAction("retry_now"),
+        },
+        // The manifest says which response modes a capability supports.
+        Constants.FailureStreamingNotSupported => new Dictionary<string, object?>
+        {
+            ["action"] = "check_manifest",
+            ["recovery_class"] = Constants.RecoveryClassForAction("check_manifest"),
         },
         _ => new Dictionary<string, object?>
         {

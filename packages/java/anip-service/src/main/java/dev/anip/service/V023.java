@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>composition validation (registration time)</li>
  *   <li>composition execution (sequential steps + empty/failure policies)</li>
- *   <li>SHA-256 digests over canonical JSON</li>
+ *   <li>SHA-256 digests over RFC 8785 canonical JSON ({@link CanonicalJson})</li>
  *   <li>approval grant signing/verification (detached JWS over canonical
  *       grant payload, byte-for-byte identical to the other runtimes)</li>
  *   <li>continuation grant validation (Phase A read-side)</li>
@@ -115,12 +115,27 @@ public final class V023 {
     // -----------------------------------------------------------------------
 
     /**
-     * Serializes a value with recursively sorted keys, no whitespace. Matches
-     * Python's {@code json.dumps(value, sort_keys=True, separators=(",", ":"))}
-     * byte-for-byte and TS / Go canonicalJson — load-bearing for cross-runtime
-     * grant verification.
+     * Canonical JSON for approval digests: the JSON Canonicalization Scheme,
+     * RFC 8785 (SPEC.md §4.7). Object members are sorted by the UTF-16 code
+     * units of their names, strings escape only what the RFC requires, and
+     * every number is written as the IEEE 754 double it denotes, the way
+     * ECMAScript's {@code Number.prototype.toString} writes it, so {@code 5},
+     * {@code 5.0} and {@code 5e0} are the same text.
+     *
+     * @throws IllegalArgumentException when the value holds a number that is
+     *         not finite as a double
      */
     public static String canonicalJson(Object value) {
+        return CanonicalJson.canonicalize(value);
+    }
+
+    /**
+     * The serialization the approval grant signature is computed over
+     * (recursively sorted keys, no whitespace, Jackson's string and number
+     * encoding). It is not the digest canonicalisation above and is kept
+     * as it was, so a stored grant verifies unchanged.
+     */
+    private static String signingCanonicalJson(Object value) {
         Object normalised;
         try {
             normalised = MAPPER.readValue(MAPPER.writeValueAsString(value), Object.class);
@@ -183,7 +198,6 @@ public final class V023 {
                 }
                 sb.append(':');
                 canonicalEncode(sb, e.getValue());
-                first = true ? false : false;
                 first = false;
             }
             sb.append('}');
@@ -217,7 +231,7 @@ public final class V023 {
         return n.toString();
     }
 
-    /** SHA-256 over canonical JSON, returns "sha256:<hex>". */
+    /** SHA-256 over the UTF-8 bytes of {@link #canonicalJson}, returns "sha256:<hex>". */
     public static String sha256Digest(Object value) {
         byte[] payload = canonicalJson(value).getBytes(StandardCharsets.UTF_8);
         try {
@@ -645,9 +659,9 @@ public final class V023 {
                 if ("signature".equals(k) || "use_count".equals(k)) continue;
                 m.put(k, e.getValue());
             }
-            return canonicalJson(m).getBytes(StandardCharsets.UTF_8);
+            return signingCanonicalJson(m).getBytes(StandardCharsets.UTF_8);
         }
-        return canonicalJson(tree).getBytes(StandardCharsets.UTF_8);
+        return signingCanonicalJson(tree).getBytes(StandardCharsets.UTF_8);
     }
 
     /** SPEC.md §4.8: every grant scope element must appear in the token's scope. */
@@ -770,6 +784,7 @@ public final class V023 {
             String grantId, String capability,
             Map<String, Object> parameters,
             List<String> tokenScope, String tokenSessionId,
+            String tokenRootPrincipal,
             String nowIso) throws Exception {
         Optional<ApprovalGrant> opt = storage.getGrant(grantId);
         if (opt.isEmpty()) return ContinuationValidation.fail(Constants.FAILURE_GRANT_NOT_FOUND);
@@ -782,6 +797,13 @@ public final class V023 {
         }
         if (!capability.equals(grant.getCapability())) {
             return ContinuationValidation.fail(Constants.FAILURE_GRANT_CAPABILITY_MISMATCH);
+        }
+        // §4.8 Phase A: only tokens of the requester's root principal may redeem.
+        Object requesterRoot = grant.getRequester() != null
+                ? grant.getRequester().get("root_principal") : null;
+        if (!(requesterRoot instanceof String root) || root.isEmpty()
+                || !root.equals(tokenRootPrincipal)) {
+            return ContinuationValidation.fail(Constants.FAILURE_GRANT_REQUESTER_MISMATCH);
         }
         if (!grantScopeSubsetOfToken(
                 grant.getScope() != null ? grant.getScope() : List.of(),

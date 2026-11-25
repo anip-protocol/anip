@@ -170,3 +170,179 @@ describe("Lifecycle", () => {
     await shutdown();
   });
 });
+
+// SPEC.md §6.3 "Parameter Validation" through the GraphQL adapter. The schema
+// marks a required input non-null, so GraphQL itself refuses a query that
+// leaves one out; a value that the schema lets through (the JSON scalar of an
+// `object` or `array` input) is checked by the service and comes back in the
+// adapter's failure shape.
+describe("GraphQL parameter validation", () => {
+  async function makeValidationApp() {
+    const calls: string[] = [];
+    const service = createANIPService({
+      serviceId: "test-graphql-validation",
+      capabilities: [
+        defineCapability({
+          declaration: {
+            name: "price_quote",
+            description: "Price a quote",
+            contract_version: "1.0",
+            inputs: [
+              { name: "quote", type: "object", required: true, description: "The quote" },
+              { name: "tags", type: "array", required: false, description: "Tags" },
+            ],
+            output: { type: "object", fields: ["ok"] },
+            side_effect: { type: "read", rollback_window: "not_applicable" },
+            minimum_scope: ["quote"],
+            response_modes: ["unary"],
+          } as CapabilityDeclaration,
+          handler: () => {
+            calls.push("price_quote");
+            return { ok: true };
+          },
+        }),
+      ],
+      storage: new InMemoryStorage(),
+      authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+    });
+    const app = new Hono();
+    const { shutdown } = await mountAnip(app, service);
+    await mountAnipGraphQL(app, service);
+    return { app, shutdown, calls };
+  }
+
+  const SELECTION = "{ success result failure { type detail retry resolution { action recoveryClass requires } } }";
+
+  async function run(app: Hono, query: string, variables?: Record<string, unknown>) {
+    const res = await app.request("/graphql", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    expect(res.status).toBe(200);
+    return res.json();
+  }
+
+  it("a valid call reaches the handler", async () => {
+    const { app, shutdown, calls } = await makeValidationApp();
+    const data = await run(app, `query($q: JSON!) { priceQuote(quote: $q) ${SELECTION} }`, { q: { id: "q1" } });
+    expect(data.errors).toBeUndefined();
+    expect(data.data.priceQuote.success).toBe(true);
+    expect(calls).toEqual(["price_quote"]);
+    await shutdown();
+  });
+
+  it("a value of the wrong JSON type is an invalid_parameters failure in the result", async () => {
+    const { app, shutdown, calls } = await makeValidationApp();
+    const data = await run(
+      app,
+      `query($q: JSON!, $t: JSON) { priceQuote(quote: $q, tags: $t) ${SELECTION} }`,
+      { q: "not-an-object", t: { not: "an array" } },
+    );
+    expect(data.errors).toBeUndefined();
+    expect(data.data.priceQuote.success).toBe(false);
+    expect(data.data.priceQuote.result).toBeNull();
+    expect(data.data.priceQuote.failure).toEqual({
+      type: "invalid_parameters",
+      detail: "price_quote has invalid input(s): 'quote' must be object, got string; 'tags' must be array, got object",
+      retry: false,
+      resolution: {
+        action: "retry_now",
+        recoveryClass: "retry_now",
+        requires: "parameters that match the capability's declared inputs",
+      },
+    });
+    expect(calls).toEqual([]);
+    await shutdown();
+  });
+
+  it("a required input passed as null through a variable is refused before the handler", async () => {
+    const { app, shutdown, calls } = await makeValidationApp();
+    // GraphQL refuses null for a non-null argument itself.
+    const data = await run(app, `query($q: JSON!) { priceQuote(quote: $q) ${SELECTION} }`, { q: null });
+    expect(data.errors).toBeDefined();
+    expect(calls).toEqual([]);
+    await shutdown();
+  });
+
+  it("a query that leaves out a required input is refused by the schema", async () => {
+    const { app, shutdown, calls } = await makeValidationApp();
+    const data = await run(app, `{ priceQuote ${SELECTION} }`);
+    expect(data.errors).toBeDefined();
+    expect(String(data.errors[0].message)).toContain("quote");
+    expect(calls).toEqual([]);
+    await shutdown();
+  });
+});
+
+// SPEC.md §4.10: a required input that sets resolution.on_missing is answered
+// by the service, so the schema must not make its argument non-null.
+describe("GraphQL inputs that declare resolution.on_missing", () => {
+  function clarifyDeclaration() {
+    return {
+      name: "list_orders",
+      description: "List orders",
+      contract_version: "1.0",
+      inputs: [
+        { name: "status", type: "string", required: true, description: "Order status" },
+        {
+          name: "region", type: "string", required: true, description: "Region",
+          resolution: { mode: "clarify", on_missing: "clarify" },
+        },
+        {
+          name: "channel", type: "string", required: true, description: "Channel",
+          resolution: { mode: "clarify" },
+        },
+      ],
+      output: { type: "object", fields: ["orders"] },
+      side_effect: { type: "read", rollback_window: "not_applicable" },
+      minimum_scope: ["orders"],
+      response_modes: ["unary"],
+    } as unknown as CapabilityDeclaration;
+  }
+
+  it("are nullable arguments in the schema", () => {
+    const sdl = generateSchema({ list_orders: clarifyDeclaration() as unknown as Record<string, unknown> });
+    expect(sdl).toContain("listOrders(status: String!, region: String, channel: String!): ListOrdersResult!");
+  });
+
+  it("reach the handler when the query leaves them out", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const service = createANIPService({
+      serviceId: "test-graphql-on-missing",
+      capabilities: [
+        defineCapability({
+          declaration: clarifyDeclaration(),
+          handler: (_ctx, params) => {
+            calls.push({ ...params });
+            return { orders: [] };
+          },
+        }),
+      ],
+      storage: new InMemoryStorage(),
+      authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+    });
+    const app = new Hono();
+    const { shutdown } = await mountAnip(app, service);
+    await mountAnipGraphQL(app, service);
+    const run = async (query: string) => {
+      const res = await app.request("/graphql", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      return res.json();
+    };
+
+    const ok = await run('{ listOrders(status: "open", channel: "web") { success failure { type detail } } }');
+    expect(ok.errors).toBeUndefined();
+    expect(ok.data.listOrders.success).toBe(true);
+    expect(calls).toEqual([{ status: "open", channel: "web" }]);
+
+    // `channel` declares a resolution without on_missing: the schema still demands it.
+    const refused = await run('{ listOrders(status: "open") { success } }');
+    expect(refused.errors).toBeDefined();
+    expect(calls).toHaveLength(1);
+    await shutdown();
+  });
+});

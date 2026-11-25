@@ -97,7 +97,10 @@ def _build_field_args(decl: CapabilityDeclaration) -> str:
     args = []
     for inp in decl.inputs:
         gql_type = _GQL_TYPE_MAP.get(inp.type, "String")
-        if inp.required:
+        # SPEC.md §4.10: an input that declares resolution.on_missing is left
+        # to the service when absent, so the argument stays nullable.
+        on_missing = inp.resolution.on_missing if inp.resolution else None
+        if inp.required and on_missing is None:
             gql_type += "!"
         args.append(f"{to_camel_case(inp.name)}: {gql_type}")
     return "(" + ", ".join(args) + ")"

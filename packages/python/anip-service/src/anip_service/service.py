@@ -9,6 +9,7 @@ import re
 import socket
 import time
 import uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Literal
 
@@ -34,9 +35,19 @@ from anip_core import (
 )
 
 
+# SPEC.md §4.5: every failure carries a resolution with a recovery_class.
+# A grant that failed validation or reservation cannot be repaired by the
+# caller; a fresh approval is needed.
+_GRANT_FAILURE_RESOLUTION = {
+    "action": "contact_service_owner",
+    "recovery_class": "terminal",
+}
+
+
 # ---------------------------------------------------------------------------
 # Budget / binding / control helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_iso8601_duration(duration_str: str) -> timedelta:
     """Parse an ISO 8601 duration string like PT15M, PT5M, PT1H30M, PT30S."""
@@ -118,6 +129,12 @@ from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .disclosure import resolve_disclosure_level
 from .hooks import ANIPHooks, HealthReport
+from .input_validation import (
+    INVALID_PARAMETERS_RESOLUTION,
+    check_declared_inputs,
+    invalid_parameters_failure,
+    json_type_of,
+)
 from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .storage_redaction import storage_redact_entry
@@ -1168,7 +1185,12 @@ class ANIPService:
 
         cap = self._capabilities[capability_name]
         decl = cap.declaration
-        params = _apply_declared_input_defaults(decl, params)
+        # SPEC.md §6.3: declared inputs are checked against the parameters as
+        # the caller sent them, so keep those before defaults are applied.
+        # Absent or null parameters count as an empty object.
+        caller_params: Any = {} if params is None else params
+        params = _apply_declared_input_defaults(
+            decl, caller_params if isinstance(caller_params, Mapping) else {})
 
         # Check streaming support
         if stream:
@@ -1260,6 +1282,60 @@ class ANIPService:
 
         # Use the resolved/stored token from validation
         resolved_token = validation_result
+
+        async def _refuse_invalid_parameters(
+            _invalid_detail: str,
+            _audit_budget_base: dict[str, Any] | None = None,
+            _audit_binding_base: dict[str, Any] | None = None,
+        ) -> dict[str, Any]:
+            """Refuse the invocation as invalid_parameters: audit, hooks, response."""
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, False, "invalid_parameters")
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
+            await self._safe_log_audit(
+                capability_name, resolved_token, success=False,
+                failure_type="invalid_parameters",
+                result_summary={"detail": _invalid_detail},
+                cost_actual=None, cost_variance=None,
+                invocation_id=invocation_id, client_reference_id=client_reference_id,
+                task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
+                budget_context=_audit_budget_base,
+                binding_context=_audit_binding_base,
+            )
+            _invalid_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._safe_hook(self._log_hooks.on_invocation_end, {
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": "invalid_parameters",
+                    "duration_ms": _invalid_duration_ms,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _invalid_duration_ms, "success": False})
+            return {
+                "success": False,
+                "failure": redact_failure(invalid_parameters_failure(_invalid_detail), effective_level),
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+                "task_id": effective_task_id,
+                "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
+            }
+
+        # SPEC.md §6.3: a `parameters` value that is neither an object nor
+        # null does not match the request schema. It is refused here, like a
+        # body that is not JSON, before budget and binding enforcement.
+        if not isinstance(caller_params, Mapping):
+            return await _refuse_invalid_parameters(
+                f"{capability_name} parameters must be an object, "
+                f"got {json_type_of(caller_params)}"
+            )
 
         # --- Budget, binding, and control requirement enforcement (v0.14) ---
 
@@ -1505,6 +1581,14 @@ class ANIPService:
                 "bindings_provided": [b.field for b in decl.requires_binding if b.field in params],
             }
 
+        # Parameter validation (SPEC.md §6.3): after delegation, budget,
+        # binding and control-requirement enforcement; before the exclusive
+        # lock, the approval grant, the handler and any composition child.
+        _invalid_detail = check_declared_inputs(capability_name, decl.inputs, caller_params)
+        if _invalid_detail is not None:
+            return await _refuse_invalid_parameters(
+                _invalid_detail, _audit_budget_base, _audit_binding_base)
+
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
         root_principal = await self._engine.get_root_principal(resolved_token)
@@ -1594,6 +1678,14 @@ class ANIPService:
                         utc_now_iso,
                         validate_continuation_grant,
                     )
+                    # A supplied approval_grant is always validated. One that
+                    # is not a non-blank string names no grant.
+                    if not isinstance(approval_grant, str) or not approval_grant.strip():
+                        raise ANIPError(
+                            FAILURE_GRANT_NOT_FOUND,
+                            f"approval_grant validation failed: {FAILURE_GRANT_NOT_FOUND}",
+                            resolution=dict(_GRANT_FAILURE_RESOLUTION),
+                        )
                     # SPEC.md §4.8 line 1035: session_id used for
                     # session_bound grant validation MUST come from the signed
                     # invocation token, never from caller-supplied input.
@@ -1604,21 +1696,25 @@ class ANIPService:
                         parameters=params,
                         token_scope=list(resolved_token.scope),
                         token_session_id=resolved_token.session_id,
+                        token_root_principal=root_principal,
                         key_manager=self._keys,
                         now_iso=utc_now_iso(),
                     )
                     if fail_type is not None:
-                        raise ANIPError(fail_type, f"approval_grant validation failed: {fail_type}")
+                        raise ANIPError(
+                            fail_type, f"approval_grant validation failed: {fail_type}",
+                            resolution=dict(_GRANT_FAILURE_RESOLUTION),
+                        )
                     reservation = await self._storage.try_reserve_grant(
                         approval_grant, utc_now_iso(),
                     )
                     if not reservation["ok"]:
                         reason = reservation["reason"]
                         if reason == "grant_consumed":
-                            raise ANIPError(FAILURE_GRANT_CONSUMED, "grant has reached max_uses")
+                            raise ANIPError(FAILURE_GRANT_CONSUMED, "grant has reached max_uses", resolution=dict(_GRANT_FAILURE_RESOLUTION))
                         if reason == "grant_expired":
-                            raise ANIPError(FAILURE_GRANT_EXPIRED, "grant has expired")
-                        raise ANIPError(FAILURE_GRANT_NOT_FOUND, "grant not found at reservation")
+                            raise ANIPError(FAILURE_GRANT_EXPIRED, "grant has expired", resolution=dict(_GRANT_FAILURE_RESOLUTION))
+                        raise ANIPError(FAILURE_GRANT_NOT_FOUND, "grant not found at reservation", resolution=dict(_GRANT_FAILURE_RESOLUTION))
                     _reserved_grant = reservation["grant"]
                     ctx.approval_grant_id = approval_grant
                     ctx.approval_grant = _reserved_grant
@@ -1694,7 +1790,7 @@ class ANIPService:
                                 parent_invocation_id=invocation_id,
                                 requester={
                                     "subject": resolved_token.subject,
-                                    "root_principal": resolved_token.root_principal,
+                                    "root_principal": root_principal,
                                 },
                                 parameters=params,
                                 preview=preview,
@@ -1787,6 +1883,11 @@ class ANIPService:
                 _fail_dict: dict[str, Any] = {"type": _effective_error_type, "detail": e.detail}
                 if e.resolution is not None and not _approval_persist_failed:
                     _fail_dict["resolution"] = e.resolution
+                if e.error_type == "invalid_parameters":
+                    # SPEC.md §6.3: the caller corrects the parameters and
+                    # sends a new request; the same request cannot succeed.
+                    _fail_dict.setdefault("resolution", dict(INVALID_PARAMETERS_RESOLUTION))
+                    _fail_dict["retry"] = False
                 if _approval_persist_failed:
                     _fail_dict["detail"] = (
                         f"approval flow unavailable: {_approval_persist_err}"
@@ -1797,6 +1898,8 @@ class ANIPService:
                     }
                 elif _materialized_approval is not None:
                     _fail_dict["approval_required"] = _materialized_approval
+                    # SPEC.md §4.7: the same request cannot succeed without a grant.
+                    _fail_dict["retry"] = False
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure(_fail_dict, effective_level),

@@ -16,6 +16,7 @@ import grpc  # noqa: E402
 from concurrent import futures  # noqa: E402
 
 from anip_service import ANIPService  # noqa: E402
+from anip_service.input_validation import invalid_parameters_failure  # noqa: E402
 from anip_service.types import ANIPError  # noqa: E402
 from anip_service.v023 import (  # noqa: E402
     FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
@@ -75,7 +76,29 @@ def _make_anip_error_failure(exc: ANIPError) -> anip_pb2.AnipFailure:
 
 
 def _simple_failure(failure_type: str, detail: str) -> anip_pb2.AnipFailure:
+    if failure_type == "invalid_parameters":
+        return _invalid_parameters(detail, requires="a request that matches the message schema")
     return anip_pb2.AnipFailure(type=failure_type, detail=detail)
+
+
+def _invalid_parameters(detail: str, *, requires: str | None = None) -> anip_pb2.AnipFailure:
+    """``invalid_parameters`` with its ``retry_now`` resolution (SPEC.md §6.3)."""
+    return _make_anip_failure(invalid_parameters_failure(detail, requires=requires))
+
+
+def _parse_parameters(parameters_json: str) -> tuple[dict[str, Any], anip_pb2.AnipFailure | None]:
+    """Decode ``parameters_json``. Empty means no parameters."""
+    if not parameters_json:
+        return {}, None
+    try:
+        parameters = json.loads(parameters_json)
+    except ValueError:
+        return {}, _invalid_parameters(
+            "parameters_json is not valid JSON", requires="parameters_json as a JSON object")
+    if parameters is not None and not isinstance(parameters, dict):
+        return {}, _invalid_parameters(
+            "parameters_json must be a JSON object", requires="parameters_json as a JSON object")
+    return parameters or {}, None
 
 
 def _validate_issue_approval_grant_request(request) -> anip_pb2.AnipFailure | None:
@@ -87,6 +110,8 @@ def _validate_issue_approval_grant_request(request) -> anip_pb2.AnipFailure | No
         return _simple_failure("invalid_parameters", "session_id: required when grant_type=session_bound")
     if request.grant_type == "one_time" and request.session_id:
         return _simple_failure("invalid_parameters", "session_id: must not be set when grant_type=one_time")
+    if request.grant_type == "one_time" and request.HasField("max_uses") and request.max_uses != 1:
+        return _simple_failure("invalid_parameters", "max_uses: must be 1 or omitted when grant_type=one_time")
     if request.HasField("expires_in_seconds") and request.expires_in_seconds < 1:
         return _simple_failure("invalid_parameters", "expires_in_seconds: must be a positive integer")
     if request.HasField("max_uses") and request.max_uses < 1:
@@ -248,11 +273,20 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         token = self._resolve_jwt(context)
 
         capability = request.capability
-        parameters = json.loads(request.parameters_json) if request.parameters_json else {}
+        parameters, malformed = _parse_parameters(request.parameters_json)
         client_reference_id = request.client_reference_id or None
         task_id = request.task_id or None
         parent_invocation_id = request.parent_invocation_id or None
         upstream_service = request.upstream_service or None
+        if malformed is not None:
+            return anip_pb2.InvokeResponse(
+                success=False,
+                client_reference_id=client_reference_id or "",
+                failure=malformed,
+                task_id=request.task_id or "",
+                parent_invocation_id=request.parent_invocation_id or "",
+                upstream_service=request.upstream_service or "",
+            )
 
         try:
             result = _run_async(self._service.invoke(
@@ -315,11 +349,23 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         token = self._resolve_jwt(context)
 
         capability = request.capability
-        parameters = json.loads(request.parameters_json) if request.parameters_json else {}
+        parameters, malformed = _parse_parameters(request.parameters_json)
         client_reference_id = request.client_reference_id or None
         task_id = request.task_id or None
         parent_invocation_id = request.parent_invocation_id or None
         upstream_service = request.upstream_service or None
+        if malformed is not None:
+            yield anip_pb2.InvokeEvent(
+                failed=anip_pb2.FailedEvent(
+                    invocation_id="",
+                    client_reference_id=client_reference_id or "",
+                    failure=malformed,
+                    task_id=task_id or "",
+                    parent_invocation_id=parent_invocation_id or "",
+                    upstream_service=upstream_service or "",
+                ),
+            )
+            return
 
         # Collect progress events, then yield them followed by the final event
         progress_events: list[dict[str, Any]] = []

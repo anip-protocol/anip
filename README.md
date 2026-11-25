@@ -354,7 +354,7 @@ ANIP is under active development. The spec is at v0.24 with input resolution met
 - The `attested` trust level is specified but not implemented in any runtime.
 - No runtime ships a qualifying external sink for checkpoints (`witness:` or `https:`), so a service that claims `anchored` trust has to supply its own. Go, Java and C# have no sink support.
 - Consistency proofs exist in Python, TypeScript and Go only.
-- The conformance suite does not yet cover approvals, streaming, audit aggregation or redaction.
+- The conformance suite does not yet cover streaming event delivery, audit aggregation or redaction.
 - Two security advisories were published in November 2026, both found by our own review: see [SECURITY.md](SECURITY.md).
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.

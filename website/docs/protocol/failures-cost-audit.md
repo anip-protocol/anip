@@ -46,7 +46,19 @@ When an ANIP invocation fails, the service returns a failure object the agent ca
 }
 ```
 
-Transport-level authentication failures can still be HTTP 401. Once the request reaches the ANIP invocation boundary, authorization, budget, purpose, approval, and capability failures should be returned as structured ANIP failure objects.
+Every failure is a structured ANIP failure object. Over HTTP, each failure type also has exactly one status, the same in every runtime and binding:
+
+| Status | Failure types |
+|--------|---------------|
+| 400 | `invalid_parameters`, `streaming_not_supported`, `approval_required`, `grant_not_found`, `grant_capability_mismatch`, `grant_scope_mismatch`, `grant_param_drift`, `grant_session_invalid`, `grant_type_not_allowed_by_policy`, and any type not listed here (including handler-defined types) |
+| 401 | `authentication_required`, `invalid_token`, `token_expired`, `token_not_registered` |
+| 403 | `scope_insufficient`, `insufficient_authority`, `purpose_mismatch`, `scope_escalation`, `constraint_escalation`, `broken_delegation_chain`, `delegation_depth_exceeded`, `parent_token_expired`, `budget_exceeded`, `budget_currency_mismatch`, `budget_not_enforceable`, `binding_missing`, `binding_stale`, `control_requirement_unsatisfied`, `approver_not_authorized`, `grant_requester_mismatch` |
+| 404 | `unknown_capability`, `not_found`, `approval_request_not_found` |
+| 409 | `grant_consumed`, `grant_expired`, `approval_request_already_decided`, `approval_request_expired`, `concurrent_lock`, `concurrent_request_rejected`, `unavailable` |
+| 500 | `internal_error` |
+| 503 | `service_unavailable` |
+
+A request body that is not JSON is `invalid_parameters` (400). The status is a convenience for HTTP tooling; agents should branch on `failure.type` and `failure.resolution`. The GraphQL binding answers 200 with the failure in the body, and the MCP binding reports a failure as a tool error.
 
 ### Failure Fields
 
@@ -164,6 +176,8 @@ The continuation invocation supplies the grant ID:
 ```
 
 The runtime validates the grant before executing: signature, expiry, capability binding, parameter digest, session binding when applicable, and use count. If the grant is reserved and the handler later fails, the grant remains consumed; the audit trail records the failed attempt.
+
+Digests are SHA-256 over canonical JSON as defined by [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JSON Canonicalization Scheme): keys sorted by UTF-16 code units, no insignificant whitespace, numbers written as ECMAScript writes them. Key order and number spelling on the wire therefore do not matter: a continuation that sends an approved `5` as `5.0` has the same digest, while `6` is `grant_param_drift`. Numbers are IEEE 754 doubles, so carry identifiers or amounts beyond ±2^53 as strings. Parameters are checked against the declared inputs before the grant is validated, so a continuation with invalid parameters is refused as `invalid_parameters` and does not spend the grant.
 
 ## Cost Signaling
 

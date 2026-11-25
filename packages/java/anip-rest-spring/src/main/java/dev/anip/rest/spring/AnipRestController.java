@@ -11,6 +11,7 @@ import dev.anip.rest.RestRouter;
 import dev.anip.rest.RouteOverride;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
+import dev.anip.service.JsonRequestBody;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -84,15 +85,15 @@ public class AnipRestController {
 
     @PostMapping(value = "/api/{capability}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Object> handlePost(@PathVariable String capability,
-                                              @RequestBody(required = false) Map<String, Object> body,
+                                              @RequestBody(required = false) byte[] rawBody,
                                               HttpServletRequest request) {
-        return handleRoute(capability, "POST", body, request);
+        return handleRoute(capability, "POST", rawBody, request);
     }
 
     // --- Internal ---
 
     private ResponseEntity<Object> handleRoute(String capability, String method,
-                                                Map<String, Object> body,
+                                                byte[] rawBody,
                                                 HttpServletRequest request) {
         // Find route.
         RestRoute route = RestRouter.findRoute(routes, capability);
@@ -132,11 +133,19 @@ public class AnipRestController {
                     "Authentication failed", false);
         }
 
-        // Extract parameters.
+        // Extract parameters. The body is read after the credential check; a
+        // body that is not a JSON object is invalid_parameters (SPEC.md §6.3).
+        Map<String, Object> body = null;
         Map<String, Object> params;
         if ("GET".equals(method)) {
             params = RestRouter.convertQueryParams(request.getParameterMap(), route.getDeclaration());
         } else {
+            try {
+                body = JsonRequestBody.readObject(rawBody);
+                JsonRequestBody.parametersOf(capability, body);
+            } catch (ANIPError e) {
+                return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
+            }
             params = RestRouter.extractBodyParams(body);
         }
 
@@ -154,7 +163,7 @@ public class AnipRestController {
         // Carry it via X-Anip-Approval-Grant header instead. session_id for
         // session_bound grants is read from the signed token, never the header.
         String approvalGrant = request.getHeader("X-Anip-Approval-Grant");
-        if (approvalGrant != null && !approvalGrant.isEmpty()) {
+        if (approvalGrant != null) {
             opts.setApprovalGrant(approvalGrant);
         }
 
@@ -191,6 +200,26 @@ public class AnipRestController {
             return authHeader.substring(7).trim();
         }
         return null;
+    }
+
+    private ResponseEntity<Object> failureResponse(int status, ANIPError e) {
+        Map<String, Object> failure = new LinkedHashMap<>();
+        failure.put("type", e.getErrorType());
+        failure.put("detail", e.getDetail());
+        if (e.getResolution() != null) {
+            Map<String, Object> resolution = new LinkedHashMap<>();
+            resolution.put("action", e.getResolution().getAction());
+            resolution.put("recovery_class", e.getResolution().getRecoveryClass() != null
+                    ? e.getResolution().getRecoveryClass()
+                    : Constants.recoveryClassForAction(e.getResolution().getAction()));
+            failure.put("resolution", resolution);
+        }
+        failure.put("retry", e.isRetry());
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", false);
+        resp.put("failure", failure);
+        return ResponseEntity.status(status).body(resp);
     }
 
     private ResponseEntity<Object> failureResponse(int status, String type,

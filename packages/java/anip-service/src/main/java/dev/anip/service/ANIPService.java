@@ -28,6 +28,7 @@ import dev.anip.core.DelegationToken;
 import dev.anip.core.GrantPolicy;
 import dev.anip.core.HealthReport;
 import dev.anip.core.PermissionResponse;
+import dev.anip.core.Resolution;
 import dev.anip.core.StorageHealth;
 import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
@@ -442,6 +443,135 @@ public class ANIPService {
     }
 
     /**
+     * Handles a {@code POST {approval_grants}} request for an authenticated
+     * bearer token: SPEC.md §4.9 steps 2 to 12, in the order the spec gives.
+     * Every HTTP binding calls this so the order cannot differ between them.
+     *
+     * <ol>
+     *   <li>body matches the IssueApprovalGrantRequest schema, else
+     *       {@code invalid_parameters}</li>
+     *   <li>the request exists, else {@code approval_request_not_found}</li>
+     *   <li>the request is pending and not expired, else
+     *       {@code approval_request_already_decided} or
+     *       {@code approval_request_expired}</li>
+     *   <li>the token holds {@code approver:*} or
+     *       {@code approver:<capability>}, else
+     *       {@code approver_not_authorized}</li>
+     *   <li>{@link #issueApprovalGrant}</li>
+     * </ol>
+     *
+     * @param token the caller's resolved delegation token
+     * @param body  the decoded JSON request body (expected: a JSON object)
+     * @return the persisted, signed ApprovalGrant
+     * @throws ANIPError with the failure type for the step that refused
+     */
+    public ApprovalGrant issueApprovalGrantForToken(DelegationToken token, Object body)
+            throws Exception {
+        if (!(body instanceof Map<?, ?> fields)) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "request body must be a JSON object");
+        }
+        String approvalRequestId = grantRequestString(fields, "approval_request_id");
+        String grantType = grantRequestString(fields, "grant_type");
+        String sessionId = grantRequestString(fields, "session_id");
+        Integer expiresInSeconds = grantRequestPositiveInt(fields, "expires_in_seconds");
+        Integer maxUses = grantRequestPositiveInt(fields, "max_uses");
+        if (approvalRequestId == null) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "approval_request_id: required");
+        }
+        boolean oneTime = ApprovalGrant.TYPE_ONE_TIME.equals(grantType);
+        boolean sessionBound = ApprovalGrant.TYPE_SESSION_BOUND.equals(grantType);
+        if (!oneTime && !sessionBound) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "grant_type: must be one_time or session_bound");
+        }
+        if (sessionBound && sessionId == null) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "session_id: required when grant_type=session_bound");
+        }
+        if (oneTime && sessionId != null) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "session_id: must not be set when grant_type=one_time");
+        }
+        if (oneTime && maxUses != null && maxUses != 1) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    "max_uses: must be 1 or omitted when grant_type=one_time");
+        }
+
+        ApprovalRequest request = storage.getApprovalRequest(approvalRequestId).orElse(null);
+        if (request == null) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+                    "approval_request_id '" + approvalRequestId + "' not found");
+        }
+        // State is checked BEFORE approver authority, so a decided or expired
+        // request answers the same to every caller.
+        if (!ApprovalRequest.STATUS_PENDING.equals(request.getStatus())) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+                    "approval_request '" + approvalRequestId + "' status=" + request.getStatus());
+        }
+        if (request.getExpiresAt() != null
+                && request.getExpiresAt().compareTo(V023.utcNowIso()) <= 0) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_EXPIRED,
+                    "approval_request '" + approvalRequestId + "' expired");
+        }
+
+        String required = "approver:" + request.getCapability();
+        List<String> scope = token.getScope() != null ? token.getScope() : List.of();
+        if (!scope.contains("approver:*") && !scope.contains(required)) {
+            throw new ANIPError(Constants.FAILURE_APPROVER_NOT_AUTHORIZED,
+                    "token lacks " + required + " scope");
+        }
+
+        Map<String, Object> approver = new LinkedHashMap<>();
+        approver.put("subject", token.getSubject());
+        approver.put("root_principal", token.getRootPrincipal() != null
+                ? token.getRootPrincipal() : token.getIssuer());
+        return issueApprovalGrant(approvalRequestId, grantType, approver,
+                sessionId, expiresInSeconds, maxUses);
+    }
+
+    /**
+     * Resolution for an approval_grant that failed validation or reservation.
+     * The caller cannot repair the grant; a fresh approval is needed.
+     */
+    private static Map<String, Object> grantFailureResolution() {
+        Map<String, Object> resolution = new LinkedHashMap<>();
+        resolution.put("action", "contact_service_owner");
+        resolution.put("recovery_class", Constants.recoveryClassForAction("contact_service_owner"));
+        return resolution;
+    }
+
+    /** A string field of the issuance body: absent or null, or a non-empty string. */
+    private static String grantRequestString(Map<?, ?> fields, String name) {
+        Object value = fields.get(name);
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof String text) || text.isEmpty()) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    name + ": must be a non-empty string");
+        }
+        return text;
+    }
+
+    /** An integer field of the issuance body: absent or null, or a whole number of at least 1. */
+    private static Integer grantRequestPositiveInt(Map<?, ?> fields, String name) {
+        Object value = fields.get(name);
+        if (value == null) {
+            return null;
+        }
+        boolean whole = value instanceof Integer || value instanceof Long
+                || value instanceof Short || value instanceof java.math.BigInteger;
+        if (!whole || ((Number) value).longValue() < 1
+                || ((Number) value).longValue() > Integer.MAX_VALUE) {
+            throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
+                    name + ": must be a positive integer");
+        }
+        return ((Number) value).intValue();
+    }
+
+    /**
      * Issues a signed ApprovalGrant for a pending ApprovalRequest. Atomic per
      * SPEC.md §4.9 (Decision 0.9a) — clamps to grant_policy, signs, runs the
      * atomic approveRequestAndStoreGrant primitive, emits an
@@ -572,203 +702,272 @@ public class ANIPService {
 
     // --- Invocation ---
 
-    /**
-     * Unary invocation with full hook coverage.
-     */
-    public Map<String, Object> invoke(String capName, DelegationToken token,
-                                       Map<String, Object> params, InvokeOpts opts) {
-        String invocationId = Constants.generateInvocationId();
-        long invokeStart = System.currentTimeMillis();
-        boolean invokeSuccess = false;
+    // --- The checks every invocation passes before its handler ---
 
+    /** Where in the pre-handler checks an invocation was refused. */
+    private enum Stage {
+        /** The request itself: task_id, capability lookup, response mode. */
+        REQUEST,
+        /** Delegation: scope, purpose binding, delegation chain. */
+        DELEGATION,
+        /** Budget, binding and control-requirement enforcement. */
+        ENFORCEMENT,
+        /** Parameter validation against the declared inputs. */
+        PARAMETERS,
+        /** Approval grant validation and reservation. */
+        GRANT
+    }
+
+    /** What the pre-handler checks established for an invocation that passed them. */
+    private static final class PreHandler {
+        Stage stage = Stage.REQUEST;
+        CapabilityDef capDef;
+        String effectiveTaskId;
+        String clientRefId;
+        Budget effectiveBudget;
+        Double checkAmount;
+        /** The approval grant reserved for this invocation, or null. */
+        String approvalGrantId;
+    }
+
+    /**
+     * Runs, in the order SPEC.md §6.3 gives, every check an invocation passes
+     * before its handler: task_id precedence, capability lookup, response
+     * mode, delegation (scope, purpose binding, chain), budget, binding and
+     * control-requirement enforcement, parameter validation, and approval
+     * grant validation and reservation (§4.8 Phases A and B).
+     *
+     * <p>The unary and the streaming path both call this one method, so they
+     * refuse the same requests with the same failures and audit the same
+     * refusals.</p>
+     *
+     * @param pre       receives what the checks established, and the stage reached
+     * @param streaming whether the caller asked for a streaming response
+     * @return the refusal response, or {@code null} when the handler may run
+     */
+    private Map<String, Object> preHandlerChecks(PreHandler pre, String capName, DelegationToken token,
+                                                 Map<String, Object> params, InvokeOpts opts,
+                                                 String invocationId, boolean streaming) {
         String requestTaskId = opts != null ? opts.getTaskId() : null;
         String parentInvocationId = opts != null ? opts.getParentInvocationId() : null;
         String upstreamService = opts != null ? opts.getUpstreamService() : null;
 
+        pre.stage = Stage.REQUEST;
+        // task_id precedence: token purpose.task_id is authoritative
+        String tokenTaskId = (token.getPurpose() != null) ? token.getPurpose().getTaskId() : null;
+        if (tokenTaskId != null && !tokenTaskId.isEmpty()
+                && requestTaskId != null && !requestTaskId.isEmpty()
+                && !requestTaskId.equals(tokenTaskId)) {
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", Map.of(
+                    "type", Constants.FAILURE_PURPOSE_MISMATCH,
+                    "detail", "Request task_id '" + requestTaskId
+                            + "' does not match token purpose task_id '" + tokenTaskId + "'",
+                    "resolution", Map.of("action", "revalidate_state", "recovery_class", Constants.recoveryClassForAction("revalidate_state"), "requires", "matching task_id or omit from request"),
+                    "retry", false
+            ));
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
+            resp.put("task_id", requestTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
+        String effectiveTaskId = (requestTaskId != null && !requestTaskId.isEmpty())
+                ? requestTaskId : tokenTaskId;
+
+        // 1. Look up capability.
+        CapabilityDef capDef = capabilities.get(capName);
+        if (capDef == null) {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("type", Constants.FAILURE_UNKNOWN_CAPABILITY);
+            failure.put("detail", "Capability '" + capName + "' not found");
+            failure.put("resolution", Map.of(
+                    "action", "check_manifest",
+                    "recovery_class", Constants.recoveryClassForAction("check_manifest")
+            ));
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", failure);
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
+
+        String clientRefId = opts != null ? opts.getClientReferenceId() : null;
+
+        // Fire OnInvokeStart hook.
+        fireInvokeStart(invocationId, capName, token.getSubject());
+
+        // 2. Check streaming support.
+        if (streaming && !capabilitySupportsStreaming(capDef.getDeclaration())) {
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", Map.of(
+                    "type", Constants.FAILURE_STREAMING_NOT_SUPPORTED,
+                    "detail", "Capability '" + capName + "' does not support streaming",
+                    "resolution", Map.of(
+                            "action", "check_manifest",
+                            "recovery_class", Constants.recoveryClassForAction("check_manifest")),
+                    "retry", false
+            ));
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", clientRefId);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
+        if (!streaming && opts != null && opts.isStream()) {
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", Map.of(
+                    "type", Constants.FAILURE_STREAMING_NOT_SUPPORTED,
+                    "detail", "Use invokeStream for streaming invocations"
+            ));
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", clientRefId);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
+
+        pre.stage = Stage.DELEGATION;
+        // 3. Validate the token for this capability: scope covers
+        // minimum_scope, the token is bound to this capability, and its
+        // delegation chain is complete, within depth, and unexpired.
         try {
-            // task_id precedence: token purpose.task_id is authoritative
-            String tokenTaskId = (token.getPurpose() != null) ? token.getPurpose().getTaskId() : null;
-            if (tokenTaskId != null && !tokenTaskId.isEmpty()
-                    && requestTaskId != null && !requestTaskId.isEmpty()
-                    && !requestTaskId.equals(tokenTaskId)) {
-                Map<String, Object> resp = new LinkedHashMap<>();
-                resp.put("success", false);
-                resp.put("failure", Map.of(
-                        "type", Constants.FAILURE_PURPOSE_MISMATCH,
-                        "detail", "Request task_id '" + requestTaskId
-                                + "' does not match token purpose task_id '" + tokenTaskId + "'",
-                        "resolution", Map.of("action", "revalidate_state", "recovery_class", Constants.recoveryClassForAction("revalidate_state"), "requires", "matching task_id or omit from request"),
-                        "retry", false
-                ));
-                resp.put("invocation_id", invocationId);
-                resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
-                resp.put("task_id", requestTaskId);
-                resp.put("parent_invocation_id", parentInvocationId);
-                resp.put("upstream_service", upstreamService);
-                return resp;
+            DelegationEngine.validateDelegation(storage, token,
+                    capDef.getDeclaration().getMinimumScope(), capName);
+        } catch (ANIPError e) {
+            if (Constants.FAILURE_SCOPE_INSUFFICIENT.equals(e.getErrorType())) {
+                fireScopeValidation(capName, false);
             }
-            String effectiveTaskId = (requestTaskId != null && !requestTaskId.isEmpty())
-                    ? requestTaskId : tokenTaskId;
-
-            // 1. Look up capability.
-            CapabilityDef capDef = capabilities.get(capName);
-            if (capDef == null) {
-                Map<String, Object> failure = new LinkedHashMap<>();
-                failure.put("type", Constants.FAILURE_UNKNOWN_CAPABILITY);
-                failure.put("detail", "Capability '" + capName + "' not found");
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("type", e.getErrorType());
+            failure.put("detail", e.getDetail());
+            if (e.getResolution() != null) {
                 failure.put("resolution", Map.of(
-                        "action", "check_manifest",
-                        "recovery_class", Constants.recoveryClassForAction("check_manifest")
+                        "action", e.getResolution().getAction(),
+                        "recovery_class", e.getResolution().getRecoveryClass() != null
+                                ? e.getResolution().getRecoveryClass()
+                                : Constants.recoveryClassForAction(e.getResolution().getAction())
                 ));
-                Map<String, Object> resp = new LinkedHashMap<>();
-                resp.put("success", false);
-                resp.put("failure", failure);
-                resp.put("invocation_id", invocationId);
-                resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
-                resp.put("task_id", effectiveTaskId);
-                resp.put("parent_invocation_id", parentInvocationId);
-                resp.put("upstream_service", upstreamService);
-                return resp;
             }
 
-            String clientRefId = opts != null ? opts.getClientReferenceId() : null;
+            String sideEffectType = capDef.getDeclaration().getSideEffect() != null
+                ? capDef.getDeclaration().getSideEffect().getType() : null;
+            appendAuditEntry(capName, token, false, e.getErrorType(), null, null,
+                    invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                    upstreamService, sideEffectType);
 
-            // Fire OnInvokeStart hook.
-            fireInvokeStart(invocationId, capName, token.getSubject());
+            Map<String, Object> tokenClaims = tokenClaimsMap(token);
+            String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+            failure = FailureRedaction.redact(failure, effectiveLevel);
 
-            // 2. Check streaming support.
-            if (opts != null && opts.isStream()) {
-                Map<String, Object> resp = new LinkedHashMap<>();
-                resp.put("success", false);
-                resp.put("failure", Map.of(
-                        "type", Constants.FAILURE_STREAMING_NOT_SUPPORTED,
-                        "detail", "Use invokeStream for streaming invocations"
-                ));
-                resp.put("invocation_id", invocationId);
-                resp.put("client_reference_id", clientRefId);
-                resp.put("task_id", effectiveTaskId);
-                resp.put("parent_invocation_id", parentInvocationId);
-                resp.put("upstream_service", upstreamService);
-                return resp;
-            }
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", failure);
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", clientRefId);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
 
-            // 3. Validate the token for this capability: scope covers
-            // minimum_scope, the token is bound to this capability, and its
-            // delegation chain is complete, within depth, and unexpired.
-            try {
-                DelegationEngine.validateDelegation(storage, token,
-                        capDef.getDeclaration().getMinimumScope(), capName);
-            } catch (ANIPError e) {
-                if (Constants.FAILURE_SCOPE_INSUFFICIENT.equals(e.getErrorType())) {
-                    fireScopeValidation(capName, false);
+        // Fire scope validation hook (granted).
+        fireScopeValidation(capName, true);
+
+        pre.stage = Stage.ENFORCEMENT;
+        // --- Budget, binding, and control requirement enforcement (v0.14) ---
+
+        // Parse invocation-level budget hint.
+        Budget requestBudget = opts != null ? opts.getBudget() : null;
+
+        // Determine effective budget (token is ceiling, invocation hint can only narrow).
+        Budget effectiveBudget = null;
+        if (token.getConstraints() != null && token.getConstraints().getBudget() != null) {
+            effectiveBudget = token.getConstraints().getBudget();
+            if (requestBudget != null) {
+                if (!requestBudget.getCurrency().equals(effectiveBudget.getCurrency())) {
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
+                    failure.put("detail", "Invocation budget is in " + requestBudget.getCurrency()
+                            + " but token budget is in " + effectiveBudget.getCurrency());
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
                 }
-                Map<String, Object> failure = new LinkedHashMap<>();
-                failure.put("type", e.getErrorType());
-                failure.put("detail", e.getDetail());
-                if (e.getResolution() != null) {
-                    failure.put("resolution", Map.of(
-                            "action", e.getResolution().getAction(),
-                            "recovery_class", e.getResolution().getRecoveryClass() != null
-                                    ? e.getResolution().getRecoveryClass()
-                                    : Constants.recoveryClassForAction(e.getResolution().getAction())
-                    ));
+                double narrowedAmount = Math.min(effectiveBudget.getMaxAmount(), requestBudget.getMaxAmount());
+                effectiveBudget = new Budget(effectiveBudget.getCurrency(), narrowedAmount);
+            }
+        } else if (requestBudget != null) {
+            effectiveBudget = requestBudget;
+        }
+
+        // Budget enforcement against declared cost.
+        Double checkAmount = null;
+        if (effectiveBudget != null) {
+            CapabilityDeclaration decl = capDef.getDeclaration();
+            if (decl.getCost() != null && decl.getCost().getFinancial() != null) {
+                if (!decl.getCost().getFinancial().getCurrency().equals(effectiveBudget.getCurrency())) {
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
+                    failure.put("detail", "Token budget is in " + effectiveBudget.getCurrency()
+                            + " but capability cost is in " + decl.getCost().getFinancial().getCurrency());
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
                 }
 
-                String sideEffectType = capDef.getDeclaration().getSideEffect() != null
-                    ? capDef.getDeclaration().getSideEffect().getType() : null;
-                appendAuditEntry(capName, token, false, e.getErrorType(), null, null,
-                        invocationId, clientRefId, effectiveTaskId, parentInvocationId,
-                        upstreamService, sideEffectType);
-
-                Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                failure = FailureRedaction.redact(failure, effectiveLevel);
-
-                Map<String, Object> resp = new LinkedHashMap<>();
-                resp.put("success", false);
-                resp.put("failure", failure);
-                resp.put("invocation_id", invocationId);
-                resp.put("client_reference_id", clientRefId);
-                resp.put("task_id", effectiveTaskId);
-                resp.put("parent_invocation_id", parentInvocationId);
-                resp.put("upstream_service", upstreamService);
-                return resp;
-            }
-
-            // Fire scope validation hook (granted).
-            fireScopeValidation(capName, true);
-
-            // --- Budget, binding, and control requirement enforcement (v0.14) ---
-
-            // Parse invocation-level budget hint.
-            Budget requestBudget = opts != null ? opts.getBudget() : null;
-
-            // Determine effective budget (token is ceiling, invocation hint can only narrow).
-            Budget effectiveBudget = null;
-            if (token.getConstraints() != null && token.getConstraints().getBudget() != null) {
-                effectiveBudget = token.getConstraints().getBudget();
-                if (requestBudget != null) {
-                    if (!requestBudget.getCurrency().equals(effectiveBudget.getCurrency())) {
-                        Map<String, Object> failure = new LinkedHashMap<>();
-                        failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
-                        failure.put("detail", "Invocation budget is in " + requestBudget.getCurrency()
-                                + " but token budget is in " + effectiveBudget.getCurrency());
-                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                        failure = FailureRedaction.redact(failure, effectiveLevel);
-                        Map<String, Object> resp = new LinkedHashMap<>();
-                        resp.put("success", false);
-                        resp.put("failure", failure);
-                        resp.put("invocation_id", invocationId);
-                        resp.put("client_reference_id", clientRefId);
-                        resp.put("task_id", effectiveTaskId);
-                        resp.put("parent_invocation_id", parentInvocationId);
-                        resp.put("upstream_service", upstreamService);
-                        return resp;
-                    }
-                    double narrowedAmount = Math.min(effectiveBudget.getMaxAmount(), requestBudget.getMaxAmount());
-                    effectiveBudget = new Budget(effectiveBudget.getCurrency(), narrowedAmount);
-                }
-            } else if (requestBudget != null) {
-                effectiveBudget = requestBudget;
-            }
-
-            // Budget enforcement against declared cost.
-            Double checkAmount = null;
-            if (effectiveBudget != null) {
-                CapabilityDeclaration decl = capDef.getDeclaration();
-                if (decl.getCost() != null && decl.getCost().getFinancial() != null) {
-                    if (!decl.getCost().getFinancial().getCurrency().equals(effectiveBudget.getCurrency())) {
-                        Map<String, Object> failure = new LinkedHashMap<>();
-                        failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
-                        failure.put("detail", "Token budget is in " + effectiveBudget.getCurrency()
-                                + " but capability cost is in " + decl.getCost().getFinancial().getCurrency());
-                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                        failure = FailureRedaction.redact(failure, effectiveLevel);
-                        Map<String, Object> resp = new LinkedHashMap<>();
-                        resp.put("success", false);
-                        resp.put("failure", failure);
-                        resp.put("invocation_id", invocationId);
-                        resp.put("client_reference_id", clientRefId);
-                        resp.put("task_id", effectiveTaskId);
-                        resp.put("parent_invocation_id", parentInvocationId);
-                        resp.put("upstream_service", upstreamService);
-                        return resp;
-                    }
-
-                    String certainty = decl.getCost().getCertainty();
-                    if (certainty != null) {
-                        switch (certainty) {
-                            case "fixed" -> checkAmount = decl.getCost().getFinancial().getAmount();
-                            case "estimated" -> {
-                                if (decl.getRequiresBinding() != null && !decl.getRequiresBinding().isEmpty()) {
-                                    checkAmount = resolveBoundPrice(decl.getRequiresBinding(), params);
-                                } else {
+                String certainty = decl.getCost().getCertainty();
+                if (certainty != null) {
+                    switch (certainty) {
+                        case "fixed" -> checkAmount = decl.getCost().getFinancial().getAmount();
+                        case "estimated" -> {
+                            if (decl.getRequiresBinding() != null && !decl.getRequiresBinding().isEmpty()) {
+                                checkAmount = resolveBoundPrice(decl.getRequiresBinding(), params);
+                                if (checkAmount == null) {
+                                    // The binding carries no numeric price: the budget
+                                    // cannot be checked, and budget is a pre-execution
+                                    // MUST reject (SPEC.md §6.3, Budget Enforcement).
+                                    Map<String, Object> resolution = new LinkedHashMap<>();
+                                    resolution.put("action", "obtain_binding");
+                                    resolution.put("recovery_class",
+                                            Constants.recoveryClassForAction("obtain_binding"));
+                                    resolution.put("requires", "binding value must include a 'price' field "
+                                            + "or the service must resolve binding to a concrete price");
                                     Map<String, Object> failure = new LinkedHashMap<>();
                                     failure.put("type", Constants.FAILURE_BUDGET_NOT_ENFORCEABLE);
                                     failure.put("detail", "Capability " + capName
-                                            + " has estimated cost but no requires_binding — budget cannot be enforced");
+                                            + " has estimated cost with requires_binding but the provided"
+                                            + " binding does not carry a resolvable price");
+                                    failure.put("resolution", resolution);
+                                    failure.put("retry", false);
                                     Map<String, Object> tokenClaims = tokenClaimsMap(token);
                                     String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                                     failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -782,86 +981,11 @@ public class ANIPService {
                                     resp.put("upstream_service", upstreamService);
                                     return resp;
                                 }
-                            }
-                            case "dynamic" -> checkAmount = decl.getCost().getFinancial().getUpperBound();
-                        }
-                    }
-
-                    if (checkAmount != null && checkAmount > effectiveBudget.getMaxAmount()) {
-                        Map<String, Object> failure = new LinkedHashMap<>();
-                        failure.put("type", Constants.FAILURE_BUDGET_EXCEEDED);
-                        failure.put("detail", "Cost $" + checkAmount + " exceeds budget $" + effectiveBudget.getMaxAmount());
-                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                        failure = FailureRedaction.redact(failure, effectiveLevel);
-                        Map<String, Object> resp = new LinkedHashMap<>();
-                        resp.put("success", false);
-                        resp.put("failure", failure);
-                        resp.put("invocation_id", invocationId);
-                        resp.put("client_reference_id", clientRefId);
-                        resp.put("task_id", effectiveTaskId);
-                        resp.put("parent_invocation_id", parentInvocationId);
-                        resp.put("upstream_service", upstreamService);
-                        Map<String, Object> budgetCtx = new LinkedHashMap<>();
-                        budgetCtx.put("budget_max", effectiveBudget.getMaxAmount());
-                        budgetCtx.put("budget_currency", effectiveBudget.getCurrency());
-                        budgetCtx.put("cost_check_amount", checkAmount);
-                        budgetCtx.put("cost_certainty", certainty);
-                        resp.put("budget_context", budgetCtx);
-                        return resp;
-                    }
-                }
-            }
-
-            // Binding enforcement.
-            if (capDef.getDeclaration().getRequiresBinding() != null) {
-                for (BindingRequirement binding : capDef.getDeclaration().getRequiresBinding()) {
-                    Object val = params.get(binding.getField());
-                    if (val == null) {
-                        String sourceDesc = binding.getSourceCapability();
-                        if (sourceDesc == null || sourceDesc.isEmpty()) {
-                            sourceDesc = "source capability";
-                        }
-                        Map<String, Object> failure = new LinkedHashMap<>();
-                        failure.put("type", Constants.FAILURE_BINDING_MISSING);
-                        failure.put("detail", "Capability " + capName + " requires '" + binding.getField()
-                                + "' (type: " + binding.getType() + ")");
-                        failure.put("resolution", Map.of(
-                                "action", "obtain_binding",
-                                "recovery_class", Constants.recoveryClassForAction("obtain_binding"),
-                                "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
-                        ));
-                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                        failure = FailureRedaction.redact(failure, effectiveLevel);
-                        Map<String, Object> resp = new LinkedHashMap<>();
-                        resp.put("success", false);
-                        resp.put("failure", failure);
-                        resp.put("invocation_id", invocationId);
-                        resp.put("client_reference_id", clientRefId);
-                        resp.put("task_id", effectiveTaskId);
-                        resp.put("parent_invocation_id", parentInvocationId);
-                        resp.put("upstream_service", upstreamService);
-                        return resp;
-                    }
-                    if (binding.getMaxAge() != null && !binding.getMaxAge().isEmpty()) {
-                        long ageSeconds = resolveBindingAge(val);
-                        if (ageSeconds >= 0) {
-                            long maxAgeSeconds = parseISO8601DurationSeconds(binding.getMaxAge());
-                            if (maxAgeSeconds > 0 && ageSeconds > maxAgeSeconds) {
-                                String sourceDesc = binding.getSourceCapability();
-                                if (sourceDesc == null || sourceDesc.isEmpty()) {
-                                    sourceDesc = "source capability";
-                                }
+                            } else {
                                 Map<String, Object> failure = new LinkedHashMap<>();
-                                failure.put("type", Constants.FAILURE_BINDING_STALE);
-                                failure.put("detail", "Binding '" + binding.getField()
-                                        + "' has exceeded max_age of " + binding.getMaxAge());
-                                failure.put("resolution", Map.of(
-                                        "action", "refresh_binding",
-                                        "recovery_class", Constants.recoveryClassForAction("refresh_binding"),
-                                        "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
-                                ));
+                                failure.put("type", Constants.FAILURE_BUDGET_NOT_ENFORCEABLE);
+                                failure.put("detail", "Capability " + capName
+                                        + " has estimated cost but no requires_binding — budget cannot be enforced");
                                 Map<String, Object> tokenClaims = tokenClaimsMap(token);
                                 String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                                 failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -876,42 +1000,279 @@ public class ANIPService {
                                 return resp;
                             }
                         }
+                        case "dynamic" -> checkAmount = decl.getCost().getFinancial().getUpperBound();
                     }
                 }
-            }
 
-            // Control requirement enforcement (reject only — no warn in v0.14).
-            if (capDef.getDeclaration().getControlRequirements() != null) {
-                for (ControlRequirement req : capDef.getDeclaration().getControlRequirements()) {
-                    boolean satisfied = true;
-                    switch (req.getType()) {
-                        case "cost_ceiling" -> satisfied = effectiveBudget != null;
-                        case "stronger_delegation_required" -> {
-                            satisfied = token.getPurpose() != null
-                                    && capName.equals(token.getPurpose().getCapability());
+                if (checkAmount != null && checkAmount > effectiveBudget.getMaxAmount()) {
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", Constants.FAILURE_BUDGET_EXCEEDED);
+                    failure.put("detail", "Cost $" + checkAmount + " exceeds budget $" + effectiveBudget.getMaxAmount());
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    Map<String, Object> budgetCtx = new LinkedHashMap<>();
+                    budgetCtx.put("budget_max", effectiveBudget.getMaxAmount());
+                    budgetCtx.put("budget_currency", effectiveBudget.getCurrency());
+                    budgetCtx.put("cost_check_amount", checkAmount);
+                    budgetCtx.put("cost_certainty", certainty);
+                    resp.put("budget_context", budgetCtx);
+                    return resp;
+                }
+            }
+        }
+
+        // Binding enforcement.
+        if (capDef.getDeclaration().getRequiresBinding() != null) {
+            for (BindingRequirement binding : capDef.getDeclaration().getRequiresBinding()) {
+                Object val = params.get(binding.getField());
+                if (val == null) {
+                    String sourceDesc = binding.getSourceCapability();
+                    if (sourceDesc == null || sourceDesc.isEmpty()) {
+                        sourceDesc = "source capability";
+                    }
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", Constants.FAILURE_BINDING_MISSING);
+                    failure.put("detail", "Capability " + capName + " requires '" + binding.getField()
+                            + "' (type: " + binding.getType() + ")");
+                    failure.put("resolution", Map.of(
+                            "action", "obtain_binding",
+                            "recovery_class", Constants.recoveryClassForAction("obtain_binding"),
+                            "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
+                    ));
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
+                }
+                if (binding.getMaxAge() != null && !binding.getMaxAge().isEmpty()) {
+                    long ageSeconds = resolveBindingAge(val);
+                    if (ageSeconds >= 0) {
+                        long maxAgeSeconds = parseISO8601DurationSeconds(binding.getMaxAge());
+                        if (maxAgeSeconds > 0 && ageSeconds > maxAgeSeconds) {
+                            String sourceDesc = binding.getSourceCapability();
+                            if (sourceDesc == null || sourceDesc.isEmpty()) {
+                                sourceDesc = "source capability";
+                            }
+                            Map<String, Object> failure = new LinkedHashMap<>();
+                            failure.put("type", Constants.FAILURE_BINDING_STALE);
+                            failure.put("detail", "Binding '" + binding.getField()
+                                    + "' has exceeded max_age of " + binding.getMaxAge());
+                            failure.put("resolution", Map.of(
+                                    "action", "refresh_binding",
+                                    "recovery_class", Constants.recoveryClassForAction("refresh_binding"),
+                                    "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
+                            ));
+                            Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                            String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                            failure = FailureRedaction.redact(failure, effectiveLevel);
+                            Map<String, Object> resp = new LinkedHashMap<>();
+                            resp.put("success", false);
+                            resp.put("failure", failure);
+                            resp.put("invocation_id", invocationId);
+                            resp.put("client_reference_id", clientRefId);
+                            resp.put("task_id", effectiveTaskId);
+                            resp.put("parent_invocation_id", parentInvocationId);
+                            resp.put("upstream_service", upstreamService);
+                            return resp;
                         }
                     }
-
-                    if (!satisfied) {
-                        Map<String, Object> failure = new LinkedHashMap<>();
-                        failure.put("type", Constants.FAILURE_CONTROL_REQUIREMENT_UNSATISFIED);
-                        failure.put("detail", "Capability " + capName + " requires " + req.getType());
-                        failure.put("unsatisfied_requirements", List.of(req.getType()));
-                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                        failure = FailureRedaction.redact(failure, effectiveLevel);
-                        Map<String, Object> resp = new LinkedHashMap<>();
-                        resp.put("success", false);
-                        resp.put("failure", failure);
-                        resp.put("invocation_id", invocationId);
-                        resp.put("client_reference_id", clientRefId);
-                        resp.put("task_id", effectiveTaskId);
-                        resp.put("parent_invocation_id", parentInvocationId);
-                        resp.put("upstream_service", upstreamService);
-                        return resp;
-                    }
                 }
             }
+        }
+
+        // Control requirement enforcement (reject only — no warn in v0.14).
+        if (capDef.getDeclaration().getControlRequirements() != null) {
+            for (ControlRequirement req : capDef.getDeclaration().getControlRequirements()) {
+                boolean satisfied = true;
+                switch (req.getType()) {
+                    case "cost_ceiling" -> satisfied = effectiveBudget != null;
+                    case "stronger_delegation_required" -> {
+                        satisfied = token.getPurpose() != null
+                                && capName.equals(token.getPurpose().getCapability());
+                    }
+                }
+
+                if (!satisfied) {
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", Constants.FAILURE_CONTROL_REQUIREMENT_UNSATISFIED);
+                    failure.put("detail", "Capability " + capName + " requires " + req.getType());
+                    failure.put("unsatisfied_requirements", List.of(req.getType()));
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
+                }
+            }
+        }
+
+        pre.stage = Stage.PARAMETERS;
+        // Parameter validation (SPEC.md §6.3): after delegation, budget,
+        // binding and control-requirement enforcement; before the approval
+        // grant is validated or reserved, before the handler and before
+        // any composition child step. The refusal is audited like a
+        // delegation failure and has no other effect.
+        String invalidParameters = ParameterValidation.check(capName, capDef.getDeclaration(), params);
+        if (invalidParameters != null) {
+            String sideEffectTypeV = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
+            appendAuditEntry(capName, token, false, Constants.FAILURE_INVALID_PARAMETERS,
+                    Map.of("detail", invalidParameters), null,
+                    invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                    upstreamService, sideEffectTypeV);
+            Map<String, Object> failure = ParameterValidation.failure(invalidParameters);
+            Map<String, Object> tokenClaims = tokenClaimsMap(token);
+            String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+            failure = FailureRedaction.redact(failure, effectiveLevel);
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", false);
+            resp.put("failure", failure);
+            resp.put("invocation_id", invocationId);
+            resp.put("client_reference_id", clientRefId);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
+            resp.put("upstream_service", upstreamService);
+            return resp;
+        }
+
+        pre.stage = Stage.GRANT;
+        // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
+        // continuation approval_grant before the handler runs.
+        // A supplied grant is always validated; a blank one names no grant.
+        String approvalGrantId = opts != null ? opts.getApprovalGrant() : null;
+        if (approvalGrantId != null) {
+            try {
+                if (approvalGrantId.isBlank()) {
+                    throw new ANIPError(Constants.FAILURE_GRANT_NOT_FOUND,
+                            "approval_grant validation failed: " + Constants.FAILURE_GRANT_NOT_FOUND);
+                }
+                V023.ContinuationValidation cv = V023.validateContinuationGrant(
+                        storage, keys, approvalGrantId, capName, params,
+                        token.getScope(), token.getSessionId(),
+                        token.getRootPrincipal() != null ? token.getRootPrincipal() : token.getIssuer(),
+                        V023.utcNowIso());
+                if (cv.failureType() != null) {
+                    throw new ANIPError(cv.failureType(),
+                            "approval_grant validation failed: " + cv.failureType());
+                }
+                GrantReservationResult res = storage.tryReserveGrant(approvalGrantId, V023.utcNowIso());
+                if (!res.ok()) {
+                    String reason = res.reason();
+                    String type = switch (reason == null ? "" : reason) {
+                        case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
+                        case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
+                        default -> Constants.FAILURE_GRANT_NOT_FOUND;
+                    };
+                    throw new ANIPError(type, "approval_grant reservation failed: " + reason);
+                }
+            } catch (ANIPError e) {
+                String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
+                        ? capDef.getDeclaration().getSideEffect().getType() : null;
+                appendAuditEntry(capName, token, false, e.getErrorType(),
+                        Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
+                        effectiveTaskId, parentInvocationId, upstreamService, sideEffectType0,
+                        null, approvalGrantId, null);
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("type", e.getErrorType());
+                failure.put("detail", e.getDetail());
+                // SPEC.md §4.5: every failure carries a resolution.
+                failure.put("resolution", grantFailureResolution());
+                Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                failure = FailureRedaction.redact(failure, effectiveLevel);
+                Map<String, Object> resp = new LinkedHashMap<>();
+                resp.put("success", false);
+                resp.put("failure", failure);
+                resp.put("invocation_id", invocationId);
+                resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
+                resp.put("upstream_service", upstreamService);
+                return resp;
+            } catch (Exception e) {
+                String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
+                        ? capDef.getDeclaration().getSideEffect().getType() : null;
+                appendAuditEntry(capName, token, false, Constants.FAILURE_UNAVAILABLE, null, null,
+                        invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                        upstreamService, sideEffectType0, null, approvalGrantId, null);
+                Map<String, Object> resp = new LinkedHashMap<>();
+                resp.put("success", false);
+                resp.put("failure", Map.of(
+                        "type", Constants.FAILURE_UNAVAILABLE,
+                        "detail", "approval grant validation unavailable",
+                        "resolution", Map.of(
+                                "action", "wait_and_retry",
+                                "recovery_class", Constants.recoveryClassForAction("wait_and_retry"))));
+                resp.put("invocation_id", invocationId);
+                resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
+                resp.put("upstream_service", upstreamService);
+                return resp;
+            }
+        }
+
+        pre.capDef = capDef;
+        pre.effectiveTaskId = effectiveTaskId;
+        pre.clientRefId = clientRefId;
+        pre.effectiveBudget = effectiveBudget;
+        pre.checkAmount = checkAmount;
+        pre.approvalGrantId = approvalGrantId;
+        return null;
+    }
+
+    /**
+     * Unary invocation with full hook coverage.
+     */
+    public Map<String, Object> invoke(String capName, DelegationToken token,
+                                       Map<String, Object> requestParams, InvokeOpts opts) {
+        // Absent parameters count as an empty object.
+        final Map<String, Object> params = requestParams != null ? requestParams : new LinkedHashMap<>();
+        String invocationId = Constants.generateInvocationId();
+        long invokeStart = System.currentTimeMillis();
+        boolean invokeSuccess = false;
+
+        String requestTaskId = opts != null ? opts.getTaskId() : null;
+        String parentInvocationId = opts != null ? opts.getParentInvocationId() : null;
+        String upstreamService = opts != null ? opts.getUpstreamService() : null;
+
+        try {
+            // 1-4b. Everything that is checked before the handler.
+            PreHandler pre = new PreHandler();
+            Map<String, Object> refusal = preHandlerChecks(pre, capName, token, params, opts, invocationId, false);
+            if (refusal != null) {
+                return refusal;
+            }
+            final CapabilityDef capDef = pre.capDef;
+            final String effectiveTaskId = pre.effectiveTaskId;
+            final String clientRefId = pre.clientRefId;
+            final Budget effectiveBudget = pre.effectiveBudget;
+            final Double checkAmount = pre.checkAmount;
+            final String approvalGrantId = pre.approvalGrantId;
 
             // 4. Build invocation context.
             String rootPrincipal = token.getRootPrincipal();
@@ -928,70 +1289,6 @@ public class ANIPService {
                     token.getScope(), List.of(token.getTokenId()),
                     payload -> true // no-op for unary
             );
-
-            // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
-            // continuation approval_grant before the handler runs.
-            String approvalGrantId = opts != null ? opts.getApprovalGrant() : null;
-            if (approvalGrantId != null && !approvalGrantId.isEmpty()) {
-                try {
-                    V023.ContinuationValidation cv = V023.validateContinuationGrant(
-                            storage, keys, approvalGrantId, capName, params,
-                            token.getScope(), token.getSessionId(), V023.utcNowIso());
-                    if (cv.failureType() != null) {
-                        throw new ANIPError(cv.failureType(),
-                                "approval_grant validation failed: " + cv.failureType());
-                    }
-                    GrantReservationResult res = storage.tryReserveGrant(approvalGrantId, V023.utcNowIso());
-                    if (!res.ok()) {
-                        String reason = res.reason();
-                        String type = switch (reason == null ? "" : reason) {
-                            case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
-                            case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
-                            default -> Constants.FAILURE_GRANT_NOT_FOUND;
-                        };
-                        throw new ANIPError(type, "approval_grant reservation failed: " + reason);
-                    }
-                } catch (ANIPError e) {
-                    String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
-                            ? capDef.getDeclaration().getSideEffect().getType() : null;
-                    appendAuditEntry(capName, token, false, e.getErrorType(),
-                            Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                            effectiveTaskId, parentInvocationId, upstreamService, sideEffectType0,
-                            null, approvalGrantId, null);
-                    Map<String, Object> failure = new LinkedHashMap<>();
-                    failure.put("type", e.getErrorType());
-                    failure.put("detail", e.getDetail());
-                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
-                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
-                    failure = FailureRedaction.redact(failure, effectiveLevel);
-                    Map<String, Object> resp = new LinkedHashMap<>();
-                    resp.put("success", false);
-                    resp.put("failure", failure);
-                    resp.put("invocation_id", invocationId);
-                    resp.put("client_reference_id", clientRefId);
-                    resp.put("task_id", effectiveTaskId);
-                    resp.put("parent_invocation_id", parentInvocationId);
-                    resp.put("upstream_service", upstreamService);
-                    return resp;
-                } catch (Exception e) {
-                    String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
-                            ? capDef.getDeclaration().getSideEffect().getType() : null;
-                    appendAuditEntry(capName, token, false, Constants.FAILURE_UNAVAILABLE, null, null,
-                            invocationId, clientRefId, effectiveTaskId, parentInvocationId,
-                            upstreamService, sideEffectType0, null, approvalGrantId, null);
-                    Map<String, Object> resp = new LinkedHashMap<>();
-                    resp.put("success", false);
-                    resp.put("failure", Map.of(
-                            "type", Constants.FAILURE_UNAVAILABLE,
-                            "detail", "approval grant validation unavailable"));
-                    resp.put("invocation_id", invocationId);
-                    resp.put("client_reference_id", clientRefId);
-                    resp.put("task_id", effectiveTaskId);
-                    resp.put("parent_invocation_id", parentInvocationId);
-                    resp.put("upstream_service", upstreamService);
-                    return resp;
-                }
-            }
 
             // 5. Call handler.
             Map<String, Object> result;
@@ -1086,7 +1383,7 @@ public class ANIPService {
                     } catch (Exception ape) {
                         approvalPersistFailed = true;
                         approvalPersistErr = ape.getMessage();
-                        effectiveErrorType = Constants.FAILURE_UNAVAILABLE;
+                        effectiveErrorType = Constants.FAILURE_SERVICE_UNAVAILABLE;
                     }
                 }
 
@@ -1112,18 +1409,17 @@ public class ANIPService {
                 failure.put("detail", approvalPersistFailed
                         ? "approval flow unavailable: " + approvalPersistErr
                         : e.getDetail());
-                if (e.getResolution() != null && !approvalPersistFailed) {
-                    Map<String, Object> res = new LinkedHashMap<>();
-                    res.put("action", e.getResolution().getAction());
-                    res.put("recovery_class", e.getResolution().getRecoveryClass() != null
-                            ? e.getResolution().getRecoveryClass()
-                            : Constants.recoveryClassForAction(e.getResolution().getAction()));
-                    failure.put("resolution", res);
+                Map<String, Object> handlerResolution = handlerResolution(e);
+                if (handlerResolution != null && !approvalPersistFailed) {
+                    failure.put("resolution", handlerResolution);
                 }
+                // Stated on every handler failure; false unless the handler says otherwise.
+                failure.put("retry", e.isRetry());
                 if (approvalPersistFailed) {
                     failure.put("resolution", Map.of(
                             "action", "wait_and_retry",
-                            "recovery_class", "wait_then_retry"));
+                            "recovery_class", Constants.recoveryClassForAction("wait_and_retry")));
+                    failure.put("retry", true);
                 } else if (materialized != null) {
                     Map<String, Object> apReq = new LinkedHashMap<>();
                     apReq.put("approval_request_id", materialized.getApprovalRequestId());
@@ -1138,6 +1434,8 @@ public class ANIPService {
                                 "max_uses", policy.getMaxUses()));
                     }
                     failure.put("approval_required", apReq);
+                    // SPEC.md §4.7: the same request cannot succeed without a grant.
+                    failure.put("retry", false);
                 }
                 Map<String, Object> tokenClaims = tokenClaimsMap(token);
                 String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
@@ -1237,85 +1535,43 @@ public class ANIPService {
      * Terminal event: exactly one completed/failed. Cancel sets a flag so emitProgress returns false.
      */
     public StreamResult invokeStream(String capName, DelegationToken token,
-                                      Map<String, Object> params, InvokeOpts opts) throws ANIPError {
+                                      Map<String, Object> requestParams, InvokeOpts opts) throws ANIPError {
+        // Absent parameters count as an empty object.
+        final Map<String, Object> params = requestParams != null ? requestParams : new LinkedHashMap<>();
         String invocationId = Constants.generateInvocationId();
+        long streamStart = System.currentTimeMillis();
 
         String requestTaskId = opts != null ? opts.getTaskId() : null;
         String parentInvocationId = opts != null ? opts.getParentInvocationId() : null;
         String upstreamService = opts != null ? opts.getUpstreamService() : null;
 
-        // task_id precedence: token purpose.task_id is authoritative
-        String tokenTaskId = (token.getPurpose() != null) ? token.getPurpose().getTaskId() : null;
-        if (tokenTaskId != null && !tokenTaskId.isEmpty()
-                && requestTaskId != null && !requestTaskId.isEmpty()
-                && !requestTaskId.equals(tokenTaskId)) {
-            throw new ANIPError(Constants.FAILURE_PURPOSE_MISMATCH,
-                    "Request task_id '" + requestTaskId
-                            + "' does not match token purpose task_id '" + tokenTaskId + "'");
-        }
-        String effectiveTaskId = (requestTaskId != null && !requestTaskId.isEmpty())
-                ? requestTaskId : tokenTaskId;
-
-        // 1. Look up capability.
-        CapabilityDef capDef = capabilities.get(capName);
-        if (capDef == null) {
-            throw new ANIPError(Constants.FAILURE_UNKNOWN_CAPABILITY,
-                    "Capability '" + capName + "' not found");
-        }
-
-        // 2. Check streaming support.
-        if (!capabilitySupportsStreaming(capDef.getDeclaration())) {
-            throw new ANIPError(Constants.FAILURE_STREAMING_NOT_SUPPORTED,
-                    "Capability '" + capName + "' does not support streaming");
-        }
-
-        // 3. Validate the token for this capability (scope, purpose binding,
-        // delegation chain).
-        DelegationEngine.validateDelegation(storage, token,
-                capDef.getDeclaration().getMinimumScope(), capName);
-
-        // 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve
-        // the approval_grant BEFORE any handler / event emission. Reservation
-        // is the security boundary — once reserved, the grant is spent on
-        // this attempt. Failures surface synchronously as ANIPError so the
-        // transport adapter maps to a JSON 4xx and no SSE stream opens.
-        String streamApprovalGrantId = opts != null ? opts.getApprovalGrant() : null;
-        if (streamApprovalGrantId != null && !streamApprovalGrantId.isEmpty()) {
-            try {
-                V023.ContinuationValidation cv = V023.validateContinuationGrant(
-                        storage, keys, streamApprovalGrantId, capName, params,
-                        token.getScope(), token.getSessionId(), V023.utcNowIso());
-                if (cv.failureType() != null) {
-                    throw new ANIPError(cv.failureType(),
-                            "approval_grant validation failed: " + cv.failureType());
-                }
-                GrantReservationResult res = storage.tryReserveGrant(streamApprovalGrantId, V023.utcNowIso());
-                if (!res.ok()) {
-                    String reason = res.reason();
-                    String type = switch (reason == null ? "" : reason) {
-                        case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
-                        case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
-                        default -> Constants.FAILURE_GRANT_NOT_FOUND;
-                    };
-                    throw new ANIPError(type, "approval_grant reservation failed: " + reason);
-                }
-            } catch (ANIPError e) {
-                throw e;
-            } catch (Exception e) {
-                throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR,
-                        "grant reservation failed: " + e.getMessage());
+        // 1-3b. The same checks, in the same order, as a unary invocation.
+        PreHandler pre = new PreHandler();
+        Map<String, Object> refusal = preHandlerChecks(pre, capName, token, params, opts, invocationId, true);
+        if (refusal != null) {
+            long durationMs = System.currentTimeMillis() - streamStart;
+            fireInvokeComplete(invocationId, capName, false, durationMs);
+            fireInvokeDuration(capName, durationMs, false);
+            // Delivery is unchanged: a refusal of the request, of the
+            // delegation or of the approval grant is raised to the caller, as
+            // it always was (the HTTP bindings turn it into the stream's
+            // `failed` event); an enforcement or parameter refusal is the
+            // stream's terminal `failed` event.
+            if (pre.stage == Stage.ENFORCEMENT || pre.stage == Stage.PARAMETERS) {
+                return refusedStream(refusal);
             }
+            throw refusalAsError(refusal);
         }
-        // Effectively-final reference for the lambda below.
-        final String reservedGrantId = streamApprovalGrantId;
+        final CapabilityDef capDef = pre.capDef;
+        final String effectiveTaskId = pre.effectiveTaskId;
+        final String clientRefId = pre.clientRefId;
+        final String reservedGrantId = pre.approvalGrantId;
 
         // 4. Build invocation context with streaming EmitProgress.
         String rootPrincipal = token.getRootPrincipal();
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
             rootPrincipal = token.getIssuer();
         }
-
-        String clientRefId = opts != null ? opts.getClientReferenceId() : null;
 
         BlockingQueue<StreamEvent> queue = new LinkedBlockingQueue<>(16);
         AtomicBoolean closed = new AtomicBoolean(false);
@@ -1393,8 +1649,7 @@ public class ANIPService {
                 failureObj.put("type", e.getErrorType());
                 failureObj.put("detail", e.getDetail());
                 failureObj.put("retry", e.isRetry());
-                failureObj.put("resolution", e.getResolution() != null
-                        ? Map.of("action", e.getResolution().getAction()) : null);
+                failureObj.put("resolution", handlerResolution(e));
 
                 Map<String, Object> streamTokenClaims = tokenClaimsMap(token);
                 String streamEffLevel = DisclosureControl.resolve(disclosureLevel, streamTokenClaims, disclosurePolicy);
@@ -1854,6 +2109,65 @@ public class ANIPService {
 
     // --- Internal methods ---
 
+    /**
+     * The resolution of a failure a handler raised: the one the handler
+     * named, or, for {@code invalid_parameters} without one, the runtime's
+     * own (retry_now with the same {@code requires} text as a refusal by
+     * parameter validation). {@code null} when there is none.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> handlerResolution(ANIPError e) {
+        Resolution named = e.getResolution();
+        if (named != null) {
+            Map<String, Object> resolution = new LinkedHashMap<>();
+            resolution.put("action", named.getAction());
+            resolution.put("recovery_class", named.getRecoveryClass() != null
+                    ? named.getRecoveryClass()
+                    : Constants.recoveryClassForAction(named.getAction()));
+            if (named.getRequires() != null) {
+                resolution.put("requires", named.getRequires());
+            }
+            return resolution;
+        }
+        if (Constants.FAILURE_INVALID_PARAMETERS.equals(e.getErrorType())) {
+            return (Map<String, Object>) ParameterValidation.failure(e.getDetail()).get("resolution");
+        }
+        return null;
+    }
+
+    /** A stream whose only event is the terminal {@code failed} event for a refusal. */
+    private static StreamResult refusedStream(Map<String, Object> refusal) {
+        Map<String, Object> payload = new LinkedHashMap<>(refusal);
+        payload.put("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
+        BlockingQueue<StreamEvent> events = new LinkedBlockingQueue<>(2);
+        events.add(new StreamEvent("failed", payload));
+        events.add(new StreamEvent(StreamResult.DONE_TYPE, Map.of()));
+        return new StreamResult(events, () -> { });
+    }
+
+    /** The failure of a refusal response as an error, with its resolution and retry. */
+    private static ANIPError refusalAsError(Map<String, Object> refusal) {
+        Map<?, ?> failure = refusal.get("failure") instanceof Map<?, ?> f ? f : Map.of();
+        ANIPError error = new ANIPError(
+                String.valueOf(failure.get("type")),
+                failure.get("detail") != null ? String.valueOf(failure.get("detail")) : "");
+        if (failure.get("resolution") instanceof Map<?, ?> resolution && resolution.get("action") != null) {
+            String action = String.valueOf(resolution.get("action"));
+            error.withResolution(new Resolution(
+                    action,
+                    resolution.get("recovery_class") != null
+                            ? String.valueOf(resolution.get("recovery_class"))
+                            : Constants.recoveryClassForAction(action),
+                    resolution.get("requires") != null ? String.valueOf(resolution.get("requires")) : null,
+                    resolution.get("grantable_by") != null ? String.valueOf(resolution.get("grantable_by")) : null,
+                    null));
+        }
+        if (Boolean.TRUE.equals(failure.get("retry"))) {
+            error.withRetry();
+        }
+        return error;
+    }
+
     private boolean capabilitySupportsStreaming(CapabilityDeclaration decl) {
         if (decl.getResponseModes() == null) return false;
         return decl.getResponseModes().contains("streaming");
@@ -2125,6 +2439,7 @@ public class ANIPService {
 
     /**
      * Extracts a bound price from params using capability's binding declarations.
+     * Returns null when no supplied binding carries a numeric {@code price}.
      */
     @SuppressWarnings("unchecked")
     private static Double resolveBoundPrice(List<BindingRequirement> bindings, Map<String, Object> params) {

@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
-import { IssueApprovalGrantRequest } from "@anip-dev/core";
+import { IssueApprovalGrantRequest, failureStatusCode } from "@anip-dev/core";
 
 export async function mountAnip(
   app: FastifyInstance,
@@ -29,11 +29,12 @@ export async function mountAnip(
   });
 
   // --- Tokens ---
-  app.post(`${p}/anip/tokens`, async (req, reply) => {
+  app.post(`${p}/anip/tokens`, { errorHandler: bodyErrorHandler(service, "bootstrap") }, async (req, reply) => {
     const issuer = await extractIssuer(req, service);
     if (!issuer) return authFailureTokenEndpoint(reply);
+    if (!isJsonObject(req.body)) return sendFailure(reply, invalidParametersFailure(BODY_NOT_AN_OBJECT));
     try {
-      const result = await service.issueTokenAs(issuer, req.body as Record<string, unknown>);
+      const result = await service.issueTokenAs(issuer, req.body);
       return result;
     } catch (e) {
       if (e instanceof ANIPError) return errorResponse(reply, e);
@@ -53,12 +54,14 @@ export async function mountAnip(
   // --- Invoke ---
   app.post<{ Params: { capability: string } }>(
     `${p}/anip/invoke/:capability`,
+    { errorHandler: bodyErrorHandler(service, "token") },
     async (req, reply) => {
       const authResult = await resolveToken(req, service);
       if (authResult === null) return authFailureJwtEndpoint(reply);
       if (authResult instanceof ANIPError) return errorResponse(reply, authResult);
       const token = authResult;
-      const body = req.body as Record<string, unknown>;
+      const body = req.body;
+      if (!isJsonObject(body)) return sendFailure(reply, invalidParametersFailure(BODY_NOT_AN_OBJECT));
       const params = (body.parameters as Record<string, unknown>) ?? body;
       const clientReferenceId = (body.client_reference_id as string) ?? null;
       const taskId = (body.task_id as string) ?? null;
@@ -71,21 +74,25 @@ export async function mountAnip(
       // v0.23: continuation invocations supply approval_grant. session_id for
       // session_bound grants is read from the signed token, never the body.
       const approvalGrant = (body.approval_grant as string) ?? null;
+      // One set of invocation options for the unary and the streaming call:
+      // a streaming invocation goes through the same checks with the same
+      // inputs (SPEC.md §6.3), plus `stream` and a progress sink.
+      const invokeOpts = {
+        clientReferenceId,
+        taskId,
+        parentInvocationId,
+        upstreamService,
+        budget,
+        approvalGrant,
+        requestedEffects,
+      };
 
       if (!body.stream) {
-        // Unary mode — existing behavior
-        const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId,
-          taskId,
-          parentInvocationId,
-          upstreamService,
-          budget,
-          approvalGrant,
-          requestedEffects,
-        });
+        // Unary mode
+        const result = await service.invoke(req.params.capability, token, params, invokeOpts);
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
-          return reply.status(failureStatus(failure?.type as string)).send(result);
+          return reply.status(failureStatusCode(failure?.type as string)).send(result);
         }
         return result;
       }
@@ -95,12 +102,11 @@ export async function mountAnip(
       const modes = (decl?.response_modes as string[]) ?? ["unary"];
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId, taskId, parentInvocationId, upstreamService, stream: true, budget,
-          approvalGrant,
-          requestedEffects,
+          ...invokeOpts,
+          stream: true,
         });
         const failure = result.failure as Record<string, unknown>;
-        return reply.status(failureStatus(failure?.type as string)).send(result);
+        return reply.status(failureStatusCode(failure?.type as string)).send(result);
       }
 
       // True streaming: reply.raw.write() as progress sink
@@ -113,14 +119,8 @@ export async function mountAnip(
       });
 
       const result = await service.invoke(req.params.capability, token, params, {
-        clientReferenceId,
-        taskId,
-        parentInvocationId,
-        upstreamService,
+        ...invokeOpts,
         stream: true,
-        budget,
-        approvalGrant,
-        requestedEffects,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
           reply.raw.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
@@ -150,7 +150,7 @@ export async function mountAnip(
     async (req, reply) => {
       const graph = service.getCapabilityGraph(req.params.capability);
       if (!graph) {
-        return reply.status(404).send({
+        return sendFailure(reply, {
           success: false,
           failure: {
             type: "not_found",
@@ -179,32 +179,12 @@ export async function mountAnip(
   //   5. check approver authority against the loaded capability
   //   6. issueApprovalGrant (steps 6–11 of the spec)
   //
-  // Fastify's built-in JSON parser raises FST_ERR_CTP_INVALID_JSON before
-  // the handler runs. The route-level errorHandler maps that to canonical
-  // invalid_parameters JSON; other errors fall through to Fastify's default.
+  // Fastify's content-type parser fails before the handler runs; the
+  // route-level errorHandler maps that to canonical invalid_parameters JSON
+  // after the credential check (see bodyErrorHandler).
   app.post(
     `${p}/anip/approval_grants`,
-    {
-      errorHandler: (err: any, _request, reply) => {
-        // Fastify's built-in JSON parser raises FST_ERR_CTP_INVALID_JSON_BODY
-        // for malformed JSON and FST_ERR_CTP_EMPTY_JSON_BODY for empty body.
-        if (
-          err &&
-          (err.code === "FST_ERR_CTP_INVALID_JSON_BODY" ||
-            err.code === "FST_ERR_CTP_EMPTY_JSON_BODY")
-        ) {
-          return reply
-            .status(400)
-            .send(
-              invalidParametersFailure(
-                `request body must be JSON: ${err.message ?? "parse error"}`,
-              ),
-            );
-        }
-        // Re-raise so Fastify's default error handler runs.
-        return reply.send(err);
-      },
-    },
+    { errorHandler: bodyErrorHandler(service, "token") },
     async (req, reply) => {
     const authResult = await resolveToken(req, service);
     if (authResult === null) return authFailureJwtEndpoint(reply);
@@ -213,7 +193,8 @@ export async function mountAnip(
 
     const parsed = IssueApprovalGrantRequest.safeParse(req.body);
     if (!parsed.success) {
-      return reply.status(400).send(
+      return sendFailure(
+        reply,
         invalidParametersFailure(
           parsed.error.issues
             .map((i) => `${i.path.join(".")}: ${i.message}`)
@@ -226,32 +207,24 @@ export async function mountAnip(
 
     const approvalRequest = await service.getApprovalRequest(approvalRequestId);
     if (approvalRequest === null) {
-      return reply
-        .status(404)
-        .send(approvalRequestNotFoundFailure(approvalRequestId));
+      return sendFailure(reply, approvalRequestNotFoundFailure(approvalRequestId));
     }
 
     // SPEC.md §4.9 step 4: state check BEFORE approver authority.
     const status = approvalRequest.status as string;
     const expiresAt = approvalRequest.expires_at as string | undefined;
     if (status !== "pending") {
-      return reply
-        .status(409)
-        .send(approvalRequestAlreadyDecidedFailure(approvalRequestId, status));
+      return sendFailure(reply, approvalRequestAlreadyDecidedFailure(approvalRequestId, status));
     }
     if (expiresAt && expiresAt <= new Date().toISOString()) {
-      return reply
-        .status(409)
-        .send(approvalRequestExpiredFailure(approvalRequestId));
+      return sendFailure(reply, approvalRequestExpiredFailure(approvalRequestId));
     }
 
     const targetCapability = approvalRequest.capability as string;
     const tokenScopes = token.scope ?? [];
     const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
     if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
-      return reply
-        .status(403)
-        .send(approverNotAuthorizedFailure(targetCapability));
+      return sendFailure(reply, approverNotAuthorizedFailure(targetCapability));
     }
 
     const approverPrincipal = {
@@ -312,7 +285,7 @@ export async function mountAnip(
       consistency_from: query.consistency_from ?? undefined,
     };
     const result = await service.getCheckpoint(req.params.id, options);
-    if (!result) return reply.status(404).send({
+    if (!result) return sendFailure(reply, {
       success: false,
       failure: {
         type: "not_found",
@@ -366,30 +339,57 @@ async function resolveToken(req: FastifyRequest, service: ANIPService) {
   }
 }
 
-function failureStatus(type?: string): number {
-  const mapping: Record<string, number> = {
-    invalid_token: 401,
-    token_expired: 401,
-    scope_insufficient: 403,
-    insufficient_authority: 403,
-    budget_exceeded: 403,
-    budget_currency_mismatch: 400,
-    budget_not_enforceable: 400,
-    binding_missing: 400,
-    binding_stale: 400,
-    control_requirement_unsatisfied: 403,
-    purpose_mismatch: 403,
-    unknown_capability: 404,
-    not_found: 404,
-    unavailable: 409,
-    concurrent_lock: 409,
-    internal_error: 500,
+const BODY_NOT_AN_OBJECT = "request body must be a JSON object";
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Send a failure body with the HTTP status of its type (SPEC.md §6.3). */
+function sendFailure(
+  reply: FastifyReply,
+  body: { success: boolean; failure: Record<string, unknown> & { type: string } },
+) {
+  return reply.status(failureStatusCode(body.failure.type)).send(body);
+}
+
+// Raised by Fastify's content-type parser before a route handler runs: the
+// body is not JSON, is empty, or has a media type Fastify does not parse.
+const BODY_PARSE_ERROR_CODES = new Set([
+  "FST_ERR_CTP_INVALID_JSON_BODY",
+  "FST_ERR_CTP_EMPTY_JSON_BODY",
+  "FST_ERR_CTP_INVALID_MEDIA_TYPE",
+]);
+
+/**
+ * Route-level error handler for the endpoints that read a JSON body.
+ * SPEC.md §6.3 "HTTP Status Codes" and §4.9 step 2: a request body that is
+ * not JSON is invalid_parameters (400), after the credential check the route
+ * handler would have made first: without a credential the answer is 401.
+ */
+function bodyErrorHandler(service: ANIPService, credential: "bootstrap" | "token") {
+  return async (err: any, req: FastifyRequest, reply: FastifyReply) => {
+    if (!err || !BODY_PARSE_ERROR_CODES.has(err.code)) {
+      // Not a body error: let Fastify's default error handling answer.
+      return reply.send(err);
+    }
+    if (credential === "bootstrap") {
+      const issuer = await extractIssuer(req, service);
+      if (!issuer) return authFailureTokenEndpoint(reply);
+    } else {
+      const authResult = await resolveToken(req, service);
+      if (authResult === null) return authFailureJwtEndpoint(reply);
+      if (authResult instanceof ANIPError) return errorResponse(reply, authResult);
+    }
+    return sendFailure(
+      reply,
+      invalidParametersFailure(`request body must be JSON: ${err.message ?? "parse error"}`),
+    );
   };
-  return mapping[type ?? ""] ?? 400;
 }
 
 function authFailureTokenEndpoint(reply: FastifyReply) {
-  return reply.status(401).send({
+  return sendFailure(reply, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -407,7 +407,7 @@ function authFailureTokenEndpoint(reply: FastifyReply) {
 }
 
 function authFailureJwtEndpoint(reply: FastifyReply) {
-  return reply.status(401).send({
+  return sendFailure(reply, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -446,10 +446,17 @@ const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
     grantable_by: null,
     estimated_availability: null,
   },
+  invalid_parameters: {
+    action: "retry_now",
+    recovery_class: "retry_now",
+    requires: null,
+    grantable_by: null,
+    estimated_availability: null,
+  },
 };
 
 function errorResponse(reply: FastifyReply, error: ANIPError) {
-  const status = failureStatus(error.errorType);
+  const status = failureStatusCode(error.errorType);
   const resolution = error.resolution ?? DEFAULT_RESOLUTIONS[error.errorType] ?? {
     action: "contact_service_owner",
     recovery_class: "terminal",

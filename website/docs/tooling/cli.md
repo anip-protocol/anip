@@ -340,6 +340,7 @@ Flags:
 | `--showcase-url` | Optional HTTPS showcase files URL. |
 | `--port` | Example generated service port used in README commands. Default: `9100`. |
 | `--write-definition` | Also write `<package-id>-<version>-service-definition.json`. |
+| `--source-package` | A package bundle (`.anip-package.json`) of an earlier revision. The new package carries that package's reviewed agent metadata (`agent_consumability`, `agent_consumption_readiness`, `agent_consumption_simulation`, `agent_consumption_publication_gate`) instead of metadata derived from the definition. Its consumability must describe exactly the capabilities of the new definition. |
 
 Example:
 
@@ -357,6 +358,8 @@ Use this for:
 - Examples.
 - Local smoke tests.
 - Reproducible showcase artifacts.
+
+Without `--source-package`, the agent metadata is derived from the definition: consumability hints and a readiness check. It has no simulation result and no reviewed findings, so a new revision of a Studio-reviewed package should pass the reviewed package as `--source-package`.
 
 Do not treat local package signatures as public Registry trust. Production publication should use a real Registry.
 

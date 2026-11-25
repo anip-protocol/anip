@@ -1,4 +1,4 @@
-import { ANIPError, defineCapability, type CapabilityDef } from "@anip-dev/service";
+import { ANIPError, defineCapability, type CapabilityDef, type InvocationContext } from "@anip-dev/service";
 import { backendAdapter } from "../runtime/backend-adapter.js";
 import { evaluatePolicy } from "../runtime/policy.js";
 import { generatedCapabilityMetadata, type BackendInvocationPlan, type EffectiveBackendInputContract, type GeneratedBackendBinding, type GeneratedCapabilityRuntimeMetadata } from "./runtime-target.js";
@@ -17,6 +17,26 @@ function readActiveSelections(): Record<string, { backend_kind?: string; connect
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function requestedEffects(ctx: InvocationContext): Set<string> {
+  return new Set((ctx.requestedEffects || []).map(String).filter((item) => item.trim().length > 0));
+}
+
+function forbiddenEffects(capability: GeneratedCapabilityRuntimeMetadata): Set<string> {
+  return new Set((capability.business_effects?.does_not_produce || []).map(String).filter((item) => item.trim().length > 0));
+}
+
+function assertRequestedEffectsAllowed(capability: GeneratedCapabilityRuntimeMetadata, ctx: InvocationContext) {
+  const forbidden = forbiddenEffects(capability);
+  const blocked = [...requestedEffects(ctx)].filter((effect) => forbidden.has(effect)).sort();
+  if (blocked.length === 0) return;
+  throw new ANIPError(
+    "denied",
+    `Capability ${capability.capability_id} does not produce requested effect(s): ${blocked.join(", ")}.`,
+    { action: "request_declared_capability", recovery_class: "terminal", unsupported_effects: blocked },
+    false,
+  );
 }
 
 function effectiveBackendInputContract(capability: GeneratedCapabilityRuntimeMetadata, selectedBinding: GeneratedBackendBinding | null): EffectiveBackendInputContract {
@@ -139,7 +159,15 @@ function inputResolution(value: Record<string, unknown> | undefined) {
   };
 }
 
-async function handleGeneratedCapability(ctx: { rootPrincipal?: string; approvalGrant?: string | null }, capability: GeneratedCapabilityRuntimeMetadata, params: Record<string, unknown>) {
+function requiresApproval(capability: GeneratedCapabilityRuntimeMetadata): boolean {
+  return capability.side_effect_level === "approval_required"
+    || capability.execution_posture === "approval_required"
+    || capability.execution_posture === "approval_gated"
+    || capability.operation_type === "approval_gated";
+}
+
+async function handleGeneratedCapability(ctx: InvocationContext, capability: GeneratedCapabilityRuntimeMetadata, params: Record<string, unknown>) {
+  assertRequestedEffectsAllowed(capability, ctx);
   params = applyInputDefaults(capability, params);
   assertRequiredSemanticInputs(capability, params);
   validateInputBehavior(capability, params);
@@ -151,25 +179,18 @@ async function handleGeneratedCapability(ctx: { rootPrincipal?: string; approval
     throw new ANIPError("clarification_required", policy.detail || `Clarification required for ${capability.capability_id}.`, policy.resolution || { action: "obtain_binding", recovery_class: "refresh_then_retry" }, false);
   }
   const plan = buildBackendInvocationPlan(capability, params);
-  if (policy.decision === "approval_required" && !ctx.approvalGrant) {
-    let preview: Record<string, unknown> = {};
-    try {
-      const candidatePreview = await backendAdapter.execute(capability, plan, plan.adapter_input, {
-        rootPrincipal: ctx.rootPrincipal,
-        approvalGrant: ctx.approvalGrant ?? null,
-      });
-      preview = candidatePreview && typeof candidatePreview === "object" && !Array.isArray(candidatePreview) ? candidatePreview : {};
-    } catch (err) {
-      if (!(err instanceof ANIPError) || err.errorType !== "approval_required") throw err;
-      const resolutionPreview = err.resolution?.preview;
-      const suppliedPreview = err.approvalRequired?.preview;
-      preview = suppliedPreview && typeof suppliedPreview === "object" && !Array.isArray(suppliedPreview)
-        ? suppliedPreview as Record<string, unknown>
-        : resolutionPreview && typeof resolutionPreview === "object" && !Array.isArray(resolutionPreview)
-          ? resolutionPreview as Record<string, unknown>
-          : {};
-    }
-    throw new ANIPError("approval_required", policy.detail || `Approval required for ${capability.capability_id}.`, {
+  // An approval-gated capability, or an actor whose binding requires approval,
+  // stops here, before the backend adapter runs, until the runtime has validated
+  // an approval grant for this invocation (it sets approvalGrant only then).
+  // The preview is the governed request itself, not backend output.
+  if ((policy.decision === "approval_required" || requiresApproval(capability)) && !ctx.approvalGrant) {
+    const preview: Record<string, unknown> = {
+      capability_id: capability.capability_id,
+      semantic_input: plan.semantic_input,
+      backend_input_contract: plan.backend_input_contract,
+    };
+    const detail = policy.decision === "approval_required" ? policy.detail : undefined;
+    throw new ANIPError("approval_required", detail || `Approval required for ${capability.capability_id}.`, {
       action: "request_approval",
       capability_id: capability.capability_id,
       semantic_input: plan.semantic_input,

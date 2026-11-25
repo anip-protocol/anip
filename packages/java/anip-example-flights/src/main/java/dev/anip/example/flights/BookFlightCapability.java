@@ -12,6 +12,7 @@ import dev.anip.core.Cost;
 import dev.anip.core.CostActual;
 import dev.anip.core.CrossServiceHints;
 import dev.anip.core.FinancialCost;
+import dev.anip.core.GrantPolicy;
 import dev.anip.core.RecoveryTarget;
 import dev.anip.core.Resolution;
 import dev.anip.core.ServiceCapabilityRef;
@@ -33,6 +34,9 @@ public final class BookFlightCapability {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** Bookings for this many passengers or more need an approval grant (SPEC.md §4.7). */
+    static final int GROUP_BOOKING_APPROVAL_THRESHOLD = 5;
+
     public static CapabilityDef create() {
         CapabilityDeclaration decl = new CapabilityDeclaration(
                 "book_flight",
@@ -41,7 +45,9 @@ public final class BookFlightCapability {
                 List.of(
                         new CapabilityInput("flight_number", "string", true, "Flight to book"),
                         new CapabilityInput("date", "date", true, "Travel date (YYYY-MM-DD)"),
-                        new CapabilityInput("passengers", "integer", false, 1, "Number of passengers"),
+                        new CapabilityInput("passengers", "integer", false, 1,
+                                "Number of passengers. Bookings for " + GROUP_BOOKING_APPROVAL_THRESHOLD
+                                        + " or more require approval"),
                         new CapabilityInput("quote_id", "object", false, "Priced quote from search_flights")
                 ),
                 new CapabilityOutput("booking_confirmation",
@@ -66,7 +72,10 @@ public final class BookFlightCapability {
                         null,
                         List.of(new ServiceCapabilityRef("travel-search", "search_flights")),
                         null, null)
-        );
+        )
+                // What an approver may issue for a group booking (SPEC.md §4.7).
+                .setGrantPolicy(new GrantPolicy(
+                        List.of("one_time", "session_bound"), "one_time", 900, 2));
 
         return new CapabilityDef(decl, BookFlightCapability::handle);
     }
@@ -84,7 +93,17 @@ public final class BookFlightCapability {
         if (flightNumber == null || flightNumber.isEmpty()
                 || date == null || date.isEmpty()) {
             throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
-                    "flight_number and date are required");
+                    "flight_number and date must not be empty");
+        }
+
+        // Group bookings need an approver's grant. On the continuation invocation
+        // the runtime has already validated and reserved the grant.
+        String grant = ctx.getApprovalGrant();
+        if (passengers >= GROUP_BOOKING_APPROVAL_THRESHOLD && (grant == null || grant.isBlank())) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUIRED,
+                    "bookings for " + GROUP_BOOKING_APPROVAL_THRESHOLD
+                            + " or more passengers require approval")
+                    .withResolution("request_approval");
         }
 
         Map<String, Object> flight = FlightData.findFlight(flightNumber, date);

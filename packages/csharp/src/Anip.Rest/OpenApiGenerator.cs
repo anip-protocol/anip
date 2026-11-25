@@ -13,6 +13,8 @@ public static class OpenApiGenerator
         ["integer"] = "integer",
         ["number"] = "number",
         ["boolean"] = "boolean",
+        ["array"] = "array",
+        ["object"] = "object",
         ["date"] = "string",
         ["airport_code"] = "string",
     };
@@ -178,7 +180,7 @@ public static class OpenApiGenerator
             {
                 ["name"] = inp.Name,
                 ["in"] = "query",
-                ["required"] = inp.Required,
+                ["required"] = inp.MustBeSupplied(),
                 ["schema"] = schema,
                 ["description"] = inp.Description,
             };
@@ -207,7 +209,7 @@ public static class OpenApiGenerator
                     prop["format"] = "date";
                 }
                 properties[inp.Name] = prop;
-                if (inp.Required)
+                if (inp.MustBeSupplied())
                 {
                     required.Add(inp.Name);
                 }

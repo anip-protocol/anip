@@ -236,6 +236,20 @@ describe("Auth error responses", () => {
     expect(data.failure.retry).toBe(true);
   });
 
+  it("POST /anip/tokens with an unrecognised credential is authentication_required", async () => {
+    // SPEC.md §6.3 Token Issuance: like no credential at all.
+    const { app } = await makeApp();
+    const res = await app.request("/anip/tokens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer not-a-known-credential" },
+      body: JSON.stringify({ scope: ["greet"] }),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("provide_credentials");
+  });
+
   it("POST /anip/invoke without auth returns ANIPFailure", async () => {
     const { app } = await makeApp();
     const res = await app.request("/anip/invoke/greet", {

@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "@anip-dev/hono": "0.24.5",
-    "@anip-dev/service": "0.24.5",
+    "@anip-dev/hono": "0.24.19",
+    "@anip-dev/service": "0.24.19",
     "@hono/node-server": "^1.11.0",
     "hono": "^4.12.8",
     "pg": "^8.16.3"
@@ -12,7 +12,7 @@
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   },
-  "name": "gtm-pipeline-typescript-native",
+  "name": "gtm-pipeline-q2-review",
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",

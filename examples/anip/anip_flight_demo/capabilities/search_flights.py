@@ -1,5 +1,7 @@
 """search_flights capability -- read-only, no side effects."""
-from anip_service import Capability, InvocationContext, ANIPError
+from anip_service import (
+    ANIPError, Capability, INVALID_PARAMETERS_RESOLUTION, InvocationContext,
+)
 from anip_core import (
     CapabilityDeclaration, CapabilityInput, CapabilityOutput,
     Cost, CostCertainty, CrossServiceHints, ObservabilityContract, ServiceCapabilityRef,
@@ -38,8 +40,20 @@ def _handle_search(ctx: InvocationContext, params: dict) -> dict:
     destination = params.get("destination")
     date = params.get("date")
 
-    if not all([origin, destination, date]):
-        raise ANIPError("invalid_parameters", "origin, destination, and date are all required")
+    # The runtime refuses missing inputs before the handler runs (SPEC.md
+    # §6.3). `airport_code` and `date` are not primitive types, so the
+    # handler checks that the values are non-empty strings.
+    invalid = [
+        name for name, value in (("origin", origin), ("destination", destination), ("date", date))
+        if not isinstance(value, str) or not value.strip()
+    ]
+    if invalid:
+        raise ANIPError(
+            "invalid_parameters",
+            f"{', '.join(invalid)} must be non-empty text",
+            resolution=dict(INVALID_PARAMETERS_RESOLUTION),
+            retry=False,
+        )
 
     flights = do_search(origin, destination, date)
     return {

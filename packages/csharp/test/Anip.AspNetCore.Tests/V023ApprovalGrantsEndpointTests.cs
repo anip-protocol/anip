@@ -250,6 +250,33 @@ public class V023ApprovalGrantsEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ApprovalGrants_Schema_RejectsOneTimeWithMoreThanOneUse()
+    {
+        // Schema: one_time allows max_uses 1 only. Refused, not lowered to 1;
+        // the request stays pending.
+        var id = SeedPendingRequest("apr_one_time_two_uses");
+        var jwt = await IssueApproverJwt();
+        var resp = await _client.SendAsync(Post("/anip/approval_grants", new
+        {
+            approval_request_id = id,
+            grant_type = "one_time",
+            max_uses = 2,
+        }, jwt));
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var j = await ParseJson(resp);
+        Assert.Equal(Constants.FailureInvalidParameters,
+            j.GetProperty("failure").GetProperty("type").GetString());
+
+        var ok = await _client.SendAsync(Post("/anip/approval_grants", new
+        {
+            approval_request_id = id,
+            grant_type = "one_time",
+            max_uses = 1,
+        }, jwt));
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
+    [Fact]
     public async Task ApprovalGrants_Schema_RejectsZeroExpiresIn()
     {
         var id = SeedPendingRequest("apr_zero_exp");

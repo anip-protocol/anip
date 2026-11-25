@@ -23,7 +23,13 @@ public class TestServiceProducer {
                                         "search_flights", "Search for flights", "1.0",
                                         List.of(
                                                 new CapabilityInput("origin", "string", true, "Origin airport"),
-                                                new CapabilityInput("destination", "string", true, "Destination airport")
+                                                new CapabilityInput("destination", "string", true, "Destination airport"),
+                                                // Required, and the declaration says what happens when it is absent.
+                                                new CapabilityInput("cabin", "string", true, null,
+                                                        "Cabin; asked for when absent", null, false, null, null, null,
+                                                        new dev.anip.core.InputResolution(
+                                                                dev.anip.core.ResolutionMode.CLARIFY, null,
+                                                                dev.anip.core.ResolutionBehavior.CLARIFY, null, null))
                                         ),
                                         new CapabilityOutput("object", List.of("flights")),
                                         new SideEffect("read", "not_applicable"),
@@ -38,7 +44,8 @@ public class TestServiceProducer {
                                 new CapabilityDeclaration(
                                         "book_flight", "Book a flight", "1.0",
                                         List.of(
-                                                new CapabilityInput("flight_id", "string", true, "Flight ID")
+                                                new CapabilityInput("flight_id", "string", true, "Flight ID"),
+                                                new CapabilityInput("options", "object", false, "Booking options")
                                         ),
                                         new CapabilityOutput("object", List.of("booking_id")),
                                         new SideEffect("irreversible", "none"),

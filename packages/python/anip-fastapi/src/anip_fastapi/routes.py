@@ -8,7 +8,10 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from anip_service import ANIPService, ANIPError
+from pydantic import ValidationError
+
+from anip_core import IssueApprovalGrantRequest, failure_status_code
+from anip_service import ANIPService, ANIPError, invalid_parameters_failure
 
 
 def mount_anip(
@@ -63,24 +66,18 @@ def mount_anip(
     async def get_graph(capability: str):
         graph = service.get_capability_graph(capability)
         if graph is None:
-            return JSONResponse(
-                status_code=404,
-                content={
-                    "success": False,
-                    "failure": {
-                        "type": "not_found",
-                        "detail": f"Capability '{capability}' not found",
-                        "resolution": {
-                            "action": "check_manifest",
-                            "recovery_class": "revalidate_then_retry",
-                            "requires": "Valid capability name from GET /anip/manifest",
-                            "grantable_by": None,
-                            "estimated_availability": None,
-                        },
-                        "retry": False,
-                    },
+            return _failure_response({
+                "type": "not_found",
+                "detail": f"Capability '{capability}' not found",
+                "resolution": {
+                    "action": "check_manifest",
+                    "recovery_class": "revalidate_then_retry",
+                    "requires": "Valid capability name from GET /anip/manifest",
+                    "grantable_by": None,
+                    "estimated_availability": None,
                 },
-            )
+                "retry": False,
+            })
         return graph
 
     # --- Tokens ---
@@ -91,7 +88,11 @@ def mount_anip(
         if issuer is None:
             return _auth_failure_token_endpoint()
 
-        body = await request.json()
+        # The credential is checked first; a body that is not a JSON object
+        # is then invalid_parameters (SPEC.md §6.3).
+        body, malformed = await _read_json_object(request)
+        if malformed is not None:
+            return malformed
         try:
             result = await service.issue_token_as(issuer, body)
             return result
@@ -121,7 +122,11 @@ def mount_anip(
             return _error_response(result)
         token = result
 
-        body = await request.json()
+        # The credential is checked first; a body that is not a JSON object
+        # is then invalid_parameters (SPEC.md §6.3).
+        body, malformed = await _read_json_object(request)
+        if malformed is not None:
+            return malformed
         params = body.get("parameters", body)
         client_reference_id = body.get("client_reference_id")
         task_id = body.get("task_id")
@@ -131,33 +136,29 @@ def mount_anip(
         approval_grant = body.get("approval_grant")  # v0.23
         requested_effects = body.get("requested_effects")
         if requested_effects is not None and not isinstance(requested_effects, list):
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "invalid_parameters",
-                        "detail": "requested_effects must be an array of canonical effect ids",
-                        "resolution": {"action": "provide_valid_input", "recovery_class": "retry_now"},
-                    },
-                },
-                status_code=400,
-            )
+            return _failure_response(invalid_parameters_failure(
+                "requested_effects must be an array of canonical effect ids",
+                requires="requested_effects as an array of strings",
+            ))
         # SPEC.md §4.8 line 1035: session_id for session_bound grants is read
         # from the signed delegation token, NOT from caller-supplied body.
 
+        # One set of arguments for the unary and the streaming call, so the
+        # two reach the service's pre-handler checks with the same request.
+        invoke_args = dict(
+            client_reference_id=client_reference_id,
+            task_id=task_id,
+            parent_invocation_id=parent_invocation_id,
+            upstream_service=upstream_service,
+            approval_grant=approval_grant,
+            requested_effects=requested_effects,
+        )
+
         if not stream:
             # Unary mode — existing behavior
-            result = await service.invoke(
-                capability, token, params,
-                client_reference_id=client_reference_id,
-                task_id=task_id,
-                parent_invocation_id=parent_invocation_id,
-                upstream_service=upstream_service,
-                approval_grant=approval_grant,
-                requested_effects=requested_effects,
-            )
+            result = await service.invoke(capability, token, params, **invoke_args)
             if not result.get("success"):
-                status = _failure_status(result.get("failure", {}).get("type"))
+                status = failure_status_code(result.get("failure", {}).get("type"))
                 return JSONResponse(result, status_code=status)
             return result
 
@@ -167,16 +168,8 @@ def mount_anip(
             modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]  # pyright: ignore[reportAttributeAccessIssue]
             if "streaming" not in modes:
                 result = await service.invoke(
-                    capability, token, params,
-                    client_reference_id=client_reference_id,
-                    task_id=task_id,
-                    parent_invocation_id=parent_invocation_id,
-                    upstream_service=upstream_service,
-                    stream=True,
-                    approval_grant=approval_grant,
-                    requested_effects=requested_effects,
-                )
-                status = _failure_status(result.get("failure", {}).get("type"))
+                    capability, token, params, stream=True, **invoke_args)
+                status = failure_status_code(result.get("failure", {}).get("type"))
                 return JSONResponse(result, status_code=status)
 
         # True streaming: asyncio.Queue bridges sink -> SSE generator
@@ -189,15 +182,7 @@ def mount_anip(
             try:
                 result = await service.invoke(
                     capability, token, params,
-                    client_reference_id=client_reference_id,
-                    task_id=task_id,
-                    parent_invocation_id=parent_invocation_id,
-                    upstream_service=upstream_service,
-                    stream=True,
-                    approval_grant=approval_grant,
-                    requested_effects=requested_effects,
-                    _progress_sink=progress_sink,
-                )
+                    stream=True, _progress_sink=progress_sink, **invoke_args)
                 await queue.put({"type": "terminal", "result": result})
             except Exception as e:
                 await queue.put({"type": "error", "detail": "Internal error"})
@@ -279,59 +264,53 @@ def mount_anip(
         try:
             body = await request.json()
         except Exception:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "invalid_parameters",
-                        "detail": "request body must be JSON",
-                        "resolution": {
-                            "action": "retry_now",
-                            "recovery_class": "retry_now",
-                        },
-                    },
-                },
-                status_code=400,
-            )
+            return _failure_response(invalid_parameters_failure(
+                "request body must be JSON", requires=_JSON_BODY_REQUIRES))
 
-        approval_request_id = body.get("approval_request_id")
-        grant_type = body.get("grant_type")
-        if not approval_request_id or not grant_type:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "invalid_parameters",
-                        "detail": "approval_request_id and grant_type are required",
-                        "resolution": {
-                            "action": "retry_now",
-                            "recovery_class": "retry_now",
-                        },
-                    },
-                },
-                status_code=400,
+        # Step 2: the body must match the IssueApprovalGrantRequest schema
+        # (session_id iff session_bound, one_time max_uses 1, positive
+        # expires_in_seconds and max_uses).
+        try:
+            parsed = IssueApprovalGrantRequest.model_validate(body, strict=True)
+        except ValidationError as exc:
+            detail = "; ".join(
+                f"{'.'.join(str(p) for p in err['loc']) or 'body'}: {err['msg']}"
+                for err in exc.errors()
             )
+            return _failure_response(invalid_parameters_failure(
+                detail, requires="a body that matches the IssueApprovalGrantRequest schema"))
+        approval_request_id = parsed.approval_request_id
+        grant_type = parsed.grant_type
 
         # Load the approval_request first so we can check approver authority
         # against the right capability.
         approval_request = await service._storage.get_approval_request(approval_request_id)
         if approval_request is None:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "approval_request_not_found",
-                        "detail": f"unknown approval_request_id={approval_request_id!r}",
-                        "resolution": {
-                            "action": "check_manifest",
-                            "recovery_class": "revalidate_then_retry",
-                        },
-                    },
+            return _failure_response({
+                "type": "approval_request_not_found",
+                "detail": f"unknown approval_request_id={approval_request_id!r}",
+                "resolution": {
+                    "action": "check_manifest",
+                    "recovery_class": "revalidate_then_retry",
                 },
-                status_code=404,
-            )
+            })
 
-        # Approver authority check: token scope must contain
+        # Step 4: request state is checked BEFORE approver authority, so a
+        # decided or expired request answers the same to every caller.
+        if approval_request["status"] != "pending":
+            return _error_response(ANIPError(
+                "approval_request_already_decided",
+                f"approval_request_id={approval_request_id!r} "
+                f"status={approval_request['status']!r}",
+            ))
+        if approval_request["expires_at"] <= datetime.now(timezone.utc).isoformat():
+            return _error_response(ANIPError(
+                "approval_request_expired",
+                f"approval_request_id={approval_request_id!r} "
+                f"expired at {approval_request['expires_at']}",
+            ))
+
+        # Step 5: approver authority. Token scope must contain
         # approver:<capability> OR a service-defined approver scope covering
         # that capability. The reference implementation accepts any of:
         # - "approver:*" (all capabilities)
@@ -340,21 +319,15 @@ def mount_anip(
         token_scopes = list(token.scope)
         approver_scopes = {f"approver:*", f"approver:{target_capability}"}
         if not any(s in approver_scopes for s in token_scopes):
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "approver_not_authorized",
-                        "detail": f"token lacks approver scope for capability {target_capability!r}",
-                        "resolution": {
-                            "action": "request_broader_scope",
-                            "recovery_class": "redelegation_then_retry",
-                            "requires": f"scope += approver:{target_capability}",
-                        },
-                    },
+            return _failure_response({
+                "type": "approver_not_authorized",
+                "detail": f"token lacks approver scope for capability {target_capability!r}",
+                "resolution": {
+                    "action": "request_broader_scope",
+                    "recovery_class": "redelegation_then_retry",
+                    "requires": f"scope += approver:{target_capability}",
                 },
-                status_code=403,
-            )
+            })
 
         approver_principal = {
             "subject": token.subject,
@@ -365,9 +338,9 @@ def mount_anip(
                 approval_request_id,
                 grant_type=grant_type,
                 approver_principal=approver_principal,
-                expires_in_seconds=body.get("expires_in_seconds"),
-                max_uses=body.get("max_uses"),
-                session_id=body.get("session_id"),
+                expires_in_seconds=parsed.expires_in_seconds,
+                max_uses=parsed.max_uses,
+                session_id=parsed.session_id,
             )
         except ANIPError as e:
             return _error_response(e)
@@ -413,24 +386,18 @@ def mount_anip(
         }
         result = await service.get_checkpoint(checkpoint_id, options)
         if result is None:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "failure": {
-                        "type": "not_found",
-                        "detail": f"Checkpoint {checkpoint_id} not found",
-                        "resolution": {
-                            "action": "revalidate_state",
-                            "recovery_class": "revalidate_then_retry",
-                            "requires": "GET /anip/checkpoints to find valid checkpoint IDs",
-                            "grantable_by": None,
-                            "estimated_availability": None,
-                        },
-                        "retry": False,
-                    },
+            return _failure_response({
+                "type": "not_found",
+                "detail": f"Checkpoint {checkpoint_id} not found",
+                "resolution": {
+                    "action": "revalidate_state",
+                    "recovery_class": "revalidate_then_retry",
+                    "requires": "GET /anip/checkpoints to find valid checkpoint IDs",
+                    "grantable_by": None,
+                    "estimated_availability": None,
                 },
-                status_code=404,
-            )
+                "retry": False,
+            })
         return result
 
     # --- Health ---
@@ -470,22 +437,32 @@ async def _resolve_token(request: Request, service: ANIPService):
         return e
 
 
-def _failure_status(failure_type: str | None) -> int:
-    """Map ANIP failure types to HTTP status codes."""
-    mapping = {
-        "invalid_token": 401,
-        "token_expired": 401,
-        "scope_insufficient": 403,
-        "insufficient_authority": 403,
-        "purpose_mismatch": 403,
-        "unknown_capability": 404,
-        "not_found": 404,
-        "unavailable": 409,
-        "concurrent_lock": 409,
-        "concurrent_request_rejected": 409,
-        "internal_error": 500,
-    }
-    return mapping.get(failure_type or "", 400)
+_JSON_BODY_REQUIRES = "a JSON object as the request body"
+
+
+def _failure_response(failure: dict) -> JSONResponse:
+    """A failure object with the HTTP status of its type (SPEC.md §6.3)."""
+    return JSONResponse(
+        {"success": False, "failure": failure},
+        status_code=failure_status_code(failure.get("type")),
+    )
+
+
+async def _read_json_object(request: Request) -> tuple[dict, JSONResponse | None]:
+    """Read the request body as a JSON object.
+
+    Returns ``(body, None)``, or ``({}, response)`` with an
+    ``invalid_parameters`` failure when the body is not JSON or not an object.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return {}, _failure_response(invalid_parameters_failure(
+            "request body must be JSON", requires=_JSON_BODY_REQUIRES))
+    if not isinstance(body, dict):
+        return {}, _failure_response(invalid_parameters_failure(
+            "request body must be a JSON object", requires=_JSON_BODY_REQUIRES))
+    return body, None
 
 
 _DEFAULT_RESOLUTIONS: dict[str, dict] = {
@@ -510,69 +487,58 @@ _DEFAULT_RESOLUTIONS: dict[str, dict] = {
         "grantable_by": None,
         "estimated_availability": None,
     },
+    "invalid_parameters": {
+        "action": "retry_now",
+        "recovery_class": "retry_now",
+        "requires": "a request that matches the endpoint's schema",
+        "grantable_by": None,
+        "estimated_availability": None,
+    },
 }
 
 
 def _error_response(error: ANIPError) -> JSONResponse:
     """Map an ANIPError to a JSONResponse."""
-    status = _failure_status(error.error_type)
     resolution = error.resolution or _DEFAULT_RESOLUTIONS.get(
         error.error_type,
         {"action": "contact_service_owner", "recovery_class": "terminal", "requires": None, "grantable_by": None, "estimated_availability": None},
     )
-    return JSONResponse(
-        {
-            "success": False,
-            "failure": {
-                "type": error.error_type,
-                "detail": error.detail,
-                "resolution": resolution,
-                "retry": error.retry,
-            },
-        },
-        status_code=status,
-    )
+    return _failure_response({
+        "type": error.error_type,
+        "detail": error.detail,
+        "resolution": resolution,
+        # The same invalid request cannot succeed (SPEC.md §6.3).
+        "retry": False if error.error_type == "invalid_parameters" else error.retry,
+    })
 
 
 def _auth_failure_token_endpoint() -> JSONResponse:
     """Structured auth failure for POST /anip/tokens (credentials required)."""
-    return JSONResponse(
-        {
-            "success": False,
-            "failure": {
-                "type": "authentication_required",
-                "detail": "A valid API key is required to issue delegation tokens",
-                "resolution": {
-                    "action": "provide_credentials",
-                    "recovery_class": "retry_now",
-                    "requires": "API key in Authorization header",
-                    "grantable_by": None,
-                    "estimated_availability": None,
-                },
-                "retry": True,
-            },
+    return _failure_response({
+        "type": "authentication_required",
+        "detail": "A valid API key is required to issue delegation tokens",
+        "resolution": {
+            "action": "provide_credentials",
+            "recovery_class": "retry_now",
+            "requires": "API key in Authorization header",
+            "grantable_by": None,
+            "estimated_availability": None,
         },
-        status_code=401,
-    )
+        "retry": True,
+    })
 
 
 def _auth_failure_jwt_endpoint() -> JSONResponse:
     """Structured auth failure for JWT-authenticated endpoints (no header)."""
-    return JSONResponse(
-        {
-            "success": False,
-            "failure": {
-                "type": "authentication_required",
-                "detail": "A valid delegation token (JWT) is required in the Authorization header",
-                "resolution": {
-                    "action": "request_new_delegation",
-                    "recovery_class": "redelegation_then_retry",
-                    "requires": "Bearer token from POST /anip/tokens",
-                    "grantable_by": None,
-                    "estimated_availability": None,
-                },
-                "retry": True,
-            },
+    return _failure_response({
+        "type": "authentication_required",
+        "detail": "A valid delegation token (JWT) is required in the Authorization header",
+        "resolution": {
+            "action": "request_new_delegation",
+            "recovery_class": "redelegation_then_retry",
+            "requires": "Bearer token from POST /anip/tokens",
+            "grantable_by": None,
+            "estimated_availability": None,
         },
-        status_code=401,
-    )
+        "retry": True,
+    })

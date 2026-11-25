@@ -196,6 +196,58 @@ go run ./cmd/anip generate \
 
 `anip-generate` remains available as a compatibility binary, but `anip generate` is the primary command shape for package managers such as Homebrew. `anip validate` is the primary validator entrypoint; `anip verify` and `anip-verify` remain compatibility aliases.
 
+## Generated Policy
+
+Every target emits the same policy seam (`policy.py`, `src/runtime/policy.ts`,
+`extensions/policy.go`, `Policy.java`, `Policy.cs`) over the definition's
+runtime policy bindings, and the same approval stop in the protected generated
+handler. Both fail closed:
+
+1. A matching `deny` binding refuses with `denied`, whatever the capability
+   posture. A binding whose decision the host does not recognise refuses too.
+2. When a capability has bindings and none matches the actor, the request is
+   refused with `denied` (detail: `No runtime policy binding matches the current
+   actor for this capability.`). A principal without actor claims matches none,
+   and a binding that selects a claim the principal lacks does not match.
+3. A capability without bindings is allowed. Bindings are sparse overrides at
+   the capability level: once a capability has any, they are its allowlist.
+4. An approval-gated capability (`side_effect_level` or `execution_posture`
+   `approval_required`, or `execution_posture` or `operation_type`
+   `approval_gated`) stops with `approval_required` before the backend adapter
+   runs, unless the runtime validated an approval grant for this invocation
+   (`ctx.approval_grant` in Python, `ctx.approvalGrant` in TypeScript,
+   `ctx.ApprovalGrant` in Go and C#, `ctx.getApprovalGrant()` in Java; each
+   runtime sets it only after validating and reserving the grant). An actor
+   whose matching binding is `approval_required` stops the same way.
+
+Among matching bindings `deny` wins over `approval_required`, which wins over
+`clarify` (`clarification_required`), which wins over `allow` and
+`allow_with_limits`. A refusal looks the same on HTTP and stdio.
+
+Composed capabilities are executed by the runtime, so generated policy never
+sees the parent. Each child step is invoked through the full pipeline with a
+token delegated from the caller's (same root principal, child scope, mapped
+inputs only), and applies these rules itself; a step does not inherit the
+parent's approval grant. A composition therefore reaches nothing its caller
+could not reach by invoking the children directly.
+
+A binding on a composed capability would therefore never be evaluated, so
+definition validation refuses it, and with it `anip validate`, `anip-verify`,
+`anip generate`, `anip package build-local` and Registry publication:
+`runtime_policy_bindings[N] "<id>" names composed capability "<capability>"; the
+runtime runs a composition's steps itself and never evaluates a binding on the
+composed capability, so put the rule on its child capabilities`. The same holds
+for a permission intent's `target_capability_ids`; a permission intent that
+targets a whole service through `target_service_ids` is accepted. Put a rule
+meant for a composed flow on its child capabilities, keeping in mind that it then
+also applies when the actor invokes a child directly.
+
+A custom code bundle may overlay the policy seam; it then owns rules 1 to 3.
+The approval stop lives in the protected handler and stays in force. The
+generated smoke test invokes its first capability as a principal one of that
+capability's allow bindings selects, when there is one, and expects the outcome
+the policy gives it.
+
 ## Executable Conformance
 
 Ordinary `go test ./generator` checks generation and validation. The opt-in
@@ -219,7 +271,10 @@ of the generated project. Package managers may download dependencies: local SDK
 sources do not imply an offline run.
 
 The backend-only variant removes `change_reason` from public inputs and the
-composition mapping while retaining it as a required backend input. This tests
+composition mapping while retaining it as a required backend input. It also
+removes the fixture's policy bindings and the approval gate on the child, so
+every actor reaches the backend adapter (rule 3) and the variant exercises only
+backend inputs; the main fixture carries the policy matrix. This tests
 the distinction between public contracts and backend adapter requirements without
 changing the protocol or handwritten SDK semantics. Generated Python compositions
 now match the SDK's mapped-only child input behavior: parent values are not

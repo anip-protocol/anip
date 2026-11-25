@@ -63,7 +63,7 @@ public final class SearchFlightsCapability {
                 || destination == null || destination.isEmpty()
                 || date == null || date.isEmpty()) {
             throw new ANIPError(Constants.FAILURE_INVALID_PARAMETERS,
-                    "origin, destination, and date are all required");
+                    "origin, destination, and date must not be empty");
         }
 
         List<Map<String, Object>> rawFlights = FlightData.searchFlights(origin, destination, date);

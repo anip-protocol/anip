@@ -8,10 +8,14 @@ import (
 
 // typeMap converts ANIP input types to OpenAPI types.
 var typeMap = map[string]string{
-	"string":       "string",
-	"integer":      "integer",
-	"number":       "number",
-	"boolean":      "boolean",
+	"string":  "string",
+	"integer": "integer",
+	"number":  "number",
+	"boolean": "boolean",
+	// The service checks these two against the JSON type (SPEC.md §6.3), so
+	// the document must not ask for a string.
+	"array":        "array",
+	"object":       "object",
 	"date":         "string",
 	"airport_code": "string",
 }
@@ -129,7 +133,9 @@ func buildQueryParameters(decl core.CapabilityDeclaration) []map[string]any {
 		params = append(params, map[string]any{
 			"name":        inp.Name,
 			"in":          "query",
-			"required":    inp.Required,
+			// An input that declares resolution.on_missing is left to the
+			// service when absent (SPEC.md §6.3).
+			"required":    inp.MustBeSupplied(),
 			"schema":      schema,
 			"description": desc,
 		})
@@ -154,7 +160,7 @@ func buildRequestBody(decl core.CapabilityDeclaration) map[string]any {
 			prop["format"] = "date"
 		}
 		properties[inp.Name] = prop
-		if inp.Required {
+		if inp.MustBeSupplied() {
 			required = append(required, inp.Name)
 		}
 	}

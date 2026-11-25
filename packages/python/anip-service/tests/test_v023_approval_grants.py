@@ -48,8 +48,8 @@ def _approval_required_capability(*, grant_policy: GrantPolicy | None = None) ->
     )
 
     async def handler(ctx: InvocationContext, params: dict[str, Any]) -> dict[str, Any]:
-        # Require approval for amounts > 10000.
-        if params.get("amount", 0) > 10000:
+        # Require approval for amounts > 10000, unless a grant was reserved.
+        if params.get("amount", 0) > 10000 and ctx.approval_grant is None:
             # Handler supplies preview content via the approval_required dict.
             raise ANIPError(
                 "approval_required",
@@ -407,6 +407,7 @@ class TestContinuationInvocation:
             parameters={"amount": 50000, "to_account": "x"},
             token_scope=list(token.scope),
             token_session_id=None,
+            token_root_principal="human:samir@example.com",
             key_manager=service._keys,
             now_iso=utc_now_iso(),
         )
@@ -454,11 +455,81 @@ class TestContinuationInvocation:
             parameters={"amount": 50000, "to_account": "x"},
             token_scope=["other.scope"],  # missing finance.write
             token_session_id=None,
+            token_root_principal="human:samir@example.com",
             key_manager=service._keys,
             now_iso=utc_now_iso(),
         )
         assert result is None
         assert fail == "grant_scope_mismatch"
+
+
+class TestRequesterBinding:
+    """SPEC.md §4.8 Phase A: the grant is redeemable only by tokens of the
+    root principal recorded in its requester, checked after the capability
+    and before the scope; a mismatch is refused before reservation."""
+
+    async def _grant(self, service: ANIPService) -> dict:
+        token_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token = await service.resolve_bearer_token(token_resp["token"])
+        first = await service.invoke(
+            "transfer_funds", token, {"amount": 50000, "to_account": "x"},
+        )
+        request_id = first["failure"]["approval_required"]["approval_request_id"]
+        return await service.issue_approval_grant(request_id, "one_time", {"p": "u"})
+
+    async def _token_of(self, service: ANIPService, principal: str) -> Any:
+        resp = await service.issue_token(principal, {
+            "subject": principal, "scope": ["finance.write"],
+            "capability": "transfer_funds", "ttl_hours": 1,
+        })
+        return await service.resolve_bearer_token(resp["token"])
+
+    @pytest.mark.asyncio
+    async def test_request_records_the_root_principal(self, service: ANIPService):
+        grant = await self._grant(service)
+        assert grant["requester"]["root_principal"] == "human:samir@example.com"
+
+    @pytest.mark.asyncio
+    async def test_another_principal_is_refused_and_the_grant_is_not_spent(self, service: ANIPService):
+        grant = await self._grant(service)
+        other = await self._token_of(service, "agent:demo-agent")
+
+        refused = await service.invoke(
+            "transfer_funds", other, {"amount": 50000, "to_account": "x"},
+            approval_grant=grant["grant_id"],
+        )
+
+        assert refused["success"] is False
+        assert refused["failure"]["type"] == "grant_requester_mismatch"
+        assert refused["failure"]["resolution"]["action"] == "contact_service_owner"
+        assert refused["failure"]["resolution"]["recovery_class"] == "terminal"
+        stored = await service._storage.get_grant(grant["grant_id"])
+        assert stored["use_count"] == 0
+
+        same = await self._token_of(service, "human:samir@example.com")
+        ok = await service.invoke(
+            "transfer_funds", same, {"amount": 50000, "to_account": "x"},
+            approval_grant=grant["grant_id"],
+        )
+        assert ok["success"] is True, ok
+
+    @pytest.mark.asyncio
+    async def test_requester_is_checked_after_capability_and_before_scope(self, service: ANIPService):
+        grant = await self._grant(service)
+        from anip_service.v023 import validate_continuation_grant, utc_now_iso
+
+        async def check(capability: str, scope: list[str]) -> str | None:
+            _, fail = await validate_continuation_grant(
+                storage=service._storage, grant_id=grant["grant_id"],
+                capability=capability, parameters={"amount": 50000, "to_account": "x"},
+                token_scope=scope, token_session_id=None,
+                token_root_principal="agent:demo-agent",
+                key_manager=service._keys, now_iso=utc_now_iso(),
+            )
+            return fail
+
+        assert await check("some_other_capability", ["finance.write"]) == "grant_capability_mismatch"
+        assert await check("transfer_funds", ["other.scope"]) == "grant_requester_mismatch"
 
 
 class TestAuditLinkage:
@@ -578,3 +649,60 @@ class TestConcurrentIssuance:
         # Exactly one persisted grant.
         stored_req = await service._storage.get_approval_request(request_id)
         assert stored_req["status"] == "approved"
+
+
+class TestBlankGrantResolutionAndRetry:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("grant", ["", "   ", "\t\n", 7])
+    @pytest.mark.parametrize("amount", [50000, 5])
+    async def test_blank_grant_is_not_found_before_the_handler(self, service: ANIPService, grant, amount):
+        """A supplied approval_grant is always validated: a blank or
+        non-string one names no grant, whether or not the invocation would
+        have needed approval."""
+        token_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token = await service.resolve_bearer_token(token_resp["token"])
+        result = await service.invoke(
+            "transfer_funds", token, {"amount": amount, "to_account": "x"},
+            approval_grant=grant,
+        )
+        assert result["success"] is False
+        assert result["failure"]["type"] == "grant_not_found"
+        assert "approval_required" not in result["failure"]
+
+    @pytest.mark.asyncio
+    async def test_grant_failures_carry_a_resolution(self, service: ANIPService):
+        """SPEC.md §4.5: every failure carries a resolution with a
+        recovery_class."""
+        token_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token = await service.resolve_bearer_token(token_resp["token"])
+        first = await service.invoke("transfer_funds", token, {"amount": 50000, "to_account": "x"})
+        request_id = first["failure"]["approval_required"]["approval_request_id"]
+        grant = await service.issue_approval_grant(request_id, "one_time", {"p": "u"})
+        refusals = {
+            "grant_not_found": await service.invoke(
+                "transfer_funds", token, {"amount": 50000, "to_account": "x"},
+                approval_grant="grant_missing"),
+            "grant_param_drift": await service.invoke(
+                "transfer_funds", token, {"amount": 60000, "to_account": "x"},
+                approval_grant=grant["grant_id"]),
+        }
+        await service.invoke(
+            "transfer_funds", token, {"amount": 50000, "to_account": "x"},
+            approval_grant=grant["grant_id"])
+        refusals["grant_consumed"] = await service.invoke(
+            "transfer_funds", token, {"amount": 50000, "to_account": "x"},
+            approval_grant=grant["grant_id"])
+        for expected, result in refusals.items():
+            failure = result["failure"]
+            assert failure["type"] == expected
+            assert failure["resolution"]["action"] == "contact_service_owner"
+            assert failure["resolution"]["recovery_class"] == "terminal"
+
+    @pytest.mark.asyncio
+    async def test_approval_required_carries_retry_false(self, service: ANIPService):
+        """SPEC.md §4.7: the approval_required failure carries retry: false."""
+        token_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token = await service.resolve_bearer_token(token_resp["token"])
+        result = await service.invoke("transfer_funds", token, {"amount": 50000, "to_account": "x"})
+        assert result["failure"]["type"] == "approval_required"
+        assert result["failure"]["retry"] is False

@@ -455,7 +455,7 @@ func TestValidateContinuationGrant_CapabilityMismatch(t *testing.T) {
 	g, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID,
 		"some_other_capability",
 		map[string]any{"amount": 50000, "to_account": "acct-2"},
-		token.Scope, "", utcNowISO())
+		token.Scope, "", "human:samir@example.com", utcNowISO())
 	if g != nil {
 		t.Error("expected grant=nil")
 	}
@@ -475,7 +475,7 @@ func TestValidateContinuationGrant_ScopeMismatch(t *testing.T) {
 	g, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID,
 		"transfer_funds",
 		map[string]any{"amount": 50000, "to_account": "acct-2"},
-		[]string{"other.scope"}, "", utcNowISO())
+		[]string{"other.scope"}, "", "human:samir@example.com", utcNowISO())
 	if g != nil {
 		t.Error("expected grant=nil")
 	}
@@ -496,7 +496,7 @@ func TestValidateContinuationGrant_ParamDrift(t *testing.T) {
 	g, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID,
 		"transfer_funds",
 		map[string]any{"amount": 99999, "to_account": "y"},
-		token.Scope, "", utcNowISO())
+		token.Scope, "", "human:samir@example.com", utcNowISO())
 	if g != nil {
 		t.Error("expected grant=nil")
 	}
@@ -517,7 +517,7 @@ func TestValidateContinuationGrant_Expired(t *testing.T) {
 	g, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID,
 		"transfer_funds",
 		map[string]any{"amount": 50000, "to_account": "acct-2"},
-		token.Scope, "", utcInISO(99999))
+		token.Scope, "", "human:samir@example.com", utcInISO(99999))
 	if g != nil {
 		t.Error("expected grant=nil")
 	}
@@ -539,12 +539,94 @@ func TestValidateContinuationGrant_SessionMismatch(t *testing.T) {
 	g, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID,
 		"transfer_funds",
 		map[string]any{"amount": 50000, "to_account": "acct-2"},
-		token.Scope, "sess-B", utcNowISO())
+		token.Scope, "sess-B", "human:samir@example.com", utcNowISO())
 	if g != nil {
 		t.Error("expected grant=nil")
 	}
 	if fail != FailureGrantSessionInvalid {
 		t.Errorf("fail = %q, want grant_session_invalid", fail)
+	}
+}
+
+// --- Requester binding (SPEC.md §4.8 step 5) ------------------------------
+
+func issueTokenOf(t *testing.T, svc *Service, principal string) *core.DelegationToken {
+	t.Helper()
+	resp, err := svc.IssueToken(principal, core.TokenRequest{
+		Subject: principal, Scope: []string{"finance.write"},
+		Capability: "transfer_funds", TTLHours: 1,
+	})
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+	tok, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken: %v", err)
+	}
+	return tok
+}
+
+func TestRequesterBinding_RequestRecordsRootPrincipal(t *testing.T) {
+	svc := newApprovalService(t)
+	requestID := triggerApproval(t, svc, issueResolvedToken(t, svc))
+	grant, err := svc.IssueApprovalGrant(requestID, core.GrantTypeOneTime, map[string]any{"p": "u"}, IssueApprovalGrantOpts{})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant: %v", err)
+	}
+	if grant.Requester["root_principal"] != "human:samir@example.com" {
+		t.Errorf("requester = %v, want root_principal human:samir@example.com", grant.Requester)
+	}
+}
+
+func TestRequesterBinding_AnotherPrincipalIsRefusedAndGrantNotSpent(t *testing.T) {
+	svc := newApprovalService(t)
+	requestID := triggerApproval(t, svc, issueResolvedToken(t, svc))
+	grant, err := svc.IssueApprovalGrant(requestID, core.GrantTypeOneTime, map[string]any{"p": "u"}, IssueApprovalGrantOpts{})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant: %v", err)
+	}
+	params := map[string]any{"amount": 50000, "to_account": "acct-2"}
+
+	refused, err := svc.Invoke("transfer_funds", issueTokenOf(t, svc, "agent:demo-agent"), params,
+		InvokeOpts{ApprovalGrant: grant.GrantID})
+	if err != nil {
+		t.Fatalf("Invoke: %v", err)
+	}
+	failure, _ := refused["failure"].(map[string]any)
+	if refused["success"] != false || failure["type"] != "grant_requester_mismatch" {
+		t.Fatalf("expected grant_requester_mismatch, got %v", refused)
+	}
+	resolution, _ := failure["resolution"].(map[string]any)
+	if resolution["action"] != "contact_service_owner" || resolution["recovery_class"] != "terminal" {
+		t.Errorf("resolution = %v", failure["resolution"])
+	}
+	stored, _ := svc.storage.GetGrant(grant.GrantID)
+	if stored.UseCount != 0 {
+		t.Errorf("use_count = %d after a refused redemption, want 0", stored.UseCount)
+	}
+
+	ok, err := svc.Invoke("transfer_funds", issueTokenOf(t, svc, "human:samir@example.com"), params,
+		InvokeOpts{ApprovalGrant: grant.GrantID})
+	if err != nil || ok["success"] != true {
+		t.Fatalf("the requester's principal could not redeem: %v %v", ok, err)
+	}
+}
+
+func TestRequesterBinding_CheckedAfterCapabilityBeforeScope(t *testing.T) {
+	svc := newApprovalService(t)
+	requestID := triggerApproval(t, svc, issueResolvedToken(t, svc))
+	grant, err := svc.IssueApprovalGrant(requestID, core.GrantTypeOneTime, map[string]any{"p": "u"}, IssueApprovalGrantOpts{})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant: %v", err)
+	}
+	params := map[string]any{"amount": 50000, "to_account": "acct-2"}
+	if _, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID, "some_other_capability",
+		params, []string{"finance.write"}, "", "agent:demo-agent", utcNowISO()); fail != FailureGrantCapabilityMismatch {
+		t.Errorf("fail = %q, want grant_capability_mismatch", fail)
+	}
+	if _, fail := ValidateContinuationGrant(svc.storage, svc.keys, grant.GrantID, "transfer_funds",
+		params, []string{"other.scope"}, "", "agent:demo-agent", utcNowISO()); fail != FailureGrantRequesterMismatch {
+		t.Errorf("fail = %q, want grant_requester_mismatch", fail)
 	}
 }
 
@@ -722,5 +804,106 @@ func TestConcurrentIssueApprovalGrant_OnlyOneSucceeds(t *testing.T) {
 	stored, _ := svc.storage.GetApprovalRequest(requestID)
 	if stored.Status != core.ApprovalRequestStatusApproved {
 		t.Errorf("stored.Status = %q", stored.Status)
+	}
+}
+
+// --- Blank grants, resolution and retry ----------------------------------
+
+// A supplied approval_grant is always validated. A blank one names no grant:
+// grant_not_found, before the handler runs, whether or not the invocation
+// would have needed approval.
+func TestInvoke_BlankSuppliedGrantIsNotFound(t *testing.T) {
+	svc := newApprovalService(t)
+	token := issueResolvedToken(t, svc)
+	for _, grant := range []string{"", "   ", "\t\n"} {
+		for _, amount := range []float64{50000, 5} {
+			result, err := svc.Invoke("transfer_funds", token,
+				map[string]any{"amount": amount, "to_account": "acct-2"},
+				InvokeOpts{ApprovalGrant: grant, ApprovalGrantSupplied: true})
+			if err != nil {
+				t.Fatalf("Invoke: %v", err)
+			}
+			if success, _ := result["success"].(bool); success {
+				t.Fatalf("grant %q amount %v: handler ran: %v", grant, amount, result)
+			}
+			failure, _ := result["failure"].(map[string]any)
+			if failure["type"] != FailureGrantNotFound {
+				t.Fatalf("grant %q amount %v: type = %v, want grant_not_found", grant, amount, failure["type"])
+			}
+			if _, has := failure["approval_required"]; has {
+				t.Fatalf("grant %q: a new approval request was created: %v", grant, failure)
+			}
+		}
+	}
+}
+
+func TestInvokeStream_BlankSuppliedGrantIsNotFound(t *testing.T) {
+	streaming := approvalRequiredCapability(nil)
+	streaming.Declaration.ResponseModes = []string{"unary", "streaming"}
+	svc := newApprovalServiceWithCapability(t, streaming)
+	token := issueResolvedToken(t, svc)
+	_, err := svc.InvokeStream("transfer_funds", token,
+		map[string]any{"amount": 50000.0, "to_account": "acct-2"},
+		InvokeOpts{ApprovalGrant: " ", ApprovalGrantSupplied: true, Stream: true})
+	var anipErr *core.ANIPError
+	if !errors.As(err, &anipErr) {
+		t.Fatalf("InvokeStream error = %v, want *core.ANIPError", err)
+	}
+	if anipErr.ErrorType != FailureGrantNotFound {
+		t.Fatalf("type = %q, want grant_not_found", anipErr.ErrorType)
+	}
+	if anipErr.Resolution == nil || anipErr.Resolution.RecoveryClass == "" {
+		t.Fatalf("grant failure on the streaming path has no resolution: %#v", anipErr)
+	}
+}
+
+// SPEC.md §4.5: every failure carries a resolution with a recovery_class.
+func TestInvoke_GrantFailuresCarryResolution(t *testing.T) {
+	svc := newApprovalService(t)
+	token := issueResolvedToken(t, svc)
+	requestID := triggerApproval(t, svc, token)
+	grant, err := svc.IssueApprovalGrant(requestID, core.GrantTypeOneTime,
+		map[string]any{"subject": "approver"}, IssueApprovalGrantOpts{})
+	if err != nil {
+		t.Fatalf("IssueApprovalGrant: %v", err)
+	}
+	cases := map[string]struct {
+		grant  string
+		params map[string]any
+	}{
+		FailureGrantNotFound:   {"grant_missing", map[string]any{"amount": 50000.0, "to_account": "acct-2"}},
+		FailureGrantParamDrift: {grant.GrantID, map[string]any{"amount": 60000.0, "to_account": "acct-2"}},
+	}
+	for want, tc := range cases {
+		result, err := svc.Invoke("transfer_funds", token, tc.params, InvokeOpts{ApprovalGrant: tc.grant})
+		if err != nil {
+			t.Fatalf("Invoke: %v", err)
+		}
+		failure, _ := result["failure"].(map[string]any)
+		if failure["type"] != want {
+			t.Fatalf("type = %v, want %s", failure["type"], want)
+		}
+		resolution, _ := failure["resolution"].(map[string]any)
+		if resolution["action"] != "contact_service_owner" || resolution["recovery_class"] != "terminal" {
+			t.Fatalf("%s: resolution = %v", want, failure["resolution"])
+		}
+	}
+}
+
+// SPEC.md §4.7: the approval_required failure carries retry: false.
+func TestInvoke_ApprovalRequiredCarriesRetryFalse(t *testing.T) {
+	svc := newApprovalService(t)
+	token := issueResolvedToken(t, svc)
+	result, err := svc.Invoke("transfer_funds", token,
+		map[string]any{"amount": 50000.0, "to_account": "acct-2"}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke: %v", err)
+	}
+	failure, _ := result["failure"].(map[string]any)
+	if failure["type"] != FailureApprovalRequired {
+		t.Fatalf("type = %v", failure["type"])
+	}
+	if retry, present := failure["retry"]; !present || retry != false {
+		t.Fatalf("retry = %v (present=%v), want false", retry, present)
 	}
 }

@@ -30,9 +30,10 @@ func transferFundsCapability() service.CapabilityDef {
 			{Name: "amount", Type: "number", Required: true},
 			{Name: "to_account", Type: "string", Required: true},
 		},
-		Output:       core.CapabilityOutput{Type: "x", Fields: []string{"transfer_id"}},
-		SideEffect:   core.SideEffect{Type: "irreversible", RollbackWindow: "none"},
-		MinimumScope: []string{"finance.write"},
+		Output:        core.CapabilityOutput{Type: "x", Fields: []string{"transfer_id"}},
+		SideEffect:    core.SideEffect{Type: "irreversible", RollbackWindow: "none"},
+		MinimumScope:  []string{"finance.write"},
+		ResponseModes: []string{"unary", "streaming"},
 		GrantPolicy: &core.GrantPolicy{
 			AllowedGrantTypes: []string{core.GrantTypeOneTime, core.GrantTypeSessionBound},
 			DefaultGrantType:  core.GrantTypeOneTime,
@@ -336,6 +337,31 @@ func TestV023ApprovalGrantsGinSchemaRejectsMaxUsesNegative(t *testing.T) {
 	}
 }
 
+// Schema: one_time allows max_uses 1 only. A larger value is refused
+// rather than lowered to 1.
+func TestV023ApprovalGrantsGinSchemaRejectsOneTimeMaxUsesAboveOne(t *testing.T) {
+	ts := newApprovalGinServer(t)
+	approver := issueApprovalTokenGin(t, ts, []string{"finance.write", "approver:*"}, "")
+	body := `{"approval_request_id": "apr_x", "grant_type": "one_time", "max_uses": 2}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/approval_grants", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureInvalidParameters {
+		t.Errorf("type = %v", failure["type"])
+	}
+}
+
 // SPEC.md §4.9: when present, max_uses must be a positive integer.
 func TestV023ApprovalGrantsGinSchemaRejectsMaxUsesZero(t *testing.T) {
 	ts := newApprovalGinServer(t)
@@ -585,5 +611,39 @@ func TestV023InvokeWithSessionBoundGrantUsesTokenSessionIDGin(t *testing.T) {
 	failure, _ := data["failure"].(map[string]any)
 	if failure["type"] != "grant_session_invalid" {
 		t.Errorf("type = %v, want grant_session_invalid", failure["type"])
+	}
+}
+
+// A supplied approval_grant is always validated: a blank one is
+// grant_not_found, with a resolution, and the handler does not run.
+func TestV023InvokeWithBlankGrantIsNotFoundGin(t *testing.T) {
+	ts := newApprovalGinServer(t)
+	token := issueApprovalTokenGin(t, ts, []string{"finance.write"}, "")
+	for _, grant := range []any{"", "   ", 7} {
+		for _, stream := range []bool{false, true} {
+			bb, _ := json.Marshal(map[string]any{
+				"parameters":     map[string]any{"amount": 50000, "to_account": "x"},
+				"approval_grant": grant,
+				"stream":         stream,
+			})
+			req, _ := http.NewRequest("POST", ts.URL+"/anip/invoke/transfer_funds", bytes.NewReader(bb))
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("invoke: %v", err)
+			}
+			var data map[string]any
+			json.NewDecoder(resp.Body).Decode(&data)
+			resp.Body.Close()
+			failure, _ := data["failure"].(map[string]any)
+			if data["success"] != false || failure["type"] != "grant_not_found" {
+				t.Fatalf("grant %#v stream %v: got %v", grant, stream, data)
+			}
+			resolution, _ := failure["resolution"].(map[string]any)
+			if resolution["recovery_class"] != "terminal" {
+				t.Fatalf("grant %#v stream %v: resolution = %v", grant, stream, failure["resolution"])
+			}
+		}
 	}
 }

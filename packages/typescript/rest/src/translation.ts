@@ -3,12 +3,17 @@
  *
  * Generates OpenAPI 3.1 specs and route mappings from ANIP capabilities.
  */
+import { mustBeSupplied } from "@anip-dev/service";
 
 const TYPE_MAP: Record<string, string> = {
   string: "string",
   integer: "integer",
   number: "number",
   boolean: "boolean",
+  // The service checks these two against the JSON type (SPEC.md §6.3), so
+  // the document must not ask for a string.
+  array: "array",
+  object: "object",
   date: "string",
   airport_code: "string",
 };
@@ -58,7 +63,9 @@ function buildQueryParameters(decl: Record<string, unknown>): Record<string, unk
   return inputs.map((inp) => ({
     name: inp.name,
     in: "query",
-    required: inp.required !== false,
+    // An input that sets resolution.on_missing is answered by the service
+    // (SPEC.md §4.10): the document must not mark it required.
+    required: mustBeSupplied(inp),
     schema: {
       type: TYPE_MAP[(inp.type as string) ?? "string"] ?? "string",
       ...(inp.type === "date" ? { format: "date" } : {}),
@@ -81,7 +88,7 @@ function buildRequestBody(decl: Record<string, unknown>): Record<string, unknown
       ...(inp.type === "date" ? { format: "date" } : {}),
       description: inp.description ?? "",
     };
-    if (inp.required !== false) required.push(inp.name as string);
+    if (mustBeSupplied(inp)) required.push(inp.name as string);
   }
   return {
     required: true,
@@ -112,10 +119,16 @@ export function generateOpenAPISpec(
       summary: route.declaration.description as string,
       operationId: route.capabilityName,
       responses: {
+        // One status per failure type (SPEC.md §6.3 "HTTP Status Codes"); the
+        // body of every failure response is the ANIP failure.
         "200": { description: "Success", content: { "application/json": { schema: { $ref: "#/components/schemas/ANIPResponse" } } } },
+        "400": { description: "The request has to change (invalid_parameters, approval_required, or any failure type without a status of its own)" },
         "401": { description: "Authentication required" },
-        "403": { description: "Authorization failed" },
+        "403": { description: "The delegated authority does not cover the request" },
         "404": { description: "Unknown capability" },
+        "409": { description: "Conflict with the state of a grant, an approval request or a lock" },
+        "500": { description: "Internal error" },
+        "503": { description: "Service unavailable" },
       },
       "x-anip-side-effect": seType,
       "x-anip-minimum-scope": minScope,

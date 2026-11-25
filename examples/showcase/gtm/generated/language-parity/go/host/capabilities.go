@@ -49,6 +49,9 @@ func buildCapabilityDef(capability generated.GeneratedCapabilityRuntimeMetadata)
 	return service.CapabilityDef{
 		Declaration: buildCapabilityDeclaration(capability),
 		Handler: func(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
+			if err := assertRequestedEffectsAllowed(capability, ctx); err != nil {
+				return nil, err
+			}
 			params = applyInputDefaults(capability, params)
 			if err := assertRequiredSemanticInputs(capability, params); err != nil {
 				return nil, err
@@ -72,8 +75,15 @@ func buildCapabilityDef(capability generated.GeneratedCapabilityRuntimeMetadata)
 			if ctx != nil {
 				approvalGrant = ctx.ApprovalGrant
 			}
-			if policy.Decision == "approval_required" && approvalGrant == "" {
-				return nil, core.NewANIPError("approval_required", firstNonEmpty(policy.Detail, "Approval required for "+capability.CapabilityID+".")).WithResolution("request_approval")
+			// An approval-gated capability, or an actor whose binding requires approval,
+			// stops here, before the backend adapter, until the runtime has validated an
+			// approval grant for this invocation (it sets ApprovalGrant only then).
+			if (policy.Decision == "approval_required" || requiresApproval(capability)) && approvalGrant == "" {
+				detail := ""
+				if policy.Decision == "approval_required" {
+					detail = policy.Detail
+				}
+				return nil, core.NewANIPError("approval_required", firstNonEmpty(detail, "Approval required for "+capability.CapabilityID+".")).WithResolution("request_approval")
 			}
 			return extensions.BackendAdapterInstance.Execute(capability, plan, plan.AdapterInput, extensions.BackendInvocationContext{
 				RootPrincipal: rootPrincipal,
@@ -81,6 +91,10 @@ func buildCapabilityDef(capability generated.GeneratedCapabilityRuntimeMetadata)
 			})
 		},
 	}
+}
+
+func requiresApproval(capability generated.GeneratedCapabilityRuntimeMetadata) bool {
+	return capability.SideEffectLevel == "approval_required" || capability.ExecutionPosture == "approval_required" || capability.ExecutionPosture == "approval_gated" || capability.OperationType == "approval_gated"
 }
 
 func buildCapabilityDeclaration(capability generated.GeneratedCapabilityRuntimeMetadata) core.CapabilityDeclaration {
@@ -351,6 +365,33 @@ func validateInputBehavior(capability generated.GeneratedCapabilityRuntimeMetada
 		return err
 	}
 	return nil
+}
+
+func assertRequestedEffectsAllowed(capability generated.GeneratedCapabilityRuntimeMetadata, ctx *service.InvocationContext) error {
+	if ctx == nil || len(ctx.RequestedEffects) == 0 || len(capability.BusinessEffects) == 0 {
+		return nil
+	}
+	forbidden := map[string]bool{}
+	for _, effect := range capability.BusinessEffects["does_not_produce"] {
+		effect = strings.TrimSpace(effect)
+		if effect != "" {
+			forbidden[effect] = true
+		}
+	}
+	blocked := []string{}
+	for _, effect := range ctx.RequestedEffects {
+		effect = strings.TrimSpace(effect)
+		if forbidden[effect] && !slices.Contains(blocked, effect) {
+			blocked = append(blocked, effect)
+		}
+	}
+	if len(blocked) == 0 {
+		return nil
+	}
+	slices.Sort(blocked)
+	err := core.NewANIPError("denied", "Capability "+capability.CapabilityID+" does not produce requested effect(s): "+strings.Join(blocked, ", ")+".").WithResolution("request_declared_capability")
+	err.Resolution.RecoveryClass = "terminal"
+	return err
 }
 
 func toString(value any) string {

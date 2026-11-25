@@ -60,9 +60,9 @@ Inputs are part of the behavior contract. They should describe how a value is su
 | Field | Purpose | Example |
 |-------|---------|---------|
 | `name` | Parameter name | `"account_ref"` |
-| `type` | Basic or domain type hint | `"string"` |
-| `required` | Whether the caller must supply or resolve the value | `true` |
-| `default` | Default value, if omission is allowed | `"summary"` |
+| `type` | A primitive type the runtime enforces, or a domain type name | `"string"` |
+| `required` | Whether the caller must supply the value. Defaults to `true` when the declaration does not say | `true` |
+| `default` | Value an optional input takes when the caller leaves it out | `"summary"` |
 | `description` | Human-readable meaning | `"Account name or account identifier"` |
 | `semantic_type` | Portable planner/runtime hint | `"entity_reference"` |
 | `entity_reference` | Whether this input names a concrete entity | `true` |
@@ -93,6 +93,37 @@ Example:
 ```
 
 This is what prevents contracts from drifting into either fake hardcoded catalogs or unsafe open-text guessing.
+
+### What the runtime enforces
+
+Every ANIP runtime checks an invocation's parameters against the declared inputs before the handler runs, on every transport, for unary and streaming calls:
+
+- **`required` defaults to `true`.** An input that does not state `required` is required. Say `required: false` to make it optional. A `default` does not make a required input optional.
+- **A required input that is absent or `null`** refuses the call with `invalid_parameters`. The failure detail names every missing input. The exception is an input whose `resolution` block sets `on_missing` (`clarify`, `use_default`, `deny`, ...): its declaration already says what happens when the value is absent, so the runtime leaves it to the service, which answers through that path (for example with `clarification_required`).
+- **Primitive types are checked.** If `type` is exactly `string`, `integer`, `number`, `boolean`, `array` or `object`, a supplied value of another JSON type refuses the call with `invalid_parameters`, naming the input, the declared type and the JSON type received. `integer` accepts any JSON number with an integral value (`5` and `5.0` are the same number) and rejects `true`/`false`; so does `number`.
+- **Domain types are not checked.** Any other type name (`airport_code`, `date`, `account_ref`) describes the value to the agent; validating it is the handler's job.
+- **Undeclared parameters** are passed to the handler unchanged.
+
+The check runs after delegation, budget, binding and control-requirement enforcement and before an approval grant is reserved, so a refused call has no side effect and does not spend a grant. It answers HTTP 400 and is recorded in the audit log as a failure:
+
+```json
+{
+  "success": false,
+  "invocation_id": "inv-8b2f4a7c9d0e",
+  "failure": {
+    "type": "invalid_parameters",
+    "detail": "book_flight has invalid input(s): 'passengers' must be integer, got string",
+    "resolution": {
+      "action": "retry_now",
+      "recovery_class": "retry_now",
+      "requires": "parameters that match the capability's declared inputs"
+    },
+    "retry": false
+  }
+}
+```
+
+The check does not apply `default` values and does not enforce `allowed_values` or the `resolution` block. See the specification, §6.3 "Parameter Validation".
 
 ## Capability outcomes
 

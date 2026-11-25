@@ -389,6 +389,41 @@ class TestInvoke:
         assert third.success is False
         assert third.failure.type == "grant_consumed"
 
+    def test_one_time_grant_request_for_more_than_one_use_is_invalid(self, approval_stub):
+        """A one_time grant allows max_uses 1 only; asking for more is
+        refused rather than lowered, and the request stays pending."""
+        requester = _issue_capability_token(
+            approval_stub, scope=["finance.write"], capability="transfer_funds",
+        )
+        first = approval_stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="transfer_funds",
+                parameters_json=json.dumps({"amount": 50000, "to_account": "x"}),
+            ),
+            metadata=_auth_metadata(requester),
+        )
+        request_id = json.loads(first.failure.context_json)["approval_required"]["approval_request_id"]
+        approver = _issue_capability_token(
+            approval_stub, scope=["finance.write", "approver:*"], capability="transfer_funds",
+        )
+
+        refused = approval_stub.IssueApprovalGrant(
+            anip_pb2.IssueApprovalGrantRequest(
+                approval_request_id=request_id, grant_type="one_time", max_uses=2,
+            ),
+            metadata=_auth_metadata(approver),
+        )
+        assert refused.success is False
+        assert refused.failure.type == "invalid_parameters"
+
+        accepted = approval_stub.IssueApprovalGrant(
+            anip_pb2.IssueApprovalGrantRequest(
+                approval_request_id=request_id, grant_type="one_time", max_uses=1,
+            ),
+            metadata=_auth_metadata(approver),
+        )
+        assert accepted.success is True
+
 
 class TestInvokeStream:
     def test_invoke_stream_returns_completed(self, stub):
@@ -429,6 +464,145 @@ class TestInvokeStream:
         last = events[-1]
         assert last.HasField("failed")
         assert last.failed.failure.type != ""
+
+
+class TestParameterValidation:
+    """SPEC.md §6.3: the failure is in the response message, like any other."""
+
+    RESOLUTION = {
+        "action": "retry_now",
+        "recovery_class": "retry_now",
+        "requires": "parameters that match the capability's declared inputs",
+    }
+
+    def test_invoke_missing_required_input(self, stub):
+        token = _issue_token(stub)
+        resp = stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="echo",
+                parameters_json=json.dumps({}),
+                client_reference_id="ref-val",
+            ),
+            metadata=_auth_metadata(token),
+        )
+        assert resp.success is False
+        assert resp.invocation_id.startswith("inv-")
+        assert resp.client_reference_id == "ref-val"
+        assert resp.result_json == ""
+        assert resp.failure.type == "invalid_parameters"
+        assert resp.failure.detail == "echo is missing required input(s): message"
+        assert json.loads(resp.failure.resolution_json) == self.RESOLUTION
+        assert resp.failure.retry is False
+
+    def test_invoke_without_parameters(self, stub):
+        token = _issue_token(stub)
+        resp = stub.Invoke(
+            anip_pb2.InvokeRequest(capability="echo"), metadata=_auth_metadata(token))
+        assert resp.success is False
+        assert resp.failure.type == "invalid_parameters"
+        assert resp.failure.detail == "echo is missing required input(s): message"
+
+    def test_invoke_wrong_type(self, stub):
+        token = _issue_token(stub)
+        resp = stub.Invoke(
+            anip_pb2.InvokeRequest(
+                capability="echo", parameters_json=json.dumps({"message": ["a"]})),
+            metadata=_auth_metadata(token),
+        )
+        assert resp.success is False
+        assert resp.failure.type == "invalid_parameters"
+        assert resp.failure.detail == (
+            "echo has invalid input(s): 'message' must be string, got array")
+        assert json.loads(resp.failure.resolution_json) == self.RESOLUTION
+
+    def test_invoke_stream_missing_required_input(self, stub):
+        token = _issue_token(stub)
+        events = list(stub.InvokeStream(
+            anip_pb2.InvokeRequest(capability="echo", parameters_json=json.dumps({})),
+            metadata=_auth_metadata(token),
+        ))
+        assert len(events) == 1
+        failed = events[0].failed
+        assert events[0].HasField("failed")
+        assert failed.invocation_id.startswith("inv-")
+        assert failed.failure.type == "invalid_parameters"
+        assert failed.failure.detail == "echo is missing required input(s): message"
+        assert json.loads(failed.failure.resolution_json) == self.RESOLUTION
+        assert failed.failure.retry is False
+
+    @pytest.mark.parametrize("parameters_json", ['{"message": ', "[1, 2]", '"text"'])
+    def test_parameters_that_are_not_a_json_object(self, stub, parameters_json):
+        token = _issue_token(stub)
+        request = anip_pb2.InvokeRequest(capability="echo", parameters_json=parameters_json)
+
+        resp = stub.Invoke(request, metadata=_auth_metadata(token))
+        assert resp.success is False
+        assert resp.failure.type == "invalid_parameters"
+        assert json.loads(resp.failure.resolution_json)["action"] == "retry_now"
+        assert resp.failure.retry is False
+
+        events = list(stub.InvokeStream(request, metadata=_auth_metadata(token)))
+        assert len(events) == 1 and events[0].HasField("failed")
+        assert events[0].failed.failure.type == "invalid_parameters"
+        assert json.loads(events[0].failed.failure.resolution_json)["action"] == "retry_now"
+
+    def test_malformed_grant_request_carries_the_resolution(self, approval_stub):
+        approver = _issue_capability_token(
+            approval_stub, scope=["approver:transfer_funds"], capability="transfer_funds",
+        )
+        resp = approval_stub.IssueApprovalGrant(
+            anip_pb2.IssueApprovalGrantRequest(grant_type="one_time"),
+            metadata=_auth_metadata(approver),
+        )
+        assert resp.success is False
+        assert resp.failure.type == "invalid_parameters"
+        resolution = json.loads(resp.failure.resolution_json)
+        assert resolution["action"] == "retry_now"
+        assert resolution["recovery_class"] == "retry_now"
+        assert resp.failure.retry is False
+
+
+class TestStreamingPreHandlerChecks:
+    """InvokeStream is refused before the handler for the same reasons as Invoke."""
+
+    def _both(self, stub, token, **request):
+        unary = stub.Invoke(anip_pb2.InvokeRequest(**request), metadata=_auth_metadata(token))
+        events = list(stub.InvokeStream(
+            anip_pb2.InvokeRequest(**request), metadata=_auth_metadata(token)))
+        assert unary.success is False
+        assert len(events) == 1 and events[0].HasField("failed"), events
+        streamed = events[0].failed
+        assert streamed.failure.type == unary.failure.type
+        assert streamed.failure.detail == unary.failure.detail
+        assert streamed.failure.resolution_json == unary.failure.resolution_json
+        assert streamed.invocation_id.startswith("inv-")
+        return unary.failure.type
+
+    def test_unknown_approval_grant(self, stub):
+        token = _issue_token(stub)
+        assert self._both(
+            stub, token, capability="echo",
+            parameters_json=json.dumps({"message": "hello"}),
+            approval_grant="grant_000000000000",
+        ) == "grant_not_found"
+
+    def test_insufficient_scope(self, stub):
+        token = _issue_capability_token(stub, scope=["unrelated"], capability="echo")
+        assert self._both(
+            stub, token, capability="echo", parameters_json=json.dumps({"message": "hello"}),
+        ) == "scope_insufficient"
+
+    def test_purpose_mismatch(self, stub):
+        token = _issue_capability_token(stub, scope=["echo"], capability="something_else")
+        assert self._both(
+            stub, token, capability="echo", parameters_json=json.dumps({"message": "hello"}),
+        ) == "purpose_mismatch"
+
+    def test_parameter_validation(self, stub):
+        token = _issue_token(stub)
+        assert self._both(
+            stub, token, capability="echo", parameters_json=json.dumps({}),
+        ) == "invalid_parameters"
 
 
 class TestPermissions:

@@ -119,4 +119,38 @@ describe("MCP Streamable HTTP (Express)", () => {
       await client.close();
     }
   });
+
+  // SPEC.md §6.3 "Parameter Validation": the MCP adapter reports the refusal
+  // as a tool error carrying the failure, not as a success.
+  it("callTool without a required input is an invalid_parameters tool error", async () => {
+    const { client, transport } = makeClient({ Authorization: `Bearer ${API_KEY}` });
+    await client.connect(transport);
+    try {
+      const result = await client.callTool({ name: "greet", arguments: {} });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      expect(text).toContain("FAILED: invalid_parameters");
+      expect(text).toContain("greet is missing required input(s): name");
+      expect(text).toContain("Resolution: retry_now");
+      expect(text).toContain("Retryable: no");
+      expect(text).not.toContain("Hello");
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("callTool with a value of the wrong JSON type is an invalid_parameters tool error", async () => {
+    const { client, transport } = makeClient({ Authorization: `Bearer ${API_KEY}` });
+    await client.connect(transport);
+    try {
+      const result = await client.callTool({ name: "greet", arguments: { name: 7 } });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      expect(text).toContain("FAILED: invalid_parameters");
+      expect(text).toContain("'name' must be string, got number");
+      expect(text).not.toContain("Hello");
+    } finally {
+      await client.close();
+    }
+  });
 });

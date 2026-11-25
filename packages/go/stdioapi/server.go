@@ -214,11 +214,15 @@ func (s *Server) HandleRequest(req request) []any {
 			if c, ok := failureTypeToCode[anipErr.ErrorType]; ok {
 				code = c
 			}
-			return []any{makeError(req.ID, code, anipErr.Detail, map[string]any{
+			data := map[string]any{
 				"type":   anipErr.ErrorType,
 				"detail": anipErr.Detail,
 				"retry":  anipErr.Retry,
-			})}
+			}
+			if anipErr.Resolution != nil {
+				data["resolution"] = anipErr.Resolution
+			}
+			return []any{makeError(req.ID, code, anipErr.Detail, data)}
 		}
 		return []any{makeError(req.ID, codeInternalError, err.Error(), nil)}
 	}
@@ -310,7 +314,11 @@ func handleTokensIssue(s *Server, params map[string]any) (any, error) {
 	// Bootstrap credential, or a delegation token issued by this service.
 	issuer, ok := s.svc.AuthenticateIssuer(bearer)
 	if !ok {
-		return nil, core.NewANIPError(core.FailureInvalidToken, "Bearer token not recognized")
+		// SPEC.md §6.3 Token Issuance: an unrecognised credential is
+		// authentication_required, like no credential at all.
+		return nil, core.NewANIPError(core.FailureAuthRequired,
+			"A bootstrap credential, or a delegation token issued by this service, is required to issue delegation tokens").
+			WithResolution("provide_credentials")
 	}
 
 	// Build token request from params.

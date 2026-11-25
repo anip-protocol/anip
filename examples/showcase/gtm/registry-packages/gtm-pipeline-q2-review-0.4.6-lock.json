@@ -1,0 +1,106 @@
+{
+  "agent_consumability": {
+    "capability_count": 23,
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_publication_gate": {
+    "detail": "Latest simulator report passed 12/12 probes.",
+    "label": "Simulation passed",
+    "latest_report_artifact_id": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-agent-consumption-simulation-report",
+    "overridden": false,
+    "status": "pass"
+  },
+  "agent_consumption_readiness": {
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "info": 0,
+      "probes": 49,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "agent_consumption_simulation": {
+    "generated_at": "2026-06-24T18:35:25.517Z",
+    "simulator_runtime": {
+      "model": "gpt-5.4-mini",
+      "model_source": "default",
+      "provider": "openai",
+      "provider_source": "default"
+    },
+    "status": "pass",
+    "summary": {
+      "failed": 0,
+      "passed": 12,
+      "total": 12
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "blueprint_version": "0.4.6",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "capability_ids": [
+    "gtm.pipeline_summary",
+    "gtm.pipeline_forecast_summary",
+    "gtm.stage_bottleneck_summary",
+    "gtm.sales_team_performance_summary",
+    "gtm.product_pipeline_summary",
+    "gtm.stalled_opportunity_review",
+    "gtm.account_risk_summary",
+    "gtm.prepare_followup_tasks",
+    "gtm.prepare_reassignment_plan",
+    "gtm.at_risk_followup_preparation",
+    "gtm.at_risk_reassignment_preparation",
+    "gtm.account_enrichment_summary",
+    "gtm.lookalike_accounts",
+    "gtm.at_risk_account_enrichment_summary",
+    "gtm.score_leads",
+    "gtm.prioritize_accounts",
+    "gtm.route_leads",
+    "gtm.prioritized_routing_preparation",
+    "gtm.draft_outreach_message",
+    "gtm.suggest_followup_content",
+    "gtm.objection_response_variants",
+    "gtm.prioritized_outreach_draft",
+    "gtm.bottleneck_account_outreach_draft"
+  ],
+  "contract_signature": "sha256:119eeb2146f14a4500bf6a7901059a4c15061b46362c689b07fbea0c473ce754",
+  "extension_packs": [],
+  "generated_at": "2026-11-14T00:00:00Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-developer-definition-revision-2",
+      "contract_signature": "sha256:119eeb2146f14a4500bf6a7901059a4c15061b46362c689b07fbea0c473ce754",
+      "ref": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-developer-definition-revision-2",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-product-design-revision-1@r1",
+      "baseline_locked_at": "2026-11-14T00:00:00Z",
+      "ref": "e19bba7f-ce1d-4ca8-bfb2-60fad064f007-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:e19bba7f-ce1d-4ca8-bfb2-60fad064f007"
+  },
+  "lock_kind": "publisher_recommended_lock",
+  "package_execution_signature": "sha256:a9c3b3c2e77c2c166365dd73207481627304e2ae64df28c582609a60de729371",
+  "package_id": "gtm-pipeline-q2-review",
+  "package_version": "0.4.6",
+  "regression_packs": [],
+  "runtime_packages": [],
+  "schema_version": "anip-service-definition/v1",
+  "selected_service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "service_definition_digest": "sha256:119eeb2146f14a4500bf6a7901059a4c15061b46362c689b07fbea0c473ce754",
+  "verifier_packs": [
+    "anip-verifier@local"
+  ]
+}

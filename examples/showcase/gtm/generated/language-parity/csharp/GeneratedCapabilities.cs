@@ -78,6 +78,7 @@ public static class GeneratedCapabilities
         Dictionary<string, object?> parameters,
         BackendAdapterHandler backendAdapter)
     {
+        AssertRequestedEffectsAllowed(capability, ctx);
         parameters = ApplyInputDefaults(capability, parameters);
         AssertRequiredSemanticInputs(capability, parameters);
         ValidateInputBehavior(capability, parameters);
@@ -92,11 +93,24 @@ public static class GeneratedCapabilities
         }
 
         var plan = BuildBackendInvocationPlan(capability, parameters);
-        if (policy.Decision == "approval_required" && string.IsNullOrWhiteSpace(ctx.ApprovalGrant))
+        // An approval-gated capability, or an actor whose binding requires approval,
+        // stops here, before the backend adapter, until the runtime has validated an
+        // approval grant for this invocation (it sets the grant only then).
+        var bindingRequiresApproval = policy.Decision == "approval_required";
+        if ((bindingRequiresApproval || RequiresApproval(capability)) && string.IsNullOrWhiteSpace(ctx.ApprovalGrant))
         {
-            throw new AnipError("approval_required", FirstNonEmpty(policy.Detail, $"Approval required for {StringValue(capability, "capability_id")}.")!).WithResolution("request_approval");
+            throw new AnipError("approval_required", FirstNonEmpty(bindingRequiresApproval ? policy.Detail : null, $"Approval required for {StringValue(capability, "capability_id")}.")!).WithResolution("request_approval");
         }
         return backendAdapter(capability, plan, (Dictionary<string, object?>)plan["adapter_input"]!, ctx);
+    }
+
+    private static bool RequiresApproval(Dictionary<string, object?> capability)
+    {
+        var executionPosture = StringValue(capability, "execution_posture");
+        return StringValue(capability, "side_effect_level") == "approval_required"
+            || executionPosture == "approval_required"
+            || executionPosture == "approval_gated"
+            || StringValue(capability, "operation_type") == "approval_gated";
     }
 
     private static List<CapabilityInput> BuildInputs(Dictionary<string, object?> capability)
@@ -259,6 +273,17 @@ public static class GeneratedCapabilities
             ["backend_input_contract"] = contract,
             ["unresolved_required_backend_inputs"] = unresolved,
         };
+    }
+
+    private static void AssertRequestedEffectsAllowed(Dictionary<string, object?> capability, InvocationContext ctx)
+    {
+        if (ctx.RequestedEffects.Count == 0) return;
+        var effects = DictionaryValue(capability.GetValueOrDefault("business_effects"));
+        var forbidden = new HashSet<string>(StringList(effects.GetValueOrDefault("does_not_produce")));
+        if (forbidden.Count == 0) return;
+        var blocked = ctx.RequestedEffects.Where(effect => forbidden.Contains(effect)).Distinct().OrderBy(effect => effect).ToList();
+        if (blocked.Count == 0) return;
+        throw new AnipError("denied", $"Capability {StringValue(capability, "capability_id")} does not produce requested effect(s): {string.Join(", ", blocked)}.").WithResolution("request_declared_capability");
     }
 
     private static Dictionary<string, object?>? SelectBackendBinding(Dictionary<string, object?> capability)

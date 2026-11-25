@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.anip.core.ANIPError;
 import dev.anip.core.ApprovalGrant;
 import dev.anip.server.AnipJacksonModule;
-import dev.anip.core.ApprovalRequest;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.AuditResponse;
 import dev.anip.core.CheckpointDetailResponse;
@@ -22,6 +21,7 @@ import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
+import dev.anip.service.JsonRequestBody;
 import dev.anip.service.SignedManifest;
 import dev.anip.service.StreamEvent;
 import dev.anip.service.StreamResult;
@@ -112,8 +112,9 @@ public class AnipResource {
 
     @POST
     @Path("anip/tokens")
+    @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response issueToken(Map<String, Object> body,
+    public Response issueToken(byte[] rawBody,
                                @HeaderParam("Authorization") String authHeader) {
         String bearer = extractBearer(authHeader);
         if (bearer == null || bearer.isEmpty()) {
@@ -123,9 +124,21 @@ public class AnipResource {
         // Bootstrap credential, or a delegation token issued by this service.
         Optional<dev.anip.service.Issuer> issuer = service.authenticateIssuer(bearer);
         if (issuer.isEmpty()) {
-            return failureResponse(401, Constants.FAILURE_INVALID_TOKEN,
+            // SPEC.md §6.3 Token Issuance: a credential the service does not
+            // recognise is authentication_required, like no credential at all.
+            return failureResponse(Constants.failureStatusCode(Constants.FAILURE_AUTH_REQUIRED),
+                    Constants.FAILURE_AUTH_REQUIRED,
                     "Bearer value is neither the bootstrap credential nor a delegation token "
                             + "issued by this service", true);
+        }
+
+        // The body is read after the credential check, so that a body that is
+        // not JSON is an ANIP failure and not the framework's empty 400.
+        Map<String, Object> body;
+        try {
+            body = JsonRequestBody.requireObject(rawBody);
+        } catch (ANIPError e) {
+            return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
         }
 
         try {
@@ -187,17 +200,27 @@ public class AnipResource {
 
     @POST
     @Path("anip/invoke/{capability}")
+    @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
     public Response invoke(@PathParam("capability") String capability,
-                           Map<String, Object> body,
+                           byte[] rawBody,
                            @HeaderParam("Authorization") String authHeader,
                            @HeaderParam("X-Client-Reference-Id") String clientRefHeader) {
         DelegationToken token = resolveJwt(authHeader);
 
+        // The body is read after the credential check, so that a body that is
+        // not JSON is an ANIP failure and not the framework's empty 400.
+        Map<String, Object> body;
+        Map<String, Object> p;
+        try {
+            body = JsonRequestBody.readObject(rawBody);
+            p = JsonRequestBody.parametersOf(capability, body);
+        } catch (ANIPError e) {
+            return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
+        }
+
         Map<String, Object> params = new LinkedHashMap<>();
         if (body != null) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> p = (Map<String, Object>) body.get("parameters");
             if (p != null) {
                 params = p;
             } else {
@@ -229,7 +252,8 @@ public class AnipResource {
 
         // v0.23: continuation grant_id from body. NOTE: session_id is NEVER
         // read from the body — it must come from the signed delegation token.
-        String approvalGrant = body != null ? (String) body.get("approval_grant") : null;
+        String approvalGrant = InvokeOpts.approvalGrantFromRequest(
+                body != null ? body.get("approval_grant") : null);
 
         if (stream) {
             InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId, upstreamService);
@@ -260,111 +284,34 @@ public class AnipResource {
     // --- v0.23: Approval grants (JWT auth) ---
 
     /**
-     * SPEC.md §4.9 — POST /anip/approval_grants. Validation order is
-     * security-relevant:
-     *   1. authn (resolveJwt)
-     *   2. parse + schema-validate body
-     *   3. load ApprovalRequest
-     *   4. state check (decided / expired) — BEFORE approver auth
-     *   5. approver authority check (token must hold approver:* or approver:&lt;cap&gt;)
-     *   6. issueApprovalGrant
-     * The 200 body IS the signed grant — no wrapper.
+     * SPEC.md §4.9 — POST /anip/approval_grants. The bearer is authenticated
+     * here; the body checks, request state, approver authority and issuance
+     * run in {@link ANIPService#issueApprovalGrantForToken}, in the order the
+     * spec gives. The 200 body IS the signed grant — no wrapper.
      */
     @POST
     @Path("anip/approval_grants")
+    @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response approvalGrants(Map<String, Object> body,
+    public Response approvalGrants(String rawBody,
                                     @HeaderParam("Authorization") String authHeader) {
         DelegationToken token = resolveJwt(authHeader);
 
-        // 2a. Parse body. JAX-RS already decoded JSON into a Map.
-        if (body == null) {
+        // The body is read as text so that malformed JSON gets an ANIP
+        // failure instead of the framework's empty 400.
+        Object body;
+        try {
+            body = MAPPER.readValue(rawBody == null ? "" : rawBody, Object.class);
+        } catch (Exception e) {
             return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
                     "request body must be JSON", false);
         }
 
-        String approvalRequestId = (String) body.get("approval_request_id");
-        String grantType = (String) body.get("grant_type");
-        String sessionId = (String) body.get("session_id");
-        Integer expiresInSeconds = body.get("expires_in_seconds") instanceof Number n
-                ? n.intValue() : null;
-        Integer maxUses = body.get("max_uses") instanceof Number n2
-                ? n2.intValue() : null;
-
-        // 2b. Schema validation.
-        if (approvalRequestId == null || approvalRequestId.isEmpty()) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "approval_request_id: required", false);
-        }
-        if (!ApprovalGrant.TYPE_ONE_TIME.equals(grantType) && !ApprovalGrant.TYPE_SESSION_BOUND.equals(grantType)) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "grant_type: must be one_time or session_bound", false);
-        }
-        if (ApprovalGrant.TYPE_SESSION_BOUND.equals(grantType) && (sessionId == null || sessionId.isEmpty())) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "session_id: required when grant_type=session_bound", false);
-        }
-        if (ApprovalGrant.TYPE_ONE_TIME.equals(grantType) && sessionId != null && !sessionId.isEmpty()) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "session_id: must not be set when grant_type=one_time", false);
-        }
-        if (expiresInSeconds != null && expiresInSeconds < 1) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "expires_in_seconds: must be a positive integer", false);
-        }
-        if (maxUses != null && maxUses < 1) {
-            return failureResponse(400, Constants.FAILURE_INVALID_PARAMETERS,
-                    "max_uses: must be a positive integer", false);
-        }
-
-        ApprovalRequest req;
         try {
-            req = service.getApprovalRequest(approvalRequestId);
-        } catch (Exception e) {
-            return failureResponse(500, Constants.FAILURE_INTERNAL_ERROR, "lookup failed", false);
-        }
-        if (req == null) {
-            return failureResponse(404, Constants.FAILURE_APPROVAL_REQUEST_NOT_FOUND,
-                    "approval_request_id '" + approvalRequestId + "' not found", false);
-        }
-
-        // 4. State check BEFORE approver auth.
-        String now = java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now());
-        if (!ApprovalRequest.STATUS_PENDING.equals(req.getStatus())) {
-            return failureResponse(409, Constants.FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
-                    "approval_request '" + approvalRequestId + "' status=" + req.getStatus(), false);
-        }
-        if (req.getExpiresAt() != null && req.getExpiresAt().compareTo(now) <= 0) {
-            return failureResponse(409, Constants.FAILURE_APPROVAL_REQUEST_EXPIRED,
-                    "approval_request '" + approvalRequestId + "' expired", false);
-        }
-
-        // 5. Approver authority — token must hold approver:* OR approver:<capability>.
-        boolean authorized = false;
-        if (token.getScope() != null) {
-            String required = "approver:" + req.getCapability();
-            for (String sc : token.getScope()) {
-                if ("approver:*".equals(sc) || required.equals(sc)) { authorized = true; break; }
-            }
-        }
-        if (!authorized) {
-            return failureResponse(403, Constants.FAILURE_APPROVER_NOT_AUTHORIZED,
-                    "token lacks approver:" + req.getCapability() + " scope", false);
-        }
-
-        // 6. Issue.
-        Map<String, Object> approver = new LinkedHashMap<>();
-        approver.put("subject", token.getSubject());
-        approver.put("root_principal", token.getRootPrincipal() != null
-                ? token.getRootPrincipal() : token.getIssuer());
-        try {
-            ApprovalGrant grant = service.issueApprovalGrant(approvalRequestId, grantType, approver,
-                    sessionId, expiresInSeconds, maxUses);
-            // SPEC.md §4.9: 200 IS the signed grant, no wrapper.
+            ApprovalGrant grant = service.issueApprovalGrantForToken(token, body);
             return Response.ok(toMap(grant)).build();
         } catch (ANIPError e) {
-            int status = Constants.failureStatusCode(e.getErrorType());
-            return failureResponse(status, e);
+            return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
         } catch (Exception e) {
             return failureResponse(500, Constants.FAILURE_INTERNAL_ERROR,
                     "issuance failed: " + e.getMessage(), false);
@@ -501,16 +448,15 @@ public class AnipResource {
         try {
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
+            // SPEC.md §6.3: stream: true on a capability that only supports
+            // unary is answered with a JSON failure, not with a stream.
+            if (Constants.FAILURE_STREAMING_NOT_SUPPORTED.equals(e.getErrorType())) {
+                return failureResponse(Constants.failureStatusCode(e.getErrorType()), e);
+            }
             // Return a single SSE error event then close.
             StreamingOutput errorOutput = output -> {
-                Map<String, Object> errorData = new LinkedHashMap<>();
-                errorData.put("success", false);
-                errorData.put("failure", Map.of(
-                        "type", e.getErrorType(),
-                        "detail", e.getDetail(),
-                        "retry", e.isRetry()
-                ));
-                String eventStr = "event: failed\ndata: " + MAPPER.writeValueAsString(errorData) + "\n\n";
+                // The same failure object a unary refusal carries.
+                String eventStr = "event: failed\ndata: " + MAPPER.writeValueAsString(failureBody(e)) + "\n\n";
                 output.write(eventStr.getBytes(StandardCharsets.UTF_8));
                 output.flush();
             };
@@ -708,6 +654,11 @@ public class AnipResource {
             case Constants.FAILURE_BUDGET_EXCEEDED -> Map.of(
                     "action", "request_budget_increase",
                     "recovery_class", Constants.recoveryClassForAction("request_budget_increase")
+            );
+            // The caller corrects the request; nothing outside it has to change.
+            case Constants.FAILURE_INVALID_PARAMETERS -> Map.of(
+                    "action", "retry_now",
+                    "recovery_class", Constants.recoveryClassForAction("retry_now")
             );
             default -> Map.of(
                     "action", "contact_service_owner",

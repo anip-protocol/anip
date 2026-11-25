@@ -10,8 +10,15 @@ public class CapabilityInput
     [JsonPropertyName("type")]
     public string Type { get; set; } = "";
 
+    /// <summary>
+    /// Whether the caller must supply this input. SPEC.md §4.1: an input whose
+    /// declaration does not state <c>required</c> is required, in code and when
+    /// a declaration is decoded; an optional input says <c>Required = false</c>.
+    /// Always serialised.
+    /// </summary>
     [JsonPropertyName("required")]
-    public bool Required { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool Required { get; set; } = true;
 
     [JsonPropertyName("default")]
     public object? Default { get; set; }
@@ -25,6 +32,16 @@ public class CapabilityInput
     [JsonPropertyName("catalog_ref")] public string? CatalogRef { get; set; }
     [JsonPropertyName("input_meanings")] public List<InputMeaning>? InputMeanings { get; set; }
     [JsonPropertyName("resolution")] public InputResolution? Resolution { get; set; }
+
+    /// <summary>
+    /// Whether the caller must supply this input (SPEC.md §6.3, Parameter
+    /// Validation). A required input whose resolution sets <c>on_missing</c>
+    /// (§4.10) is not: its declaration says what happens when the value is
+    /// absent, and the service answers through that path. Schema front doors
+    /// (MCP, GraphQL, OpenAPI) use the same rule so that they do not refuse
+    /// such an input before the service does.
+    /// </summary>
+    public bool MustBeSupplied() => Required && Resolution?.OnMissing == null;
 
     public static void Validate(CapabilityInput inp)
     {

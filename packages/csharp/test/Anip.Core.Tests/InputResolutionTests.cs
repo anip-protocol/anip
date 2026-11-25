@@ -13,6 +13,8 @@ public class InputResolutionTests
         var raw = @"{""name"":""q"",""type"":""string""}";
         var inp = JsonSerializer.Deserialize<CapabilityInput>(raw, Opts)!;
         Assert.Null(inp.Resolution);
+        // SPEC.md §4.1: a declaration that does not state `required` is required.
+        Assert.True(inp.Required);
         Assert.False(inp.EntityReference);
         Assert.Null(inp.CatalogRef);
     }

@@ -2,24 +2,28 @@
 //
 // This file is the canonical Go translation of `anip_service.v023` (Python)
 // and `@anip-dev/service` v023.ts. The wire-format primitives — canonical
-// JSON, SHA-256 digests, detached JWS over canonical payload — match the
-// other runtimes byte-for-byte so that a grant signed by Python verifies
-// here and vice versa.
+// JSON (RFC 8785), SHA-256 digests, detached JWS over canonical payload —
+// match the other runtimes byte-for-byte so that a grant signed by Python
+// verifies here and vice versa.
 //
 // See SPEC.md §4.6, §4.7, §4.8, §4.9.
 
 package service
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/crypto"
@@ -36,6 +40,7 @@ const (
 	FailureGrantConsumed              = "grant_consumed"
 	FailureGrantCapabilityMismatch    = "grant_capability_mismatch"
 	FailureGrantScopeMismatch         = "grant_scope_mismatch"
+	FailureGrantRequesterMismatch     = "grant_requester_mismatch"
 	FailureGrantParamDrift            = "grant_param_drift"
 	FailureGrantSessionInvalid        = "grant_session_invalid"
 	FailureApprovalRequestNotFound    = "approval_request_not_found"
@@ -81,15 +86,28 @@ func utcInISO(seconds int) string {
 
 // --- Canonical JSON + digest ---
 
-// CanonicalJSON serializes value with recursively sorted keys, no whitespace,
-// no trailing whitespace. Matches Python's
-// `json.dumps(value, sort_keys=True, separators=(",", ":"))` byte-for-byte
-// and the TypeScript canonicalJson implementation.
+// CanonicalJSON serializes value as the JSON Canonicalization Scheme,
+// RFC 8785 (SPEC.md §4.7 "Canonical JSON and Digests"):
 //
-// IMPORTANT: byte-compatibility across runtimes is load-bearing — grants
-// signed in Python or TS must verify here and vice versa.
+//   - object members sorted by the UTF-16 code units of their names;
+//   - no insignificant whitespace;
+//   - strings escaped as RFC 8785 §3.2.2.2: only '"', '\\' and U+0000..U+001F
+//     are escaped, everything else is written literally;
+//   - numbers written as ECMAScript's Number.prototype.toString writes the
+//     IEEE 754 double (RFC 8785 §3.2.2.3), so 5, 5.0 and 5e0 are one number;
+//   - UTF-8 output.
+//
+// NaN and the infinities are not JSON numbers and are an error.
+//
+// It is the canonical form of the approval flow (§4.7–§4.9): the parameter
+// and preview digests and the grant signing payload. Byte-compatibility
+// across runtimes is load-bearing: every runtime runs the shared vectors in
+// packages/canonical-json-fixtures/rfc8785-vectors.json.
 func CanonicalJSON(value any) ([]byte, error) {
-	// Round-trip through encoding/json to normalize types (e.g. struct → map).
+	// Round-trip through encoding/json to reduce every Go value (structs,
+	// typed maps and slices, native integers, json.Number) to the JSON data
+	// model. Numbers come back as float64: RFC 8785 serialises the IEEE 754
+	// double, so an integer beyond ±2^53 is not preserved exactly.
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -98,14 +116,14 @@ func CanonicalJSON(value any) ([]byte, error) {
 	if err := json.Unmarshal(raw, &v); err != nil {
 		return nil, err
 	}
-	var buf strings.Builder
+	var buf bytes.Buffer
 	if err := canonicalEncode(&buf, v); err != nil {
 		return nil, err
 	}
-	return []byte(buf.String()), nil
+	return buf.Bytes(), nil
 }
 
-func canonicalEncode(buf *strings.Builder, v any) error {
+func canonicalEncode(buf *bytes.Buffer, v any) error {
 	switch x := v.(type) {
 	case nil:
 		buf.WriteString("null")
@@ -118,22 +136,14 @@ func canonicalEncode(buf *strings.Builder, v any) error {
 		}
 		return nil
 	case string:
-		b, err := json.Marshal(x)
-		if err != nil {
-			return err
-		}
-		buf.Write(b)
+		canonicalString(buf, x)
 		return nil
 	case float64:
-		// json.Number-style: encoder emits "1" for integer floats.
-		b, err := json.Marshal(x)
+		number, err := canonicalNumber(x)
 		if err != nil {
 			return err
 		}
-		buf.Write(b)
-		return nil
-	case json.Number:
-		buf.WriteString(string(x))
+		buf.WriteString(number)
 		return nil
 	case []any:
 		buf.WriteByte('[')
@@ -152,14 +162,13 @@ func canonicalEncode(buf *strings.Builder, v any) error {
 		for k := range x {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		sortByUTF16CodeUnits(keys)
 		buf.WriteByte('{')
 		for i, k := range keys {
 			if i > 0 {
 				buf.WriteByte(',')
 			}
-			kb, _ := json.Marshal(k)
-			buf.Write(kb)
+			canonicalString(buf, k)
 			buf.WriteByte(':')
 			if err := canonicalEncode(buf, x[k]); err != nil {
 				return err
@@ -168,15 +177,110 @@ func canonicalEncode(buf *strings.Builder, v any) error {
 		buf.WriteByte('}')
 		return nil
 	default:
-		// Fallback: rely on encoding/json. Should not occur after the
-		// Marshal/Unmarshal normalization above.
-		b, err := json.Marshal(x)
-		if err != nil {
-			return err
-		}
-		buf.Write(b)
-		return nil
+		// Not reachable after the normalization in CanonicalJSON, which
+		// leaves only the six cases above.
+		return fmt.Errorf("canonical JSON: unsupported value of type %T", v)
 	}
+}
+
+// sortByUTF16CodeUnits sorts object member names as RFC 8785 §3.2.3 requires:
+// by their UTF-16 code units. That differs from Go's byte-wise string order
+// (and from code point order) for names outside the Basic Multilingual Plane:
+// U+1F600 is the surrogate pair D83D DE00 and sorts before U+FF5E.
+func sortByUTF16CodeUnits(keys []string) {
+	units := make(map[string][]uint16, len(keys))
+	for _, k := range keys {
+		units[k] = utf16.Encode([]rune(k))
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := units[keys[i]], units[keys[j]]
+		for n := 0; n < len(a) && n < len(b); n++ {
+			if a[n] != b[n] {
+				return a[n] < b[n]
+			}
+		}
+		return len(a) < len(b)
+	})
+}
+
+// canonicalString writes a JSON string as RFC 8785 §3.2.2.2 requires. Only
+// the quotation mark, the backslash and the control characters below U+0020
+// are escaped; '/', '<', '>', '&', U+007F, U+2028, U+2029 and every non-ASCII
+// character are written literally (encoding/json would escape several).
+func canonicalString(buf *bytes.Buffer, s string) {
+	const hexDigits = "0123456789abcdef"
+	buf.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			buf.WriteString(`\"`)
+		case '\\':
+			buf.WriteString(`\\`)
+		case '\b':
+			buf.WriteString(`\b`)
+		case '\t':
+			buf.WriteString(`\t`)
+		case '\n':
+			buf.WriteString(`\n`)
+		case '\f':
+			buf.WriteString(`\f`)
+		case '\r':
+			buf.WriteString(`\r`)
+		default:
+			if r < 0x20 {
+				buf.WriteString(`\u00`)
+				buf.WriteByte(hexDigits[r>>4])
+				buf.WriteByte(hexDigits[r&0xf])
+			} else {
+				buf.WriteRune(r)
+			}
+		}
+	}
+	buf.WriteByte('"')
+}
+
+// canonicalNumber writes an IEEE 754 double as ECMAScript's
+// Number.prototype.toString does (RFC 8785 §3.2.2.3): -0 is "0"; the shortest
+// digits that round-trip; plain decimal notation for 1e-6 <= |x| < 1e21 and
+// exponent notation ("1e+21", "1e-7") outside that range.
+func canonicalNumber(f float64) (string, error) {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return "", fmt.Errorf("canonical JSON: %v is not a JSON number", f)
+	}
+	if f == 0 {
+		return "0", nil // also -0
+	}
+	sign := ""
+	if f < 0 {
+		sign = "-"
+		f = -f
+	}
+	// The shortest decimal that round-trips, as d.ddde±XX. In ECMAScript's
+	// terms: digits has k digits and the value is digits × 10^(n−k).
+	mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(f, 'e', -1, 64), "e")
+	e, err := strconv.Atoi(exponent)
+	if err != nil {
+		return "", fmt.Errorf("canonical JSON: cannot format %v", f)
+	}
+	digits := strings.Replace(mantissa, ".", "", 1)
+	k, n := len(digits), e+1
+
+	switch {
+	case k <= n && n <= 21:
+		return sign + digits + strings.Repeat("0", n-k), nil
+	case 0 < n && n <= 21:
+		return sign + digits[:n] + "." + digits[n:], nil
+	case -6 < n && n <= 0:
+		return sign + "0." + strings.Repeat("0", -n) + digits, nil
+	}
+	out := sign + digits[:1]
+	if k > 1 {
+		out += "." + digits[1:]
+	}
+	if n-1 > 0 {
+		return out + "e+" + strconv.Itoa(n-1), nil
+	}
+	return out + "e-" + strconv.Itoa(1-n), nil
 }
 
 // Sha256Digest returns sha256:<hex> over the canonical JSON of value.
@@ -781,6 +885,24 @@ func approvalMetadataFromMap(m map[string]any) (*core.ApprovalRequiredMetadata, 
 
 // --- Continuation grant validation (Phase A) ---
 
+// ApprovalGrantFromBody reads approval_grant from a decoded invoke request
+// body. supplied is true when the member is present and not null, whatever
+// its value; a value that is not a string is returned as "".
+func ApprovalGrantFromBody(body map[string]any) (grant string, supplied bool) {
+	raw, ok := body["approval_grant"]
+	if !ok || raw == nil {
+		return "", false
+	}
+	grant, _ = raw.(string)
+	return grant, true
+}
+
+// grantFailure builds the error for an approval_grant that failed validation
+// or reservation. SPEC.md §4.5: every failure carries a resolution.
+func grantFailure(failType, detail string) *core.ANIPError {
+	return core.NewANIPError(failType, detail).WithResolution("contact_service_owner")
+}
+
 // ValidateContinuationGrant performs the read-side validation of an
 // ApprovalGrant submitted with an invoke. Returns ("", true) on success or
 // (failureType, false) on rejection. The atomic reservation is the
@@ -796,6 +918,7 @@ func ValidateContinuationGrant(
 	parameters map[string]any,
 	tokenScope []string,
 	tokenSessionID string,
+	tokenRootPrincipal string,
 	nowISO string,
 ) (*core.ApprovalGrant, string) {
 	grant, err := storage.GetGrant(grantID)
@@ -811,6 +934,11 @@ func ValidateContinuationGrant(
 	}
 	if grant.Capability != capability {
 		return nil, FailureGrantCapabilityMismatch
+	}
+	// §4.8 Phase A: only tokens of the requester's root principal may redeem.
+	requesterRoot, _ := grant.Requester["root_principal"].(string)
+	if requesterRoot == "" || requesterRoot != tokenRootPrincipal {
+		return nil, FailureGrantRequesterMismatch
 	}
 	if !GrantScopeSubsetOfToken(grant.Scope, tokenScope) {
 		return nil, FailureGrantScopeMismatch

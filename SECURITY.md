@@ -110,7 +110,7 @@ Only the security-relevant additions are listed here. The [version history](http
 - **Non-delegable actions (v0.15)** — a `non_delegable_action` failure tells the caller that no delegation path exists for the action
 - **Bootstrap authentication contract (v0.20)** — an explicit hook contract for authenticating the caller before token issuance, plus capability-targeted root issuance
 - **Parent token semantics (v0.22)** — `parent_token` is a token ID, not a JWT, consistently across runtimes
-- **Signed approval grants (v0.23)** — an approval is a signed, parameter-bound, finite-use grant (`one_time` or `session_bound`), signed like the manifest (ES256 JWS by default)
+- **Signed approval grants (v0.23)** — an approval is a signed, parameter-bound, finite-use grant (`one_time` or `session_bound`), signed like the manifest (ES256 JWS by default). Only tokens of the requester's root principal can redeem it (v0.24)
 
 ## Delegation Enforcement Fix (packages 0.24.18)
 

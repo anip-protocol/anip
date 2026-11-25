@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
 import type { ANIPService, Issuer } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
-import { IssueApprovalGrantRequest } from "@anip-dev/core";
+import { IssueApprovalGrantRequest, failureStatusCode } from "@anip-dev/core";
 
 export async function mountAnip(
   app: Express,
@@ -39,6 +39,7 @@ export async function mountAnip(
     try {
       const issuer = await extractIssuer(req, service);
       if (!issuer) { authFailureTokenEndpoint(res); return; }
+      if (!isJsonObject(req.body)) { sendFailure(res, invalidParametersFailure(BODY_NOT_AN_OBJECT)); return; }
       const result = await service.issueTokenAs(issuer, req.body);
       res.json(result);
     } catch (e) {
@@ -66,29 +67,34 @@ export async function mountAnip(
       if (authResult instanceof ANIPError) { errorResponse(res, authResult); return; }
       const token = authResult;
       const body = req.body;
-      const params = body.parameters ?? body;
-      const clientReferenceId = body.client_reference_id ?? null;
-      const taskId = body.task_id ?? null;
-      const parentInvocationId = body.parent_invocation_id ?? null;
-      const upstreamService = body.upstream_service ?? null;
-      const budget = body.budget ?? null;
+      if (!isJsonObject(body)) { sendFailure(res, invalidParametersFailure(BODY_NOT_AN_OBJECT)); return; }
+      const params = (body.parameters ?? body) as Record<string, unknown>;
+      const clientReferenceId = (body.client_reference_id as string | undefined) ?? null;
+      const taskId = (body.task_id as string | undefined) ?? null;
+      const parentInvocationId = (body.parent_invocation_id as string | undefined) ?? null;
+      const upstreamService = (body.upstream_service as string | undefined) ?? null;
+      const budget = (body.budget as Record<string, unknown> | undefined) ?? null;
       // v0.23: continuation invocations supply approval_grant. session_id for
       // session_bound grants is read from the signed token, never the body.
-      const approvalGrant = body.approval_grant ?? null;
+      const approvalGrant = (body.approval_grant as string | undefined) ?? null;
+      // One set of invocation options for the unary and the streaming call:
+      // a streaming invocation goes through the same checks with the same
+      // inputs (SPEC.md §6.3), plus `stream` and a progress sink.
+      const invokeOpts = {
+        clientReferenceId,
+        taskId,
+        parentInvocationId,
+        upstreamService,
+        budget,
+        approvalGrant,
+      };
 
       if (!body.stream) {
-        // Unary mode — existing behavior
-        const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId,
-          taskId,
-          parentInvocationId,
-          upstreamService,
-          budget,
-          approvalGrant,
-        });
+        // Unary mode
+        const result = await service.invoke(req.params.capability, token, params, invokeOpts);
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
-          res.status(failureStatus(failure?.type as string)).json(result);
+          res.status(failureStatusCode(failure?.type as string)).json(result);
           return;
         }
         res.json(result);
@@ -100,11 +106,11 @@ export async function mountAnip(
       const modes = (decl?.response_modes as string[]) ?? ["unary"];
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId, taskId, parentInvocationId, upstreamService, stream: true, budget,
-          approvalGrant,
+          ...invokeOpts,
+          stream: true,
         });
         const failure = result.failure as Record<string, unknown>;
-        res.status(failureStatus(failure?.type as string)).json(result);
+        res.status(failureStatusCode(failure?.type as string)).json(result);
         return;
       }
 
@@ -116,13 +122,8 @@ export async function mountAnip(
       });
 
       const result = await service.invoke(req.params.capability, token, params, {
-        clientReferenceId,
-        taskId,
-        parentInvocationId,
-        upstreamService,
+        ...invokeOpts,
         stream: true,
-        budget,
-        approvalGrant,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
           res.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
@@ -150,7 +151,7 @@ export async function mountAnip(
   router.get("/anip/graph/:capability", async (req, res, _next) => {
     const graph = service.getCapabilityGraph(req.params.capability);
     if (!graph) {
-      res.status(404).json({
+      sendFailure(res, {
         success: false,
         failure: {
           type: "not_found",
@@ -187,7 +188,8 @@ export async function mountAnip(
 
       const parsed = IssueApprovalGrantRequest.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json(
+        sendFailure(
+          res,
           invalidParametersFailure(
             parsed.error.issues
               .map((i) => `${i.path.join(".")}: ${i.message}`)
@@ -201,7 +203,7 @@ export async function mountAnip(
 
       const approvalRequest = await service.getApprovalRequest(approvalRequestId);
       if (approvalRequest === null) {
-        res.status(404).json(approvalRequestNotFoundFailure(approvalRequestId));
+        sendFailure(res, approvalRequestNotFoundFailure(approvalRequestId));
         return;
       }
 
@@ -209,13 +211,11 @@ export async function mountAnip(
       const status = approvalRequest.status as string;
       const expiresAt = approvalRequest.expires_at as string | undefined;
       if (status !== "pending") {
-        res.status(409).json(
-          approvalRequestAlreadyDecidedFailure(approvalRequestId, status),
-        );
+        sendFailure(res, approvalRequestAlreadyDecidedFailure(approvalRequestId, status));
         return;
       }
       if (expiresAt && expiresAt <= new Date().toISOString()) {
-        res.status(409).json(approvalRequestExpiredFailure(approvalRequestId));
+        sendFailure(res, approvalRequestExpiredFailure(approvalRequestId));
         return;
       }
 
@@ -223,7 +223,7 @@ export async function mountAnip(
       const tokenScopes = token.scope ?? [];
       const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
       if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
-        res.status(403).json(approverNotAuthorizedFailure(targetCapability));
+        sendFailure(res, approverNotAuthorizedFailure(targetCapability));
         return;
       }
 
@@ -289,7 +289,7 @@ export async function mountAnip(
       };
       const result = await service.getCheckpoint(req.params.id, options);
       if (!result) {
-        res.status(404).json({
+        sendFailure(res, {
           success: false,
           failure: {
             type: "not_found",
@@ -310,27 +310,34 @@ export async function mountAnip(
     } catch (e) { next(e); }
   });
 
-  // SPEC.md §4.9 step 2: malformed JSON on the approval_grants endpoint
-  // surfaces canonical invalid_parameters JSON, not the framework default.
-  // express.json() raises SyntaxError with type "entity.parse.failed"
-  // before route handlers run, so the mapping happens here.
-  router.use((err: any, req: Request, res: Response, next: any) => {
-    if (
-      err &&
-      err.type === "entity.parse.failed" &&
-      req.method === "POST" &&
-      req.path === "/anip/approval_grants"
-    ) {
-      res
-        .status(400)
-        .json(
-          invalidParametersFailure(
-            `request body must be JSON: ${err.message ?? "parse error"}`,
-          ),
-        );
+  // SPEC.md §6.3 "HTTP Status Codes" and §4.9 step 2: a request body that is
+  // not JSON is invalid_parameters at the invoke, tokens and approval_grants
+  // endpoints, not the framework default. express.json() raises SyntaxError
+  // with type "entity.parse.failed" before the route handler runs, so the
+  // mapping happens here, after the credential check the handler would have
+  // made first: without a credential the answer is still 401.
+  router.use(async (err: any, req: Request, res: Response, next: any) => {
+    if (!err || err.type !== "entity.parse.failed" || req.method !== "POST") {
+      next(err);
       return;
     }
-    next(err);
+    try {
+      if (req.path === "/anip/tokens") {
+        const issuer = await extractIssuer(req, service);
+        if (!issuer) { authFailureTokenEndpoint(res); return; }
+      } else if (req.path === "/anip/approval_grants" || req.path.startsWith("/anip/invoke/")) {
+        const authResult = await resolveToken(req, service);
+        if (authResult === null) { authFailureJwtEndpoint(res); return; }
+        if (authResult instanceof ANIPError) { errorResponse(res, authResult); return; }
+      } else {
+        next(err);
+        return;
+      }
+      sendFailure(
+        res,
+        invalidParametersFailure(`request body must be JSON: ${err.message ?? "parse error"}`),
+      );
+    } catch (e) { next(e); }
   });
 
   const prefix = opts?.prefix ?? "";
@@ -376,30 +383,22 @@ async function resolveToken(req: Request, service: ANIPService) {
   }
 }
 
-function failureStatus(type?: string): number {
-  const mapping: Record<string, number> = {
-    invalid_token: 401,
-    token_expired: 401,
-    scope_insufficient: 403,
-    insufficient_authority: 403,
-    budget_exceeded: 403,
-    budget_currency_mismatch: 400,
-    budget_not_enforceable: 400,
-    binding_missing: 400,
-    binding_stale: 400,
-    control_requirement_unsatisfied: 403,
-    purpose_mismatch: 403,
-    unknown_capability: 404,
-    not_found: 404,
-    unavailable: 409,
-    concurrent_lock: 409,
-    internal_error: 500,
-  };
-  return mapping[type ?? ""] ?? 400;
+const BODY_NOT_AN_OBJECT = "request body must be a JSON object";
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Send a failure body with the HTTP status of its type (SPEC.md §6.3). */
+function sendFailure(
+  res: Response,
+  body: { success: boolean; failure: Record<string, unknown> & { type: string } },
+) {
+  res.status(failureStatusCode(body.failure.type)).json(body);
 }
 
 function authFailureTokenEndpoint(res: Response) {
-  res.status(401).json({
+  sendFailure(res, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -417,7 +416,7 @@ function authFailureTokenEndpoint(res: Response) {
 }
 
 function authFailureJwtEndpoint(res: Response) {
-  res.status(401).json({
+  sendFailure(res, {
     success: false,
     failure: {
       type: "authentication_required",
@@ -456,10 +455,17 @@ const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
     grantable_by: null,
     estimated_availability: null,
   },
+  invalid_parameters: {
+    action: "retry_now",
+    recovery_class: "retry_now",
+    requires: null,
+    grantable_by: null,
+    estimated_availability: null,
+  },
 };
 
 function errorResponse(res: Response, error: ANIPError) {
-  const status = failureStatus(error.errorType);
+  const status = failureStatusCode(error.errorType);
   const resolution = error.resolution ?? DEFAULT_RESOLUTIONS[error.errorType] ?? {
     action: "contact_service_owner",
     recovery_class: "terminal",

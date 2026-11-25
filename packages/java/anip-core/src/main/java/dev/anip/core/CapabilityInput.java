@@ -9,6 +9,11 @@ import java.util.List;
  * downstream transport/service module's ObjectMapper (typically via
  * {@code PropertyNamingStrategies.SNAKE_CASE}). v0.24 adds optional resolution
  * metadata and adjacent hint fields; see SPEC.md §4.10.
+ *
+ * <p>{@code required} defaults to {@code true} (SPEC.md §4.1): the constructor
+ * without it declares a required input, and decoding a declaration that does
+ * not state it ({@code dev.anip.server.AnipJacksonModule}) yields a required
+ * input. Serialisation always writes {@code required}.
  */
 public class CapabilityInput {
     private final String name;
@@ -57,9 +62,31 @@ public class CapabilityInput {
         this(name, type, required, null, description, null, false, null, null, null, null);
     }
 
+    /**
+     * An input that does not state {@code required} is required (SPEC.md §4.1).
+     * An optional input states {@code required = false} through one of the
+     * other constructors.
+     */
+    public CapabilityInput(String name, String type) {
+        this(name, type, true, null, null, null, false, null, null, null, null);
+    }
+
     public String getName() { return name; }
     public String getType() { return type; }
     public boolean isRequired() { return required; }
+
+    /**
+     * Whether the caller has to supply this input (SPEC.md §6.3, Parameter
+     * Validation): it is required, and its declaration does not carry a
+     * {@code resolution} block that sets {@code on_missing} (§4.10). When
+     * {@code on_missing} is set the declaration already says what happens
+     * when the value is absent, and the service answers through that path.
+     * Everything that demands inputs of a caller (the parameter check, the
+     * MCP tool schema, the GraphQL schema, the OpenAPI document) asks this.
+     */
+    public boolean mustBeSupplied() {
+        return required && !(resolution != null && resolution.onMissing() != null);
+    }
     public Object getDefaultValue() { return defaultValue; }
     public String getDescription() { return description; }
     public String getSemanticType() { return semanticType; }

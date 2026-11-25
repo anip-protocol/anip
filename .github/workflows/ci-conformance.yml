@@ -73,5 +73,6 @@ jobs:
           pytest conformance/
           --base-url=${{ matrix.target.url }}
           --bootstrap-bearer=demo-human-key
+          --other-bootstrap-bearer=demo-agent-key
           --sample-inputs=conformance/samples/flight-service.json
           -v

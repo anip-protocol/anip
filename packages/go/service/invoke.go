@@ -101,68 +101,6 @@ func resolveBindingAge(bindingValue any) time.Duration {
 	return -1
 }
 
-// validateInputs checks that required inputs are present and basic types match.
-func validateInputs(decl *core.CapabilityDeclaration, params map[string]any) error {
-	// Check required inputs are present.
-	for _, inp := range decl.Inputs {
-		if inp.Required {
-			if _, ok := params[inp.Name]; !ok {
-				return core.NewANIPError(core.FailureInvalidParameters,
-					fmt.Sprintf("missing required parameter: %s", inp.Name))
-			}
-		}
-	}
-	// Type checking for basic types.
-	for _, inp := range decl.Inputs {
-		val, ok := params[inp.Name]
-		if !ok {
-			continue
-		}
-		if err := validateType(val, inp.Type); err != nil {
-			return core.NewANIPError(core.FailureInvalidParameters,
-				fmt.Sprintf("parameter '%s': %s", inp.Name, err))
-		}
-	}
-	return nil
-}
-
-// validateType checks that a value matches the expected type string.
-func validateType(val any, typeName string) error {
-	switch typeName {
-	case "string", "airport_code", "date":
-		if _, ok := val.(string); !ok {
-			return fmt.Errorf("expected string, got %T", val)
-		}
-	case "integer":
-		switch val.(type) {
-		case int, int32, int64, float64:
-			// float64 is the default JSON number type; accept it
-		default:
-			return fmt.Errorf("expected integer, got %T", val)
-		}
-	case "number", "float":
-		switch val.(type) {
-		case float64, float32, int, int32, int64:
-		default:
-			return fmt.Errorf("expected number, got %T", val)
-		}
-	case "boolean":
-		if _, ok := val.(bool); !ok {
-			return fmt.Errorf("expected boolean, got %T", val)
-		}
-	case "object":
-		if _, ok := val.(map[string]any); !ok {
-			return fmt.Errorf("expected object, got %T", val)
-		}
-	case "array":
-		if _, ok := val.([]any); !ok {
-			return fmt.Errorf("expected array, got %T", val)
-		}
-	}
-	// Unknown types pass through (extensible).
-	return nil
-}
-
 // StreamEvent represents a single SSE event in a streaming invocation.
 type StreamEvent struct {
 	Type    string         // "progress", "completed", "failed"
@@ -187,30 +125,34 @@ func capabilitySupportsStreaming(decl core.CapabilityDeclaration) bool {
 	return false
 }
 
-// Invoke routes a capability invocation through validation, handler execution, and audit.
-func (s *Service) Invoke(
+// invocationPreflight is what the pre-handler checks establish for the
+// handler of an invocation they let through.
+type invocationPreflight struct {
+	capDef          CapabilityDef
+	effectiveTaskID string
+	effectiveBudget *core.Budget
+	checkAmount     *float64
+}
+
+// runPreHandlerChecks runs every check that precedes the handler, in the
+// order of SPEC.md §6.3, for a unary and for a streaming invocation alike:
+// task_id against the token, capability lookup, response mode, delegation
+// (scope, purpose, chain), budget, binding and control-requirement
+// enforcement, parameter validation, then approval-grant validation and
+// reservation (§4.8 Phases A and B).
+//
+// Invoke and InvokeStream both call it and nothing else before the handler,
+// so the two paths cannot drift. It returns the preflight when the invocation
+// may proceed, or the refusal as a complete invocation response (the unary
+// response shape); a refusal is audited here, where it is audited at all.
+func (s *Service) runPreHandlerChecks(
+	invocationID string,
 	capName string,
 	token *core.DelegationToken,
 	params map[string]any,
 	opts InvokeOpts,
-) (map[string]any, error) {
-	invocationID := core.GenerateInvocationID()
-	invokeStart := time.Now()
-	invokeSuccess := false
-
-	// Fire completion hooks on all exit paths (success and failure).
-	defer func() {
-		if s.hooks != nil {
-			durationMs := time.Since(invokeStart).Milliseconds()
-			if s.hooks.OnInvokeComplete != nil {
-				callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, invokeSuccess, durationMs) })
-			}
-			if s.hooks.OnInvokeDuration != nil {
-				callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, invokeSuccess) })
-			}
-		}
-	}()
-
+	streaming bool,
+) (*invocationPreflight, map[string]any, error) {
 	// task_id precedence: token purpose.task_id is authoritative
 	tokenTaskID := ""
 	if token.Purpose.TaskID != "" {
@@ -232,7 +174,7 @@ func (s *Service) Invoke(
 			"parent_invocation_id": opts.ParentInvocationID,
 			"upstream_service":     opts.UpstreamService,
 		}
-		return resp, nil
+		return nil, resp, nil
 	}
 	effectiveTaskID := opts.TaskID
 	if effectiveTaskID == "" {
@@ -264,7 +206,7 @@ func (s *Service) Invoke(
 			"parent_invocation_id": opts.ParentInvocationID,
 			"upstream_service":     opts.UpstreamService,
 		}
-		return resp, nil
+		return nil, resp, nil
 	}
 
 	// Fire OnInvokeStart hook.
@@ -272,8 +214,10 @@ func (s *Service) Invoke(
 		callHook(func() { s.hooks.OnInvokeStart(invocationID, capName, token.Subject) })
 	}
 
-	// 2. Check streaming support.
-	if opts.Stream {
+	// 2. Check streaming support: a streaming invocation needs a capability
+	// that declares the streaming response mode, and Invoke serves unary
+	// invocations only.
+	if streaming || opts.Stream {
 		if !capabilitySupportsStreaming(capDef.Declaration) {
 			failure := map[string]any{
 				"type":   core.FailureStreamingNotSupported,
@@ -293,35 +237,32 @@ func (s *Service) Invoke(
 				"parent_invocation_id": opts.ParentInvocationID,
 				"upstream_service":     opts.UpstreamService,
 			}
-			return resp, nil
+			return nil, resp, nil
 		}
-		// Streaming is supported but Invoke is for unary only;
-		// callers wanting streaming must use InvokeStream.
-		failure := map[string]any{
-			"type":   core.FailureStreamingNotSupported,
-			"detail": "Use InvokeStream for streaming invocations",
-		}
+		if !streaming {
+			// Streaming is supported but Invoke is for unary only;
+			// callers wanting streaming must use InvokeStream.
+			failure := map[string]any{
+				"type":   core.FailureStreamingNotSupported,
+				"detail": "Use InvokeStream for streaming invocations",
+			}
 
-		// Apply failure redaction (no token claims needed for streaming check).
-		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, nil, s.disclosurePolicy)
-		failure = RedactFailure(failure, effectiveLevel)
+			// Apply failure redaction (no token claims needed for streaming check).
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, nil, s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
 
-		resp := map[string]any{
-			"success":              false,
-			"failure":              failure,
-			"invocation_id":        invocationID,
-			"client_reference_id":  opts.ClientReferenceID,
-			"task_id":              effectiveTaskID,
-			"parent_invocation_id": opts.ParentInvocationID,
-			"upstream_service":     opts.UpstreamService,
+			resp := map[string]any{
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
+			}
+			return nil, resp, nil
 		}
-		return resp, nil
 	}
-
-	// Note: Input validation is intentionally NOT done at the protocol layer.
-	// The Python and TypeScript runtimes pass params directly to the handler,
-	// which decides how to handle missing/invalid inputs. The conformance suite
-	// invokes with empty params and expects the handler to produce a result.
 
 	// 3. Validate the token for this capability: scope covers minimum_scope,
 	// the token is bound to this capability, and its delegation chain is
@@ -360,9 +301,9 @@ func (s *Service) Invoke(
 				"parent_invocation_id": opts.ParentInvocationID,
 				"upstream_service":     opts.UpstreamService,
 			}
-			return resp, nil
+			return nil, resp, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Fire scope validation hook (granted).
@@ -390,7 +331,7 @@ func (s *Service) Invoke(
 				}
 				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 				failure = RedactFailure(failure, effectiveLevel)
-				return map[string]any{
+				return nil, map[string]any{
 					"success":              false,
 					"failure":              failure,
 					"invocation_id":        invocationID,
@@ -425,7 +366,7 @@ func (s *Service) Invoke(
 				}
 				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 				failure = RedactFailure(failure, effectiveLevel)
-				return map[string]any{
+				return nil, map[string]any{
 					"success":              false,
 					"failure":              failure,
 					"invocation_id":        invocationID,
@@ -456,7 +397,7 @@ func (s *Service) Invoke(
 						}
 						effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 						failure = RedactFailure(failure, effectiveLevel)
-						return map[string]any{
+						return nil, map[string]any{
 							"success":              false,
 							"failure":              failure,
 							"invocation_id":        invocationID,
@@ -473,7 +414,7 @@ func (s *Service) Invoke(
 					}
 					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 					failure = RedactFailure(failure, effectiveLevel)
-					return map[string]any{
+					return nil, map[string]any{
 						"success":              false,
 						"failure":              failure,
 						"invocation_id":        invocationID,
@@ -509,7 +450,7 @@ func (s *Service) Invoke(
 						"cost_certainty":    decl.Cost.Certainty,
 					},
 				}
-				return resp, nil
+				return nil, resp, nil
 			}
 		}
 	}
@@ -533,7 +474,7 @@ func (s *Service) Invoke(
 			}
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
-			return map[string]any{
+			return nil, map[string]any{
 				"success":              false,
 				"failure":              failure,
 				"invocation_id":        invocationID,
@@ -563,7 +504,7 @@ func (s *Service) Invoke(
 					}
 					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 					failure = RedactFailure(failure, effectiveLevel)
-					return map[string]any{
+					return nil, map[string]any{
 						"success":              false,
 						"failure":              failure,
 						"invocation_id":        invocationID,
@@ -599,7 +540,7 @@ func (s *Service) Invoke(
 			}
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
-			return map[string]any{
+			return nil, map[string]any{
 				"success":              false,
 				"failure":              failure,
 				"invocation_id":        invocationID,
@@ -610,6 +551,141 @@ func (s *Service) Invoke(
 			}, nil
 		}
 	}
+
+	// Parameter validation against the declared inputs (SPEC.md §6.3): after
+	// delegation, budget, binding and control-requirement enforcement; before
+	// approval-grant validation and reservation, the handler and any
+	// composition child step. The parameters are checked as the caller sent
+	// them. A refusal is audited like a delegation failure and has no other
+	// effect.
+	if invalid := validateDeclaredInputs(capName, &capDef.Declaration, params); invalid != nil {
+		s.appendAuditEntry(capName, token, false, invalid.ErrorType, map[string]any{"detail": invalid.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
+
+		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+		failure := RedactFailure(invalidParametersFailure(invalid), effectiveLevel)
+		return nil, map[string]any{
+			"success":              false,
+			"failure":              failure,
+			"invocation_id":        invocationID,
+			"client_reference_id":  opts.ClientReferenceID,
+			"task_id":              effectiveTaskID,
+			"parent_invocation_id": opts.ParentInvocationID,
+			"upstream_service":     opts.UpstreamService,
+		}, nil
+	}
+
+	// v0.23 §4.8 Phase A + Phase B: when an approval_grant is supplied,
+	// validate it and atomically reserve it BEFORE invoking the handler.
+	// Reservation is the security boundary; once reserved, the grant is
+	// spent on this attempt even if the handler fails.
+	if opts.ApprovalGrant != "" || opts.ApprovalGrantSupplied {
+		// A supplied grant is always validated; a blank one names no grant.
+		if strings.TrimSpace(opts.ApprovalGrant) == "" {
+			return nil, s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, FailureGrantNotFound, "approval_grant validation failed: "+FailureGrantNotFound, invocationID, opts, effectiveTaskID), nil
+		}
+		// SPEC.md §4.8: session_id MUST come from the signed token.
+		nowISO := utcNowISO()
+		tokenRootPrincipal := token.RootPrincipal
+		if tokenRootPrincipal == "" {
+			tokenRootPrincipal = token.Issuer
+		}
+		_, failType := ValidateContinuationGrant(
+			s.storage, s.keys, opts.ApprovalGrant,
+			capName, params, token.Scope, token.SessionID, tokenRootPrincipal, nowISO,
+		)
+		if failType != "" {
+			return nil, s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, failType, "approval_grant validation failed: "+failType, invocationID, opts, effectiveTaskID), nil
+		}
+		reservation, err := s.storage.TryReserveGrant(opts.ApprovalGrant, nowISO)
+		if err != nil {
+			return nil, s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, core.FailureInternalError, "grant reservation failed", invocationID, opts, effectiveTaskID), nil
+		}
+		if !reservation.OK {
+			var ftype string
+			switch reservation.Reason {
+			case "grant_consumed":
+				ftype = FailureGrantConsumed
+			case "grant_expired":
+				ftype = FailureGrantExpired
+			default:
+				ftype = FailureGrantNotFound
+			}
+			return nil, s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, ftype, ftype, invocationID, opts, effectiveTaskID), nil
+		}
+	}
+
+	return &invocationPreflight{
+		capDef:          capDef,
+		effectiveTaskID: effectiveTaskID,
+		effectiveBudget: effectiveBudget,
+		checkAmount:     checkAmount,
+	}, nil, nil
+}
+
+// refusalError turns a pre-handler refusal (an invocation response) into the
+// error InvokeStream returns before a stream opens: the same failure type,
+// detail, resolution and retry.
+func refusalError(response map[string]any) *core.ANIPError {
+	failure, _ := response["failure"].(map[string]any)
+	anipErr := &core.ANIPError{}
+	anipErr.ErrorType, _ = failure["type"].(string)
+	anipErr.Detail, _ = failure["detail"].(string)
+	anipErr.Retry, _ = failure["retry"].(bool)
+	if resolution, ok := failure["resolution"].(map[string]any); ok {
+		res := &core.Resolution{}
+		res.Action, _ = resolution["action"].(string)
+		res.RecoveryClass, _ = resolution["recovery_class"].(string)
+		res.Requires, _ = resolution["requires"].(string)
+		res.GrantableBy, _ = resolution["grantable_by"].(string)
+		res.EstimatedAvailability, _ = resolution["estimated_availability"].(string)
+		if res.RecoveryClass == "" {
+			res.RecoveryClass = core.RecoveryClassMap[res.Action]
+		}
+		anipErr.Resolution = res
+	}
+	return anipErr
+}
+
+// fireInvokeComplete fires the completion hooks of an invocation.
+func (s *Service) fireInvokeComplete(invocationID, capName string, success bool, start time.Time) {
+	if s.hooks == nil {
+		return
+	}
+	durationMs := time.Since(start).Milliseconds()
+	if s.hooks.OnInvokeComplete != nil {
+		callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, success, durationMs) })
+	}
+	if s.hooks.OnInvokeDuration != nil {
+		callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, success) })
+	}
+}
+
+// Invoke routes a capability invocation through validation, handler execution, and audit.
+func (s *Service) Invoke(
+	capName string,
+	token *core.DelegationToken,
+	params map[string]any,
+	opts InvokeOpts,
+) (map[string]any, error) {
+	invocationID := core.GenerateInvocationID()
+	invokeStart := time.Now()
+	invokeSuccess := false
+
+	// Fire completion hooks on all exit paths (success and failure).
+	defer func() { s.fireInvokeComplete(invocationID, capName, invokeSuccess, invokeStart) }()
+
+	// Every check that precedes the handler (shared with InvokeStream).
+	pre, refusal, err := s.runPreHandlerChecks(invocationID, capName, token, params, opts, false)
+	if err != nil {
+		return nil, err
+	}
+	if refusal != nil {
+		return refusal, nil
+	}
+	capDef := pre.capDef
+	effectiveTaskID := pre.effectiveTaskID
+	effectiveBudget := pre.effectiveBudget
+	checkAmount := pre.checkAmount
 
 	// 4. Build invocation context.
 	rootPrincipal := token.RootPrincipal
@@ -636,42 +712,9 @@ func (s *Service) Invoke(
 		},
 	}
 
-	// v0.23 §4.8 Phase A + Phase B: when an approval_grant is supplied,
-	// validate it and atomically reserve it BEFORE invoking the handler.
-	// Reservation is the security boundary; once reserved, the grant is
-	// spent on this attempt even if the handler fails.
-	if opts.ApprovalGrant != "" {
-		// SPEC.md §4.8: session_id MUST come from the signed token.
-		nowISO := utcNowISO()
-		_, failType := ValidateContinuationGrant(
-			s.storage, s.keys, opts.ApprovalGrant,
-			capName, params, token.Scope, token.SessionID, nowISO,
-		)
-		if failType != "" {
-			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, failType, "approval_grant validation failed: "+failType, invocationID, opts, effectiveTaskID), nil
-		}
-		reservation, err := s.storage.TryReserveGrant(opts.ApprovalGrant, nowISO)
-		if err != nil {
-			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, core.FailureInternalError, "grant reservation failed", invocationID, opts, effectiveTaskID), nil
-		}
-		if !reservation.OK {
-			var ftype string
-			switch reservation.Reason {
-			case "grant_consumed":
-				ftype = FailureGrantConsumed
-			case "grant_expired":
-				ftype = FailureGrantExpired
-			default:
-				ftype = FailureGrantNotFound
-			}
-			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, ftype, ftype, invocationID, opts, effectiveTaskID), nil
-		}
-	}
-
 	// 5. Call handler. v0.23: composed capabilities run ExecuteComposition
 	// instead of the registered handler.
 	var result map[string]any
-	var err error
 	if capDef.Declaration.Kind == core.CapabilityKindComposed {
 		result, err = ExecuteComposition(capName, &capDef.Declaration, params, s.composedInvokeStep(token, opts, effectiveTaskID, invocationID))
 	} else {
@@ -704,7 +747,7 @@ func (s *Service) Invoke(
 					if mErr != nil {
 						approvalPersistFailed = true
 						approvalPersistErr = mErr
-						effectiveErrorType = core.FailureUnavailable
+						effectiveErrorType = core.FailureServiceUnavailable
 					} else {
 						materialized = meta
 					}
@@ -737,6 +780,13 @@ func (s *Service) Invoke(
 					"action":         anipErr.Resolution.Action,
 					"recovery_class": recoveryClass,
 				}
+			} else if anipErr.ErrorType == core.FailureInvalidParameters {
+				// SPEC.md §6.3: invalid_parameters is corrected by the caller
+				// and sent again, also when a handler raises it without
+				// naming a resolution.
+				// With that default it is the runtime's own failure: the
+				// same resolution, and the same request cannot succeed.
+				failure = invalidParametersFailure(invalidParametersError(anipErr.Detail))
 			}
 			if approvalPersistFailed {
 				failure["detail"] = fmt.Sprintf("approval flow unavailable: %s", approvalPersistErr)
@@ -746,6 +796,8 @@ func (s *Service) Invoke(
 				}
 			} else if materialized != nil {
 				failure["approval_required"] = materialized
+				// SPEC.md §4.7: the same request cannot succeed without a grant.
+				failure["retry"] = false
 			}
 
 			// Apply failure redaction.
@@ -849,69 +901,23 @@ func (s *Service) InvokeStream(
 	opts InvokeOpts,
 ) (*StreamResult, error) {
 	invocationID := core.GenerateInvocationID()
+	invokeStart := time.Now()
 
-	// task_id precedence: token purpose.task_id is authoritative
-	tokenTaskID := ""
-	if token.Purpose.TaskID != "" {
-		tokenTaskID = token.Purpose.TaskID
-	}
-	if tokenTaskID != "" && opts.TaskID != "" && opts.TaskID != tokenTaskID {
-		return nil, core.NewANIPError(core.FailurePurposeMismatch,
-			"Request task_id '"+opts.TaskID+"' does not match token purpose task_id '"+tokenTaskID+"'")
-	}
-	effectiveTaskID := opts.TaskID
-	if effectiveTaskID == "" {
-		effectiveTaskID = tokenTaskID
-	}
-
-	// 1. Look up capability.
-	capDef, ok := s.capabilities[capName]
-	if !ok {
-		return nil, core.NewANIPError(core.FailureUnknownCapability, "Capability '"+capName+"' not found")
-	}
-
-	// 2. Check streaming support.
-	if !capabilitySupportsStreaming(capDef.Declaration) {
-		return nil, core.NewANIPError(core.FailureStreamingNotSupported, "Capability '"+capName+"' does not support streaming")
-	}
-
-	// 3. Validate the token for this capability (scope, purpose binding,
-	// delegation chain).
-	if err := server.ValidateDelegation(s.storage, token, capDef.Declaration.MinimumScope, capName); err != nil {
+	// Every check that precedes the handler, exactly as on the unary path
+	// (runPreHandlerChecks). A refusal surfaces synchronously as an ANIPError
+	// carrying the same failure — the transport answers it without opening a
+	// stream — and is audited where the unary refusal is audited.
+	pre, refusal, err := s.runPreHandlerChecks(invocationID, capName, token, params, opts, true)
+	if err != nil {
+		s.fireInvokeComplete(invocationID, capName, false, invokeStart)
 		return nil, err
 	}
-
-	// 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve the
-	// approval_grant BEFORE any handler / event emission. Reservation is the
-	// security boundary — once reserved, the grant is spent on this attempt.
-	// Failures surface synchronously as ANIPError (the transport adapter maps
-	// to JSON 4xx) — no SSE stream is opened.
-	if opts.ApprovalGrant != "" {
-		nowISO := utcNowISO()
-		_, failType := ValidateContinuationGrant(
-			s.storage, s.keys, opts.ApprovalGrant,
-			capName, params, token.Scope, token.SessionID, nowISO,
-		)
-		if failType != "" {
-			return nil, core.NewANIPError(failType, "approval_grant validation failed: "+failType)
-		}
-		reservation, err := s.storage.TryReserveGrant(opts.ApprovalGrant, nowISO)
-		if err != nil {
-			return nil, core.NewANIPError(core.FailureInternalError, "grant reservation failed")
-		}
-		if !reservation.OK {
-			var ftype string
-			switch reservation.Reason {
-			case "grant_consumed":
-				ftype = FailureGrantConsumed
-			case "grant_expired":
-				ftype = FailureGrantExpired
-			default:
-				ftype = FailureGrantNotFound
-			}
-			return nil, core.NewANIPError(ftype, ftype)
-		}
+	if refusal != nil {
+		s.fireInvokeComplete(invocationID, capName, false, invokeStart)
+		return nil, refusalError(refusal)
 	}
+	capDef := pre.capDef
+	effectiveTaskID := pre.effectiveTaskID
 
 	// 4. Build invocation context with streaming EmitProgress.
 	rootPrincipal := token.RootPrincipal
@@ -968,7 +974,9 @@ func (s *Service) InvokeStream(
 
 	// 5. Run handler in goroutine.
 	go func() {
+		streamSuccess := false
 		defer func() {
+			s.fireInvokeComplete(invocationID, capName, streamSuccess, invokeStart)
 			mu.Lock()
 			closed = true
 			mu.Unlock()
@@ -991,6 +999,11 @@ func (s *Service) InvokeStream(
 				}
 				if anipErr.Resolution != nil {
 					failureObj["resolution"] = anipErr.Resolution
+				} else if anipErr.ErrorType == core.FailureInvalidParameters {
+					// As on the unary path: the runtime's own resolution,
+					// and the same request cannot succeed.
+					failureObj["resolution"] = invalidParametersError(anipErr.Detail).Resolution
+					failureObj["retry"] = false
 				} else {
 					failureObj["resolution"] = nil
 				}
@@ -1026,6 +1039,7 @@ func (s *Service) InvokeStream(
 		}
 
 		// Success — send completed event.
+		streamSuccess = true
 		costActual := ctx.costActual
 		s.appendAuditEntryWithApproval(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type, "", opts.ApprovalGrant, "")
 
@@ -1237,9 +1251,14 @@ func (s *Service) failWithGrant(
 ) map[string]any {
 	s.appendAuditEntryWithApproval(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type, "", grantID, "")
 
+	// SPEC.md §4.5: every failure carries a resolution with a recovery_class.
 	failure := map[string]any{
 		"type":   failType,
 		"detail": detail,
+		"resolution": map[string]any{
+			"action":         "contact_service_owner",
+			"recovery_class": core.RecoveryClassForAction("contact_service_owner"),
+		},
 	}
 	effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 	failure = RedactFailure(failure, effectiveLevel)

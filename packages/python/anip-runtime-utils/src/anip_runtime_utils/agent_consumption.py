@@ -924,6 +924,12 @@ def compact_agent_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
+def declared_input_is_required(input_spec: dict[str, Any]) -> bool:
+    """SPEC.md §4.1: an input is required unless its declaration says
+    ``required: false``."""
+    return input_spec.get("required") is not False
+
+
 def render_agent_input_spec(item: dict[str, Any]) -> str:
     name = str(item.get("name") or "").strip()
     if not name:
@@ -1017,7 +1023,7 @@ def render_compact_agent_input_summary(input_specs: list[Any]) -> str:
         name = str(raw_spec.get("name") or "").strip()
         if not name:
             continue
-        marker = "req" if raw_spec.get("required") is True else "opt"
+        marker = "req" if declared_input_is_required(raw_spec) else "opt"
         allowed = raw_spec.get("allowed_values")
         allowed_text = ""
         if isinstance(allowed, list) and allowed:
@@ -1150,7 +1156,7 @@ def build_agent_capability_catalog(
             discovery_cap = discovery_caps.get(capability_id, {})
             manifest_cap = manifest_caps.get(capability_id, {})
             input_specs = [
-                item
+                {**item, "required": declared_input_is_required(item)}
                 for item in manifest_cap.get("inputs", [])
                 if isinstance(item, dict) and item.get("name")
             ]
@@ -1614,7 +1620,7 @@ def missing_required_input_names(
     inferred_parameters = normalize_declared_parameters(seed_parameters, conversation, capability_metadata)
     missing: set[str] = set()
     for input_spec in capability_metadata.get("input_specs", []):
-        if not isinstance(input_spec, dict) or input_spec.get("required") is not True:
+        if not isinstance(input_spec, dict) or not declared_input_is_required(input_spec):
             continue
         name = str(input_spec.get("name") or "")
         if not name or name in inferred_parameters:
@@ -2114,7 +2120,7 @@ def normalize_invocation_plan(
     missing_required = [
         str(input_spec.get("name") or "")
         for input_spec in metadata[capability].get("input_specs", [])
-        if input_spec.get("required") is True
+        if declared_input_is_required(input_spec)
         and str(input_spec.get("name") or "")
         and str(input_spec.get("name") or "") not in filtered_parameters
     ]
@@ -2269,7 +2275,7 @@ def _input_prompt_summary(capability_metadata: dict[str, Any]) -> list[dict[str,
         entry = {
             "name": name,
             "type": input_spec.get("type"),
-            "required": input_spec.get("required") is True,
+            "required": declared_input_is_required(input_spec),
             "description": input_spec.get("description"),
         }
         if "allowed_values" in input_spec:

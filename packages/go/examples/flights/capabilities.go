@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
@@ -62,7 +64,7 @@ func BookFlight() service.CapabilityDef {
 			Inputs: []core.CapabilityInput{
 				{Name: "flight_number", Type: "string", Required: true, Description: "Flight to book"},
 				{Name: "date", Type: "date", Required: true, Description: "Travel date (YYYY-MM-DD)"},
-				{Name: "passengers", Type: "integer", Required: false, Default: 1, Description: "Number of passengers"},
+				{Name: "passengers", Type: "integer", Required: false, Default: 1, Description: fmt.Sprintf("Number of passengers. Bookings for %d or more require approval", groupBookingApprovalThreshold)},
 				{Name: "quote_id", Type: "object", Required: false, Description: "Priced quote from search_flights"},
 			},
 			Output: core.CapabilityOutput{
@@ -107,10 +109,20 @@ func BookFlight() service.CapabilityDef {
 					{Service: "travel-search", Capability: "search_flights"},
 				},
 			},
+			// What an approver may issue for a group booking (SPEC.md §4.7).
+			GrantPolicy: &core.GrantPolicy{
+				AllowedGrantTypes: []string{core.GrantTypeOneTime, core.GrantTypeSessionBound},
+				DefaultGrantType:  core.GrantTypeOneTime,
+				ExpiresInSeconds:  900,
+				MaxUses:           2,
+			},
 		},
 		Handler: handleBookFlight,
 	}
 }
+
+// Bookings for this many passengers or more need an approval grant (SPEC.md §4.7).
+const groupBookingApprovalThreshold = 5
 
 // --- Flight data ---
 
@@ -192,9 +204,22 @@ func handleSearchFlights(ctx *service.InvocationContext, params map[string]any) 
 func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
 	flightNumber, _ := params["flight_number"].(string)
 	date, _ := params["date"].(string)
+	// The runtime has checked that a supplied passengers value is a JSON
+	// number with an integral value (SPEC.md §6.3): 5 and 5.0 are the same
+	// number. The JSON bindings hand it over as float64, the REST query
+	// string and GraphQL as int.
 	passengers := 1
-	if p, ok := params["passengers"].(float64); ok {
+	switch p := params["passengers"].(type) {
+	case float64:
 		passengers = int(p)
+	case int:
+		passengers = p
+	case int64:
+		passengers = int(p)
+	case json.Number:
+		if f, err := p.Float64(); err == nil {
+			passengers = int(f)
+		}
 	}
 
 	// Accept quote_id; extract price override if provided.
@@ -207,6 +232,15 @@ func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (ma
 
 	if flightNumber == "" || date == "" {
 		return nil, core.NewANIPError("invalid_parameters", "flight_number and date are required")
+	}
+
+	// Group bookings need an approver's grant. On the continuation invocation
+	// the runtime has already validated and reserved the grant.
+	if passengers >= groupBookingApprovalThreshold && strings.TrimSpace(ctx.ApprovalGrant) == "" {
+		e := core.NewANIPError(service.FailureApprovalRequired,
+			fmt.Sprintf("bookings for %d or more passengers require approval", groupBookingApprovalThreshold))
+		e.Resolution = &core.Resolution{Action: "request_approval", RecoveryClass: "wait_then_retry"}
+		return nil, e
 	}
 
 	f := findFlight(flightNumber, date)

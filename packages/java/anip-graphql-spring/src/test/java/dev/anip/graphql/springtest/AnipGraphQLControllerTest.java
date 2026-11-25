@@ -55,7 +55,13 @@ class AnipGraphQLControllerTest {
                                             "search_flights", "Search for flights", "1.0",
                                             List.of(
                                                     new CapabilityInput("origin", "string", true, "Origin airport"),
-                                                    new CapabilityInput("destination", "string", true, "Destination airport")
+                                                    new CapabilityInput("destination", "string", true, "Destination airport"),
+                                                    // Required, and the declaration says what happens when it is absent.
+                                                    new CapabilityInput("cabin", "string", true, null,
+                                                            "Cabin; asked for when absent", null, false, null, null, null,
+                                                            new dev.anip.core.InputResolution(
+                                                                dev.anip.core.ResolutionMode.CLARIFY, null,
+                                                                dev.anip.core.ResolutionBehavior.CLARIFY, null, null))
                                             ),
                                             new CapabilityOutput("object", List.of("flights")),
                                             new SideEffect("read", "not_applicable"),
@@ -70,7 +76,8 @@ class AnipGraphQLControllerTest {
                                     new CapabilityDeclaration(
                                             "book_flight", "Book a flight", "1.0",
                                             List.of(
-                                                    new CapabilityInput("flight_id", "string", true, "Flight ID")
+                                                    new CapabilityInput("flight_id", "string", true, "Flight ID"),
+                                                    new CapabilityInput("options", "object", false, "Booking options")
                                             ),
                                             new CapabilityOutput("object", List.of("booking_id")),
                                             new SideEffect("irreversible", "none"),
@@ -153,6 +160,65 @@ class AnipGraphQLControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.bookFlight.success").value(true))
                 .andExpect(jsonPath("$.data.bookFlight.result").exists());
+    }
+
+    // --- Parameter validation (SPEC.md §6.3) in the result body ---
+
+    @Test
+    void testInputThatDeclaresOnMissingIsNotANonNullArgument() throws Exception {
+        // 'cabin' is required and declares resolution.on_missing: the schema
+        // does not demand it, and the call reaches the handler without it.
+        String query = """
+                {"query":"{ searchFlights(origin: \\"SFO\\", destination: \\"LAX\\") { success result } }"}""";
+        mockMvc.perform(post("/graphql")
+                        .header("Authorization", "Bearer valid-api-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors").doesNotExist())
+                .andExpect(jsonPath("$.data.searchFlights.success").value(true));
+
+        mockMvc.perform(get("/schema.graphql"))
+                .andExpect(content().string(containsString("cabin: String)")))
+                .andExpect(content().string(containsString("origin: String!")));
+    }
+
+    @Test
+    void testInvalidParametersInResultBody() throws Exception {
+        // GraphQL's own schema refuses a missing non-null argument; a value of
+        // the wrong JSON type for a JSON-typed argument reaches the service.
+        String query = """
+                {"query":"mutation { bookFlight(flightId: \\"FL-001\\", options: \\"window\\") { success result failure { type detail retry resolution { action recoveryClass requires } } } }"}""";
+
+        mockMvc.perform(post("/graphql")
+                        .header("Authorization", "Bearer valid-api-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bookFlight.success").value(false))
+                .andExpect(jsonPath("$.data.bookFlight.result").doesNotExist())
+                .andExpect(jsonPath("$.data.bookFlight.failure.type").value("invalid_parameters"))
+                .andExpect(jsonPath("$.data.bookFlight.failure.detail").value(
+                        "book_flight has invalid input(s): 'options' must be object, got string"))
+                .andExpect(jsonPath("$.data.bookFlight.failure.retry").value(false))
+                .andExpect(jsonPath("$.data.bookFlight.failure.resolution.action").value("retry_now"))
+                .andExpect(jsonPath("$.data.bookFlight.failure.resolution.recoveryClass").value("retry_now"))
+                .andExpect(jsonPath("$.data.bookFlight.failure.resolution.requires")
+                        .value("parameters that match the capability's declared inputs"));
+    }
+
+    @Test
+    void testMissingRequiredArgumentIsRefusedBeforeTheHandler() throws Exception {
+        String query = """
+                {"query":"mutation { bookFlight { success result } }"}""";
+
+        mockMvc.perform(post("/graphql")
+                        .header("Authorization", "Bearer valid-api-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors").isNotEmpty())
+                .andExpect(jsonPath("$.data.bookFlight").doesNotExist());
     }
 
     // --- Auth errors in result body ---

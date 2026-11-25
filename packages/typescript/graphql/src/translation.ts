@@ -4,6 +4,7 @@
  * Generates SDL schema from ANIP capabilities with custom directives,
  * camelCase field names, and query/mutation separation.
  */
+import { mustBeSupplied } from "@anip-dev/service";
 
 export function toCamelCase(snake: string): string {
   const parts = snake.split("_");
@@ -36,7 +37,9 @@ function buildFieldArgs(decl: Record<string, unknown>): string {
   const args = inputs.map((inp) => {
     const name = toCamelCase(inp.name as string);
     let gqlType = anipTypeToGraphQL((inp.type as string) ?? "string");
-    if (inp.required !== false) gqlType += "!";
+    // An input that sets resolution.on_missing is answered by the service
+    // (SPEC.md §4.10): its argument stays nullable.
+    if (mustBeSupplied(inp)) gqlType += "!";
     return `${name}: ${gqlType}`;
   });
   return "(" + args.join(", ") + ")";

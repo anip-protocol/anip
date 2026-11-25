@@ -97,7 +97,13 @@ class AnipStdioServer:
         # Bootstrap credential, or a delegation token issued by this service.
         issuer = await self._service.authenticate_issuer(bearer)
         if issuer is None:
-            raise ANIPError("invalid_token", "Bearer token not recognized")
+            # SPEC.md §6.3 Token Issuance: an unrecognised credential is
+            # authentication_required, like no credential at all.
+            raise ANIPError(
+                "authentication_required",
+                "A bootstrap credential, or a delegation token issued by this service, "
+                "is required to issue delegation tokens",
+            )
 
         # Build the token request body from params
         body: dict[str, Any] = {}

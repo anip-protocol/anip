@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "GTM image tag, usually the GTM package version (e.g. 0.4.4)"
+        description: "GTM image tag, usually the GTM package version (e.g. 0.4.6)"
         required: true
-        default: "0.4.4"
+        default: "0.4.6"
       push_latest:
         description: "Also tag and push latest"
         type: boolean

@@ -78,6 +78,7 @@ public class AnipRestController : ControllerBase
     public async Task<IActionResult> HandlePost(string capability)
     {
         Dictionary<string, object?>? body = null;
+        var bodyIsInvalid = false;
         try
         {
             if (Request.ContentLength is > 0)
@@ -88,16 +89,18 @@ public class AnipRestController : ControllerBase
         }
         catch
         {
-            // Treat invalid body as empty.
+            // Not a JSON object: refused below, once the credential has been checked.
+            bodyIsInvalid = true;
         }
 
-        return HandleRoute(capability, "POST", body);
+        return HandleRoute(capability, "POST", body, bodyIsInvalid);
     }
 
     // --- Internal ---
 
     private IActionResult HandleRoute(string capability, string method,
-                                       Dictionary<string, object?>? body)
+                                       Dictionary<string, object?>? body,
+                                       bool bodyIsInvalid = false)
     {
         // Find route.
         var route = RestRouter.FindRoute(_routes, capability);
@@ -114,11 +117,12 @@ public class AnipRestController : ControllerBase
                 },
                 ["retry"] = false,
             };
-            return StatusCode(404, new Dictionary<string, object?>
-            {
-                ["success"] = false,
-                ["failure"] = notFoundFailure,
-            });
+            return StatusCode(Constants.FailureStatusCode(Constants.FailureUnknownCapability),
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["failure"] = notFoundFailure,
+                });
         }
 
         // Extract auth.
@@ -144,7 +148,7 @@ public class AnipRestController : ControllerBase
                 ["success"] = false,
                 ["failure"] = failure,
             };
-            return StatusCode(401, resp);
+            return StatusCode(Constants.FailureStatusCode(Constants.FailureAuthRequired), resp);
         }
 
         DelegationToken token;
@@ -159,8 +163,29 @@ public class AnipRestController : ControllerBase
         }
         catch (Exception)
         {
-            return FailureResponse(500, Constants.FailureInternalError,
-                "Authentication failed", false);
+            return FailureResponse(Constants.FailureStatusCode(Constants.FailureInternalError),
+                Constants.FailureInternalError, "Authentication failed", false);
+        }
+
+        // SPEC.md §6.3: a request body that is not JSON is invalid_parameters.
+        if (bodyIsInvalid)
+        {
+            return StatusCode(Constants.FailureStatusCode(Constants.FailureInvalidParameters),
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["failure"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailureInvalidParameters,
+                        ["detail"] = "request body must be a JSON object",
+                        ["resolution"] = new Dictionary<string, object?>
+                        {
+                            ["action"] = "retry_now",
+                            ["recovery_class"] = Constants.RecoveryClassForAction("retry_now"),
+                        },
+                        ["retry"] = false,
+                    },
+                });
         }
 
         // Extract parameters.
@@ -202,7 +227,7 @@ public class AnipRestController : ControllerBase
             ClientReferenceId = clientRefId,
             Stream = false,
             Budget = budget,
-            ApprovalGrant = string.IsNullOrEmpty(approvalGrant) ? null : approvalGrant,
+            ApprovalGrant = approvalGrant,
         };
 
         var result = _service.Invoke(capability, token, parameters, opts);
@@ -219,7 +244,7 @@ public class AnipRestController : ControllerBase
                 return StatusCode(statusCode, result);
             }
 
-            return StatusCode(400, result);
+            return StatusCode(Constants.FailureStatusCode(null), result);
         }
 
         return Ok(result);

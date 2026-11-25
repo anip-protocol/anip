@@ -69,7 +69,8 @@ func MissingRequiredInputNames(conversation string, metadata CapabilityMetadata)
 	missing := []string{}
 	for _, rawSpec := range anyList(metadata["input_specs"]) {
 		spec := record(rawSpec)
-		if !boolValue(spec["required"]) {
+		// SPEC.md §4.1: required defaults to true.
+		if required, stated := spec["required"].(bool); stated && !required {
 			continue
 		}
 		name := stringValue(spec["name"])
