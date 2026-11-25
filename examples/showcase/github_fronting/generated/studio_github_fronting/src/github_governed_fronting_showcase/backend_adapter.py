@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -14,6 +15,20 @@ GeneratedCapability = dict[str, Any]
 
 def _github_env() -> str | None:
     return os.getenv("GITHUB_TOKEN", "").strip() or None
+
+
+# GitHub search ORs repeated repo: qualifiers, and org:, user: and owner: widen the
+# search past one repository, so a caller-supplied query must not carry any of them.
+_SCOPE_QUALIFIER = re.compile(r"\b(?:repo|org|user|owner)\s*:", re.IGNORECASE)
+
+
+def _query_widens_scope(query: str) -> bool:
+    return bool(_SCOPE_QUALIFIER.search(query))
+
+
+def _item_in_repo(item: dict[str, Any], owner: str, repo: str) -> bool:
+    repository_url = str(item.get("repository_url") or "")
+    return repository_url.lower().endswith(f"/repos/{owner}/{repo}".lower())
 
 
 def _bounded_limit(value: Any) -> int:
@@ -115,6 +130,15 @@ class DefaultBackendAdapter:
         owner = str(params.get("owner") or "").strip()
         repo = str(params.get("repo") or "").strip()
         query = str(params.get("query") or "").strip()
+        if _query_widens_scope(query):
+            return {
+                "execution_status": "restricted",
+                "capability_id": capability["capability_id"],
+                "selected_backend": plan["selected_binding"],
+                "semantic_input": plan["semantic_input"],
+                "repository": {"owner": owner, "repo": repo},
+                "reason": "The search query may not carry repo:, org:, user: or owner: qualifiers; the repository comes from owner and repo.",
+            }
         limit = _bounded_limit(params.get("limit"))
         search_query = f"repo:{owner}/{repo} {query}".strip()
         payload = _github_request_json(
@@ -130,8 +154,11 @@ class DefaultBackendAdapter:
                 "semantic_input": plan["semantic_input"],
                 "github_error": payload,
             }
+        # Defence in depth: return only items from the requested repository.
+        in_scope = [item for item in payload.get("items", []) if isinstance(item, dict) and _item_in_repo(item, owner, repo)]
+        dropped = len(payload.get("items", [])) - len(in_scope)
         items = []
-        for item in payload.get("items", [])[:limit]:
+        for item in in_scope[:limit]:
             items.append(
                 {
                     "number": item.get("number"),
@@ -147,7 +174,7 @@ class DefaultBackendAdapter:
             "selected_backend": plan["selected_binding"],
             "semantic_input": plan["semantic_input"],
             "github_query": search_query,
-            "result": {"items": items, "count": len(items), "total_count": payload.get("total_count")},
+            "result": {"items": items, "count": len(items), "total_count": payload.get("total_count") if dropped == 0 else None},
         }
 
     def _prepare_issue(
