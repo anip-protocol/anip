@@ -6,7 +6,9 @@ The current ANIP protocol version is v0.24. Its security foundations are v0.2's 
 
 | Version | Status |
 |---------|--------|
-| v0.24 (packages 0.24.19 and later) | Current — receives security fixes |
+| v0.24 (packages 0.24.20 and later) | Current — receives security fixes |
+| Packages 0.24.19 and earlier | Affected by [GHSA-xpvx-ppxm-q7p5](https://github.com/anip-protocol/anip/security/advisories/GHSA-xpvx-ppxm-q7p5) — upgrade |
+| `anip` CLI and generator 0.24.5 to 0.24.19 | Affected by [GHSA-vppc-wc4f-h4x3](https://github.com/anip-protocol/anip/security/advisories/GHSA-vppc-wc4f-h4x3) — upgrade and regenerate |
 | `Anip.Mcp.AspNetCore` 0.24.18 and earlier | Affected by [GHSA-25xq-66c5-x4fr](https://github.com/anip-protocol/anip/security/advisories/GHSA-25xq-66c5-x4fr) — upgrade |
 | Packages 0.24.17 and earlier | Affected by [GHSA-h9rv-5v5h-pmr6](https://github.com/anip-protocol/anip/security/advisories/GHSA-h9rv-5v5h-pmr6) — upgrade |
 | v0.23 and earlier | Not supported — upgrade to the current release |
@@ -127,6 +129,14 @@ All five runtimes now enforce the same rules, and the conformance suite tests th
 `Anip.Mcp.AspNetCore` 0.11.1 through 0.24.18 mounted the MCP SDK's legacy SSE endpoints (`/mcp/sse` and `/mcp/message`) next to the documented Streamable HTTP endpoint. A tool call sent over them ran with the credentials of the request that opened the stream, not of the request that carried the call. A caller who knew the session ID of a stream opened with valid credentials could invoke tools as the caller who opened it. The session ID is random, but it travels in request URLs and can appear in logs.
 
 The binding no longer maps these endpoints. The Streamable HTTP endpoint was not affected, and the Python, TypeScript, Go and Java bindings do not serve the legacy endpoints. If you cannot upgrade, block both paths. Details are in advisory [GHSA-25xq-66c5-x4fr](https://github.com/anip-protocol/anip/security/advisories/GHSA-25xq-66c5-x4fr) and in the [0.24.19 release notes](https://anip.dev/docs/releases/mcp-bindings-0-24-19).
+
+## Approval and Policy Enforcement Fixes (packages 0.24.20)
+
+**Runtimes.** Approval grants could be redeemed by a principal other than the requester in all five runtimes. Go, Java and C# skipped budget, binding and control checks on streaming invocations; Java and C# passed a blank `approval_grant` to the handler as a supplied grant and did not enforce a budget when the binding carried no price; Go and C# accepted a `one_time` grant request with more than one use. All five runtimes now enforce the same rules, and the conformance suite tests them (`conformance/test_approvals.py`). Details are in advisory [GHSA-xpvx-ppxm-q7p5](https://github.com/anip-protocol/anip/security/advisories/GHSA-xpvx-ppxm-q7p5).
+
+**Generator.** Services generated with the `anip` CLI and generator 0.24.5 to 0.24.19 failed open on their policy bindings: unmatched actors and principals without actor claims were allowed, a matching `deny` or `clarify` could be ignored, and an approval-gated capability could reach the backend adapter without a grant. Generated policy now fails closed in every target. Upgrading the runtime packages does not fix a generated service; regenerate it. Details are in advisory [GHSA-vppc-wc4f-h4x3](https://github.com/anip-protocol/anip/security/advisories/GHSA-vppc-wc4f-h4x3).
+
+Both are described in the [0.24.20 release notes](https://anip.dev/docs/releases/approval-policy-enforcement-0-24-20).
 
 ## What ANIP Does Not Yet Solve
 
