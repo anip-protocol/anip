@@ -19,8 +19,6 @@
     "graphql",
     "client",
     "runtime-utils",
-    "vue",
-    "react",
-    "angular"
+    "vue"
   ]
 }

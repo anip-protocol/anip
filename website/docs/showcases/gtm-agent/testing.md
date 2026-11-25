@@ -59,7 +59,7 @@ The current report compares runtime-native ANIP mixed `gpt-5.4-nano -> gpt-5.4-m
 
 For the reusable runtime pattern, see [Mixed Model Execution](/docs/concepts/mixed-model-execution). For benchmark interpretation, scope, and limitations, see [Benchmarks](/docs/testing/benchmarks).
 
-Run artifacts live under:
+The runners write run artifacts to a local, git-ignored folder (run output is not committed):
 
 ```text
 docs/examples/gtm-showcase/question-bank-runs/
