@@ -141,6 +141,7 @@ A server that refuses a call returns a normal tool error and adds a refusal obje
 
 ```json
 {
+  "resultType": "complete",
   "isError": true,
   "content": [
     { "type": "text", "text": "Refused: transfers over $10,000 need approval." }
