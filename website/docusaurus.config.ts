@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'ANIP',
-  tagline: 'The protocol for agent-native interfaces.',
+  tagline: "ANIP's ideas are moving into MCP.",
   favicon: 'img/anip-favicon.png',
   future: {
     v4: true,
@@ -53,12 +53,6 @@ const config: Config = {
     ],
   ],
   themeConfig: {
-    announcementBar: {
-      id: 'direction-2026-11',
-      content:
-        'ANIP\'s ideas are moving into MCP; the protocol receives security fixes only. <a href="https://github.com/anip-protocol/anip#direction-november-2026">What this means</a> · Latest security release: <a href="/docs/releases/approval-policy-enforcement-0-24-20">0.24.20</a>',
-      isCloseable: true,
-    },
     image: 'img/anip-social-card.png',
     colorMode: {
       defaultMode: 'light',
@@ -76,11 +70,15 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
-          label: 'Docs',
+          label: 'ANIP protocol (frozen)',
         },
-        {to: '/docs/getting-started/install', label: 'Install', position: 'left'},
         {to: '/docs/releases/version-history', label: 'Versions', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
+        {
+          href: 'https://github.com/anip-protocol/mcp-annotation-check',
+          label: 'Harness',
+          position: 'right',
+        },
         {
           href: 'https://github.com/anip-protocol/anip',
           label: 'GitHub',
@@ -92,7 +90,24 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'MCP work',
+          items: [
+            {
+              label: 'Annotation harness',
+              href: 'https://github.com/anip-protocol/mcp-annotation-check',
+            },
+            {
+              label: 'First results',
+              href: 'https://github.com/anip-protocol/mcp-annotation-check/blob/main/results/2026-11-26-github-mcp-server-v2.3.0-round-1.md',
+            },
+            {
+              label: 'ANIP as an MCP extension',
+              href: 'https://github.com/anip-protocol/anip/blob/main/docs/mcp-extension-mapping.md',
+            },
+          ],
+        },
+        {
+          title: 'ANIP protocol (frozen)',
           items: [
             {
               label: 'Introduction',
