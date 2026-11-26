@@ -20,6 +20,8 @@ export interface NormalizedDiscovery {
   capabilityNames: string[];
   capabilities: Record<string, {
     name: string;
+    description?: string;
+    /** Side-effect type from discovery; `"unknown"` when the service did not declare one. */
     sideEffect: string;
     minimumScope: string[];
     financial: boolean;

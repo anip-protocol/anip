@@ -7,6 +7,7 @@ import {
   normalizeCapability,
   ANIPClient,
 } from "../src/index.js";
+import { PROTOCOL_VERSION } from "@anip-dev/core";
 
 // ---------------------------------------------------------------------------
 // Failure normalization
@@ -231,63 +232,179 @@ describe("normalizePermissions", () => {
 // Discovery normalization
 // ---------------------------------------------------------------------------
 
-describe("normalizeDiscovery", () => {
-  it("normalizes a full discovery document", () => {
-    const result = normalizeDiscovery({
-      protocol: "anip/0.24",
-      compliance: "full",
-      trust: { level: "signed" },
+/**
+ * A discovery document as the runtimes send it (SPEC.md §6.1), captured from
+ * the Python flight example (`examples/anip`). All five runtimes build the
+ * same shape: capability `side_effect` is a string and the trust level is the
+ * top-level `trust_level` string.
+ */
+function flightServiceDiscovery() {
+  return {
+    anip_discovery: {
+      protocol: PROTOCOL_VERSION,
+      compliance: "anip-compliant",
+      profile: {
+        core: "1.0",
+        cost: "1.0",
+        capability_graph: "1.0",
+        state_session: "1.0",
+        observability: "1.0",
+      },
+      auth: {
+        delegation_token_required: true,
+        supported_formats: ["anip-v1"],
+        minimum_scope_for_discovery: "none",
+      },
+      capabilities: {
+        search_flights: {
+          description: "Search available flights by origin, destination, and date",
+          side_effect: "read",
+          minimum_scope: ["travel.search"],
+          financial: false,
+          contract: "1.0",
+        },
+        book_flight: {
+          description: "Book a confirmed flight reservation",
+          side_effect: "irreversible",
+          minimum_scope: ["travel.book"],
+          financial: true,
+          contract: "1.0",
+        },
+      },
+      trust_level: "signed",
+      posture: {
+        audit: {
+          enabled: true,
+          signed: true,
+          queryable: true,
+          retention: "P90D",
+          retention_enforced: true,
+        },
+        lineage: {
+          invocation_id: true,
+          client_reference_id: {
+            supported: true,
+            max_length: 256,
+            opaque: true,
+            propagation: "bounded",
+          },
+        },
+        metadata_policy: {
+          bounded_lineage: true,
+          freeform_context: false,
+          downstream_propagation: "minimal",
+        },
+        failure_disclosure: { detail_level: "full", caller_classes: null },
+        anchoring: { enabled: false, cadence: null, max_lag: null, proofs_available: false },
+      },
       endpoints: {
         manifest: "/anip/manifest",
-        invoke: "/anip/invoke/{capability}",
-        permissions: "/anip/permissions",
-        token: "/anip/token",
-        audit: "/anip/audit",
         graph: "/anip/graph/{capability}",
+        permissions: "/anip/permissions",
+        invoke: "/anip/invoke/{capability}",
+        tokens: "/anip/tokens",
+        audit: "/anip/audit",
         checkpoints: "/anip/checkpoints",
+        approval_grants: "/anip/approval_grants",
+        jwks: "/.well-known/jwks.json",
       },
-      profiles: { core: "1.0", cost: "1.0" },
-      capabilities: ["search_flights", "book_flight"],
-    });
+      base_url: "http://127.0.0.1:9100",
+    },
+  };
+}
 
-    expect(result.protocol).toBe("anip/0.24");
-    expect(result.compliance).toBe("full");
-    expect(result.trustLevel).toBe("signed");
-    expect(result.endpoints.manifest).toBe("/anip/manifest");
-    expect(result.endpoints.invoke).toBe("/anip/invoke/{capability}");
-    expect(result.profiles.core).toBe("1.0");
+describe("normalizeDiscovery", () => {
+  it("reads each capability's side effect from the string the runtimes send", () => {
+    const result = normalizeDiscovery(flightServiceDiscovery());
+
     expect(result.capabilityNames).toEqual(["search_flights", "book_flight"]);
-    expect(Object.keys(result.capabilities)).toEqual(["search_flights", "book_flight"]);
+    expect(result.capabilities.search_flights).toMatchObject({
+      name: "search_flights",
+      description: "Search available flights by origin, destination, and date",
+      sideEffect: "read",
+      minimumScope: ["travel.search"],
+      financial: false,
+      contract: "1.0",
+    });
+    expect(result.capabilities.book_flight).toMatchObject({
+      name: "book_flight",
+      description: "Book a confirmed flight reservation",
+      sideEffect: "irreversible",
+      minimumScope: ["travel.book"],
+      financial: true,
+      contract: "1.0",
+    });
   });
 
-  it("handles missing trust level", () => {
-    const result = normalizeDiscovery({
-      protocol: "anip/0.24",
-      compliance: "full",
-      endpoints: {},
-      capabilities: [],
-    });
+  it.each(["read", "write", "irreversible", "transactional"])(
+    "passes side effect %s through unchanged",
+    (sideEffect) => {
+      const raw = flightServiceDiscovery();
+      raw.anip_discovery.capabilities.book_flight.side_effect = sideEffect;
+      expect(normalizeDiscovery(raw).capabilities.book_flight.sideEffect).toBe(sideEffect);
+    },
+  );
+
+  it("reads the trust level from the top-level trust_level string", () => {
+    expect(normalizeDiscovery(flightServiceDiscovery()).trustLevel).toBe("signed");
+  });
+
+  it("normalizes the document-level fields", () => {
+    const raw = flightServiceDiscovery();
+    const result = normalizeDiscovery(raw);
+
+    expect(result.protocol).toBe(PROTOCOL_VERSION);
+    expect(result.compliance).toBe("anip-compliant");
+    expect(result.baseUrl).toBe("http://127.0.0.1:9100");
+    expect(result.profiles).toEqual(raw.anip_discovery.profile);
+    expect(result.endpoints).toEqual(raw.anip_discovery.endpoints);
+    expect(result.posture).toEqual(raw.anip_discovery.posture);
+    expect(result.raw).toBe(raw.anip_discovery);
+  });
+
+  it("reports an undeclared side effect as unknown, never as read", () => {
+    const raw: any = flightServiceDiscovery();
+    delete raw.anip_discovery.capabilities.book_flight.side_effect;
+    expect(normalizeDiscovery(raw).capabilities.book_flight.sideEffect).toBe("unknown");
+  });
+
+  it("does not accept the manifest's object forms in a discovery document", () => {
+    const raw: any = flightServiceDiscovery();
+    raw.anip_discovery.capabilities.book_flight.side_effect = { type: "irreversible" };
+    delete raw.anip_discovery.trust_level;
+    raw.anip_discovery.trust = { level: "signed" };
+
+    const result = normalizeDiscovery(raw);
+    expect(result.capabilities.book_flight.sideEffect).toBe("unknown");
     expect(result.trustLevel).toBeUndefined();
   });
 
-  it("handles null input", () => {
-    const result = normalizeDiscovery(null);
-    expect(result.protocol).toBe("unknown");
-    expect(result.compliance).toBe("unknown");
-    expect(result.endpoints).toEqual({});
-    expect(result.capabilityNames).toEqual([]);
-    expect(result.capabilities).toEqual({});
+  it("does not derive financial from anything but the financial flag", () => {
+    const raw: any = flightServiceDiscovery();
+    delete raw.anip_discovery.capabilities.book_flight.financial;
+    raw.anip_discovery.capabilities.book_flight.cost = { financial: { currency: "USD" } };
+    expect(normalizeDiscovery(raw).capabilities.book_flight.financial).toBe(false);
   });
 
-  it("accepts profile (singular) as fallback for profiles", () => {
-    const result = normalizeDiscovery({
-      protocol: "anip/0.24",
-      compliance: "full",
-      profile: { core: "1.0" },
-      endpoints: {},
-      capabilities: [],
-    });
-    expect(result.profiles.core).toBe("1.0");
+  it("handles a missing trust level", () => {
+    const raw: any = flightServiceDiscovery();
+    delete raw.anip_discovery.trust_level;
+    expect(normalizeDiscovery(raw).trustLevel).toBeUndefined();
+  });
+
+  it.each([
+    ["null", null],
+    ["a non-object", "not json"],
+    ["a document without the anip_discovery wrapper", flightServiceDiscovery().anip_discovery],
+  ])("returns an empty result for %s", (_label, input) => {
+    const result = normalizeDiscovery(input);
+    expect(result.protocol).toBe("unknown");
+    expect(result.compliance).toBe("unknown");
+    expect(result.trustLevel).toBeUndefined();
+    expect(result.endpoints).toEqual({});
+    expect(result.profiles).toEqual({});
+    expect(result.capabilityNames).toEqual([]);
+    expect(result.capabilities).toEqual({});
   });
 });
 
@@ -582,16 +699,12 @@ describe("ANIPClient discover", () => {
     // First call: discovery
     fetchSpy.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        protocol: "anip/0.24",
-        compliance: "full",
-        trust: { level: "signed" },
-        endpoints: {
-          manifest: "/custom/manifest",
-          invoke: "/custom/invoke/{capability}",
-        },
-        capabilities: ["search_flights"],
-      }),
+      json: async () => {
+        const raw = flightServiceDiscovery();
+        raw.anip_discovery.endpoints.manifest = "/custom/manifest";
+        raw.anip_discovery.endpoints.invoke = "/custom/invoke/{capability}";
+        return raw;
+      },
     } as Response);
 
     // Second call: manifest (should use discovered endpoint)
@@ -607,8 +720,10 @@ describe("ANIPClient discover", () => {
 
     const client = new ANIPClient("https://example.com");
     const disc = await client.discover();
-    expect(disc.protocol).toBe("anip/0.24");
-    expect(disc.capabilityNames).toEqual(["search_flights"]);
+    expect(disc.protocol).toBe(PROTOCOL_VERSION);
+    expect(disc.capabilityNames).toEqual(["search_flights", "book_flight"]);
+    expect(disc.capabilities.book_flight.sideEffect).toBe("irreversible");
+    expect(disc.trustLevel).toBe("signed");
 
     const manifest = await client.getManifest();
     expect(manifest.signature).toBeUndefined();
@@ -623,12 +738,7 @@ describe("ANIPClient discover", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          protocol: "anip/0.24",
-          compliance: "full",
-          endpoints: { manifest: "/anip/manifest" },
-          capabilities: [],
-        }),
+        json: async () => flightServiceDiscovery(),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,

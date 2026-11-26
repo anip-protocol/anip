@@ -3,6 +3,7 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { useAnipInvoke, useAnipManifest } from '@anip-dev/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store'
+import { studioTokens } from '../anip'
 import { recordRuntimeObservation } from '../design/store'
 import type { RuntimeObservation } from '../design/types'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -31,6 +32,9 @@ const selectedCapability = ref<string | null>(null)
 const userInputs = ref<Record<string, Record<string, string>>>({})
 const taskId = ref('')
 const parentInvocationId = ref('')
+// When the user pasted an API key: the token issued from it, or why that failed.
+const credentialNote = ref('')
+const credentialError = ref('')
 
 // Load manifest
 async function loadManifest() {
@@ -233,10 +237,25 @@ function onFormUpdate(inputs: Record<string, string>) {
 
 async function onInvoke(inputs: Record<string, string>) {
   if (!selectedCapability.value || !store.bearer) return
+  credentialError.value = ''
+  credentialNote.value = ''
+  let token: string
+  try {
+    const resolved = await studioTokens.resolve(store.bearer, selectedCapability.value)
+    token = resolved.token
+    if (resolved.issuedFor) {
+      credentialNote.value =
+        `Using a token issued from your key for ${resolved.issuedFor.capability} ` +
+        `(scope: ${resolved.issuedFor.scope.join(', ')}).`
+    }
+  } catch (e) {
+    credentialError.value = e instanceof Error ? e.message : String(e)
+    return
+  }
   try {
     clearInvokeResult()
     await invokeCapability(
-      store.bearer,
+      token,
       selectedCapability.value,
       inputs,
       {
@@ -323,6 +342,8 @@ async function onInvoke(inputs: Record<string, string>) {
         <section class="section">
           <div class="section-label">Auth</div>
           <BearerInput />
+          <p v-if="credentialError" class="error-text credential-message">{{ credentialError }}</p>
+          <p v-else-if="credentialNote" class="credential-message credential-note">{{ credentialNote }}</p>
         </section>
 
         <!-- 3. Permissions panel -->
@@ -403,6 +424,8 @@ async function onInvoke(inputs: Record<string, string>) {
 .placeholder-icon { font-size: 48px; opacity: 0.4; }
 .placeholder p { font-size: 14px; max-width: 320px; text-align: center; line-height: 1.5; }
 .error-text { color: var(--error) !important; }
+.credential-message { margin: 8px 0 0; font-size: 13px; }
+.credential-note { color: var(--text-muted); }
 .retry-btn {
   padding: 6px 16px; background: var(--accent); border: none;
   border-radius: var(--radius-sm); color: #fff; font-size: 13px; cursor: pointer;

@@ -7,7 +7,8 @@
     "baseUrl": ".",
     "paths": {
       "@anip-dev/client": ["../packages/typescript/client/src/index.ts"],
-      "@anip-dev/vue": ["../packages/typescript/vue/src/index.ts"]
+      "@anip-dev/vue": ["../packages/typescript/vue/src/index.ts"],
+      "vue": ["./node_modules/vue"]
     },
 
     /* Linting */

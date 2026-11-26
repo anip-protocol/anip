@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { watch, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAnipPermissions } from '@anip-dev/vue'
+import { studioTokens } from '../anip'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
@@ -10,10 +11,21 @@ const props = defineProps<{
 
 const { data: result, loading, error, query } = useAnipPermissions()
 
+// Set when an API key could not be exchanged for a token.
+const credentialError = ref('')
+
 async function check() {
   if (!props.bearer || !props.capability) return
+  credentialError.value = ''
+  let token: string
   try {
-    await query(props.bearer)
+    token = (await studioTokens.resolve(props.bearer, props.capability)).token
+  } catch (e) {
+    credentialError.value = e instanceof Error ? e.message : String(e)
+    return
+  }
+  try {
+    await query(token)
   } catch {
     // useAnipPermissions already populates reactive error state
   }
@@ -26,6 +38,7 @@ watch(() => [props.bearer, props.capability], () => {
 // Derive the status for the selected capability from the full permissions response
 const status = computed<'none' | 'loading' | 'available' | 'restricted' | 'denied' | 'error'>(() => {
   if (!props.bearer || !props.capability) return 'none'
+  if (credentialError.value) return 'error'
   if (loading.value) return 'loading'
   if (error.value) return 'error'
   if (!result.value) return 'none'
@@ -139,7 +152,7 @@ const reasonTypeBadge = computed<{ label: string; type: 'warning' | 'danger' | '
     <div v-else-if="status === 'error'" class="perm-status">
       <span class="dot error-dot"></span>
       <span class="perm-label">Unable to check permissions</span>
-      <span class="perm-detail error-text">{{ error }}</span>
+      <span class="perm-detail error-text">{{ credentialError || error }}</span>
     </div>
 
     <div class="perm-advisory">Advisory — the invocation result is authoritative</div>

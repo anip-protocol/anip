@@ -4,6 +4,21 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { AnipClientKey } from '@anip-dev/vue'
 import AuditView from '../views/AuditView.vue'
 
+// Inspect exchanges a pasted API key for a token bound to the capability.
+// The exchange itself is tested in credentials.test.ts; here it is replaced
+// so the test can check that the issued token, not the key, is what is sent.
+const issueForCapability = async (_credential: string, capability: string | null) => ({
+  token: `token-for-${capability}`,
+  issuedFor: { capability, scope: ['scope.' + capability] },
+})
+const mockResolveToken = vi.fn(issueForCapability)
+vi.mock('../anip', () => ({
+  studioTokens: {
+    resolve: (credential: string, capability: string | null) => mockResolveToken(credential, capability),
+    clear: () => {},
+  },
+}))
+
 const recordRuntimeObservation = vi.fn()
 const { projectStore } = vi.hoisted(() => ({
   projectStore: {
@@ -70,6 +85,8 @@ async function mountView(
 
 beforeEach(() => {
   mockDiscover.mockReset()
+  mockResolveToken.mockReset()
+  mockResolveToken.mockImplementation(issueForCapability)
   mockQueryAudit.mockReset()
   recordRuntimeObservation.mockReset()
   mockDiscover.mockResolvedValue({
@@ -93,7 +110,9 @@ describe('AuditView', () => {
   it('hydrates filters from route query and fetches audit entries immediately when already authenticated', async () => {
     const { wrapper } = await mountView()
 
-    expect(mockQueryAudit).toHaveBeenCalledWith('demo-human-key', {
+    // The pasted key is exchanged for a token for the filtered capability.
+    expect(mockResolveToken).toHaveBeenCalledWith('demo-human-key', 'gtm.execute_followup_tasks')
+    expect(mockQueryAudit).toHaveBeenCalledWith('token-for-gtm.execute_followup_tasks', {
       capability: 'gtm.execute_followup_tasks',
       since: undefined,
       limit: 50,

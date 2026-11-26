@@ -331,6 +331,7 @@ func main() {
 							"required": true,
 							"semantic_type": "search_query",
 							"summary": "Search query.",
+							"clarification_hint": "Ask which remote records to search for.",
 						},
 					},
 				},

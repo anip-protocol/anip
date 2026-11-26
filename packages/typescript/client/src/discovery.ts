@@ -5,31 +5,71 @@
 
 import type { NormalizedDiscovery } from "./types.js";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (isRecord(value)) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (typeof entry === "string") {
+        result[key] = entry;
+      }
+    }
+  }
+  return result;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 /**
- * Normalize a raw ANIP discovery document.
+ * Normalize a raw ANIP discovery document (SPEC.md §6.1).
  *
- * Expected wire format:
+ * Wire format, as every runtime sends it:
  * ```json
  * {
- *   "protocol": "anip/0.24",
- *   "compliance": "full",
- *   "trust": { "level": "signed" },
- *   "endpoints": {
- *     "manifest": "/anip/manifest",
- *     "invoke": "/anip/invoke/{capability}",
- *     "permissions": "/anip/permissions",
- *     "token": "/anip/token",
- *     "audit": "/anip/audit",
- *     "graph": "/anip/graph/{capability}",
- *     "checkpoints": "/anip/checkpoints"
- *   },
- *   "profiles": { "core": "1.0", "cost": "1.0" },
- *   "capabilities": ["search_flights", "book_flight"]
+ *   "anip_discovery": {
+ *     "protocol": "anip/0.24",
+ *     "compliance": "anip-compliant",
+ *     "base_url": "https://flights.example.com",
+ *     "profile": { "core": "1.0", "cost": "1.0" },
+ *     "capabilities": {
+ *       "search_flights": {
+ *         "description": "Search available flights",
+ *         "side_effect": "read",
+ *         "minimum_scope": ["travel.search"],
+ *         "financial": false,
+ *         "contract": "1.0"
+ *       }
+ *     },
+ *     "trust_level": "signed",
+ *     "posture": { "audit": { "retention": "P90D" } },
+ *     "endpoints": {
+ *       "manifest": "/anip/manifest",
+ *       "invoke": "/anip/invoke/{capability}",
+ *       "permissions": "/anip/permissions",
+ *       "tokens": "/anip/tokens"
+ *     }
+ *   }
  * }
  * ```
+ *
+ * Discovery carries lightweight capability metadata: `side_effect` is the
+ * side-effect type as a string and the trust level is the top-level
+ * `trust_level` string. The object forms (`side_effect: { type }`,
+ * `trust: { level }`) belong to the manifest, not to this document.
+ *
+ * A field that is absent or not in the specified shape is reported as
+ * `"unknown"` / `undefined` / empty. It is never replaced by a benign-looking
+ * default: a capability whose side effect cannot be read must not be
+ * presented as `"read"`.
  */
-export function normalizeDiscovery(raw: any): NormalizedDiscovery {
-  if (!raw || typeof raw !== "object") {
+export function normalizeDiscovery(raw: unknown): NormalizedDiscovery {
+  const doc = isRecord(raw) ? raw.anip_discovery : undefined;
+  if (!isRecord(doc)) {
     return {
       protocol: "unknown",
       compliance: "unknown",
@@ -41,77 +81,34 @@ export function normalizeDiscovery(raw: any): NormalizedDiscovery {
     };
   }
 
-  // Real ANIP discovery wraps everything in `anip_discovery`.
-  const doc = raw.anip_discovery ?? raw;
-
-  const endpoints: Record<string, string> = {};
-  if (doc.endpoints && typeof doc.endpoints === "object") {
-    for (const [key, value] of Object.entries(doc.endpoints)) {
-      if (typeof value === "string") {
-        endpoints[key] = value;
-      }
-    }
-  }
-
-  const profiles: Record<string, string> = {};
-  // Accept both `profile` (spec) and `profiles` (common variant).
-  const profileSource = doc.profile ?? doc.profiles;
-  if (profileSource && typeof profileSource === "object") {
-    for (const [key, value] of Object.entries(profileSource)) {
-      if (typeof value === "string") {
-        profiles[key] = value;
-      }
-    }
-  }
-
-  // Capabilities can be:
-  // - an array of strings: ["search_flights", "book_flight"]
-  // - an object map: { search_flights: { contract: "1.0", ... }, ... }
-  let capabilityNames: string[] = [];
   const capabilities: NormalizedDiscovery["capabilities"] = {};
-  if (Array.isArray(doc.capabilities)) {
-    capabilityNames = doc.capabilities.filter((c: unknown) => typeof c === "string");
-    for (const name of capabilityNames) {
-      capabilities[name] = {
-        name,
-        sideEffect: "read",
-        minimumScope: [],
-        financial: false,
-        raw: {},
-      };
-    }
-  } else if (doc.capabilities && typeof doc.capabilities === "object") {
-    capabilityNames = Object.keys(doc.capabilities);
+  if (isRecord(doc.capabilities)) {
     for (const [name, decl] of Object.entries(doc.capabilities)) {
-      const rawDecl = decl && typeof decl === "object" ? (decl as Record<string, unknown>) : {};
+      const rawDecl = isRecord(decl) ? decl : {};
       capabilities[name] = {
         name,
-        sideEffect:
-          typeof rawDecl.side_effect === "object" &&
-          rawDecl.side_effect &&
-          typeof (rawDecl.side_effect as { type?: unknown }).type === "string"
-            ? ((rawDecl.side_effect as { type: string }).type)
-            : "read",
+        description: optionalString(rawDecl.description),
+        sideEffect: optionalString(rawDecl.side_effect) ?? "unknown",
         minimumScope: Array.isArray(rawDecl.minimum_scope)
           ? rawDecl.minimum_scope.filter((value): value is string => typeof value === "string")
           : [],
-        financial: Boolean(rawDecl.financial || (rawDecl.cost as any)?.financial),
-        contract: typeof rawDecl.contract === "string" ? rawDecl.contract : undefined,
+        financial: rawDecl.financial === true,
+        contract: optionalString(rawDecl.contract),
         raw: rawDecl,
       };
     }
   }
 
   return {
-    protocol: doc.protocol ?? "unknown",
-    compliance: doc.compliance ?? "unknown",
-    trustLevel: doc.trust?.level ?? undefined,
-    baseUrl: doc.base_url ?? undefined,
-    endpoints,
-    profiles,
-    capabilityNames,
+    protocol: optionalString(doc.protocol) ?? "unknown",
+    compliance: optionalString(doc.compliance) ?? "unknown",
+    trustLevel: optionalString(doc.trust_level),
+    baseUrl: optionalString(doc.base_url),
+    endpoints: stringRecord(doc.endpoints),
+    profiles: stringRecord(doc.profile),
+    capabilityNames: Object.keys(capabilities),
     capabilities,
-    posture: doc.posture ?? undefined,
+    posture: isRecord(doc.posture) ? doc.posture : undefined,
     raw: doc,
   };
 }

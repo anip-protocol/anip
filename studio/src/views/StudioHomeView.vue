@@ -3,6 +3,9 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+// Embedded runtime packages ship an Inspect-only build with no Design routes.
+const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
+
 function goInspect() {
   router.push('/inspect/discovery')
 }
@@ -17,7 +20,11 @@ function goDesign() {
     <div class="home-hero">
       <div class="hero-icon">&#x25C6;</div>
       <h1 class="hero-title">ANIP <span class="hero-accent">Studio</span></h1>
-      <p class="hero-subtitle">Design, validate, and inspect governed agent-facing capabilities</p>
+      <p class="hero-subtitle">
+        {{ inspectOnly
+          ? 'Inspect and invoke governed agent-facing capabilities'
+          : 'Inspect, invoke, and design governed agent-facing capabilities' }}
+      </p>
     </div>
 
     <div class="entry-cards">
@@ -35,7 +42,7 @@ function goDesign() {
         <button class="card-btn" @click.stop="goInspect">Connect</button>
       </div>
 
-      <div class="entry-card" @click="goDesign">
+      <div v-if="!inspectOnly" class="entry-card" @click="goDesign">
         <div class="card-icon card-icon-design" aria-hidden="true">
           <svg class="card-icon-svg" viewBox="0 0 64 64" fill="none">
             <rect x="12" y="14" width="18" height="18" rx="6" class="icon-panel" />
@@ -44,7 +51,7 @@ function goDesign() {
             <path d="M30 25h4M27 43h10M30 32l6 4M24 32l5 4" class="icon-line" />
           </svg>
         </div>
-        <h2 class="card-title">Design</h2>
+        <h2 class="card-title">Design <span class="card-tag">Experimental</span></h2>
         <p class="card-desc">Work through the full project flow: source documents, product design, developer design, and verification</p>
         <button class="card-btn card-btn-design" @click.stop="goDesign">Browse</button>
       </div>
@@ -187,6 +194,19 @@ function goDesign() {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 0.5rem;
+}
+
+.card-tag {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 .card-desc {
