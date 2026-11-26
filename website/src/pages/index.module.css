@@ -1,525 +1,59 @@
-/* ── Hero ── */
 .hero {
-  padding: 5rem 0 4rem;
-  background:
-    radial-gradient(circle at top left, rgba(20, 163, 161, 0.18), transparent 32%),
-    radial-gradient(circle at top right, rgba(244, 176, 63, 0.18), transparent 28%),
-    linear-gradient(180deg, #102a43 0%, #0b1f33 100%);
-  color: #f8fbff;
-  text-align: center;
-}
-
-.heroInner {
-  max-width: 52rem;
-  margin: 0 auto;
+  padding: 4rem 0 2.5rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
 }
 
 .eyebrow {
-  margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #7fd7d4;
+  color: var(--ifm-color-primary-darker);
 }
 
-.heroTitle {
-  font-size: 2.6rem;
-  line-height: 1.2;
-  color: #f8fbff !important;
-  margin-bottom: 1.25rem;
+[data-theme='dark'] .eyebrow {
+  color: var(--ifm-color-primary);
 }
 
-.heroLead {
-  max-width: 42rem;
-  margin: 0 auto 2rem;
-  font-size: 1.15rem;
-  line-height: 1.7;
-  color: rgba(248, 251, 255, 0.86);
-}
-
-.heroSubLead {
+.title {
   max-width: 44rem;
-  margin: -0.75rem auto 2rem;
-  padding: 0.95rem 1.1rem;
-  border: 1px solid rgba(127, 215, 212, 0.28);
-  border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(248, 251, 255, 0.84);
-  font-size: 0.98rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+}
+
+.lead {
+  max-width: 44rem;
+  font-size: 1.15rem;
   line-height: 1.6;
 }
 
 .ctaRow {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
   flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
 }
 
-/* ── Sections ── */
 .section {
-  padding: 4.5rem 0;
+  max-width: 44rem;
+  padding: 2.25rem 0 0.5rem;
 }
 
-.sectionAlt {
-  background: var(--ifm-background-surface-color, #f0f4f3);
+.section:last-child {
+  padding-bottom: 3rem;
 }
 
-[data-theme='dark'] .sectionAlt {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.sectionHeader {
-  text-align: center;
-  max-width: 42rem;
-  margin: 0 auto 2.5rem;
-}
-
-.sectionHeader p {
-  font-size: 1.05rem;
+.note {
+  font-size: 0.92rem;
   color: var(--ifm-color-emphasis-700);
-  line-height: 1.6;
 }
 
-/* ── Experience section ── */
-.experienceSection {
-  background:
-    radial-gradient(circle at 15% 20%, rgba(20, 163, 161, 0.12), transparent 28%),
-    radial-gradient(circle at 85% 10%, rgba(244, 176, 63, 0.12), transparent 24%),
-    var(--ifm-background-color);
+.linkList {
+  list-style: none;
+  padding-left: 0;
 }
 
-.experienceGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.experienceCard {
-  min-width: 0;
-  padding: 1.45rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(20, 163, 161, 0.28);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.44)),
-    var(--ifm-card-background-color);
-  box-shadow: 0 18px 45px rgba(16, 42, 67, 0.08);
-}
-
-[data-theme='dark'] .experienceCard {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
-    var(--ifm-card-background-color);
-  box-shadow: none;
-}
-
-.experienceKicker {
-  display: inline-flex;
-  margin-bottom: 0.85rem;
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(244, 176, 63, 0.16);
-  color: #9a5d00;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-[data-theme='dark'] .experienceKicker {
-  color: #ffd489;
-}
-
-.experienceCard h3 {
-  margin-bottom: 0.55rem;
-  font-size: 1.1rem;
-}
-
-.experienceCard p {
-  margin-bottom: 0.85rem;
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.93rem;
-  line-height: 1.6;
-}
-
-.experienceCard a {
-  font-weight: 700;
-}
-
-.pathPanel {
-  padding: 1.5rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 1rem;
-  background: var(--ifm-card-background-color);
-}
-
-.pathPanel h3 {
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.pathGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.pathCard {
-  display: block;
-  min-width: 0;
-  padding: 1rem;
-  border-radius: 0.8rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  color: inherit;
-  text-decoration: none;
-  background: rgba(20, 163, 161, 0.05);
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
-}
-
-.pathCard:hover {
-  color: inherit;
-  text-decoration: none;
-  transform: translateY(-2px);
-  border-color: rgba(20, 163, 161, 0.55);
-  background: rgba(20, 163, 161, 0.09);
-}
-
-.pathCard span {
-  display: block;
+.linkList li {
   margin-bottom: 0.35rem;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
-.pathCard small {
-  display: block;
-  color: var(--ifm-color-emphasis-700);
-  line-height: 1.45;
-}
-
-/* ── Before / After ── */
-.compareGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.compareCard {
-  border-radius: 0.75rem;
-  overflow: hidden;
-  border: 1px solid var(--ifm-color-emphasis-200);
-}
-
-.compareLabel {
-  padding: 0.6rem 1rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.compareBefore .compareLabel {
-  background: rgba(248, 113, 113, 0.12);
-  color: #dc2626;
-}
-
-[data-theme='dark'] .compareBefore .compareLabel {
-  background: rgba(248, 113, 113, 0.15);
-  color: #fca5a5;
-}
-
-.compareAfter .compareLabel {
-  background: rgba(52, 211, 153, 0.12);
-  color: #059669;
-}
-
-[data-theme='dark'] .compareAfter .compareLabel {
-  background: rgba(52, 211, 153, 0.15);
-  color: #6ee7b7;
-}
-
-.compareContent pre {
-  margin: 0;
-  border-radius: 0;
-  border: none;
-}
-
-.compensationCallout {
-  margin: 1.5rem auto 0;
-  max-width: 58rem;
-  padding: 1.25rem 1.5rem;
-  border: 1px solid rgba(20, 163, 161, 0.35);
-  border-radius: 0.9rem;
-  background:
-    linear-gradient(135deg, rgba(20, 163, 161, 0.10), rgba(244, 176, 63, 0.08)),
-    var(--ifm-card-background-color);
-}
-
-.compensationCallout h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.05rem;
-}
-
-.compensationCallout p {
-  margin: 0;
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-/* ── How it works (flow steps) ── */
-.flowSteps {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
-}
-
-.flowStep {
-  min-width: 0;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  background: var(--ifm-card-background-color);
-}
-
-.flowStep h3 {
-  margin-bottom: 0.5rem;
-}
-
-.flowStep p {
-  font-size: 0.92rem;
-  color: var(--ifm-color-emphasis-700);
-  margin-bottom: 0.75rem;
-}
-
-.flowStep pre {
-  margin: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  font-size: 0.82rem;
-}
-
-.flowNumber {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--ifm-color-primary);
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.9rem;
-  margin-bottom: 0.75rem;
-}
-
-/* ── Code section (quickstart) ── */
-.codeSection {
-  display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
-  gap: 2rem;
-  align-items: start;
-}
-
-.codeMeta {
-  padding-top: 1rem;
-}
-
-.codeMeta p {
-  font-size: 0.95rem;
-  color: var(--ifm-color-emphasis-700);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.buildPathGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.buildPathCard {
-  min-width: 0;
-  padding: 1.25rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  background: var(--ifm-card-background-color);
-}
-
-.buildPathCard h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-}
-
-.buildPathCard p,
-.codeIntro p {
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.92rem;
-  line-height: 1.55;
-  margin: 0;
-}
-
-.codeIntro {
-  margin-bottom: 1rem;
-}
-
-.codeIntro h3 {
-  margin-bottom: 0.35rem;
-}
-
-/* ── Feature grid (what ships) ── */
-.featureGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-
-.featureCard {
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  background: var(--ifm-card-background-color);
-}
-
-.featureCard h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.05rem;
-}
-
-.featureCard p {
-  font-size: 0.9rem;
-  color: var(--ifm-color-emphasis-700);
-  margin: 0;
-  line-height: 1.55;
-}
-
-/* ── Comparison table ── */
-.tableWrapper {
-  overflow-x: auto;
-}
-
-.compareTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.compareTable th {
-  text-align: left;
-  padding: 0.75rem 1rem;
-  background: var(--ifm-color-emphasis-100);
-  font-weight: 700;
-  border-bottom: 2px solid var(--ifm-color-emphasis-300);
-}
-
-.compareTable td {
-  padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
-  vertical-align: top;
-}
-
-.compareTable td:last-child {
-  color: var(--ifm-color-primary);
-  font-weight: 500;
-}
-
-/* ── Gap section ── */
-.gapGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.gapCard {
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  background: var(--ifm-card-background-color);
-}
-
-.gapCard h3 {
-  margin-bottom: 0.75rem;
-  font-size: 1.05rem;
-}
-
-.gapCard ul {
-  margin: 0;
-  padding-left: 1.2rem;
-}
-
-.gapCard li {
-  margin-bottom: 0.4rem;
-  font-size: 0.92rem;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.gapCaption {
-  text-align: center;
-  font-size: 1rem;
-  color: var(--ifm-color-emphasis-700);
-  font-style: italic;
-  max-width: 40rem;
-  margin: 0 auto;
-}
-
-/* ── Alignment section ── */
-.alignmentGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 1.25rem;
-}
-
-.alignmentCard {
-  min-width: 0;
-  padding: 1.35rem;
-  border-radius: 0.85rem;
-  border: 1px solid rgba(20, 163, 161, 0.28);
-  background:
-    linear-gradient(180deg, rgba(20, 163, 161, 0.08), rgba(244, 176, 63, 0.05)),
-    var(--ifm-card-background-color);
-}
-
-.alignmentCard h3 {
-  margin-bottom: 0.55rem;
-  font-size: 1.05rem;
-}
-
-.alignmentCard p {
-  margin: 0;
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.alignmentCaption {
-  max-width: 48rem;
-  margin: 0 auto;
-  text-align: center;
-  color: var(--ifm-color-emphasis-700);
-  font-size: 1rem;
-  line-height: 1.65;
-}
-
-/* ── Responsive ── */
-@media screen and (max-width: 996px) {
-  .heroTitle {
-    font-size: 2rem;
-  }
-
-  .compareGrid,
-  .experienceGrid,
-  .pathGrid,
-  .flowSteps,
-  .codeSection,
-  .buildPathGrid,
-  .featureGrid,
-  .gapGrid,
-  .alignmentGrid {
-    grid-template-columns: 1fr;
-  }
 }
