@@ -81,9 +81,6 @@ const config: Config = {
         {to: '/docs/getting-started/install', label: 'Install', position: 'left'},
         {to: '/docs/releases/version-history', label: 'Versions', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
-        {href: 'https://playground.anip.dev', label: 'Playground', position: 'right'},
-        {href: 'https://registry.anip.dev/registry/packages', label: 'Registry', position: 'right'},
-        {href: 'https://studio.anip.dev', label: 'Studio', position: 'right'},
         {
           href: 'https://github.com/anip-protocol/anip',
           label: 'GitHub',
@@ -175,10 +172,6 @@ const config: Config = {
             {
               label: 'What Ships Today',
               to: '/docs/releases/what-ships-today',
-            },
-            {
-              label: 'Public Registry',
-              href: 'https://registry.anip.dev/registry/packages',
             },
           ],
         },
