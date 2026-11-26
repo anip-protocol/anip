@@ -12,7 +12,9 @@ ANIP's ideas are moving into the [Model Context Protocol](https://modelcontextpr
 
 - **Tool annotations.** Bringing ANIP's reversibility window, cost and review reasons to MCP's tool annotation drafts.
 - **Refusals and approvals.** Proposing structured refusals (what was refused, how to recover, who can grant it) and approval grants bound to exact parameters as MCP extensions, with a reference implementation on the official MCP Python SDK.
-- **Conformance.** A harness that checks whether an MCP server's tools behave the way their annotations claim.
+- **Conformance.** [`mcp-annotation-check`](https://github.com/anip-protocol/mcp-annotation-check), a harness that checks whether an MCP server's tools behave the way their annotations claim. Its [first results](https://github.com/anip-protocol/mcp-annotation-check/blob/main/results/2026-11-26-github-mcp-server-v2.3.0-round-1.md) found two wrong annotations in GitHub's MCP server.
+
+How each ANIP concept maps onto MCP, what is dropped, and the open questions: [ANIP as an MCP extension](docs/mcp-extension-mapping.md).
 
 For current users:
 
