@@ -50,8 +50,8 @@ This gives the generator the immutable package metadata, service definition, lin
 
 ## 3. Generate From Registry
 
-:::warning Registry walkthrough paused
-The GTM package version these steps fetch from registry.anip.dev (`gtm-pipeline-q2-review@0.4.5`) no longer passes validation in the `anip` CLI 0.24.20 and later. It places policy rules on composed capabilities, which the CLI now refuses. The corrected package, 0.4.6, is in the repository at `examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json` but is not yet published to the Registry. Until it is, the Registry commands in this section fail. You can still generate from the local 0.4.6 bundle with `anip generate --package-bundle`.
+:::note Hosted Registry retired
+The public Registry at `registry.anip.dev` was retired in November 2026, when ANIP moved to security fixes only, so the Registry commands in this section no longer work against it. Generate from the corrected 0.4.6 package bundle in the repository instead (`examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.6.anip-package.json`) with `anip generate --package-bundle`, or point `--registry-url` at a Registry you run locally from `registry/`.
 :::
 
 Use this path when consuming a trusted Registry package:

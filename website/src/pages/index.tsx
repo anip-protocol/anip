@@ -85,7 +85,7 @@ function ExperienceANIP() {
               Browse signed packages and starter templates, verify a package, lock it,
               and generate a service in Python, TypeScript, Go, Java, or C#.
             </p>
-            <Link to="https://registry.anip.dev/registry/packages">Browse the Registry</Link>
+            <Link to="/docs/getting-started/registry">Run the Registry locally</Link>
           </div>
         </div>
 
@@ -546,7 +546,7 @@ function WhatShips() {
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">ANIP Registry</Heading>
-            <p>Signed packages, templates, locks, contract signatures, tooling metadata, download tracking, and consumer-facing package guidance. <a href="https://registry.anip.dev/registry/packages" target="_blank" rel="noopener">Browse packages</a>.</p>
+            <p>Signed packages, templates, locks, contract signatures, tooling metadata, download tracking, and consumer-facing package guidance.</p>
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">ANIP Studio</Heading>

@@ -30,10 +30,10 @@ The fastest way to understand ANIP is to run a governed agent workflow, then ins
 |------|------|------------|
 | **See the value** | 5 minutes | Run the **GTM Agent Desktop** showcase from [GitHub Releases](https://github.com/anip-protocol/anip/releases), ask a supported GTM question, and inspect how approval, denial, masking, and bounded execution behave. |
 | **Design visually** | 10-15 minutes | Run **ANIP Studio Desktop** from [GitHub Releases](https://github.com/anip-protocol/anip/releases), open the preloaded showcase projects, and inspect the Product Design, Developer Design, package, and validation evidence. |
-| **Generate code** | 15 minutes | Browse [registry.anip.dev](https://registry.anip.dev/registry/packages), choose a package or template, verify it with the CLI, and generate a service in Python, TypeScript, Go, Java, or C#. |
+| **Generate code** | 15 minutes | Generate a service in Python, TypeScript, Go, Java, or C# from a package bundle in this repository with `anip generate --package-bundle`. |
 | **Go deep** | Full exploration | Follow the [docs](https://anip.dev/docs/intro), run Studio + Registry locally, publish a package, generate services, and test the runtime behavior. |
 
-Prefer the hosted path first? Open the [read-only Studio showcase](https://studio.anip.dev/design) or browse the [public Registry](https://registry.anip.dev/registry/packages).
+The hosted Studio, Registry and Playground (`studio.anip.dev`, `registry.anip.dev`, `playground.anip.dev`) were retired in November 2026, when ANIP moved to security fixes only. Studio and the Registry still run locally from this repository.
 
 ## Choose Your Path
 
@@ -411,7 +411,6 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 **Agent-facing guidance** is itself an example of ANIP's philosophy applied to documentation. The current `skills/anip-contract-drafter.md` file gives coding agents a bounded way to draft a local experimental `anip-service-definition.json`, validate it with the CLI, and generate a first service. It is intentionally not a replacement for Studio review, Registry signing, package locks, or release evidence.
 
 **What's next:**
-- anip.dev — documentation hub, package ecosystem portal, Studio hosting at studio.anip.dev
 - Federated trust — cross-service delegation chains and token exchange
 - Studio streaming visualization — watch streaming invocations unfold in real-time (Phase 2.1)
 - Studio lineage tracing — trace invocation chains through audit entries

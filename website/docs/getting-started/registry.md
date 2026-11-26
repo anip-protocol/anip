@@ -5,6 +5,10 @@ description: Browse packages and templates, verify what you consume, and generat
 
 # Start With Registry
 
+:::note Hosted Registry retired
+The public Registry at `registry.anip.dev` was retired in November 2026, when ANIP moved to security fixes only. The Registry still runs locally from [`registry/`](https://github.com/anip-protocol/anip/tree/main/registry). Replace `https://registry.anip.dev` in the commands below with your own Registry's address.
+:::
+
 Registry is the fastest way to consume ANIP work that already exists.
 
 Use it when you want to:
